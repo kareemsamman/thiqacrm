@@ -32,7 +32,7 @@ const navigation = [
   { name: "الشيكات", href: "/cheques", icon: CreditCard },
   { name: "الوسائط", href: "/media", icon: Image },
   { name: "التنبيهات", href: "/notifications", icon: Bell },
-  { name: "التقارير", href: "/reports", icon: BarChart3 },
+  { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3 },
 ];
 
 const adminNav = [

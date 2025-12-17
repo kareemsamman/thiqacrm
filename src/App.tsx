@@ -17,6 +17,7 @@ import Brokers from "./pages/Brokers";
 import Cheques from "./pages/Cheques";
 import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
+import CompanySettlement from "./pages/CompanySettlement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -82,6 +83,11 @@ const App = () => (
               <Route path="/admin/users" element={
                 <ProtectedRoute>
                   <AdminUsers />
+                </ProtectedRoute>
+              } />
+              <Route path="/reports/company-settlement" element={
+                <ProtectedRoute>
+                  <CompanySettlement />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

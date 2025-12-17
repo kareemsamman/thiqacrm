@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { calculatePolicyProfit } from "@/lib/pricingCalculator";
 
 interface PolicyWizardProps {
   open: boolean;
@@ -577,6 +578,28 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
 
       // Determine is_under_24
       const isUnder24 = createNewClient ? newClient.less_than_24 : selectedClient?.less_than_24;
+      const ageBand = isUnder24 ? 'UNDER_24' : 'UP_24';
+
+      // Get car data for pricing calculation
+      const carType = (createNewCar ? newCar.car_type : selectedCar?.car_type) || 'car';
+      const carValue = createNewCar 
+        ? (newCar.car_value ? parseFloat(newCar.car_value) : null)
+        : selectedCar?.car_value;
+      const carYear = createNewCar 
+        ? (newCar.year ? parseInt(newCar.year) : null)
+        : selectedCar?.year;
+
+      // Calculate profit and company payment using pricing rules
+      const profitCalc = await calculatePolicyProfit({
+        policyTypeParent: policy.policy_type_parent as any,
+        policyTypeChild: policy.policy_type_child as any,
+        companyId: policy.company_id,
+        carType: carType as any,
+        ageBand: ageBand as any,
+        carValue,
+        carYear,
+        insurancePrice: parseFloat(policy.insurance_price),
+      });
 
       // Create policy
       const { data: policyData, error: policyError } = await supabase
@@ -594,8 +617,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
           cancelled: policy.cancelled,
           transferred: policy.transferred,
           notes: policy.notes || null,
-          profit: 0,
-          payed_for_company: policy.policy_type_parent === 'ELZAMI' ? parseFloat(policy.insurance_price) : 0,
+          profit: profitCalc.profit,
+          payed_for_company: profitCalc.companyPayment,
           broker_id: defaultBrokerId || null,
         })
         .select()

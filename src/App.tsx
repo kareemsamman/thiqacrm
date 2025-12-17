@@ -12,6 +12,7 @@ import NoAccess from "./pages/NoAccess";
 import Clients from "./pages/Clients";
 import Cars from "./pages/Cars";
 import Policies from "./pages/Policies";
+import Companies from "./pages/Companies";
 import Media from "./pages/Media";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,11 @@ const App = () => (
               <Route path="/policies" element={
                 <ProtectedRoute>
                   <Policies />
+                </ProtectedRoute>
+              } />
+              <Route path="/companies" element={
+                <ProtectedRoute>
+                  <Companies />
                 </ProtectedRoute>
               } />
               <Route path="/media" element={

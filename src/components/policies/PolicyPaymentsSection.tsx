@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Trash2, CreditCard, Loader2, ImageIcon, X } from "lucide-react";
+import { Plus, Pencil, Trash2, CreditCard, Loader2, ImageIcon, X, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import type { Enums } from "@/integrations/supabase/types";
@@ -28,7 +28,10 @@ interface Payment {
 interface PolicyPaymentsSectionProps {
   policyId: string;
   payments: Payment[];
+  insurancePrice: number;
   onPaymentsChange: () => void;
+  autoOpenAdd?: boolean;
+  onAutoOpenHandled?: () => void;
 }
 
 const paymentTypeLabels: Record<string, string> = {
@@ -45,7 +48,14 @@ const PAYMENT_TYPES = [
   { value: "transfer", label: "تحويل" },
 ];
 
-export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: PolicyPaymentsSectionProps) {
+export function PolicyPaymentsSection({ 
+  policyId, 
+  payments, 
+  insurancePrice,
+  onPaymentsChange,
+  autoOpenAdd,
+  onAutoOpenHandled 
+}: PolicyPaymentsSectionProps) {
   const { toast } = useToast();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -54,6 +64,7 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     amount: "",
@@ -64,6 +75,20 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
     notes: "",
   });
 
+  // Calculate total paid (excluding refused)
+  const totalPaid = payments.filter(p => !p.refused).reduce((sum, p) => sum + p.amount, 0);
+  const remaining = insurancePrice - totalPaid;
+
+  // Auto-open add dialog when triggered from parent
+  useEffect(() => {
+    if (autoOpenAdd) {
+      setAddDialogOpen(true);
+      // Pre-fill with remaining amount
+      setFormData(f => ({ ...f, amount: remaining > 0 ? remaining.toString() : "" }));
+      onAutoOpenHandled?.();
+    }
+  }, [autoOpenAdd, remaining, onAutoOpenHandled]);
+
   const resetForm = () => {
     setFormData({
       amount: "",
@@ -73,11 +98,51 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
       refused: false,
       notes: "",
     });
+    setValidationError(null);
+  };
+
+  const validatePayment = (amount: number, isEdit: boolean = false, currentPaymentId?: string): boolean => {
+    // If refused, no validation needed for total
+    if (formData.refused) {
+      setValidationError(null);
+      return true;
+    }
+
+    // Calculate what the new total would be
+    let otherPaymentsTotal = payments
+      .filter(p => !p.refused && (isEdit ? p.id !== currentPaymentId : true))
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const newTotal = otherPaymentsTotal + amount;
+    
+    if (newTotal > insurancePrice) {
+      const maxAllowed = insurancePrice - otherPaymentsTotal;
+      setValidationError(`المبلغ يتجاوز سعر التأمين! الحد الأقصى المسموح: ₪${maxAllowed.toLocaleString('ar-EG')}`);
+      return false;
+    }
+    
+    setValidationError(null);
+    return true;
+  };
+
+  const handleAmountChange = (value: string, isEdit: boolean = false, currentPaymentId?: string) => {
+    setFormData(f => ({ ...f, amount: value }));
+    const amount = parseFloat(value) || 0;
+    if (amount > 0) {
+      validatePayment(amount, isEdit, currentPaymentId);
+    } else {
+      setValidationError(null);
+    }
   };
 
   const handleAdd = async () => {
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    const amount = parseFloat(formData.amount) || 0;
+    if (amount <= 0) {
       toast({ title: "خطأ", description: "الرجاء إدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+
+    if (!validatePayment(amount)) {
       return;
     }
 
@@ -87,7 +152,7 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
         .from('policy_payments')
         .insert({
           policy_id: policyId,
-          amount: parseFloat(formData.amount),
+          amount: amount,
           payment_type: formData.payment_type as Enums<'payment_type'>,
           payment_date: formData.payment_date,
           cheque_number: formData.payment_type === 'cheque' ? formData.cheque_number : null,
@@ -111,8 +176,13 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
 
   const handleEdit = async () => {
     if (!selectedPayment) return;
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    const amount = parseFloat(formData.amount) || 0;
+    if (amount <= 0) {
       toast({ title: "خطأ", description: "الرجاء إدخال مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+
+    if (!validatePayment(amount, true, selectedPayment.id)) {
       return;
     }
 
@@ -121,7 +191,7 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
       const { error } = await supabase
         .from('policy_payments')
         .update({
-          amount: parseFloat(formData.amount),
+          amount: amount,
           payment_type: formData.payment_type as Enums<'payment_type'>,
           payment_date: formData.payment_date,
           cheque_number: formData.payment_type === 'cheque' ? formData.cheque_number : null,
@@ -179,6 +249,7 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
       refused: payment.refused || false,
       notes: payment.notes || "",
     });
+    setValidationError(null);
     setEditDialogOpen(true);
   };
 
@@ -198,10 +269,35 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
             <CreditCard className="h-4 w-4" />
             <span>سجل الدفعات ({payments.length})</span>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)}>
+          <Button size="sm" variant="outline" onClick={() => {
+            resetForm();
+            // Pre-fill with remaining amount if there's any
+            if (remaining > 0) {
+              setFormData(f => ({ ...f, amount: remaining.toString() }));
+            }
+            setAddDialogOpen(true);
+          }}>
             <Plus className="h-4 w-4 ml-1" />
             إضافة دفعة
           </Button>
+        </div>
+
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+          <div className="bg-muted/50 rounded-lg p-2">
+            <p className="text-muted-foreground text-xs">سعر التأمين</p>
+            <p className="font-bold">{formatCurrency(insurancePrice)}</p>
+          </div>
+          <div className="bg-success/10 rounded-lg p-2">
+            <p className="text-muted-foreground text-xs">المدفوع</p>
+            <p className="font-bold text-success">{formatCurrency(totalPaid)}</p>
+          </div>
+          <div className={cn("rounded-lg p-2", remaining > 0 ? "bg-destructive/10" : "bg-success/10")}>
+            <p className="text-muted-foreground text-xs">المتبقي</p>
+            <p className={cn("font-bold", remaining > 0 ? "text-destructive" : "text-success")}>
+              {formatCurrency(remaining)}
+            </p>
+          </div>
         </div>
 
         {payments.length === 0 ? (
@@ -267,8 +363,11 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
       </Card>
 
       {/* Add Payment Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={addDialogOpen} onOpenChange={(open) => {
+        setAddDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle>إضافة دفعة جديدة</DialogTitle>
           </DialogHeader>
@@ -278,10 +377,19 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
               <Input
                 type="number"
                 value={formData.amount}
-                onChange={(e) => setFormData(f => ({ ...f, amount: e.target.value }))}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 dir="ltr"
-                className="text-left"
+                className={cn("text-left", validationError && "border-destructive")}
               />
+              {validationError && (
+                <div className="flex items-center gap-2 text-destructive text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{validationError}</span>
+                </div>
+              )}
+              {remaining > 0 && !validationError && (
+                <p className="text-xs text-muted-foreground">المتبقي من سعر التأمين: {formatCurrency(remaining)}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>طريقة الدفع</Label>
@@ -323,15 +431,24 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
                 type="checkbox"
                 id="refused-add"
                 checked={formData.refused}
-                onChange={(e) => setFormData(f => ({ ...f, refused: e.target.checked }))}
+                onChange={(e) => {
+                  setFormData(f => ({ ...f, refused: e.target.checked }));
+                  // Re-validate when refused changes
+                  if (e.target.checked) {
+                    setValidationError(null);
+                  } else {
+                    const amount = parseFloat(formData.amount) || 0;
+                    if (amount > 0) validatePayment(amount);
+                  }
+                }}
                 className="h-4 w-4"
               />
               <Label htmlFor="refused-add" className="cursor-pointer">راجع (مرفوض)</Label>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>إلغاء</Button>
-            <Button onClick={handleAdd} disabled={saving}>
+            <Button onClick={handleAdd} disabled={saving || !!validationError}>
               {saving && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
               إضافة
             </Button>
@@ -340,8 +457,14 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
       </Dialog>
 
       {/* Edit Payment Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        setEditDialogOpen(open);
+        if (!open) {
+          resetForm();
+          setSelectedPayment(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle>تعديل الدفعة</DialogTitle>
           </DialogHeader>
@@ -351,10 +474,16 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
               <Input
                 type="number"
                 value={formData.amount}
-                onChange={(e) => setFormData(f => ({ ...f, amount: e.target.value }))}
+                onChange={(e) => handleAmountChange(e.target.value, true, selectedPayment?.id)}
                 dir="ltr"
-                className="text-left"
+                className={cn("text-left", validationError && "border-destructive")}
               />
+              {validationError && (
+                <div className="flex items-center gap-2 text-destructive text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{validationError}</span>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>طريقة الدفع</Label>
@@ -396,15 +525,23 @@ export function PolicyPaymentsSection({ policyId, payments, onPaymentsChange }: 
                 type="checkbox"
                 id="refused-edit"
                 checked={formData.refused}
-                onChange={(e) => setFormData(f => ({ ...f, refused: e.target.checked }))}
+                onChange={(e) => {
+                  setFormData(f => ({ ...f, refused: e.target.checked }));
+                  if (e.target.checked) {
+                    setValidationError(null);
+                  } else {
+                    const amount = parseFloat(formData.amount) || 0;
+                    if (amount > 0) validatePayment(amount, true, selectedPayment?.id);
+                  }
+                }}
                 className="h-4 w-4"
               />
               <Label htmlFor="refused-edit" className="cursor-pointer">راجع (مرفوض)</Label>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>إلغاء</Button>
-            <Button onClick={handleEdit} disabled={saving}>
+            <Button onClick={handleEdit} disabled={saving || !!validationError}>
               {saving && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
               حفظ
             </Button>

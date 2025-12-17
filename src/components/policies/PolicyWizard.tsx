@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { digitsOnly, isValidIsraeliId, isValidPhoneNumber10 } from "@/lib/validation";
 import { calculatePolicyProfit } from "@/lib/pricingCalculator";
 
 interface PolicyWizardProps {
@@ -172,6 +173,29 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   };
 
+  const writeDraftNow = (overrides: Partial<Record<string, unknown>>) => {
+    if (!open) return;
+    const draft = {
+      currentStep,
+      clientSearch,
+      selectedClient,
+      createNewClient,
+      newClient,
+      selectedCar,
+      createNewCar,
+      newCar,
+      carDataFetched,
+      policy,
+      payments,
+      ...overrides,
+    };
+    try {
+      sessionStorage.setItem(POLICY_WIZARD_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // ignore
+    }
+  };
+
   const resetForm = () => {
     setCurrentStep(1);
     setSelectedClient(null);
@@ -271,32 +295,35 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
 
   // Check for duplicate client by id_number
   useEffect(() => {
-    if (!createNewClient || !newClient.id_number || newClient.id_number.length < 5) {
-      return;
-    }
-    
+    if (!createNewClient) return;
+
+    const id = digitsOnly(newClient.id_number);
+    if (id.length !== 9 || !isValidIsraeliId(id)) return;
+
     const checkDuplicate = async () => {
       setCheckingDuplicate(true);
       const { data } = await supabase
         .from('clients')
         .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
-        .eq('id_number', newClient.id_number)
+        .eq('id_number', id)
         .is('deleted_at', null)
         .maybeSingle();
-      
+
       setCheckingDuplicate(false);
-      
+
       if (data) {
         // Found existing client - auto-select it
         setSelectedClient(data);
         setCreateNewClient(false);
-        toast({ 
-          title: "تم العثور على عميل موجود", 
+        setErrors({});
+        writeDraftNow({ selectedClient: data, createNewClient: false });
+        toast({
+          title: "تم العثور على عميل موجود",
           description: `${data.full_name} - ${data.id_number}`,
         });
       }
     };
-    
+
     const timer = setTimeout(checkDuplicate, 500);
     return () => clearTimeout(timer);
   }, [newClient.id_number, createNewClient]);
@@ -493,8 +520,16 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       case 1:
         if (!selectedClient && createNewClient) {
           if (!newClient.full_name.trim()) newErrors.full_name = "الاسم مطلوب";
-          if (!newClient.id_number.trim()) newErrors.id_number = "رقم الهوية مطلوب";
-          if (newClient.id_number && newClient.id_number.length < 5) newErrors.id_number = "رقم الهوية قصير جداً";
+
+          const id = digitsOnly(newClient.id_number);
+          if (!id) newErrors.id_number = "رقم الهوية مطلوب";
+          else if (id.length !== 9) newErrors.id_number = "رقم الهوية يجب أن يكون 9 أرقام";
+          else if (!isValidIsraeliId(id)) newErrors.id_number = "رقم الهوية غير صحيح";
+
+          const phone = digitsOnly(newClient.phone_number);
+          if (phone.length > 0 && !isValidPhoneNumber10(phone)) {
+            newErrors.phone_number = "رقم الهاتف يجب أن يكون 10 أرقام";
+          }
         }
         if (!selectedClient && !createNewClient) {
           newErrors.client = "الرجاء اختيار عميل أو إنشاء عميل جديد";
@@ -532,8 +567,15 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
 
   const canProceed = (): boolean => {
     switch (currentStep) {
-      case 1:
-        return !!(selectedClient || (createNewClient && newClient.full_name && newClient.id_number));
+      case 1: {
+        const id = digitsOnly(newClient.id_number);
+        const phone = digitsOnly(newClient.phone_number);
+        const phoneOk = phone.length === 0 || isValidPhoneNumber10(phone);
+        return !!(
+          selectedClient ||
+          (createNewClient && newClient.full_name.trim() && id.length === 9 && isValidIsraeliId(id) && phoneOk)
+        );
+      }
       case 2:
         return !!(selectedCar || existingCar || (createNewCar && newCar.car_number && !carConflict));
       case 3:
@@ -815,14 +857,19 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                   {clients.length > 0 && (
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {clients.map(client => (
-                        <Card
-                          key={client.id}
-                          className={cn(
-                            "p-3 cursor-pointer transition-colors",
-                            selectedClient?.id === client.id ? "border-primary bg-primary/5" : "hover:bg-secondary/50"
-                          )}
-                          onClick={() => setSelectedClient(client)}
-                        >
+                      <Card
+                        key={client.id}
+                        className={cn(
+                          "p-3 cursor-pointer transition-colors",
+                          selectedClient?.id === client.id ? "border-primary bg-primary/5" : "hover:bg-secondary/50"
+                        )}
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setCreateNewClient(false);
+                          setErrors({});
+                          writeDraftNow({ selectedClient: client, createNewClient: false });
+                        }}
+                      >
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-medium">{client.full_name}</p>
@@ -845,27 +892,61 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                           <p className="font-medium">{selectedClient.full_name}</p>
                           <p className="text-sm text-muted-foreground">{selectedClient.id_number}</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedClient(null);
+                            setSelectedCar(null);
+                            setCreateNewCar(false);
+                            setExistingCar(null);
+                            setCarConflict(null);
+                            setErrors({});
+                            writeDraftNow({
+                              selectedClient: null,
+                              selectedCar: null,
+                              createNewCar: false,
+                              existingCar: null,
+                              carConflict: null,
+                            });
+                          }}
+                        >
                           تغيير
                         </Button>
                       </div>
                     </Card>
                   )}
 
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setCreateNewClient(true)}
-                  >
-                    <Plus className="h-4 w-4 ml-2" />
-                    إنشاء عميل جديد
-                  </Button>
+                   <Button
+                     type="button"
+                     variant="outline"
+                     className="w-full"
+                     onClick={() => {
+                       setSelectedClient(null);
+                       setCreateNewClient(true);
+                       setErrors({});
+                       writeDraftNow({ selectedClient: null, createNewClient: true });
+                     }}
+                   >
+                     <Plus className="h-4 w-4 ml-2" />
+                     إنشاء عميل جديد
+                   </Button>
                   
                   <FieldError error={errors.client} />
                 </>
               ) : (
                 <div className="space-y-4">
-                  <Button variant="ghost" size="sm" onClick={() => setCreateNewClient(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setCreateNewClient(false);
+                      setErrors({});
+                      writeDraftNow({ createNewClient: false });
+                    }}
+                  >
                     ← العودة للبحث
                   </Button>
                   
@@ -894,8 +975,16 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         <Label>رقم الهوية *</Label>
                         <Input
                           value={newClient.id_number}
-                          onChange={(e) => setNewClient({ ...newClient, id_number: e.target.value })}
+                          onChange={(e) =>
+                            setNewClient({
+                              ...newClient,
+                              id_number: digitsOnly(e.target.value).slice(0, 9),
+                            })
+                          }
                           placeholder="رقم الهوية"
+                          inputMode="numeric"
+                          maxLength={9}
+                          dir="ltr"
                           className={errors.id_number ? "border-destructive" : ""}
                         />
                         <FieldError error={errors.id_number} />
@@ -915,9 +1004,19 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         <Label>الهاتف</Label>
                         <Input
                           value={newClient.phone_number}
-                          onChange={(e) => setNewClient({ ...newClient, phone_number: e.target.value })}
+                          onChange={(e) =>
+                            setNewClient({
+                              ...newClient,
+                              phone_number: digitsOnly(e.target.value).slice(0, 10),
+                            })
+                          }
                           placeholder="رقم الهاتف"
+                          inputMode="numeric"
+                          maxLength={10}
+                          dir="ltr"
+                          className={errors.phone_number ? "border-destructive" : ""}
                         />
+                        <FieldError error={errors.phone_number} />
                       </div>
                       <div>
                         <Label>الوسيط</Label>

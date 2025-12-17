@@ -195,6 +195,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="max-w-xl max-h-[90vh] p-0 overflow-hidden"
+        dir="rtl"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <div className="flex flex-col h-full max-h-[90vh]">

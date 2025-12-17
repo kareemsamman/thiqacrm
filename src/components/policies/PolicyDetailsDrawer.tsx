@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   User, Car, Building2, Pencil, CreditCard, 
-  Phone, Banknote, ImageIcon, FileText, Calendar, CheckCircle2, Clock, XCircle
+  Phone, Banknote, ImageIcon, FileText, Calendar, CheckCircle2, Clock, XCircle, Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PolicyEditDrawer } from "./PolicyEditDrawer";
@@ -118,6 +118,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   const [payments, setPayments] = useState<Payment[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("insurance");
+  const [showQuickPayment, setShowQuickPayment] = useState(false);
 
   const fetchPolicyDetails = async () => {
     if (!policyId) return;
@@ -160,6 +161,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
     if (open && policyId) {
       fetchPolicyDetails();
       setActiveTab("insurance");
+      setShowQuickPayment(false);
     }
   }, [open, policyId]);
 
@@ -196,6 +198,9 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   const percentagePaid = policy ? Math.min(100, Math.round((totalPaid / policy.insurance_price) * 100)) : 0;
   const paymentStatus = remaining <= 0 ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
 
+  // Check if ELZAMI (no profit)
+  const isElzami = policy?.policy_type_parent === 'ELZAMI';
+
   const handleEditComplete = () => {
     fetchPolicyDetails();
     onUpdated?.();
@@ -214,6 +219,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent 
           className="max-w-3xl max-h-[90vh] p-0 overflow-hidden"
+          dir="rtl"
           onInteractOutside={(e) => e.preventDefault()}
         >
           {loading ? (
@@ -225,10 +231,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
           ) : policy ? (
             <div className="flex flex-col h-full max-h-[90vh]">
               {/* Header - Insurance Focus */}
-              <div className="p-6 bg-gradient-to-l from-primary/5 to-transparent border-b">
+              <div className="p-6 bg-gradient-to-r from-primary/5 to-transparent border-b">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <DialogTitle className="text-xl font-bold mb-2">تفاصيل الوثيقة</DialogTitle>
+                    <DialogTitle className="text-xl font-bold mb-2 text-right">تفاصيل الوثيقة</DialogTitle>
                     <div className="flex flex-wrap gap-2">
                       <Badge className={cn("border text-sm", policyTypeColors[policy.policy_type_parent])}>
                         {policyTypeLabels[policy.policy_type_parent]}
@@ -243,14 +249,28 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                       )}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                    <Pencil className="h-4 w-4 ml-1" />
-                    تعديل
-                  </Button>
+                  <div className="flex gap-2">
+                    {remaining > 0 && (
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          setActiveTab("payments");
+                          setShowQuickPayment(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        دفعة جديدة
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                      <Pencil className="h-4 w-4 ml-1" />
+                      تعديل
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Main Insurance Info - Hero Section */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className={cn("grid gap-4 mt-4", isElzami ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4")}>
                   {/* Price */}
                   <div className="bg-background rounded-xl p-4 text-center border shadow-sm">
                     <p className="text-xs text-muted-foreground mb-1">سعر التأمين</p>
@@ -273,11 +293,13 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                     </p>
                   </div>
 
-                  {/* Profit */}
-                  <div className="bg-success/10 rounded-xl p-4 text-center border border-success/20 shadow-sm">
-                    <p className="text-xs text-muted-foreground mb-1">الربح</p>
-                    <p className="text-2xl font-bold text-success">{formatCurrency(policy.profit)}</p>
-                  </div>
+                  {/* Profit - Only show if not ELZAMI */}
+                  {!isElzami && (
+                    <div className="bg-success/10 rounded-xl p-4 text-center border border-success/20 shadow-sm">
+                      <p className="text-xs text-muted-foreground mb-1">الربح</p>
+                      <p className="text-2xl font-bold text-success">{formatCurrency(policy.profit)}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Progress */}
@@ -366,14 +388,18 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                           <span className="text-muted-foreground">سعر التأمين</span>
                           <span className="font-bold">{formatCurrency(policy.insurance_price)}</span>
                         </div>
-                        <div className="flex justify-between py-2 border-b">
-                          <span className="text-muted-foreground">مدفوع للشركة</span>
-                          <span className="font-bold text-orange-600">{formatCurrency(policy.payed_for_company)}</span>
-                        </div>
-                        <div className="flex justify-between py-2">
-                          <span className="text-muted-foreground">الربح</span>
-                          <span className="font-bold text-success">{formatCurrency(policy.profit)}</span>
-                        </div>
+                        {!isElzami && (
+                          <>
+                            <div className="flex justify-between py-2 border-b">
+                              <span className="text-muted-foreground">مدفوع للشركة</span>
+                              <span className="font-bold text-orange-600">{formatCurrency(policy.payed_for_company)}</span>
+                            </div>
+                            <div className="flex justify-between py-2">
+                              <span className="text-muted-foreground">الربح</span>
+                              <span className="font-bold text-success">{formatCurrency(policy.profit)}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </Card>
 
@@ -394,7 +420,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                     <PolicyPaymentsSection 
                       policyId={policy.id} 
                       payments={payments}
+                      insurancePrice={policy.insurance_price}
                       onPaymentsChange={handlePaymentsChange}
+                      autoOpenAdd={showQuickPayment}
+                      onAutoOpenHandled={() => setShowQuickPayment(false)}
                     />
                   </TabsContent>
 

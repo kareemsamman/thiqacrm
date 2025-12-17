@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { digitsOnly, isValidIsraeliId } from '@/lib/validation';
 import {
   Sheet,
   SheetContent,
@@ -32,10 +33,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const clientSchema = z.object({
-  full_name: z.string().min(2, 'الاسم مطلوب'),
-  id_number: z.string().min(5, 'رقم الهوية مطلوب'),
+  full_name: z.string().trim().min(2, 'الاسم مطلوب').max(120, 'الاسم طويل جداً'),
+  id_number: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => digitsOnly(v))
+    .refine((v) => v.length === 9, 'رقم الهوية يجب أن يكون 9 أرقام')
+    .refine((v) => isValidIsraeliId(v), 'رقم الهوية غير صحيح'),
   file_number: z.string().optional(),
-  phone_number: z.string().optional(),
+  phone_number: z
+    .string()
+    .optional()
+    .transform((v) => digitsOnly((v ?? '').trim()))
+    .refine((v) => v.length === 0 || v.length === 10, 'رقم الهاتف يجب أن يكون 10 أرقام'),
   notes: z.string().optional(),
   less_than_24: z.boolean().default(false),
   image_url: z.string().optional(),
@@ -195,7 +205,14 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                 <FormItem>
                   <FormLabel>رقم الهوية *</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل رقم الهوية" {...field} />
+                    <Input
+                      placeholder="أدخل رقم الهوية"
+                      inputMode="numeric"
+                      maxLength={9}
+                      dir="ltr"
+                      value={field.value}
+                      onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 9))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -223,7 +240,14 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                 <FormItem>
                   <FormLabel>رقم الهاتف</FormLabel>
                   <FormControl>
-                    <Input placeholder="أدخل رقم الهاتف" {...field} />
+                    <Input
+                      placeholder="أدخل رقم الهاتف"
+                      inputMode="numeric"
+                      maxLength={10}
+                      dir="ltr"
+                      value={field.value}
+                      onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 10))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -203,11 +203,16 @@ export default function Media() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">الوسائط</h1>
+          <div>
+            <h1 className="text-2xl font-bold">الوسائط</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalCount} ملف • إدارة جميع الملفات والصور
+            </p>
+          </div>
           <Dialog open={uploaderOpen} onOpenChange={setUploaderOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Upload className="h-4 w-4 ml-2" />
+              <Button size="lg" className="gap-2">
+                <Upload className="h-4 w-4" />
                 رفع ملفات
               </Button>
             </DialogTrigger>
@@ -219,7 +224,6 @@ export default function Media() {
                 onUploadComplete={() => {
                   setUploaderOpen(false);
                   fetchFiles();
-                  toast.success('تم رفع الملفات بنجاح');
                 }}
               />
             </DialogContent>
@@ -227,11 +231,11 @@ export default function Media() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center p-4 bg-card border border-border rounded-xl">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="بحث..."
+              placeholder="بحث في الملفات..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -242,11 +246,11 @@ export default function Media() {
           </div>
 
           <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="النوع" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
+              <SelectItem value="all">كل الأنواع</SelectItem>
               <SelectItem value="image">صور</SelectItem>
               <SelectItem value="pdf">PDF</SelectItem>
               <SelectItem value="video">فيديو</SelectItem>
@@ -254,7 +258,7 @@ export default function Media() {
           </Select>
 
           <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="مرتبط بـ" />
             </SelectTrigger>
             <SelectContent>
@@ -266,19 +270,19 @@ export default function Media() {
             </SelectContent>
           </Select>
 
-          <div className="flex border border-border rounded-md">
+          <div className="flex border border-border rounded-lg overflow-hidden">
             <Button
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="rounded-l-none"
+              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none px-3"
               onClick={() => setViewMode('table')}
             >
               <List className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="rounded-r-none"
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none px-3"
               onClick={() => setViewMode('grid')}
             >
               <Grid3X3 className="h-4 w-4" />
@@ -286,8 +290,8 @@ export default function Media() {
           </div>
 
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 mr-auto">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 mr-auto bg-destructive/10 px-3 py-1.5 rounded-lg">
+              <span className="text-sm font-medium text-destructive">
                 {selectedIds.size} محدد
               </span>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, Upload } from "lucide-react";
+import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { calculatePolicyProfit } from "@/lib/pricingCalculator";
 
@@ -29,9 +30,10 @@ interface Client {
   file_number: string | null;
   phone_number: string | null;
   less_than_24: boolean | null;
+  broker_id: string | null;
 }
 
-interface Car {
+interface CarRecord {
   id: string;
   car_number: string;
   manufacturer_name: string | null;
@@ -40,12 +42,18 @@ interface Car {
   color: string | null;
   car_type: string | null;
   car_value: number | null;
+  client_id: string;
 }
 
 interface Company {
   id: string;
   name: string;
   name_ar: string | null;
+}
+
+interface Broker {
+  id: string;
+  name: string;
 }
 
 interface PaymentLine {
@@ -55,6 +63,10 @@ interface PaymentLine {
   payment_date: string;
   cheque_number?: string;
   refused: boolean;
+}
+
+interface ValidationErrors {
+  [key: string]: string;
 }
 
 const STEPS = [
@@ -87,52 +99,14 @@ const PAYMENT_TYPES = [
   { value: "transfer", label: "تحويل" },
 ];
 
-const POLICY_WIZARD_DRAFT_KEY = "abcrm:policyWizardDraft:v1";
-
-type PolicyWizardDraft = {
-  currentStep: number;
-  clientSearch: string;
-  selectedClient: Client | null;
-  createNewClient: boolean;
-  newClient: {
-    full_name: string;
-    id_number: string;
-    file_number: string;
-    phone_number: string;
-    less_than_24: boolean;
-    notes: string;
-  };
-  selectedCar: Car | null;
-  createNewCar: boolean;
-  newCar: {
-    car_number: string;
-    manufacturer_name: string;
-    model: string;
-    year: string;
-    color: string;
-    car_type: string;
-    car_value: string;
-    license_expiry: string;
-  };
-  carDataFetched: boolean;
-  policy: {
-    policy_type_parent: string;
-    policy_type_child: string;
-    company_id: string;
-    start_date: string;
-    end_date: string;
-    insurance_price: string;
-    cancelled: boolean;
-    transferred: boolean;
-    notes: string;
-  };
-  payments: PaymentLine[];
-};
+const POLICY_WIZARD_DRAFT_KEY = "abcrm:policyWizardDraft:v2";
 
 export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }: PolicyWizardProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
 
   // Step 1: Client
   const [clientSearch, setClientSearch] = useState("");
@@ -142,16 +116,18 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
   const [newClient, setNewClient] = useState({
     full_name: "",
     id_number: "",
-    file_number: "",
     phone_number: "",
     less_than_24: false,
     notes: "",
+    broker_id: defaultBrokerId || "",
   });
   const [loadingClients, setLoadingClients] = useState(false);
+  const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
   // Step 2: Car
-  const [clientCars, setClientCars] = useState<Car[]>([]);
-  const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+  const [clientCars, setClientCars] = useState<CarRecord[]>([]);
+  const [selectedCar, setSelectedCar] = useState<CarRecord | null>(null);
   const [createNewCar, setCreateNewCar] = useState(false);
   const [newCar, setNewCar] = useState({
     car_number: "",
@@ -166,6 +142,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
   const [fetchingCarData, setFetchingCarData] = useState(false);
   const [carDataFetched, setCarDataFetched] = useState(false);
   const [loadingCars, setLoadingCars] = useState(false);
+  const [existingCar, setExistingCar] = useState<CarRecord | null>(null);
+  const [carConflict, setCarConflict] = useState<string | null>(null);
 
   // Step 3: Policy
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -184,6 +162,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
 
   // Step 4: Payments
   const [payments, setPayments] = useState<PaymentLine[]>([]);
+  const [fetchingCarPrice, setFetchingCarPrice] = useState(false);
 
   const clearDraft = () => {
     try {
@@ -193,82 +172,52 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   };
 
-  const loadDraft = (): PolicyWizardDraft | null => {
-    try {
-      const raw = sessionStorage.getItem(POLICY_WIZARD_DRAFT_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw) as PolicyWizardDraft;
-    } catch {
-      return null;
-    }
+  const resetForm = () => {
+    setCurrentStep(1);
+    setSelectedClient(null);
+    setSelectedCar(null);
+    setCreateNewClient(false);
+    setCreateNewCar(false);
+    setNewClient({ full_name: "", id_number: "", phone_number: "", less_than_24: false, notes: "", broker_id: defaultBrokerId || "" });
+    setNewCar({ car_number: "", manufacturer_name: "", model: "", year: "", color: "", car_type: "car", car_value: "", license_expiry: "" });
+    setPolicy({ policy_type_parent: "", policy_type_child: "", company_id: "", start_date: new Date().toISOString().split('T')[0], end_date: "", insurance_price: "", cancelled: false, transferred: false, notes: "" });
+    setPayments([]);
+    setCarDataFetched(false);
+    setExistingCar(null);
+    setCarConflict(null);
+    setErrors({});
   };
 
-  // Reset / restore on open
-
+  // Load data on open
   useEffect(() => {
     if (!open) return;
-
-    const draft = loadDraft();
-
-    if (draft) {
-      setCurrentStep(draft.currentStep ?? 1);
-      setClientSearch(draft.clientSearch ?? "");
-      setSelectedClient(draft.selectedClient ?? null);
-      setCreateNewClient(!!draft.createNewClient);
-      setNewClient(
-        draft.newClient ?? {
-          full_name: "",
-          id_number: "",
-          file_number: "",
-          phone_number: "",
-          less_than_24: false,
-          notes: "",
-        },
-      );
-      setSelectedCar(draft.selectedCar ?? null);
-      setCreateNewCar(!!draft.createNewCar);
-      setNewCar(
-        draft.newCar ?? {
-          car_number: "",
-          manufacturer_name: "",
-          model: "",
-          year: "",
-          color: "",
-          car_type: "car",
-          car_value: "",
-          license_expiry: "",
-        },
-      );
-      setCarDataFetched(!!draft.carDataFetched);
-      setPolicy(
-        draft.policy ?? {
-          policy_type_parent: "",
-          policy_type_child: "",
-          company_id: "",
-          start_date: new Date().toISOString().split("T")[0],
-          end_date: "",
-          insurance_price: "",
-          cancelled: false,
-          transferred: false,
-          notes: "",
-        },
-      );
-      setPayments(draft.payments ?? []);
-    } else {
-      setCurrentStep(1);
-      setSelectedClient(null);
-      setSelectedCar(null);
-      setCreateNewClient(false);
-      setCreateNewCar(false);
-      setNewClient({ full_name: "", id_number: "", file_number: "", phone_number: "", less_than_24: false, notes: "" });
-      setNewCar({ car_number: "", manufacturer_name: "", model: "", year: "", color: "", car_type: "car", car_value: "", license_expiry: "" });
-      setPolicy({ policy_type_parent: "", policy_type_child: "", company_id: "", start_date: new Date().toISOString().split('T')[0], end_date: "", insurance_price: "", cancelled: false, transferred: false, notes: "" });
-      setPayments([]);
-      setCarDataFetched(false);
+    
+    // Try to restore draft
+    try {
+      const draft = sessionStorage.getItem(POLICY_WIZARD_DRAFT_KEY);
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        setCurrentStep(parsed.currentStep || 1);
+        setClientSearch(parsed.clientSearch || "");
+        setSelectedClient(parsed.selectedClient || null);
+        setCreateNewClient(parsed.createNewClient || false);
+        setNewClient(parsed.newClient || { full_name: "", id_number: "", phone_number: "", less_than_24: false, notes: "", broker_id: defaultBrokerId || "" });
+        setSelectedCar(parsed.selectedCar || null);
+        setCreateNewCar(parsed.createNewCar || false);
+        setNewCar(parsed.newCar || { car_number: "", manufacturer_name: "", model: "", year: "", color: "", car_type: "car", car_value: "", license_expiry: "" });
+        setCarDataFetched(parsed.carDataFetched || false);
+        setPolicy(parsed.policy || { policy_type_parent: "", policy_type_child: "", company_id: "", start_date: new Date().toISOString().split('T')[0], end_date: "", insurance_price: "", cancelled: false, transferred: false, notes: "" });
+        setPayments(parsed.payments || []);
+      } else {
+        resetForm();
+      }
+    } catch {
+      resetForm();
     }
 
     fetchCompanies();
-  }, [open]);
+    fetchBrokers();
+  }, [open, defaultBrokerId]);
 
   // Search clients
   useEffect(() => {
@@ -296,11 +245,10 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   }, [policy.start_date]);
 
-  // Persist draft while the wizard is open (so tab switching never loses progress)
+  // Persist draft
   useEffect(() => {
     if (!open) return;
-
-    const draft: PolicyWizardDraft = {
+    const draft = {
       currentStep,
       clientSearch,
       selectedClient,
@@ -313,36 +261,89 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       policy,
       payments,
     };
-
     const t = window.setTimeout(() => {
       try {
         sessionStorage.setItem(POLICY_WIZARD_DRAFT_KEY, JSON.stringify(draft));
-      } catch {
-        // ignore
-      }
+      } catch {}
     }, 250);
-
     return () => window.clearTimeout(t);
-  }, [
-    open,
-    currentStep,
-    clientSearch,
-    selectedClient,
-    createNewClient,
-    newClient,
-    selectedCar,
-    createNewCar,
-    newCar,
-    carDataFetched,
-    policy,
-    payments,
-  ]);
+  }, [open, currentStep, clientSearch, selectedClient, createNewClient, newClient, selectedCar, createNewCar, newCar, carDataFetched, policy, payments]);
+
+  // Check for duplicate client by id_number
+  useEffect(() => {
+    if (!createNewClient || !newClient.id_number || newClient.id_number.length < 5) {
+      return;
+    }
+    
+    const checkDuplicate = async () => {
+      setCheckingDuplicate(true);
+      const { data } = await supabase
+        .from('clients')
+        .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
+        .eq('id_number', newClient.id_number)
+        .is('deleted_at', null)
+        .maybeSingle();
+      
+      setCheckingDuplicate(false);
+      
+      if (data) {
+        // Found existing client - auto-select it
+        setSelectedClient(data);
+        setCreateNewClient(false);
+        toast({ 
+          title: "تم العثور على عميل موجود", 
+          description: `${data.full_name} - ${data.id_number}`,
+        });
+      }
+    };
+    
+    const timer = setTimeout(checkDuplicate, 500);
+    return () => clearTimeout(timer);
+  }, [newClient.id_number, createNewClient]);
+
+  // Check for existing car by car_number
+  useEffect(() => {
+    if (!createNewCar || !newCar.car_number || newCar.car_number.length < 5) {
+      setExistingCar(null);
+      setCarConflict(null);
+      return;
+    }
+    
+    const checkExistingCar = async () => {
+      const { data } = await supabase
+        .from('cars')
+        .select('*, clients(full_name)')
+        .eq('car_number', newCar.car_number)
+        .is('deleted_at', null)
+        .maybeSingle();
+      
+      if (data) {
+        const clientId = selectedClient?.id || (createNewClient ? null : null);
+        
+        if (data.client_id === clientId) {
+          // Car belongs to this client - use it
+          setExistingCar(data);
+          setCarConflict(null);
+        } else {
+          // Car belongs to another client
+          setExistingCar(null);
+          setCarConflict(`هذه السيارة مسجلة على عميل آخر: ${(data as any).clients?.full_name || 'غير معروف'}`);
+        }
+      } else {
+        setExistingCar(null);
+        setCarConflict(null);
+      }
+    };
+    
+    const timer = setTimeout(checkExistingCar, 500);
+    return () => clearTimeout(timer);
+  }, [newCar.car_number, createNewCar, selectedClient]);
 
   const searchClients = async (query: string) => {
     setLoadingClients(true);
     const { data, error } = await supabase
       .from('clients')
-      .select('id, full_name, id_number, file_number, phone_number, less_than_24')
+      .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
       .is('deleted_at', null)
       .or(`full_name.ilike.%${query}%,id_number.ilike.%${query}%,file_number.ilike.%${query}%,phone_number.ilike.%${query}%`)
       .limit(10);
@@ -381,9 +382,20 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   };
 
+  const fetchBrokers = async () => {
+    const { data } = await supabase
+      .from('brokers')
+      .select('id, name')
+      .order('name');
+    
+    if (data) {
+      setBrokers(data);
+    }
+  };
+
   const fetchCarData = async () => {
     if (!newCar.car_number) {
-      toast({ title: "خطأ", description: "الرجاء إدخال رقم السيارة", variant: "destructive" });
+      setErrors(e => ({ ...e, car_number: "الرجاء إدخال رقم السيارة" }));
       return;
     }
 
@@ -400,7 +412,6 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
         return;
       }
 
-      // Access nested data from response { success: true, data: vehicleData }
       const vehicleData = data.data || data;
 
       setNewCar({
@@ -413,26 +424,22 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
         car_type: vehicleData.car_type || "car",
       });
       setCarDataFetched(true);
-      toast({ title: "تم جلب البيانات تلقائياً", variant: "default" });
-    } catch (error) {
+      toast({ title: "تم جلب البيانات تلقائياً" });
+    } catch {
       toast({ title: "خطأ", description: "لم يتم العثور على مركبة بهذا الرقم", variant: "destructive" });
     } finally {
       setFetchingCarData(false);
     }
   };
 
-  const [fetchingCarPrice, setFetchingCarPrice] = useState(false);
-
   const fetchCarPrice = async () => {
     if (!newCar.manufacturer_name || !newCar.year) {
-      toast({ title: "خطأ", description: "الرجاء إدخال بيانات السيارة أولاً (الشركة، السنة)", variant: "destructive" });
+      toast({ title: "خطأ", description: "الرجاء إدخال بيانات السيارة أولاً", variant: "destructive" });
       return;
     }
 
     setFetchingCarPrice(true);
     try {
-      console.log('Fetching car price for:', newCar.manufacturer_name, newCar.model, newCar.year);
-      
       const { data, error } = await supabase.functions.invoke('fetch-car-price', {
         body: { 
           manufacturer: newCar.manufacturer_name,
@@ -441,33 +448,18 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
         }
       });
 
-      console.log('Car price response:', data, error);
+      if (error) throw error;
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      if (data?.error) {
-        toast({ title: "خطأ", description: data.error, variant: "destructive" });
-        return;
-      }
-
-      // Handle both response formats
       const priceData = data?.data || data;
-      console.log('Price data extracted:', priceData);
       
       if (priceData?.price && priceData.price > 0) {
         setNewCar(prev => ({ ...prev, car_value: priceData.price.toString() }));
         toast({ title: "تم جلب سعر السيارة", description: `₪ ${priceData.price.toLocaleString()}` });
-      } else if (data?.found === false) {
-        toast({ title: "تنبيه", description: "لم يتم العثور على سعر لهذه السيارة في قاعدة البيانات", variant: "default" });
       } else {
-        toast({ title: "تنبيه", description: "لم يتم العثور على سعر لهذه السيارة", variant: "default" });
+        toast({ title: "تنبيه", description: "لم يتم العثور على سعر لهذه السيارة" });
       }
-    } catch (error: any) {
-      console.error('Fetch car price error:', error);
-      toast({ title: "خطأ", description: error?.message || "فشل في جلب سعر السيارة", variant: "destructive" });
+    } catch {
+      toast({ title: "خطأ", description: "فشل في جلب سعر السيارة", variant: "destructive" });
     } finally {
       setFetchingCarPrice(false);
     }
@@ -494,14 +486,58 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     setPayments(payments.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
-  const canProceed = () => {
+  const validateStep = (step: number): boolean => {
+    const newErrors: ValidationErrors = {};
+    
+    switch (step) {
+      case 1:
+        if (!selectedClient && createNewClient) {
+          if (!newClient.full_name.trim()) newErrors.full_name = "الاسم مطلوب";
+          if (!newClient.id_number.trim()) newErrors.id_number = "رقم الهوية مطلوب";
+          if (newClient.id_number && newClient.id_number.length < 5) newErrors.id_number = "رقم الهوية قصير جداً";
+        }
+        if (!selectedClient && !createNewClient) {
+          newErrors.client = "الرجاء اختيار عميل أو إنشاء عميل جديد";
+        }
+        break;
+        
+      case 2:
+        if (!selectedCar && createNewCar) {
+          if (!newCar.car_number.trim()) newErrors.car_number = "رقم السيارة مطلوب";
+          if (carConflict) newErrors.car_number = carConflict;
+        }
+        if (!selectedCar && !createNewCar && !existingCar) {
+          newErrors.car = "الرجاء اختيار سيارة أو إضافة سيارة جديدة";
+        }
+        break;
+        
+      case 3:
+        if (!policy.policy_type_parent) newErrors.policy_type_parent = "نوع الوثيقة مطلوب";
+        if (!policy.company_id) newErrors.company_id = "شركة التأمين مطلوبة";
+        if (!policy.start_date) newErrors.start_date = "تاريخ البداية مطلوب";
+        if (!policy.end_date) newErrors.end_date = "تاريخ النهاية مطلوب";
+        if (!policy.insurance_price) newErrors.insurance_price = "السعر مطلوب";
+        if (policy.insurance_price && parseFloat(policy.insurance_price) <= 0) {
+          newErrors.insurance_price = "السعر يجب أن يكون أكبر من صفر";
+        }
+        if (policy.policy_type_parent === 'THIRD_FULL' && !policy.policy_type_child) {
+          newErrors.policy_type_child = "النوع الفرعي مطلوب";
+        }
+        break;
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
-        return selectedClient || (createNewClient && newClient.full_name && newClient.id_number);
+        return !!(selectedClient || (createNewClient && newClient.full_name && newClient.id_number));
       case 2:
-        return selectedCar || (createNewCar && newCar.car_number);
+        return !!(selectedCar || existingCar || (createNewCar && newCar.car_number && !carConflict));
       case 3:
-        return policy.policy_type_parent && policy.company_id && policy.start_date && policy.end_date && policy.insurance_price;
+        return !!(policy.policy_type_parent && policy.company_id && policy.start_date && policy.end_date && policy.insurance_price);
       case 4:
         return true;
       default:
@@ -509,31 +545,42 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   };
 
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (!validateStep(currentStep)) return;
+    
     setSaving(true);
     try {
       let clientId = selectedClient?.id;
-      let carId = selectedCar?.id;
+      let carId = selectedCar?.id || existingCar?.id;
 
       // Create client if new
       if (createNewClient && !clientId) {
+        // Generate file number using DB function
+        const { data: fileNumData } = await supabase.rpc('generate_file_number');
+        
         const { data: newClientData, error: clientError } = await supabase
           .from('clients')
           .insert({
-            full_name: newClient.full_name,
-            id_number: newClient.id_number,
-            file_number: newClient.file_number || null,
-            phone_number: newClient.phone_number || null,
+            full_name: newClient.full_name.trim(),
+            id_number: newClient.id_number.trim(),
+            file_number: fileNumData || null,
+            phone_number: newClient.phone_number.trim() || null,
             less_than_24: newClient.less_than_24,
-            notes: newClient.notes || null,
-            broker_id: defaultBrokerId || null,
+            notes: newClient.notes.trim() || null,
+            broker_id: newClient.broker_id || defaultBrokerId || null,
           })
           .select()
           .single();
 
         if (clientError) {
           if (clientError.code === '23505') {
-            toast({ title: "خطأ", description: "رقم الهوية أو رقم الملف موجود مسبقاً", variant: "destructive" });
+            toast({ title: "خطأ", description: "رقم الهوية موجود مسبقاً", variant: "destructive" });
           } else {
             throw clientError;
           }
@@ -547,12 +594,12 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
         const { data: newCarData, error: carError } = await supabase
           .from('cars')
           .insert({
-            car_number: newCar.car_number,
+            car_number: newCar.car_number.trim(),
             client_id: clientId,
-            manufacturer_name: newCar.manufacturer_name || null,
-            model: newCar.model || null,
+            manufacturer_name: newCar.manufacturer_name.trim() || null,
+            model: newCar.model.trim() || null,
             year: newCar.year ? parseInt(newCar.year) : null,
-            color: newCar.color || null,
+            color: newCar.color.trim() || null,
             car_type: newCar.car_type as any,
             car_value: newCar.car_value ? parseFloat(newCar.car_value) : null,
             license_expiry: newCar.license_expiry || null,
@@ -581,15 +628,15 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       const ageBand = isUnder24 ? 'UNDER_24' : 'UP_24';
 
       // Get car data for pricing calculation
-      const carType = (createNewCar ? newCar.car_type : selectedCar?.car_type) || 'car';
+      const carType = (createNewCar ? newCar.car_type : (selectedCar?.car_type || existingCar?.car_type)) || 'car';
       const carValue = createNewCar 
         ? (newCar.car_value ? parseFloat(newCar.car_value) : null)
-        : selectedCar?.car_value;
+        : (selectedCar?.car_value || existingCar?.car_value);
       const carYear = createNewCar 
         ? (newCar.year ? parseInt(newCar.year) : null)
-        : selectedCar?.year;
+        : (selectedCar?.year || existingCar?.year);
 
-      // Calculate profit and company payment using pricing rules
+      // Calculate profit and company payment
       const profitCalc = await calculatePolicyProfit({
         policyTypeParent: policy.policy_type_parent as any,
         policyTypeChild: policy.policy_type_child as any,
@@ -616,10 +663,10 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
           is_under_24: isUnder24 || false,
           cancelled: policy.cancelled,
           transferred: policy.transferred,
-          notes: policy.notes || null,
+          notes: policy.notes.trim() || null,
           profit: profitCalc.profit,
           payed_for_company: profitCalc.companyPayment,
-          broker_id: defaultBrokerId || null,
+          broker_id: createNewClient ? (newClient.broker_id || defaultBrokerId || null) : (selectedClient?.broker_id || defaultBrokerId || null),
         })
         .select()
         .single();
@@ -631,7 +678,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
         const { error: paymentsError } = await supabase
           .from('policy_payments')
           .insert(
-            payments.map(p => ({
+            payments.filter(p => p.amount > 0).map(p => ({
               policy_id: policyData.id,
               payment_type: p.payment_type as any,
               amount: p.amount,
@@ -648,6 +695,9 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       clearDraft();
       onOpenChange(false);
       onComplete?.(policyData.id);
+      
+      // Navigate to policy details
+      navigate(`/policies`);
     } catch (error: any) {
       console.error('Error creating policy:', error);
       toast({ title: "خطأ", description: error.message || "حدث خطأ أثناء الحفظ", variant: "destructive" });
@@ -656,64 +706,88 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     }
   };
 
-  const handleSheetOpenChange = (nextOpen: boolean) => {
-    // Prevent losing the wizard when switching browser tabs (focus/visibility loss)
-    if (!nextOpen && (document.visibilityState === "hidden" || !document.hasFocus())) {
-      return;
-    }
+  const handleClose = () => {
+    clearDraft();
+    resetForm();
+    onOpenChange(false);
+  };
 
-    // Explicit user close → clear draft
-    if (!nextOpen) {
-      clearDraft();
-    }
-
-    onOpenChange(nextOpen);
+  // Field error component
+  const FieldError = ({ error }: { error?: string }) => {
+    if (!error) return null;
+    return (
+      <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+        <AlertCircle className="h-3 w-3" />
+        {error}
+      </p>
+    );
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent
-        side="left"
-        className="w-full sm:max-w-2xl overflow-y-auto"
-        onFocusOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      // Prevent closing on focus loss
+      if (!nextOpen && (document.visibilityState === "hidden" || !document.hasFocus())) {
+        return;
+      }
+      if (!nextOpen) handleClose();
+      else onOpenChange(nextOpen);
+    }}>
+      <DialogContent 
+        className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto p-0"
+        dir="rtl"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <SheetHeader>
-          <SheetTitle>إضافة وثيقة جديدة</SheetTitle>
-        </SheetHeader>
-
-        {/* Steps indicator */}
-        <div className="flex justify-between mt-6 mb-8">
-          {STEPS.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
-                  currentStep === step.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : currentStep > step.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-muted-foreground/30 text-muted-foreground"
-                )}
-              >
-                {currentStep > step.id ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <step.icon className="h-5 w-5" />
+        {/* Header */}
+        <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-semibold">إضافة وثيقة جديدة</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={handleClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Steps indicator */}
+          <div className="flex justify-center gap-2 mt-4">
+            {STEPS.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={cn(
+                      "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors",
+                      currentStep === step.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : currentStep > step.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-muted-foreground/30 text-muted-foreground"
+                    )}
+                  >
+                    {currentStep > step.id ? (
+                      <Check className="h-5 w-5" />
+                    ) : (
+                      <step.icon className="h-5 w-5" />
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-xs mt-1",
+                    currentStep === step.id ? "text-primary font-medium" : "text-muted-foreground"
+                  )}>
+                    {step.title}
+                  </span>
+                </div>
+                {index < STEPS.length - 1 && (
+                  <div className={cn(
+                    "h-0.5 w-8 mx-2 mt-[-12px]",
+                    currentStep > step.id ? "bg-primary" : "bg-muted-foreground/30"
+                  )} />
                 )}
               </div>
-              {index < STEPS.length - 1 && (
-                <div className={cn(
-                  "h-0.5 w-12 mx-2",
-                  currentStep > step.id ? "bg-primary" : "bg-muted-foreground/30"
-                )} />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </DialogHeader>
 
-        <div className="space-y-6">
+        {/* Content */}
+        <div className="px-6 py-6 min-h-[400px]">
           {/* Step 1: Client */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -752,7 +826,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-medium">{client.full_name}</p>
-                              <p className="text-sm text-muted-foreground">{client.id_number} • {client.phone_number}</p>
+                              <p className="text-sm text-muted-foreground">{client.id_number} • {client.phone_number || 'بدون هاتف'}</p>
                             </div>
                             {selectedClient?.id === client.id && (
                               <Check className="h-5 w-5 text-primary" />
@@ -763,6 +837,21 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                     </div>
                   )}
 
+                  {selectedClient && (
+                    <Card className="p-4 border-primary bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Badge className="mb-2">العميل المختار</Badge>
+                          <p className="font-medium">{selectedClient.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{selectedClient.id_number}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)}>
+                          تغيير
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
                   <Button
                     variant="outline"
                     className="w-full"
@@ -771,12 +860,21 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                     <Plus className="h-4 w-4 ml-2" />
                     إنشاء عميل جديد
                   </Button>
+                  
+                  <FieldError error={errors.client} />
                 </>
               ) : (
                 <div className="space-y-4">
                   <Button variant="ghost" size="sm" onClick={() => setCreateNewClient(false)}>
                     ← العودة للبحث
                   </Button>
+                  
+                  {checkingDuplicate && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      جاري التحقق من وجود العميل...
+                    </div>
+                  )}
                   
                   <div className="grid gap-4">
                     <div>
@@ -785,34 +883,61 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         value={newClient.full_name}
                         onChange={(e) => setNewClient({ ...newClient, full_name: e.target.value })}
                         placeholder="أدخل اسم العميل"
+                        className={errors.full_name ? "border-destructive" : ""}
                       />
+                      <FieldError error={errors.full_name} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label>رقم الهوية *</Label>
                         <Input
                           value={newClient.id_number}
                           onChange={(e) => setNewClient({ ...newClient, id_number: e.target.value })}
                           placeholder="رقم الهوية"
+                          className={errors.id_number ? "border-destructive" : ""}
                         />
+                        <FieldError error={errors.id_number} />
                       </div>
                       <div>
                         <Label>رقم الملف</Label>
                         <Input
-                          value={newClient.file_number}
-                          onChange={(e) => setNewClient({ ...newClient, file_number: e.target.value })}
-                          placeholder="رقم الملف"
+                          value="سيتم توليده تلقائياً"
+                          disabled
+                          className="bg-muted"
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label>الهاتف</Label>
-                      <Input
-                        value={newClient.phone_number}
-                        onChange={(e) => setNewClient({ ...newClient, phone_number: e.target.value })}
-                        placeholder="رقم الهاتف"
-                      />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>الهاتف</Label>
+                        <Input
+                          value={newClient.phone_number}
+                          onChange={(e) => setNewClient({ ...newClient, phone_number: e.target.value })}
+                          placeholder="رقم الهاتف"
+                        />
+                      </div>
+                      <div>
+                        <Label>الوسيط</Label>
+                        <Select 
+                          value={newClient.broker_id} 
+                          onValueChange={(v) => setNewClient({ ...newClient, broker_id: v })}
+                          disabled={!!defaultBrokerId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر الوسيط (اختياري)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">بدون وسيط</SelectItem>
+                            {brokers.map(b => (
+                              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+                    
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id="less_than_24"
@@ -821,6 +946,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                       />
                       <Label htmlFor="less_than_24">أقل من 24 سنة</Label>
                     </div>
+                    
                     <div>
                       <Label>ملاحظات</Label>
                       <Textarea
@@ -888,10 +1014,12 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                     <Plus className="h-4 w-4 ml-2" />
                     إضافة سيارة جديدة
                   </Button>
+                  
+                  <FieldError error={errors.car} />
                 </>
               ) : (
                 <div className="space-y-4">
-                  <Button variant="ghost" size="sm" onClick={() => setCreateNewCar(false)}>
+                  <Button variant="ghost" size="sm" onClick={() => { setCreateNewCar(false); setExistingCar(null); setCarConflict(null); }}>
                     ← العودة لاختيار سيارة
                   </Button>
 
@@ -902,22 +1030,33 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         setNewCar({ ...newCar, car_number: e.target.value });
                         setCarDataFetched(false);
                       }}
-                      placeholder="رقم السيارة"
-                      className="flex-1"
+                      placeholder="رقم السيارة *"
+                      className={cn("flex-1", (errors.car_number || carConflict) ? "border-destructive" : "")}
                     />
                     <Button onClick={fetchCarData} disabled={fetchingCarData}>
                       {fetchingCarData ? <Loader2 className="h-4 w-4 animate-spin" /> : "جلب البيانات"}
                     </Button>
                   </div>
+                  <FieldError error={errors.car_number || carConflict || undefined} />
 
-                  {carDataFetched && (
+                  {carDataFetched && !carConflict && (
                     <Badge className="bg-success/10 text-success border-success/20">
                       تم جلب البيانات تلقائياً
                     </Badge>
                   )}
 
+                  {existingCar && (
+                    <Card className="p-4 border-primary bg-primary/5">
+                      <Badge className="mb-2">سيارة موجودة - سيتم استخدامها</Badge>
+                      <p className="font-mono font-medium" dir="ltr">{existingCar.car_number}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {existingCar.manufacturer_name} {existingCar.model} {existingCar.year}
+                      </p>
+                    </Card>
+                  )}
+
                   <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label>الشركة المصنعة</Label>
                         <Input
@@ -933,7 +1072,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
                         <Label>سنة الصنع</Label>
                         <Input
@@ -972,7 +1111,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label>نوع السيارة</Label>
                         <Select value={newCar.car_type} onValueChange={(v) => setNewCar({ ...newCar, car_type: v })}>
@@ -1015,14 +1154,14 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>نوع الوثيقة *</Label>
                       <Select
                         value={policy.policy_type_parent}
                         onValueChange={(v) => setPolicy({ ...policy, policy_type_parent: v, policy_type_child: "" })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={errors.policy_type_parent ? "border-destructive" : ""}>
                           <SelectValue placeholder="اختر النوع" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1031,15 +1170,16 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError error={errors.policy_type_parent} />
                     </div>
                     {POLICY_TYPES.find(t => t.value === policy.policy_type_parent)?.hasChild && (
                       <div>
-                        <Label>النوع الفرعي</Label>
+                        <Label>النوع الفرعي *</Label>
                         <Select
                           value={policy.policy_type_child}
                           onValueChange={(v) => setPolicy({ ...policy, policy_type_child: v })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className={errors.policy_type_child ? "border-destructive" : ""}>
                             <SelectValue placeholder="اختر" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1047,6 +1187,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                             <SelectItem value="FULL">شامل</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FieldError error={errors.policy_type_child} />
                       </div>
                     )}
                   </div>
@@ -1054,7 +1195,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                   <div>
                     <Label>شركة التأمين *</Label>
                     <Select value={policy.company_id} onValueChange={(v) => setPolicy({ ...policy, company_id: v })}>
-                      <SelectTrigger>
+                      <SelectTrigger className={errors.company_id ? "border-destructive" : ""}>
                         <SelectValue placeholder="اختر الشركة" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1063,16 +1204,19 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         ))}
                       </SelectContent>
                     </Select>
+                    <FieldError error={errors.company_id} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>تاريخ البداية *</Label>
                       <Input
                         type="date"
                         value={policy.start_date}
                         onChange={(e) => setPolicy({ ...policy, start_date: e.target.value })}
+                        className={errors.start_date ? "border-destructive" : ""}
                       />
+                      <FieldError error={errors.start_date} />
                     </div>
                     <div>
                       <Label>تاريخ النهاية *</Label>
@@ -1080,7 +1224,9 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         type="date"
                         value={policy.end_date}
                         onChange={(e) => setPolicy({ ...policy, end_date: e.target.value })}
+                        className={errors.end_date ? "border-destructive" : ""}
                       />
+                      <FieldError error={errors.end_date} />
                     </div>
                   </div>
 
@@ -1091,7 +1237,9 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                       value={policy.insurance_price}
                       onChange={(e) => setPolicy({ ...policy, insurance_price: e.target.value })}
                       placeholder="أدخل السعر"
+                      className={errors.insurance_price ? "border-destructive" : ""}
                     />
+                    <FieldError error={errors.insurance_price} />
                   </div>
 
                   <div className="flex gap-4">
@@ -1152,7 +1300,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         </Button>
                       </div>
                       <div className="grid gap-3">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label>نوع الدفع</Label>
                             <Select
@@ -1179,7 +1327,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label>التاريخ</Label>
                             <Input
@@ -1215,8 +1363,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
           )}
         </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-8 pt-4 border-t">
+        {/* Footer Navigation */}
+        <div className="sticky bottom-0 bg-background border-t px-6 py-4 flex justify-between">
           <Button
             variant="outline"
             onClick={() => {
@@ -1224,25 +1372,24 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                 setCurrentStep(currentStep - 1);
                 return;
               }
-              clearDraft();
-              onOpenChange(false);
+              handleClose();
             }}
           >
             {currentStep === 1 ? "إلغاء" : "السابق"}
           </Button>
           
           {currentStep < 4 ? (
-            <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={!canProceed()}>
+            <Button onClick={handleNext} disabled={!canProceed()}>
               التالي
             </Button>
           ) : (
             <Button onClick={handleSubmit} disabled={saving || !canProceed()}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+              {saving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
               حفظ الكل
             </Button>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

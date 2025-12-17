@@ -597,6 +597,7 @@ export type Database = {
           profit: number
         }[]
       }
+      generate_file_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

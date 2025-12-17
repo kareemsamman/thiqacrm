@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PolicyWizard } from "@/components/policies/PolicyWizard";
+import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import { recalculatePolicyProfit } from "@/lib/pricingCalculator";
@@ -85,6 +86,8 @@ export default function Policies() {
   const pageSize = 25;
 
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingPolicy, setDeletingPolicy] = useState<PolicyRecord | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -187,6 +190,16 @@ export default function Policies() {
       setRecalculating(false);
       setRecalcProgress({ done: 0, total: 0 });
     }
+  };
+
+  const handleViewDetails = (policyId: string) => {
+    setSelectedPolicyId(policyId);
+    setDetailsOpen(true);
+  };
+
+  const handleEditPolicy = (policyId: string) => {
+    setSelectedPolicyId(policyId);
+    setDetailsOpen(true);
   };
 
   const formatDate = (dateStr: string) => {
@@ -317,6 +330,7 @@ export default function Policies() {
                           "hover:bg-secondary/50 animate-fade-in"
                         )}
                         style={{ animationDelay: `${index * 30}ms` }}
+                        onClick={() => handleViewDetails(policy.id)}
                       >
                         <TableCell className="font-medium">
                           {policy.clients?.full_name || "-"}
@@ -352,8 +366,8 @@ export default function Policies() {
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <RowActionsMenu
-                            onView={() => {}}
-                            onEdit={() => {}}
+                            onView={() => handleViewDetails(policy.id)}
+                            onEdit={() => handleEditPolicy(policy.id)}
                             onDelete={() => {
                               setDeletingPolicy(policy);
                               setDeleteDialogOpen(true);
@@ -404,12 +418,19 @@ export default function Policies() {
         onComplete={() => fetchPolicies()}
       />
 
+      <PolicyDetailsDrawer
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        policyId={selectedPolicyId}
+        onUpdated={() => fetchPolicies()}
+      />
+
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDelete}
         title="حذف الوثيقة"
-        description="هل أنت متأكد من حذف هذه الوثيقة؟"
+        description="هل أنت متأكد من حذف هذه الوثيقة؟ سيتم حذف كل الدفعات والملفات التابعة لها."
         loading={deleteLoading}
       />
     </MainLayout>

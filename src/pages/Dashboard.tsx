@@ -7,17 +7,18 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, FileText, Car, TrendingUp, Wallet, AlertCircle, Plus } from "lucide-react";
+import { Users, FileText, Car, TrendingUp, Wallet, AlertCircle, Plus, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PolicyWizard } from "@/components/policies/PolicyWizard";
+import { useProfitSummary } from "@/hooks/useProfitSummary";
 
 export default function Dashboard() {
   const [wizardOpen, setWizardOpen] = useState(false);
+  const { summary: profitSummary, loading: profitLoading } = useProfitSummary();
   const [stats, setStats] = useState({
     totalClients: 0,
     activePolicies: 0,
     totalCars: 0,
-    monthlyProfit: 0,
     outstandingBalance: 0,
     expiringThisWeek: 0,
   });
@@ -66,7 +67,6 @@ export default function Dashboard() {
         totalClients: clientsCount || 0,
         activePolicies: policiesCount || 0,
         totalCars: carsCount || 0,
-        monthlyProfit: 0,
         outstandingBalance: 0,
         expiringThisWeek: expiringCount || 0,
       });
@@ -127,7 +127,7 @@ export default function Dashboard() {
               />
               <StatCard
                 title="أرباح الشهر"
-                value={`₪${stats.monthlyProfit.toLocaleString('ar-EG')}`}
+                value={profitLoading ? '...' : `₪${profitSummary.monthProfit.toLocaleString('ar-EG')}`}
                 icon={TrendingUp}
                 variant="success"
               />
@@ -136,16 +136,30 @@ export default function Dashboard() {
         </div>
 
         {/* Second Row Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card className="p-6 border shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">الرصيد المستحق</p>
-                <p className="text-2xl font-bold text-warning">₪{stats.outstandingBalance.toLocaleString('ar-EG')}</p>
-                <p className="text-sm text-muted-foreground mt-1">عميل برصيد</p>
+                <p className="text-sm font-medium text-muted-foreground">أرباح اليوم</p>
+                <p className="text-2xl font-bold text-success">
+                  {profitLoading ? '...' : `₪${profitSummary.todayProfit.toLocaleString('ar-EG')}`}
+                </p>
               </div>
-              <div className="rounded-xl bg-warning/10 p-3">
-                <Wallet className="h-6 w-6 text-warning" />
+              <div className="rounded-xl bg-success/10 p-3">
+                <TrendingUp className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-6 border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">المستحق للشركات</p>
+                <p className="text-2xl font-bold text-destructive">
+                  {profitLoading ? '...' : `₪${profitSummary.totalCompanyPaymentDue.toLocaleString('ar-EG')}`}
+                </p>
+              </div>
+              <div className="rounded-xl bg-destructive/10 p-3">
+                <Building2 className="h-6 w-6 text-destructive" />
               </div>
             </div>
           </Card>
@@ -153,11 +167,11 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">تنتهي هذا الأسبوع</p>
-                <p className="text-2xl font-bold text-destructive">{stats.expiringThisWeek}</p>
+                <p className="text-2xl font-bold text-warning">{stats.expiringThisWeek}</p>
                 <p className="text-sm text-muted-foreground mt-1">وثيقة تحتاج تجديد</p>
               </div>
-              <div className="rounded-xl bg-destructive/10 p-3">
-                <AlertCircle className="h-6 w-6 text-destructive" />
+              <div className="rounded-xl bg-warning/10 p-3">
+                <AlertCircle className="h-6 w-6 text-warning" />
               </div>
             </div>
           </Card>
@@ -165,8 +179,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">أرباح السنة</p>
-                <p className="text-2xl font-bold text-success">₪0</p>
-                <p className="text-sm text-muted-foreground mt-1">مقارنة بالعام الماضي</p>
+                <p className="text-2xl font-bold text-success">
+                  {profitLoading ? '...' : `₪${profitSummary.yearProfit.toLocaleString('ar-EG')}`}
+                </p>
               </div>
               <div className="rounded-xl bg-success/10 p-3">
                 <TrendingUp className="h-6 w-6 text-success" />

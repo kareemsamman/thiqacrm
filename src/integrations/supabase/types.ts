@@ -168,6 +168,9 @@ export type Database = {
       insurance_companies: {
         Row: {
           active: boolean | null
+          category_parent:
+            | Database["public"]["Enums"]["policy_type_parent"]
+            | null
           created_at: string
           id: string
           name: string
@@ -176,6 +179,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          category_parent?:
+            | Database["public"]["Enums"]["policy_type_parent"]
+            | null
           created_at?: string
           id?: string
           name: string
@@ -184,6 +190,9 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          category_parent?:
+            | Database["public"]["Enums"]["policy_type_parent"]
+            | null
           created_at?: string
           id?: string
           name?: string
@@ -572,6 +581,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_policy_company_payment: {
+        Args: {
+          p_age_band: Database["public"]["Enums"]["age_band"]
+          p_car_type: Database["public"]["Enums"]["car_type"]
+          p_car_value: number
+          p_car_year: number
+          p_company_id: string
+          p_insurance_price: number
+          p_policy_type_child: Database["public"]["Enums"]["policy_type_child"]
+          p_policy_type_parent: Database["public"]["Enums"]["policy_type_parent"]
+        }
+        Returns: {
+          company_payment: number
+          profit: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -599,6 +624,8 @@ export type Database = {
         | "DISCOUNT"
         | "MIN_PRICE"
         | "ROAD_SERVICE_PRICE"
+        | "ROAD_SERVICE_BASE"
+        | "ROAD_SERVICE_EXTRA_OLD_CAR"
       user_status: "pending" | "active" | "blocked"
     }
     CompositeTypes: {
@@ -745,6 +772,8 @@ export const Constants = {
         "DISCOUNT",
         "MIN_PRICE",
         "ROAD_SERVICE_PRICE",
+        "ROAD_SERVICE_BASE",
+        "ROAD_SERVICE_EXTRA_OLD_CAR",
       ],
       user_status: ["pending", "active", "blocked"],
     },

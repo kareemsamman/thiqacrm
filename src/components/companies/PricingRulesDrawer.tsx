@@ -52,6 +52,8 @@ const RULE_TYPE_LABELS: Record<Enums<'pricing_rule_type'>, string> = {
   DISCOUNT: 'خصم',
   MIN_PRICE: 'الحد الأدنى',
   ROAD_SERVICE_PRICE: 'سعر خدمات الطريق',
+  ROAD_SERVICE_BASE: 'سعر أساسي خدمات الطريق',
+  ROAD_SERVICE_EXTRA_OLD_CAR: 'إضافة سيارة قديمة (≤2007)',
 };
 
 const POLICY_TYPE_LABELS: Record<Enums<'policy_type_parent'>, string> = {

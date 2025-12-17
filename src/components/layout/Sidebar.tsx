@@ -17,6 +17,7 @@ import {
   Wallet,
   CreditCard,
   Loader2,
+  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +30,7 @@ const navigation = [
   { name: "شركات التأمين", href: "/companies", icon: Building2 },
   { name: "الوسطاء", href: "/brokers", icon: Wallet },
   { name: "الشيكات", href: "/cheques", icon: CreditCard },
+  { name: "الوسائط", href: "/media", icon: Image },
   { name: "التنبيهات", href: "/notifications", icon: Bell },
   { name: "التقارير", href: "/reports", icon: BarChart3 },
 ];

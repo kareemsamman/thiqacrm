@@ -199,6 +199,48 @@ export type Database = {
         }
         Relationships: []
       }
+      media_files: {
+        Row: {
+          cdn_url: string
+          created_at: string
+          deleted_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          mime_type: string
+          original_name: string
+          size: number
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          cdn_url: string
+          created_at?: string
+          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          mime_type: string
+          original_name: string
+          size: number
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          cdn_url?: string
+          created_at?: string
+          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          mime_type?: string
+          original_name?: string
+          size?: number
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       outside_cheques: {
         Row: {
           amount: number

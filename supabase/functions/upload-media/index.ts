@@ -48,6 +48,7 @@ const ALLOWED_FILE_TYPES: Record<string, { magicBytes: number[][], extensions: s
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const RATE_LIMIT_UPLOADS_PER_HOUR = 100;
+const MAX_BYTES_PER_HOUR = 500 * 1024 * 1024; // 500MB total per hour
 
 // Verify file content matches declared MIME type using magic bytes
 function verifyMagicBytes(buffer: Uint8Array, mimeType: string): boolean {
@@ -131,15 +132,25 @@ serve(async (req) => {
 
     // Rate limiting - check uploads in last hour
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-    const { count: uploadCount } = await supabase
+    const { data: recentUploads, count: uploadCount } = await supabase
       .from('media_files')
-      .select('id', { count: 'exact', head: true })
+      .select('size', { count: 'exact' })
       .eq('uploaded_by', user.id)
       .gte('created_at', oneHourAgo);
 
     if (uploadCount !== null && uploadCount >= RATE_LIMIT_UPLOADS_PER_HOUR) {
       console.warn(`Rate limit exceeded for user ${user.id}: ${uploadCount} uploads in last hour`);
       return new Response(JSON.stringify({ error: 'Upload limit exceeded. Please try again later.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Size-based rate limiting - check total bytes uploaded in last hour
+    const totalBytesUploaded = recentUploads?.reduce((sum, file) => sum + (file.size || 0), 0) || 0;
+    if (totalBytesUploaded >= MAX_BYTES_PER_HOUR) {
+      console.warn(`Storage quota exceeded for user ${user.id}: ${totalBytesUploaded} bytes in last hour`);
+      return new Response(JSON.stringify({ error: 'Storage quota exceeded. Please try again later.' }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

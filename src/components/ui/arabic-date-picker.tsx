@@ -57,6 +57,21 @@ export function ArabicDatePicker({
     return new Date();
   });
 
+  // Sync viewDate when value changes or popover opens
+  React.useEffect(() => {
+    if (value) {
+      setViewDate(new Date(value));
+    }
+  }, [value]);
+
+  // When popover opens, ensure viewDate matches value
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && value) {
+      setViewDate(new Date(value));
+    }
+    setOpen(isOpen);
+  };
+
   const selectedDate = value ? new Date(value) : null;
 
   const minDate = min ? new Date(min) : null;
@@ -154,7 +169,7 @@ export function ArabicDatePicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"

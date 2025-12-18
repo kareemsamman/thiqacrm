@@ -40,12 +40,29 @@ export default function Invoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [languageFilter, setLanguageFilter] = useState<string>("all");
+  const [creatorFilter, setCreatorFilter] = useState<string>("all");
+  const [creators, setCreators] = useState<{ id: string; name: string }[]>([]);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
 
+  // Fetch creators for filter
+  useEffect(() => {
+    const fetchCreators = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('status', 'active');
+      
+      if (data) {
+        setCreators(data.map(p => ({ id: p.id, name: p.full_name || p.email })));
+      }
+    };
+    fetchCreators();
+  }, []);
+
   useEffect(() => {
     fetchInvoices();
-  }, [statusFilter, languageFilter]);
+  }, [statusFilter, languageFilter, creatorFilter]);
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -67,6 +84,9 @@ export default function Invoices() {
     }
     if (languageFilter !== 'all') {
       query = query.eq('language', languageFilter);
+    }
+    if (creatorFilter !== 'all') {
+      query = query.eq('created_by_admin_id', creatorFilter);
     }
 
     const { data, error } = await query.limit(100);
@@ -196,6 +216,17 @@ export default function Invoices() {
                 <SelectItem value="he">עברית</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="أنشئ بواسطة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المستخدمين</SelectItem>
+                {creators.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" onClick={fetchInvoices}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -247,7 +278,7 @@ export default function Invoices() {
                         ₪ {invoice.policy?.insurance_price?.toLocaleString() || '0'}
                       </TableCell>
                       <TableCell>
-                        {new Date(invoice.issued_at).toLocaleDateString('ar-SA')}
+                        {new Date(invoice.issued_at).toLocaleDateString('en-GB')}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {invoice.created_by?.full_name || invoice.created_by?.email || '-'}

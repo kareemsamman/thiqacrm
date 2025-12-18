@@ -127,10 +127,6 @@ export default function Clients() {
       <ClientDetails
         client={viewingClient}
         onBack={() => setViewingClient(null)}
-        onEdit={() => {
-          setSelectedClient(viewingClient);
-          setDrawerOpen(true);
-        }}
         onRefresh={() => {
           fetchClients();
           // Refresh the viewing client data

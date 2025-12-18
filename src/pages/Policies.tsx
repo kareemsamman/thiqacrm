@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Search,
   Filter,
@@ -51,6 +52,7 @@ interface PolicyRecord {
   is_under_24: boolean | null;
   notes: string | null;
   broker_id: string | null;
+  created_by_admin_id: string | null;
   clients?: {
     id: string;
     full_name: string;
@@ -67,6 +69,10 @@ interface PolicyRecord {
     id: string;
     name: string;
     name_ar: string | null;
+  };
+  created_by?: {
+    full_name: string | null;
+    email: string;
   };
 }
 
@@ -96,6 +102,8 @@ export default function Policies() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [creatorFilter, setCreatorFilter] = useState<string>("all");
+  const [creators, setCreators] = useState<{ id: string; name: string }[]>([]);
   const pageSize = 25;
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -117,15 +125,15 @@ export default function Policies() {
           *,
           clients(id, full_name, less_than_24),
           cars(id, car_number, car_type, car_value, year),
-          insurance_companies(id, name, name_ar)
+          insurance_companies(id, name, name_ar),
+          created_by:profiles!policies_created_by_admin_id_fkey(full_name, email)
         `, { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
 
-      if (searchQuery) {
-        // Note: searching across joins requires different approach
-        // For now, search in policy data
+      if (creatorFilter !== 'all') {
+        query = query.eq('created_by_admin_id', creatorFilter);
       }
 
       const { data, error, count } = await query;
@@ -139,7 +147,22 @@ export default function Policies() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchQuery, toast]);
+  }, [currentPage, searchQuery, creatorFilter, toast]);
+
+  // Fetch creators for filter dropdown
+  useEffect(() => {
+    const fetchCreators = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('status', 'active');
+      
+      if (data) {
+        setCreators(data.map(p => ({ id: p.id, name: p.full_name || p.email })));
+      }
+    };
+    fetchCreators();
+  }, []);
 
   useEffect(() => {
     fetchPolicies();
@@ -316,6 +339,17 @@ export default function Policies() {
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <Select value={creatorFilter} onValueChange={(v) => { setCreatorFilter(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="أنشئ بواسطة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل المستخدمين</SelectItem>
+                {creators.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button 
               variant="outline" 
               size="sm"
@@ -332,10 +366,6 @@ export default function Policies() {
               <span className="sm:hidden">
                 {recalculating ? `${recalcProgress.done}/${recalcProgress.total}` : "حساب"}
               </span>
-            </Button>
-            <Button variant="outline" size="sm">
-              <Filter className="ml-1 md:ml-2 h-4 w-4" />
-              <span className="hidden sm:inline">فلترة</span>
             </Button>
             <Button variant="outline" size="sm">
               <Download className="ml-1 md:ml-2 h-4 w-4" />
@@ -357,6 +387,7 @@ export default function Policies() {
                   <TableHead className="text-muted-foreground font-medium">الفترة</TableHead>
                   <TableHead className="text-muted-foreground font-medium">السعر</TableHead>
                   <TableHead className="text-muted-foreground font-medium">الربح</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">أنشئ بواسطة</TableHead>
                   <TableHead className="text-muted-foreground font-medium">الحالة</TableHead>
                   <TableHead className="text-muted-foreground font-medium w-[80px]">إجراءات</TableHead>
                 </TableRow>
@@ -372,13 +403,14 @@ export default function Policies() {
                       <TableCell><Skeleton className="h-8 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                     </TableRow>
                   ))
                 ) : policies.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       لا توجد بيانات
                     </TableCell>
                   </TableRow>
@@ -421,6 +453,9 @@ export default function Policies() {
                         </TableCell>
                         <TableCell className="font-medium text-success">
                           ₪{(policy.profit || 0).toLocaleString('ar-EG')}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {policy.created_by?.full_name || policy.created_by?.email || '-'}
                         </TableCell>
                         <TableCell>
                           <Badge variant={status.variant}>

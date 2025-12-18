@@ -148,14 +148,22 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
   const [existingCar, setExistingCar] = useState<CarRecord | null>(null);
   const [carConflict, setCarConflict] = useState<string | null>(null);
 
-  // Step 3: Policy
+  // Step 3: Policy - Calculate initial end date
+  const getInitialEndDate = () => {
+    const today = new Date();
+    const endDate = new Date(today);
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    endDate.setDate(endDate.getDate() - 1);
+    return endDate.toISOString().split('T')[0];
+  };
+
   const [companies, setCompanies] = useState<Company[]>([]);
   const [policy, setPolicy] = useState({
     policy_type_parent: "",
     policy_type_child: "",
     company_id: "",
     start_date: new Date().toISOString().split('T')[0],
-    end_date: "",
+    end_date: getInitialEndDate(),
     insurance_price: "",
     cancelled: false,
     transferred: false,
@@ -167,8 +175,9 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   const [fetchingCarPrice, setFetchingCarPrice] = useState(false);
 
-  // Files to upload
-  const [policyFiles, setPolicyFiles] = useState<File[]>([]);
+  // Files to upload - Two categories
+  const [insuranceFiles, setInsuranceFiles] = useState<File[]>([]); // ملفات التأمين - للعميل
+  const [crmFiles, setCrmFiles] = useState<File[]>([]); // ملفات النظام - هوية، صور سيارة
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const clearDraft = () => {
@@ -210,9 +219,10 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
     setCreateNewCar(false);
     setNewClient({ full_name: "", id_number: "", phone_number: "", less_than_24: false, notes: "", broker_id: defaultBrokerId || "" });
     setNewCar({ car_number: "", manufacturer_name: "", model: "", year: "", color: "", car_type: "car", car_value: "", license_expiry: "" });
-    setPolicy({ policy_type_parent: "", policy_type_child: "", company_id: "", start_date: new Date().toISOString().split('T')[0], end_date: "", insurance_price: "", cancelled: false, transferred: false, notes: "" });
+    setPolicy({ policy_type_parent: "", policy_type_child: "", company_id: "", start_date: new Date().toISOString().split('T')[0], end_date: getInitialEndDate(), insurance_price: "", cancelled: false, transferred: false, notes: "" });
     setPayments([]);
-    setPolicyFiles([]);
+    setInsuranceFiles([]);
+    setCrmFiles([]);
     setCarDataFetched(false);
     setExistingCar(null);
     setCarConflict(null);
@@ -786,15 +796,20 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       }
 
       // Upload files if any
-      if (policyFiles.length > 0) {
+      const allFiles = [
+        ...insuranceFiles.map(f => ({ file: f, type: 'policy_insurance' })),
+        ...crmFiles.map(f => ({ file: f, type: 'policy_crm' })),
+      ];
+      
+      if (allFiles.length > 0) {
         setUploadingFiles(true);
         const { data: { session } } = await supabase.auth.getSession();
         
-        for (const file of policyFiles) {
+        for (const { file, type } of allFiles) {
           try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('entity_type', 'policy');
+            formData.append('entity_type', type);
             formData.append('entity_id', policyData.id);
 
             await fetch(
@@ -1487,25 +1502,25 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                     />
                   </div>
 
-                  {/* File Upload Section */}
+                  {/* File Upload Section - Insurance Files */}
                   <div className="space-y-3">
-                    <Label>المرفقات (صور / PDF / فيديو)</Label>
+                    <Label>ملفات التأمين (للعميل - فاتورة، إيصال دفع)</Label>
                     <div 
                       className={cn(
-                        "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
+                        "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
                         "hover:border-primary hover:bg-primary/5"
                       )}
-                      onClick={() => document.getElementById('policy-file-input')?.click()}
+                      onClick={() => document.getElementById('insurance-file-input')?.click()}
                       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                       onDrop={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         const files = Array.from(e.dataTransfer.files);
-                        setPolicyFiles(prev => [...prev, ...files]);
+                        setInsuranceFiles(prev => [...prev, ...files]);
                       }}
                     >
                       <input
-                        id="policy-file-input"
+                        id="insurance-file-input"
                         type="file"
                         multiple
                         accept="image/*,video/*,.pdf"
@@ -1513,26 +1528,26 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                         onChange={(e) => {
                           if (e.target.files) {
                             const files = Array.from(e.target.files);
-                            setPolicyFiles(prev => [...prev, ...files]);
+                            setInsuranceFiles(prev => [...prev, ...files]);
                           }
                           e.target.value = '';
                         }}
                       />
                       <div className="flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Plus className="h-6 w-6 text-primary" />
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Plus className="h-5 w-5 text-primary" />
                         </div>
                         <p className="text-sm font-medium">اضغط أو اسحب الملفات هنا</p>
-                        <p className="text-xs text-muted-foreground">صور، فيديو، PDF</p>
+                        <p className="text-xs text-muted-foreground">فواتير، إيصالات، وثائق للعميل</p>
                       </div>
                     </div>
 
-                    {/* Selected Files Preview */}
-                    {policyFiles.length > 0 && (
+                    {/* Selected Insurance Files Preview */}
+                    {insuranceFiles.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">{policyFiles.length} ملف محدد</p>
+                        <p className="text-sm font-medium">{insuranceFiles.length} ملف تأمين</p>
                         <div className="flex flex-wrap gap-2">
-                          {policyFiles.map((file, index) => (
+                          {insuranceFiles.map((file, index) => (
                             <div 
                               key={index}
                               className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm"
@@ -1546,14 +1561,92 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
                               ) : (
                                 <FileText className="h-5 w-5 text-muted-foreground" />
                               )}
-                              <span className="max-w-[120px] truncate">{file.name}</span>
+                              <span className="max-w-[100px] truncate">{file.name}</span>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setPolicyFiles(prev => prev.filter((_, i) => i !== index));
+                                  setInsuranceFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* File Upload Section - CRM Files */}
+                  <div className="space-y-3">
+                    <Label>ملفات النظام (هوية، صور سيارة، مستندات داخلية)</Label>
+                    <div 
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
+                        "hover:border-secondary hover:bg-secondary/5"
+                      )}
+                      onClick={() => document.getElementById('crm-file-input')?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const files = Array.from(e.dataTransfer.files);
+                        setCrmFiles(prev => [...prev, ...files]);
+                      }}
+                    >
+                      <input
+                        id="crm-file-input"
+                        type="file"
+                        multiple
+                        accept="image/*,video/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) {
+                            const files = Array.from(e.target.files);
+                            setCrmFiles(prev => [...prev, ...files]);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                          <Plus className="h-5 w-5 text-secondary-foreground" />
+                        </div>
+                        <p className="text-sm font-medium">اضغط أو اسحب الملفات هنا</p>
+                        <p className="text-xs text-muted-foreground">هوية، رخصة، صور سيارة</p>
+                      </div>
+                    </div>
+
+                    {/* Selected CRM Files Preview */}
+                    {crmFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">{crmFiles.length} ملف نظام</p>
+                        <div className="flex flex-wrap gap-2">
+                          {crmFiles.map((file, index) => (
+                            <div 
+                              key={index}
+                              className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm"
+                            >
+                              {file.type.startsWith('image/') ? (
+                                <img 
+                                  src={URL.createObjectURL(file)} 
+                                  alt={file.name}
+                                  className="w-8 h-8 object-cover rounded"
+                                />
+                              ) : (
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <span className="max-w-[100px] truncate">{file.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCrmFiles(prev => prev.filter((_, i) => i !== index));
                                 }}
                               >
                                 <X className="h-4 w-4" />

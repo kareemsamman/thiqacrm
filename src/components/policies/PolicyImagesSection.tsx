@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ImageIcon, Plus, Trash2, Download, X, Loader2 } from "lucide-react";
+import { ImageIcon, Plus, Trash2, Download, X, Loader2, FileText, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
@@ -15,6 +16,7 @@ interface MediaFile {
   mime_type: string;
   size: number;
   created_at: string;
+  entity_type: string | null;
 }
 
 interface PolicyImagesSectionProps {
@@ -23,49 +25,63 @@ interface PolicyImagesSectionProps {
 
 export function PolicyImagesSection({ policyId }: PolicyImagesSectionProps) {
   const { toast } = useToast();
-  const [images, setImages] = useState<MediaFile[]>([]);
+  const [insuranceFiles, setInsuranceFiles] = useState<MediaFile[]>([]);
+  const [crmFiles, setCrmFiles] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<MediaFile | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingImage, setDeletingImage] = useState<MediaFile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState("insurance");
 
-  const fetchImages = async () => {
+  const fetchFiles = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch insurance files
+      const { data: insuranceData, error: insuranceError } = await supabase
         .from('media_files')
         .select('*')
-        .eq('entity_type', 'policy')
         .eq('entity_id', policyId)
+        .in('entity_type', ['policy', 'policy_insurance'])
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setImages(data || []);
+      if (insuranceError) throw insuranceError;
+      setInsuranceFiles(insuranceData || []);
+
+      // Fetch CRM files
+      const { data: crmData, error: crmError } = await supabase
+        .from('media_files')
+        .select('*')
+        .eq('entity_id', policyId)
+        .eq('entity_type', 'policy_crm')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (crmError) throw crmError;
+      setCrmFiles(crmData || []);
     } catch (error) {
-      console.error('Error fetching images:', error);
+      console.error('Error fetching files:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchImages();
+    fetchFiles();
   }, [policyId]);
 
-  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>, fileType: 'insurance' | 'crm') => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    setUploading(true);
+    setUploading(fileType);
     try {
       for (const file of Array.from(files)) {
-        // Upload via edge function
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('entity_type', 'policy');
+        formData.append('entity_type', fileType === 'insurance' ? 'policy_insurance' : 'policy_crm');
         formData.append('entity_id', policyId);
 
         const { data: { session } } = await supabase.auth.getSession();
@@ -88,7 +104,7 @@ export function PolicyImagesSection({ policyId }: PolicyImagesSectionProps) {
       }
 
       toast({ title: "تم الرفع", description: "تم رفع الملفات بنجاح" });
-      fetchImages();
+      fetchFiles();
     } catch (error: any) {
       console.error('Error uploading:', error);
       toast({ 
@@ -97,8 +113,7 @@ export function PolicyImagesSection({ policyId }: PolicyImagesSectionProps) {
         variant: "destructive" 
       });
     } finally {
-      setUploading(false);
-      // Reset the input
+      setUploading(null);
       event.target.value = '';
     }
   };
@@ -128,7 +143,7 @@ export function PolicyImagesSection({ policyId }: PolicyImagesSectionProps) {
       }
 
       toast({ title: "تم الحذف", description: "تم حذف الملف بنجاح" });
-      fetchImages();
+      fetchFiles();
     } catch (error: any) {
       console.error('Error deleting:', error);
       toast({ 
@@ -151,101 +166,148 @@ export function PolicyImagesSection({ policyId }: PolicyImagesSectionProps) {
 
   const isImage = (mimeType: string) => mimeType.startsWith('image/');
 
+  const renderFileGrid = (files: MediaFile[]) => {
+    if (files.length === 0) {
+      return <p className="text-center text-muted-foreground py-6">لا توجد ملفات</p>;
+    }
+
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {files.map((file) => (
+          <div
+            key={file.id}
+            className="relative group rounded-lg border overflow-hidden bg-muted/30 aspect-square"
+          >
+            {isImage(file.mime_type) ? (
+              <img
+                src={file.cdn_url}
+                alt={file.original_name}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setSelectedImage(file)}
+              />
+            ) : (
+              <div 
+                className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
+                onClick={() => window.open(file.cdn_url, '_blank')}
+              >
+                <FileText className="h-8 w-8 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground mt-2 px-2 truncate w-full text-center">
+                  {file.original_name}
+                </p>
+              </div>
+            )}
+            
+            {/* Overlay actions */}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8"
+                onClick={() => window.open(file.cdn_url, '_blank')}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="destructive"
+                className="h-8 w-8"
+                onClick={() => {
+                  setDeletingImage(file);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Size badge */}
+            <div className="absolute bottom-1 right-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
+              {formatSize(file.size)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderUploadButton = (fileType: 'insurance' | 'crm') => (
+    <div className="relative">
+      <input
+        type="file"
+        multiple
+        accept="image/*,.pdf,video/*"
+        onChange={(e) => handleUpload(e, fileType)}
+        className="absolute inset-0 opacity-0 cursor-pointer"
+        disabled={uploading !== null}
+      />
+      <Button size="sm" variant="outline" disabled={uploading !== null}>
+        {uploading === fileType ? (
+          <Loader2 className="h-4 w-4 ml-1 animate-spin" />
+        ) : (
+          <Plus className="h-4 w-4 ml-1" />
+        )}
+        رفع ملف
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      <Card className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-primary font-semibold">
-            <ImageIcon className="h-4 w-4" />
-            <span>الملفات والصور ({images.length})</span>
-          </div>
-          <div className="relative">
-            <input
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              onChange={handleUpload}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              disabled={uploading}
-            />
-            <Button size="sm" variant="outline" disabled={uploading}>
-              {uploading ? (
-                <Loader2 className="h-4 w-4 ml-1 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 ml-1" />
-              )}
-              رفع ملف
-            </Button>
-          </div>
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="space-y-4">
+        <TabsList className="grid grid-cols-2 w-full flex-row-reverse">
+          <TabsTrigger value="crm" className="text-xs gap-1">
+            <FolderOpen className="h-3 w-3" />
+            ملفات النظام ({crmFiles.length})
+          </TabsTrigger>
+          <TabsTrigger value="insurance" className="text-xs gap-1">
+            <ImageIcon className="h-3 w-3" />
+            ملفات التأمين ({insuranceFiles.length})
+          </TabsTrigger>
+        </TabsList>
 
-        {loading ? (
-          <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
-        ) : images.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">لا توجد ملفات مرفقة</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {images.map((image) => (
-              <div
-                key={image.id}
-                className="relative group rounded-lg border overflow-hidden bg-muted/30 aspect-square"
-              >
-                {isImage(image.mime_type) ? (
-                  <img
-                    src={image.cdn_url}
-                    alt={image.original_name}
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={() => setSelectedImage(image)}
-                  />
-                ) : (
-                  <div 
-                    className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-                    onClick={() => window.open(image.cdn_url, '_blank')}
-                  >
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground mt-2 px-2 truncate w-full text-center">
-                      {image.original_name}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Overlay actions */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="h-8 w-8"
-                    onClick={() => window.open(image.cdn_url, '_blank')}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setDeletingImage(image);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Size badge */}
-                <div className="absolute bottom-1 right-1 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
-                  {formatSize(image.size)}
-                </div>
+        {/* Insurance Files Tab */}
+        <TabsContent value="insurance" className="m-0">
+          <Card className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary font-semibold">
+                <ImageIcon className="h-4 w-4" />
+                <span>ملفات التأمين</span>
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              {renderUploadButton('insurance')}
+            </div>
+            <p className="text-xs text-muted-foreground">فواتير، إيصالات، وثائق ترسل للعميل</p>
+            {loading ? (
+              <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
+            ) : (
+              renderFileGrid(insuranceFiles)
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* CRM Files Tab */}
+        <TabsContent value="crm" className="m-0">
+          <Card className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-secondary-foreground font-semibold">
+                <FolderOpen className="h-4 w-4" />
+                <span>ملفات النظام</span>
+              </div>
+              {renderUploadButton('crm')}
+            </div>
+            <p className="text-xs text-muted-foreground">هوية، رخصة، صور سيارة - ملفات داخلية للنظام</p>
+            {loading ? (
+              <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
+            ) : (
+              renderFileGrid(crmFiles)
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Image Preview Dialog */}
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-          <DialogContent className="sm:max-w-3xl p-2">
+          <DialogContent className="sm:max-w-3xl p-2" dir="rtl">
             <DialogHeader className="sr-only">
               <DialogTitle>معاينة الصورة</DialogTitle>
             </DialogHeader>

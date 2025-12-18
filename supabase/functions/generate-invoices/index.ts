@@ -11,6 +11,7 @@ interface InvoiceRequest {
   languages?: ('ar' | 'he')[];
   regenerate?: boolean;
   template_id?: string; // For regenerating with specific template
+  created_by_admin_id?: string; // The logged-in user who is generating the invoice
 }
 
 // Map policy types to Arabic/Hebrew labels
@@ -61,7 +62,7 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { policy_id, languages = ['ar', 'he'], regenerate = false, template_id } = await req.json() as InvoiceRequest;
+    const { policy_id, languages = ['ar', 'he'], regenerate = false, template_id, created_by_admin_id } = await req.json() as InvoiceRequest;
 
     if (!policy_id) {
       return new Response(
@@ -169,7 +170,7 @@ serve(async (req: Request) => {
         // The pdf_url will be null until PDF is generated
 
         if (existingInvoice && regenerate) {
-          // Update existing invoice
+          // Update existing invoice - use provided creator ID (logged-in user) or keep existing
           const { error: updateError } = await supabase
             .from('invoices')
             .update({
@@ -177,13 +178,14 @@ serve(async (req: Request) => {
               status: 'regenerated',
               metadata_json: { ...metadata, html_content: htmlContent },
               updated_at: new Date().toISOString(),
+              ...(created_by_admin_id ? { created_by_admin_id } : {}),
             })
             .eq('id', existingInvoice.id);
 
           if (updateError) throw updateError;
           results.push({ language: lang, invoice_id: existingInvoice.id, status: 'regenerated' });
         } else {
-          // Create new invoice
+          // Create new invoice - use provided creator ID (logged-in user) or fallback to policy creator
           const { data: newInvoice, error: insertError } = await supabase
             .from('invoices')
             .insert({
@@ -192,7 +194,7 @@ serve(async (req: Request) => {
               template_id: template.id,
               language: lang,
               status: 'generated',
-              created_by_admin_id: policy.created_by_admin_id,
+              created_by_admin_id: created_by_admin_id || policy.created_by_admin_id,
               metadata_json: { ...metadata, html_content: htmlContent },
             })
             .select()

@@ -44,6 +44,7 @@ interface PolicyDetails {
   created_at: string;
   updated_at: string;
   broker_id: string | null;
+  created_by_admin_id: string | null;
   clients: {
     id: string;
     full_name: string;
@@ -120,11 +121,13 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   const [editOpen, setEditOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("insurance");
   const [showQuickPayment, setShowQuickPayment] = useState(false);
+  const [creatorName, setCreatorName] = useState<string | null>(null);
 
   const fetchPolicyDetails = async () => {
     if (!policyId) return;
     
     setLoading(true);
+    setCreatorName(null);
     try {
       const { data: policyData, error: policyError } = await supabase
         .from('policies')
@@ -140,6 +143,16 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
 
       if (policyError) throw policyError;
       setPolicy(policyData as PolicyDetails);
+
+      // Fetch creator name via safe directory function
+      if (policyData.created_by_admin_id) {
+        const { data: creatorData } = await supabase.rpc('user_directory_get_by_ids', {
+          p_ids: [policyData.created_by_admin_id]
+        });
+        if (creatorData && creatorData.length > 0) {
+          setCreatorName(creatorData[0].display_name);
+        }
+      }
 
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('policy_payments')
@@ -267,6 +280,9 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">أقل من 24</Badge>
                       )}
                     </div>
+                    {creatorName && (
+                      <p className="text-xs text-muted-foreground mt-1">أنشئ بواسطة: {creatorName}</p>
+                    )}
                   </div>
                 </div>
 

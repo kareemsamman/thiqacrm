@@ -84,6 +84,25 @@ const CAR_TYPE_LABELS: Record<Enums<'car_type'>, string> = {
   tjeraup4: 'تجاري أكثر من 4 طن',
 };
 
+// Helper to get document type label from rule type
+const getDocumentTypeLabel = (ruleType: Enums<'pricing_rule_type'>): string => {
+  if (ruleType === 'THIRD_PRICE') return 'ثالث';
+  if (['FULL_PERCENT', 'DISCOUNT', 'MIN_PRICE'].includes(ruleType)) return 'شامل';
+  if (['ROAD_SERVICE_PRICE', 'ROAD_SERVICE_BASE', 'ROAD_SERVICE_EXTRA_OLD_CAR'].includes(ruleType)) return 'خدمات طريق';
+  return '-';
+};
+
+// Helper to format value with correct unit (only FULL_PERCENT is %)
+const formatRuleValue = (ruleType: Enums<'pricing_rule_type'>, value: number): string => {
+  if (ruleType === 'FULL_PERCENT') return `${value}%`;
+  return `₪${value}`;
+};
+
+// Check if rule type uses percent
+const isPercentRule = (ruleType: Enums<'pricing_rule_type'>): boolean => {
+  return ruleType === 'FULL_PERCENT';
+};
+
 export function PricingRulesDrawer({ open, onClose, company }: PricingRulesDrawerProps) {
   const { toast } = useToast();
   const [rules, setRules] = useState<PricingRule[]>([]);
@@ -308,7 +327,7 @@ export function PricingRulesDrawer({ open, onClose, company }: PricingRulesDrawe
                       <TableRow key={rule.id}>
                         <TableCell>
                           <Badge variant="outline">
-                            {POLICY_TYPE_LABELS[rule.policy_type_parent]}
+                            {getDocumentTypeLabel(rule.rule_type)}
                           </Badge>
                         </TableCell>
                         <TableCell>{RULE_TYPE_LABELS[rule.rule_type]}</TableCell>
@@ -319,9 +338,7 @@ export function PricingRulesDrawer({ open, onClose, company }: PricingRulesDrawe
                           {rule.age_band ? AGE_BAND_LABELS[rule.age_band] : '-'}
                         </TableCell>
                         <TableCell className="font-mono">
-                          {rule.rule_type === 'FULL_PERCENT' || rule.rule_type === 'DISCOUNT'
-                            ? `${rule.value}%`
-                            : `₪${rule.value}`}
+                          {formatRuleValue(rule.rule_type, rule.value)}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -446,13 +463,13 @@ export function PricingRulesDrawer({ open, onClose, company }: PricingRulesDrawe
                 step="0.01"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder={formData.rule_type === 'FULL_PERCENT' || formData.rule_type === 'DISCOUNT' ? 'النسبة المئوية' : 'المبلغ'}
+                placeholder={isPercentRule(formData.rule_type as Enums<'pricing_rule_type'>) ? 'النسبة المئوية' : 'المبلغ بالشيكل'}
                 dir="ltr"
               />
               <p className="text-xs text-muted-foreground">
-                {formData.rule_type === 'FULL_PERCENT' || formData.rule_type === 'DISCOUNT'
-                  ? 'أدخل النسبة المئوية (مثال: 5 تعني 5%)'
-                  : 'أدخل المبلغ بالشيكل'}
+                {isPercentRule(formData.rule_type as Enums<'pricing_rule_type'>)
+                  ? 'أدخل النسبة المئوية (مثال: 2.5 تعني 2.5%)'
+                  : 'أدخل المبلغ بالشيكل (₪)'}
               </p>
             </div>
 

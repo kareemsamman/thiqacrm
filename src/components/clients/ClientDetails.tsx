@@ -37,11 +37,14 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
+  CreditCard,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CarDrawer } from '@/components/cars/CarDrawer';
 import { PolicyDetailsDrawer } from '@/components/policies/PolicyDetailsDrawer';
+import { PolicyWizard } from '@/components/policies/PolicyWizard';
+import { ClientDrawer } from '@/components/clients/ClientDrawer';
 import { cn } from '@/lib/utils';
 
 interface Client {
@@ -93,10 +96,24 @@ interface PaymentSummary {
   total_profit: number;
 }
 
+interface PaymentRecord {
+  id: string;
+  amount: number;
+  payment_date: string;
+  payment_type: string;
+  cheque_number: string | null;
+  refused: boolean | null;
+  notes: string | null;
+  policy: {
+    id: string;
+    policy_type_parent: string;
+    insurance_price: number;
+  } | null;
+}
+
 interface ClientDetailsProps {
   client: Client;
   onBack: () => void;
-  onEdit: () => void;
   onRefresh: () => void;
 }
 
@@ -135,16 +152,20 @@ const carTypeLabels: Record<string, string> = {
   tjeraup4: 'تجاري (أكثر من 4 طن)',
 };
 
-export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetailsProps) {
+export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps) {
   const [cars, setCars] = useState<CarRecord[]>([]);
   const [policies, setPolicies] = useState<PolicyRecord[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [broker, setBroker] = useState<Broker | null>(null);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary>({ total_paid: 0, total_remaining: 0, total_profit: 0 });
   const [loadingCars, setLoadingCars] = useState(true);
   const [loadingPolicies, setLoadingPolicies] = useState(true);
+  const [loadingPayments, setLoadingPayments] = useState(true);
   const [carDrawerOpen, setCarDrawerOpen] = useState(false);
   const [policyDetailsOpen, setPolicyDetailsOpen] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
+  const [policyWizardOpen, setPolicyWizardOpen] = useState(false);
+  const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
   
   // Notes editing
   const [editingNotes, setEditingNotes] = useState(false);
@@ -155,6 +176,10 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
   const [policySearch, setPolicySearch] = useState('');
   const [policyTypeFilter, setPolicyTypeFilter] = useState<string>('all');
   const [policyStatusFilter, setPolicyStatusFilter] = useState<string>('all');
+
+  // Payment filters
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('all');
 
   const fetchBroker = async () => {
     if (!client.broker_id) return;
@@ -251,11 +276,52 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
     }
   };
 
+  const fetchPayments = async () => {
+    setLoadingPayments(true);
+    try {
+      // Get all policies for this client first
+      const { data: policiesData } = await supabase
+        .from('policies')
+        .select('id, policy_type_parent, insurance_price')
+        .eq('client_id', client.id)
+        .is('deleted_at', null);
+
+      if (!policiesData || policiesData.length === 0) {
+        setPayments([]);
+        return;
+      }
+
+      const policyIds = policiesData.map(p => p.id);
+
+      // Get all payments for these policies
+      const { data: paymentsData, error } = await supabase
+        .from('policy_payments')
+        .select('id, amount, payment_date, payment_type, cheque_number, refused, notes, policy_id')
+        .in('policy_id', policyIds)
+        .order('payment_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Map payments with policy info
+      const paymentsWithPolicy = (paymentsData || []).map(payment => ({
+        ...payment,
+        policy: policiesData.find(p => p.id === payment.policy_id) || null,
+      }));
+
+      setPayments(paymentsWithPolicy);
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
   useEffect(() => {
     fetchCars();
     fetchPolicies();
     fetchBroker();
     fetchPaymentSummary();
+    fetchPayments();
     setNotesValue(client.notes || '');
   }, [client.id]);
 
@@ -407,7 +473,7 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
                 )}
               </div>
               
-              <Button onClick={onEdit} className="shrink-0">
+              <Button onClick={() => setClientDrawerOpen(true)} className="shrink-0">
                 <Edit className="h-4 w-4 ml-2" />
                 تعديل
               </Button>
@@ -487,6 +553,10 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
               <FileText className="h-4 w-4" />
               الوثائق ({policies.length})
             </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-1.5">
+              <CreditCard className="h-4 w-4" />
+              سجل الدفعات ({payments.length})
+            </TabsTrigger>
             <TabsTrigger value="cars" className="gap-1.5">
               <Car className="h-4 w-4" />
               السيارات ({cars.length})
@@ -565,6 +635,15 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
 
           {/* Policies Tab */}
           <TabsContent value="policies" className="mt-6 space-y-4">
+            {/* Header with Add Button */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold text-lg">وثائق التأمين</h3>
+              <Button onClick={() => setPolicyWizardOpen(true)}>
+                <Plus className="h-4 w-4 ml-2" />
+                إضافة وثيقة جديدة
+              </Button>
+            </div>
+            
             {/* Filters */}
             <Card className="p-4">
               <div className="flex flex-wrap gap-3">
@@ -662,6 +741,113 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
                         </TableRow>
                       );
                     })}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments" className="mt-6 space-y-4">
+            <h3 className="font-semibold text-lg">سجل الدفعات</h3>
+            
+            {/* Payment Filters */}
+            <Card className="p-4">
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="بحث في الدفعات..."
+                    value={paymentSearch}
+                    onChange={(e) => setPaymentSearch(e.target.value)}
+                    className="pr-10"
+                  />
+                </div>
+                <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="طريقة الدفع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الطرق</SelectItem>
+                    <SelectItem value="cash">نقدي</SelectItem>
+                    <SelectItem value="cheque">شيك</SelectItem>
+                    <SelectItem value="visa">بطاقة</SelectItem>
+                    <SelectItem value="transfer">تحويل</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </Card>
+
+            {loadingPayments ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : payments.length === 0 ? (
+              <Card className="text-center py-12">
+                <CreditCard className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">لا توجد دفعات مسجلة</p>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-right">المبلغ</TableHead>
+                      <TableHead className="text-right">التاريخ</TableHead>
+                      <TableHead className="text-right">طريقة الدفع</TableHead>
+                      <TableHead className="text-right">نوع التأمين</TableHead>
+                      <TableHead className="text-right">رقم الشيك</TableHead>
+                      <TableHead className="text-right">الحالة</TableHead>
+                      <TableHead className="text-right">ملاحظات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments
+                      .filter(payment => {
+                        if (paymentSearch) {
+                          const search = paymentSearch.toLowerCase();
+                          if (!payment.cheque_number?.toLowerCase().includes(search) && 
+                              !payment.notes?.toLowerCase().includes(search)) {
+                            return false;
+                          }
+                        }
+                        if (paymentTypeFilter !== 'all' && payment.payment_type !== paymentTypeFilter) {
+                          return false;
+                        }
+                        return true;
+                      })
+                      .map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-semibold">₪{payment.amount.toLocaleString()}</TableCell>
+                          <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {payment.payment_type === 'cash' ? 'نقدي' :
+                               payment.payment_type === 'cheque' ? 'شيك' :
+                               payment.payment_type === 'visa' ? 'بطاقة' :
+                               payment.payment_type === 'transfer' ? 'تحويل' : payment.payment_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {payment.policy && (
+                              <Badge className={cn("border", policyTypeColors[payment.policy.policy_type_parent])}>
+                                {policyTypeLabels[payment.policy.policy_type_parent] || payment.policy.policy_type_parent}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono">{payment.cheque_number || '-'}</TableCell>
+                          <TableCell>
+                            {payment.refused ? (
+                              <Badge variant="destructive">راجع</Badge>
+                            ) : (
+                              <Badge variant="success">مقبول</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-[150px] truncate">{payment.notes || '-'}</TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </Card>
@@ -801,6 +987,33 @@ export function ClientDetails({ client, onBack, onEdit, onRefresh }: ClientDetai
         onUpdated={() => {
           fetchPolicies();
           fetchPaymentSummary();
+          fetchPayments();
+        }}
+      />
+
+      {/* Policy Wizard for creating new policy */}
+      <PolicyWizard
+        open={policyWizardOpen}
+        onOpenChange={setPolicyWizardOpen}
+        preselectedClientId={client.id}
+        onSaved={() => {
+          setPolicyWizardOpen(false);
+          fetchPolicies();
+          fetchPaymentSummary();
+          fetchPayments();
+          onRefresh();
+        }}
+      />
+
+      {/* Client Edit Drawer */}
+      <ClientDrawer
+        open={clientDrawerOpen}
+        onOpenChange={setClientDrawerOpen}
+        client={client}
+        onSaved={() => {
+          setClientDrawerOpen(false);
+          onRefresh();
+          fetchBroker();
         }}
       />
     </MainLayout>

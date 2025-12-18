@@ -23,7 +23,9 @@ interface PolicyWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete?: (policyId: string) => void;
+  onSaved?: () => void;
   defaultBrokerId?: string;
+  preselectedClientId?: string;
 }
 
 interface InsuranceCategory {
@@ -124,7 +126,7 @@ const PAYMENT_TYPES = [
 
 const POLICY_WIZARD_DRAFT_KEY = "abcrm:policyWizardDraft:v2";
 
-export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }: PolicyWizardProps) {
+export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultBrokerId, preselectedClientId }: PolicyWizardProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -347,6 +349,24 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       fetchCategories();
     }
   }, [open]);
+
+  // Handle preselected client
+  useEffect(() => {
+    if (open && preselectedClientId && !selectedClient) {
+      const fetchPreselectedClient = async () => {
+        const { data } = await supabase
+          .from('clients')
+          .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
+          .eq('id', preselectedClientId)
+          .single();
+        if (data) {
+          setSelectedClient(data);
+          setCreateNewClient(false);
+        }
+      };
+      fetchPreselectedClient();
+    }
+  }, [open, preselectedClientId]);
 
   // Check if Tranzila is enabled
   const checkTranzilaEnabled = async () => {
@@ -1141,9 +1161,12 @@ export function PolicyWizard({ open, onOpenChange, onComplete, defaultBrokerId }
       onOpenChange(false);
       setSaving(false);
       onComplete?.(policyId!);
+      onSaved?.();
       
-      // Navigate to policy details
-      navigate(`/policies`);
+      // Navigate to policies only if no custom handler
+      if (!onSaved) {
+        navigate(`/policies`);
+      }
 
       // Generate invoices in background (non-blocking)
       (async () => {

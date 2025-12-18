@@ -236,7 +236,7 @@ export default function PaymentSettings() {
                   <p>CVV: <span className="bg-blue-100 px-2 py-0.5 rounded">123</span></p>
                 </div>
                 <p className="text-xs text-blue-500 mt-2">
-                  * تحقق من Tranzila إذا كان المسوف يدعم بطاقات الاختبار
+                  * بطاقات الاختبار تعمل فقط مع "ترمينال تجريبي" من Tranzila (اطلبه من الدعم).
                 </p>
               </div>
             )}

@@ -283,16 +283,15 @@ export function TranzilaPaymentModal({
                 ))}
               </form>
 
-              <div className="flex-1 border rounded-lg overflow-hidden bg-white">
+              <div className="flex-1 border rounded-lg overflow-hidden bg-background">
                 <iframe
                   ref={iframeRef}
                   name="tranzila-iframe"
                   className="w-full h-full min-h-[400px]"
                   title="Tranzila Payment"
-                  // Enhanced permissions for 3DS and payment flows
-                  sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation allow-popups allow-popups-to-escape-sandbox"
-                  // Required for Google Pay / Apple Pay / 3DS
+                  // NOTE: Tranzila docs do NOT require sandbox; sandbox can break their internal JS.
                   allowFullScreen
+                  allow="payment *; fullscreen *"
                   // @ts-ignore - allowpaymentrequest is valid but not in types
                   allowpaymentrequest="true"
                 />

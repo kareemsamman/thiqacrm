@@ -145,9 +145,7 @@ Deno.serve(async (req) => {
       cred_type: '1', // 1 = regular credit card
       tranmode: 'A', // A = standard transaction
       myid: tranzilaIndex, // Our reference ID for matching webhook
-      lang: 'il', // Hebrew language display
-      nologo: '1', // Hide Tranzila logo for cleaner look
-      buttonLabel: 'שלם עכשיו', // Hebrew pay button text
+      newprocess: '1', // 3DS V2 (can also be enabled in terminal settings)
     }
 
     // Add callback URLs - these should be absolute URLs to our payment result pages

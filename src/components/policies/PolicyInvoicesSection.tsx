@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { FileText, RefreshCw, Printer, Eye, Download, Plus, Loader2 } from "lucide-react";
 
 interface InvoiceMetadata {
@@ -41,6 +42,7 @@ interface PolicyInvoicesSectionProps {
 
 export function PolicyInvoicesSection({ policyId }: PolicyInvoicesSectionProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([]);
@@ -95,6 +97,7 @@ export function PolicyInvoicesSection({ policyId }: PolicyInvoicesSectionProps) 
           policy_id: policyId,
           languages: [selectedLanguage],
           template_id: selectedTemplateId || undefined,
+          created_by_admin_id: user?.id, // Pass logged-in user ID
         },
       });
 
@@ -124,6 +127,7 @@ export function PolicyInvoicesSection({ policyId }: PolicyInvoicesSectionProps) 
           languages: [invoice.language],
           regenerate: true,
           template_id: invoice.template_id,
+          created_by_admin_id: user?.id, // Pass logged-in user ID
         },
       });
 

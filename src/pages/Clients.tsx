@@ -156,7 +156,7 @@ export default function Clients() {
           // Refresh the viewing client data
           supabase
             .from('clients')
-            .select('*, broker:brokers(id, name)')
+            .select('*, broker:brokers(id, name), branch:branches(id, name, name_ar)')
             .eq('id', viewingClient.id)
             .single()
             .then(({ data }) => {

@@ -28,9 +28,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useBranches } from '@/hooks/useBranches';
 
 const clientSchema = z.object({
   full_name: z.string().trim().min(2, 'الاسم مطلوب').max(120, 'الاسم طويل جداً'),
@@ -49,6 +51,7 @@ const clientSchema = z.object({
   notes: z.string().optional(),
   less_than_24: z.boolean().default(false),
   broker_id: z.string().optional(),
+  branch_id: z.string().optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -65,6 +68,7 @@ interface Client {
   image_url: string | null;
   created_at: string;
   broker_id?: string | null;
+  branch_id?: string | null;
 }
 
 interface Broker {
@@ -83,6 +87,8 @@ interface ClientDrawerProps {
 export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBrokerId }: ClientDrawerProps) {
   const [saving, setSaving] = useState(false);
   const [brokers, setBrokers] = useState<Broker[]>([]);
+  const { isAdmin, branchId: userBranchId } = useAuth();
+  const { branches } = useBranches();
   const isEditing = !!client;
 
   const form = useForm<ClientFormData>({
@@ -95,6 +101,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
       notes: '',
       less_than_24: false,
       broker_id: '',
+      branch_id: '',
     },
   });
 
@@ -113,6 +120,11 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
   // Reset form when client changes or drawer opens
   useEffect(() => {
     if (open) {
+      // For new clients, use the worker's branch; for editing, use the client's branch
+      const defaultBranch = isEditing 
+        ? (client?.branch_id || '') 
+        : (userBranchId || (branches.length > 0 ? branches[0].id : ''));
+      
       form.reset({
         full_name: client?.full_name || '',
         id_number: client?.id_number || '',
@@ -121,13 +133,18 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
         notes: client?.notes || '',
         less_than_24: client?.less_than_24 || false,
         broker_id: client?.broker_id || defaultBrokerId || '',
+        branch_id: defaultBranch,
       });
     }
-  }, [open, client, defaultBrokerId, form]);
+  }, [open, client, defaultBrokerId, form, isEditing, userBranchId, branches]);
 
   const onSubmit = async (data: ClientFormData) => {
     setSaving(true);
     try {
+      const oldBranchId = client?.branch_id;
+      const newBranchId = data.branch_id || null;
+      const branchChanged = isEditing && oldBranchId !== newBranchId && newBranchId;
+
       const clientData = {
         full_name: data.full_name,
         id_number: data.id_number,
@@ -136,6 +153,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
         notes: data.notes || null,
         less_than_24: data.less_than_24,
         broker_id: data.broker_id || null,
+        branch_id: newBranchId,
       };
 
       if (isEditing) {
@@ -145,7 +163,27 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
           .eq('id', client.id);
 
         if (error) throw error;
-        toast.success('تم تحديث بيانات العميل');
+
+        // If branch changed, update all client's policies, cars, and related data
+        if (branchChanged) {
+          // Update policies
+          await supabase
+            .from('policies')
+            .update({ branch_id: newBranchId })
+            .eq('client_id', client.id)
+            .is('deleted_at', null);
+
+          // Update cars
+          await supabase
+            .from('cars')
+            .update({ branch_id: newBranchId })
+            .eq('client_id', client.id)
+            .is('deleted_at', null);
+
+          toast.success('تم تحديث بيانات العميل ونقل جميع وثائقه للفرع الجديد');
+        } else {
+          toast.success('تم تحديث بيانات العميل');
+        }
       } else {
         const { error } = await supabase
           .from('clients')
@@ -279,6 +317,45 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                 </FormItem>
               )}
             />
+
+            {/* Branch field - Admin only */}
+            {isAdmin && branches.length > 0 && (
+              <FormField
+                control={form.control}
+                name="branch_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      الفرع
+                    </FormLabel>
+                    <Select
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="اختر الفرع" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name_ar || branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        تغيير الفرع سينقل جميع وثائق وسيارات العميل للفرع الجديد
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

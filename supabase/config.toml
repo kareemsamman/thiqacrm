@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.tranzila-webhook]
 verify_jwt = false
+
+[functions.get-signature-info]
+verify_jwt = false
+
+[functions.submit-signature]
+verify_jwt = false

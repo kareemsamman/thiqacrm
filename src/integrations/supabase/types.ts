@@ -245,6 +245,7 @@ export type Database = {
           created_at: string
           id: string
           ip_address: string | null
+          policy_id: string | null
           signature_image_url: string
           signed_at: string
           token: string | null
@@ -257,6 +258,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_address?: string | null
+          policy_id?: string | null
           signature_image_url: string
           signed_at?: string
           token?: string | null
@@ -269,6 +271,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_address?: string | null
+          policy_id?: string | null
           signature_image_url?: string
           signed_at?: string
           token?: string | null
@@ -288,6 +291,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_signatures_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
             referencedColumns: ["id"]
           },
         ]
@@ -1021,9 +1031,14 @@ export type Database = {
       sms_settings: {
         Row: {
           created_at: string
+          default_ab_invoice_template_id: string | null
+          default_insurance_invoice_template_id: string | null
+          default_signature_template_id: string | null
           id: string
+          invoice_sms_template: string | null
           is_enabled: boolean
           provider: string
+          signature_sms_template: string | null
           sms_source: string | null
           sms_token: string | null
           sms_user: string | null
@@ -1031,9 +1046,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_ab_invoice_template_id?: string | null
+          default_insurance_invoice_template_id?: string | null
+          default_signature_template_id?: string | null
           id?: string
+          invoice_sms_template?: string | null
           is_enabled?: boolean
           provider?: string
+          signature_sms_template?: string | null
           sms_source?: string | null
           sms_token?: string | null
           sms_user?: string | null
@@ -1041,15 +1061,42 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_ab_invoice_template_id?: string | null
+          default_insurance_invoice_template_id?: string | null
+          default_signature_template_id?: string | null
           id?: string
+          invoice_sms_template?: string | null
           is_enabled?: boolean
           provider?: string
+          signature_sms_template?: string | null
           sms_source?: string | null
           sms_token?: string | null
           sms_user?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sms_settings_default_ab_invoice_template_id_fkey"
+            columns: ["default_ab_invoice_template_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_settings_default_insurance_invoice_template_id_fkey"
+            columns: ["default_insurance_invoice_template_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_settings_default_signature_template_id_fkey"
+            columns: ["default_signature_template_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

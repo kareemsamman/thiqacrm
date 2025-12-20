@@ -26,6 +26,7 @@ import PaymentSettings from "./pages/PaymentSettings";
 import SmsSettings from "./pages/SmsSettings";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
+import SignaturePage from "./pages/SignaturePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -131,6 +132,8 @@ const App = () => (
               {/* Public payment callback routes (loaded in iframe) */}
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/fail" element={<PaymentFail />} />
+              {/* Public signature page */}
+              <Route path="/sign/:token" element={<SignaturePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

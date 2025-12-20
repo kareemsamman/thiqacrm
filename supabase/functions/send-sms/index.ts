@@ -105,63 +105,71 @@ serve(async (req) => {
       );
     }
 
-    // Clean phone number (remove leading 0 if Israeli number)
-    let cleanPhone = phone.replace(/[^0-9+]/g, "");
-    if (cleanPhone.startsWith("0")) {
-      cleanPhone = "972" + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith("+")) {
-      cleanPhone = cleanPhone.substring(1);
+    const escapeXml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+
+    // Normalize phone for 019sms (expects 05xxxxxxx or 5xxxxxxx)
+    let cleanPhone = phone.replace(/[^0-9]/g, "");
+    if (cleanPhone.startsWith("972")) {
+      cleanPhone = "0" + cleanPhone.substring(3);
     }
 
-    // Build 019sms API request
-    // API documentation: https://apidocs.api19.com/sms-mms/send-sms
-    const smsApiUrl = "https://v1.api19.com/sms/send";
-    const smsParams = new URLSearchParams({
-      key: sms_token,
-      source: sms_source,
-      destination: cleanPhone,
-      message: message,
-    });
+    // Build 019sms XML request (official API)
+    // Docs: https://docs.019sms.co.il/sms/send-sms.html
+    const dlr = crypto.randomUUID();
+    const smsXml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<sms>` +
+      `<user><username>${escapeXml(sms_user)}</username></user>` +
+      `<source>${escapeXml(sms_source)}</source>` +
+      `<destinations><phone id="${dlr}">${escapeXml(cleanPhone)}</phone></destinations>` +
+      `<message>${escapeXml(message)}</message>` +
+      `</sms>`;
 
     console.log(`Sending SMS to ${cleanPhone} from ${sms_source}`);
 
-    const smsResponse = await fetch(`${smsApiUrl}?${smsParams.toString()}`, {
-      method: "GET",
+    const smsResponse = await fetch("https://019sms.co.il/api", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sms_token}`,
+        "Content-Type": "application/xml; charset=utf-8",
+      },
+      body: smsXml,
     });
 
     const smsResult = await smsResponse.text();
-    console.log("019sms API response:", smsResult);
+    console.log("019sms raw response:", smsResult);
 
-    // Parse JSON response from API
-    let responseData: { status?: string; error?: string; uuid?: string } = {};
-    try {
-      responseData = JSON.parse(smsResult);
-    } catch {
-      console.error("Failed to parse API response:", smsResult);
-      return new Response(
-        JSON.stringify({ error: `Invalid API response: ${smsResult.substring(0, 200)}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const doc = new DOMParser().parseFromString(smsResult, "application/xml");
+    const status = doc?.querySelector("status")?.textContent?.trim();
+    const apiMessage = doc?.querySelector("message")?.textContent?.trim();
+    const shipmentId = doc?.querySelector("shipment_id")?.textContent?.trim();
 
-    if (responseData.status === "ok") {
+    if (!smsResponse.ok || status !== "0") {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "SMS sent successfully",
-          phone: cleanPhone,
-          uuid: responseData.uuid
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } else {
-      return new Response(
-        JSON.stringify({ 
-          error: responseData.error || "SMS API error",
+        JSON.stringify({
+          error: apiMessage || `SMS API error (status=${status ?? "unknown"})`,
+          status,
+          http_status: smsResponse.status,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: apiMessage || "SMS sent successfully",
+        phone: cleanPhone,
+        shipment_id: shipmentId,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error: unknown) {
     console.error("Error in send-sms function:", error);

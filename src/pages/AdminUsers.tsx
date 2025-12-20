@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useBranches } from "@/hooks/useBranches";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
@@ -43,6 +44,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -54,6 +56,7 @@ interface UserProfile {
   status: 'pending' | 'active' | 'blocked';
   created_at: string;
   updated_at: string;
+  branch_id: string | null;
 }
 
 interface UserRole {
@@ -75,12 +78,14 @@ interface LoginAttempt {
 
 export default function AdminUsers() {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { branches, getBranchName } = useBranches();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<Record<string, 'admin' | 'worker'>>({});
+  const [selectedBranch, setSelectedBranch] = useState<Record<string, string>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     userId: string;
@@ -117,14 +122,20 @@ export default function AdminUsers() {
 
       setUsers(usersWithRoles);
 
-      // Initialize selected roles for pending users
+      // Initialize selected roles and branches for pending users
       const roleSelections: Record<string, 'admin' | 'worker'> = {};
+      const branchSelections: Record<string, string> = {};
       usersWithRoles.forEach(u => {
         if (u.status === 'pending') {
           roleSelections[u.id] = 'worker';
+          // Default to first branch if available
+          if (branches.length > 0) {
+            branchSelections[u.id] = branches[0].id;
+          }
         }
       });
       setSelectedRole(roleSelections);
+      setSelectedBranch(branchSelections);
 
       // Fetch login attempts
       const { data: attempts, error: attemptsError } = await supabase
@@ -158,11 +169,17 @@ export default function AdminUsers() {
     setActionLoading(userId);
     try {
       const role = selectedRole[userId] || 'worker';
+      const branchId = selectedBranch[userId] || (branches.length > 0 ? branches[0].id : null);
 
-      // Update profile status to active
+      // Update profile status to active and set branch
+      const updateData: { status: 'active' | 'pending' | 'blocked'; branch_id?: string } = { status: 'active' };
+      if (branchId) {
+        updateData.branch_id = branchId;
+      }
+      
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ status: 'active' })
+        .update(updateData)
         .eq('id', userId);
 
       if (profileError) throw profileError;
@@ -428,6 +445,7 @@ export default function AdminUsers() {
                       <TableHead className="text-right">الاسم</TableHead>
                       <TableHead className="text-right">البريد الإلكتروني</TableHead>
                       <TableHead className="text-right">تاريخ التسجيل</TableHead>
+                      <TableHead className="text-right">الفرع</TableHead>
                       <TableHead className="text-right">الدور</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
@@ -442,6 +460,25 @@ export default function AdminUsers() {
                           {user.email}
                         </TableCell>
                         <TableCell>{formatDate(user.created_at)}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={selectedBranch[user.id] || (branches.length > 0 ? branches[0].id : '')}
+                            onValueChange={(value) => 
+                              setSelectedBranch(prev => ({ ...prev, [user.id]: value }))
+                            }
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="اختر الفرع" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map(branch => (
+                                <SelectItem key={branch.id} value={branch.id}>
+                                  {branch.name_ar || branch.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           <Select
                             value={selectedRole[user.id] || 'worker'}

@@ -57,12 +57,8 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const bunnyApiKey = Deno.env.get('BUNNY_API_KEY');
     const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
-    // Validate BUNNY_CDN_URL - must start with https://
-    let bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL');
-    if (!bunnyCdnUrl || !bunnyCdnUrl.startsWith('https://')) {
-      bunnyCdnUrl = 'https://basheer-ab.b-cdn.net';
-      console.log('[generate-invoice-pdf] Using default Bunny CDN URL:', bunnyCdnUrl);
-    }
+    // Hardcoded CDN URL to match upload-media function
+    const bunnyCdnUrl = 'https://basheer-ab.b-cdn.net';
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

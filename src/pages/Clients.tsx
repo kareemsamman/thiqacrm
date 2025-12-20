@@ -42,6 +42,7 @@ interface Client {
   less_than_24: boolean | null;
   notes: string | null;
   image_url: string | null;
+  signature_url: string | null;
   created_at: string;
   broker_id: string | null;
   branch_id: string | null;

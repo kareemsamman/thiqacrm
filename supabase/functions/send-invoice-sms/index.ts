@@ -179,37 +179,36 @@ serve(async (req) => {
 
     // Send SMS via 019sms API
     const smsParams = new URLSearchParams({
-      user: smsSettings.sms_user,
-      password: smsSettings.sms_token,
-      from: smsSettings.sms_source,
-      recipient: cleanPhone,
+      key: smsSettings.sms_token,
+      source: smsSettings.sms_source,
+      destination: cleanPhone,
       message: smsMessage,
     });
 
     console.log(`[send-invoice-sms] Sending SMS to ${cleanPhone}`);
 
-    const smsResponse = await fetch(`https://019sms.co.il/api?${smsParams.toString()}`, {
+    const smsResponse = await fetch(`https://v1.api19.com/sms/send?${smsParams.toString()}`, {
       method: "GET",
     });
 
     const smsResult = await smsResponse.text();
     console.log("[send-invoice-sms] 019sms API response:", smsResult);
 
-    const responseCode = parseInt(smsResult.trim(), 10);
-
-    if (responseCode !== 1) {
-      const errorMessages: Record<number, string> = {
-        2: "Invalid username or password",
-        3: "Invalid sender name",
-        4: "Invalid recipient number",
-        5: "Message is empty",
-        6: "Message too long",
-        7: "Insufficient credits",
-      };
-
-      console.error(`[send-invoice-sms] SMS failed with code: ${responseCode}`);
+    let responseData: { status?: string; error?: string } = {};
+    try {
+      responseData = JSON.parse(smsResult);
+    } catch {
+      console.error(`[send-invoice-sms] Failed to parse API response`);
       return new Response(
-        JSON.stringify({ error: errorMessages[responseCode] || `SMS API error: ${smsResult}` }),
+        JSON.stringify({ error: "Invalid SMS API response" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (responseData.status !== "ok") {
+      console.error(`[send-invoice-sms] SMS failed: ${responseData.error}`);
+      return new Response(
+        JSON.stringify({ error: responseData.error || "SMS API error" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

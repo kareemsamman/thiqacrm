@@ -48,6 +48,7 @@ import { CarDrawer } from '@/components/cars/CarDrawer';
 import { PolicyDetailsDrawer } from '@/components/policies/PolicyDetailsDrawer';
 import { PolicyWizard } from '@/components/policies/PolicyWizard';
 import { ClientDrawer } from '@/components/clients/ClientDrawer';
+import { ClientSignatureSection } from '@/components/clients/ClientSignatureSection';
 import { cn } from '@/lib/utils';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useBranches } from '@/hooks/useBranches';
@@ -63,6 +64,7 @@ interface Client {
   less_than_24: boolean | null;
   notes: string | null;
   image_url: string | null;
+  signature_url: string | null;
   created_at: string;
   broker_id: string | null;
   branch_id: string | null;
@@ -746,6 +748,15 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   </div>
                 )}
               </Card>
+              
+              {/* Signature Section */}
+              <ClientSignatureSection
+                clientId={client.id}
+                clientName={client.full_name}
+                phoneNumber={client.phone_number}
+                signatureUrl={client.signature_url}
+                onSignatureSent={onRefresh}
+              />
             </div>
 
             {/* Charts Row */}

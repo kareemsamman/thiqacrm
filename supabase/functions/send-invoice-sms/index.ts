@@ -169,46 +169,53 @@ serve(async (req) => {
       .replace(/\{\{ab_invoice_url\}\}/g, invoiceUrls[0] || "")
       .replace(/\{\{insurance_invoice_url\}\}/g, invoiceUrls.slice(1).join(" ") || invoiceUrls[0] || "");
 
-    // Clean phone number
-    let cleanPhone = policy.client.phone_number.replace(/[^0-9+]/g, "");
-    if (cleanPhone.startsWith("0")) {
-      cleanPhone = "972" + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith("+")) {
-      cleanPhone = cleanPhone.substring(1);
+    const escapeXml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+
+    // Normalize phone for 019sms (expects 05xxxxxxx or 5xxxxxxx)
+    let cleanPhone = policy.client.phone_number.replace(/[^0-9]/g, "");
+    if (cleanPhone.startsWith("972")) {
+      cleanPhone = "0" + cleanPhone.substring(3);
     }
 
-    // Send SMS via 019sms API
-    const smsParams = new URLSearchParams({
-      key: smsSettings.sms_token,
-      source: smsSettings.sms_source,
-      destination: cleanPhone,
-      message: smsMessage,
-    });
+    // Send SMS via 019sms (official XML API)
+    const dlr = crypto.randomUUID();
+    const smsXml =
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<sms>` +
+      `<user><username>${escapeXml(smsSettings.sms_user || "")}</username></user>` +
+      `<source>${escapeXml(smsSettings.sms_source || "")}</source>` +
+      `<destinations><phone id="${dlr}">${escapeXml(cleanPhone)}</phone></destinations>` +
+      `<message>${escapeXml(smsMessage)}</message>` +
+      `</sms>`;
 
     console.log(`[send-invoice-sms] Sending SMS to ${cleanPhone}`);
 
-    const smsResponse = await fetch(`https://v1.api19.com/sms/send?${smsParams.toString()}`, {
-      method: "GET",
+    const smsResponse = await fetch("https://019sms.co.il/api", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${smsSettings.sms_token}`,
+        "Content-Type": "application/xml; charset=utf-8",
+      },
+      body: smsXml,
     });
 
     const smsResult = await smsResponse.text();
-    console.log("[send-invoice-sms] 019sms API response:", smsResult);
+    console.log("[send-invoice-sms] 019sms raw response:", smsResult);
 
-    let responseData: { status?: string; error?: string } = {};
-    try {
-      responseData = JSON.parse(smsResult);
-    } catch {
-      console.error(`[send-invoice-sms] Failed to parse API response`);
-      return new Response(
-        JSON.stringify({ error: "Invalid SMS API response" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const doc = new DOMParser().parseFromString(smsResult, "application/xml");
+    const status = doc?.querySelector("status")?.textContent?.trim();
+    const apiMessage = doc?.querySelector("message")?.textContent?.trim();
 
-    if (responseData.status !== "ok") {
-      console.error(`[send-invoice-sms] SMS failed: ${responseData.error}`);
+    if (!smsResponse.ok || status !== "0") {
+      console.error(`[send-invoice-sms] SMS failed: status=${status} message=${apiMessage}`);
       return new Response(
-        JSON.stringify({ error: responseData.error || "SMS API error" }),
+        JSON.stringify({ error: apiMessage || `SMS API error (status=${status ?? "unknown"})` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

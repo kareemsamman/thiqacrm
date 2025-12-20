@@ -9,21 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  User,
-  Car,
-  Building2,
-  Pencil,
-  CreditCard,
-  Phone,
-  Banknote,
-  ImageIcon,
-  FileText,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Plus,
+import { 
+  User, Car, Building2, Pencil, CreditCard, 
+  Phone, Banknote, ImageIcon, FileText, Calendar, CheckCircle2, Clock, XCircle, Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PolicyEditDrawer } from "./PolicyEditDrawer";
@@ -98,31 +86,31 @@ interface Payment {
 }
 
 const policyTypeLabels: Record<string, string> = {
-  ELZAMI: "إلزامي",
-  THIRD_FULL: "ثالث/شامل",
-  ROAD_SERVICE: "خدمات الطريق",
-  ACCIDENT_FEE_EXEMPTION: "إعفاء رسوم حادث",
+  "ELZAMI": "إلزامي",
+  "THIRD_FULL": "ثالث/شامل",
+  "ROAD_SERVICE": "خدمات الطريق",
+  "ACCIDENT_FEE_EXEMPTION": "إعفاء رسوم حادث",
 };
 
 const policyChildLabels: Record<string, string> = {
-  THIRD: "طرف ثالث",
-  FULL: "شامل",
+  "THIRD": "طرف ثالث",
+  "FULL": "شامل",
 };
 
 const policyTypeColors: Record<string, string> = {
-  ELZAMI: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  THIRD_FULL: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  ROAD_SERVICE: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-  ACCIDENT_FEE_EXEMPTION: "bg-green-500/10 text-green-600 border-green-500/20",
+  "ELZAMI": "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  "THIRD_FULL": "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  "ROAD_SERVICE": "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  "ACCIDENT_FEE_EXEMPTION": "bg-green-500/10 text-green-600 border-green-500/20",
 };
 
 const carTypeLabels: Record<string, string> = {
-  car: "خصوصي",
-  cargo: "شحن",
-  small: "صغير",
-  taxi: "تاكسي",
-  tjeradown4: "تجاري (أقل من 4 طن)",
-  tjeraup4: "تجاري (أكثر من 4 طن)",
+  "car": "خصوصي",
+  "cargo": "شحن",
+  "small": "صغير",
+  "taxi": "تاكسي",
+  "tjeradown4": "تجاري (أقل من 4 طن)",
+  "tjeraup4": "تجاري (أكثر من 4 طن)",
 };
 
 export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }: PolicyDetailsDrawerProps) {
@@ -137,22 +125,20 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
 
   const fetchPolicyDetails = async () => {
     if (!policyId) return;
-
+    
     setLoading(true);
     setCreatorName(null);
     try {
       const { data: policyData, error: policyError } = await supabase
-        .from("policies")
-        .select(
-          `
+        .from('policies')
+        .select(`
           *,
           clients!inner(id, full_name, phone_number, file_number, id_number, less_than_24),
           cars(id, car_number, manufacturer_name, year, car_type, car_value, model, color),
           insurance_companies(id, name, name_ar),
           brokers(id, name)
-        `,
-        )
-        .eq("id", policyId)
+        `)
+        .eq('id', policyId)
         .single();
 
       if (policyError) throw policyError;
@@ -160,8 +146,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
 
       // Fetch creator name via safe directory function
       if (policyData.created_by_admin_id) {
-        const { data: creatorData } = await supabase.rpc("user_directory_get_by_ids", {
-          p_ids: [policyData.created_by_admin_id],
+        const { data: creatorData } = await supabase.rpc('user_directory_get_by_ids', {
+          p_ids: [policyData.created_by_admin_id]
         });
         if (creatorData && creatorData.length > 0) {
           setCreatorName(creatorData[0].display_name);
@@ -169,15 +155,16 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
       }
 
       const { data: paymentsData, error: paymentsError } = await supabase
-        .from("policy_payments")
-        .select("*")
-        .eq("policy_id", policyId)
-        .order("payment_date", { ascending: false });
+        .from('policy_payments')
+        .select('*')
+        .eq('policy_id', policyId)
+        .order('payment_date', { ascending: false });
 
       if (paymentsError) throw paymentsError;
       setPayments(paymentsData || []);
+
     } catch (error) {
-      console.error("Error fetching policy details:", error);
+      console.error('Error fetching policy details:', error);
       toast({ title: "خطأ", description: "فشل في تحميل تفاصيل الوثيقة", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -193,12 +180,12 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   }, [open, policyId]);
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("ar-EG");
+    return new Date(dateStr).toLocaleDateString('ar-EG');
   };
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null || amount === undefined) return "₪0";
-    return `₪${amount.toLocaleString("ar-EG")}`;
+    return `₪${amount.toLocaleString('ar-EG')}`;
   };
 
   const getStatus = () => {
@@ -220,13 +207,13 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   };
 
   // Payment calculations
-  const totalPaid = payments.filter((p) => !p.refused).reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = payments.filter(p => !p.refused).reduce((sum, p) => sum + p.amount, 0);
   const remaining = policy ? policy.insurance_price - totalPaid : 0;
   const percentagePaid = policy ? Math.min(100, Math.round((totalPaid / policy.insurance_price) * 100)) : 0;
   const paymentStatus = remaining <= 0 ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
 
   // Check if ELZAMI (no profit)
-  const isElzami = policy?.policy_type_parent === "ELZAMI";
+  const isElzami = policy?.policy_type_parent === 'ELZAMI';
 
   const handleEditComplete = () => {
     fetchPolicyDetails();
@@ -244,7 +231,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
+        <DialogContent 
           className="max-w-3xl max-h-[90vh] p-0 overflow-hidden"
           dir="rtl"
           onInteractOutside={(e) => e.preventDefault()}
@@ -260,10 +247,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
               {/* Header - Insurance Focus */}
               <div className="p-6 bg-gradient-to-l from-primary/5 to-transparent border-b">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-2 ml-[10px]">
+                  <div className="flex gap-2">
                     {remaining > 0 && (
-                      <Button
-                        size="sm"
+                      <Button 
+                        size="sm" 
                         onClick={() => {
                           setActiveTab("payments");
                           setShowQuickPayment(true);
@@ -293,29 +280,24 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">أقل من 24</Badge>
                       )}
                     </div>
-                    {creatorName && <p className="text-xs text-muted-foreground mt-1">أنشئ بواسطة: {creatorName}</p>}
+                    {creatorName && (
+                      <p className="text-xs text-muted-foreground mt-1">أنشئ بواسطة: {creatorName}</p>
+                    )}
                   </div>
                 </div>
 
                 {/* Main Insurance Info - Hero Section */}
-                <div
-                  className={cn(
-                    "grid gap-4 mt-4",
-                    isElzami ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4",
-                  )}
-                >
+                <div className={cn("grid gap-4 mt-4", isElzami ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4")}>
                   {/* Price */}
                   <div className="bg-background rounded-xl p-4 text-center border shadow-sm">
                     <p className="text-xs text-muted-foreground mb-1">سعر التأمين</p>
                     <p className="text-2xl font-bold text-primary">{formatCurrency(policy.insurance_price)}</p>
                   </div>
-
+                  
                   {/* Paid */}
                   <div className="bg-background rounded-xl p-4 text-center border shadow-sm">
                     <p className="text-xs text-muted-foreground mb-1">المدفوع</p>
-                    <p
-                      className={cn("text-2xl font-bold", paymentStatus === "paid" ? "text-success" : "text-amber-600")}
-                    >
+                    <p className={cn("text-2xl font-bold", paymentStatus === "paid" ? "text-success" : "text-amber-600")}>
                       {formatCurrency(totalPaid)}
                     </p>
                   </div>
@@ -341,16 +323,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                 <div className="mt-4 bg-background rounded-xl p-4 border shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">حالة الدفع</span>
-                    <Badge
-                      variant={
-                        paymentStatus === "paid" ? "success" : paymentStatus === "partial" ? "warning" : "destructive"
-                      }
-                    >
-                      {paymentStatus === "paid"
-                        ? "مدفوع بالكامل"
-                        : paymentStatus === "partial"
-                          ? `مدفوع ${percentagePaid}%`
-                          : "غير مدفوع"}
+                    <Badge variant={paymentStatus === "paid" ? "success" : paymentStatus === "partial" ? "warning" : "destructive"}>
+                      {paymentStatus === "paid" ? "مدفوع بالكامل" : paymentStatus === "partial" ? `مدفوع ${percentagePaid}%` : "غير مدفوع"}
                     </Badge>
                   </div>
                   <Progress value={percentagePaid} className="h-2" />
@@ -358,32 +332,27 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
               </div>
 
               {/* Tabs Content */}
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="flex-1 flex flex-col overflow-hidden"
-                dir="rtl"
-              >
-                <TabsList className="mx-6 mt-4 grid grid-cols-5 h-10 flex-row-reverse">
-                  <TabsTrigger value="invoices" className="text-xs gap-1">
-                    <FileText className="h-3 w-3" />
-                    الفواتير
-                  </TabsTrigger>
-                  <TabsTrigger value="files" className="text-xs gap-1">
-                    <ImageIcon className="h-3 w-3" />
-                    الملفات
-                  </TabsTrigger>
-                  <TabsTrigger value="customer" className="text-xs gap-1">
-                    <User className="h-3 w-3" />
-                    العميل
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden" dir="rtl">
+                <TabsList className="mx-6 mt-4 flex justify-end gap-1 h-10">
+                  <TabsTrigger value="insurance" className="text-xs gap-1">
+                    <Banknote className="h-3 w-3" />
+                    التأمين
                   </TabsTrigger>
                   <TabsTrigger value="payments" className="text-xs gap-1">
                     <CreditCard className="h-3 w-3" />
                     الدفعات ({payments.length})
                   </TabsTrigger>
-                  <TabsTrigger value="insurance" className="text-xs gap-1">
-                    <Banknote className="h-3 w-3" />
-                    التأمين
+                  <TabsTrigger value="customer" className="text-xs gap-1">
+                    <User className="h-3 w-3" />
+                    العميل
+                  </TabsTrigger>
+                  <TabsTrigger value="files" className="text-xs gap-1">
+                    <ImageIcon className="h-3 w-3" />
+                    الملفات
+                  </TabsTrigger>
+                  <TabsTrigger value="invoices" className="text-xs gap-1">
+                    <FileText className="h-3 w-3" />
+                    الفواتير
                   </TabsTrigger>
                 </TabsList>
 
@@ -397,9 +366,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                           <Building2 className="h-4 w-4" />
                           <span>شركة التأمين</span>
                         </div>
-                        <p className="text-lg font-bold">
-                          {policy.insurance_companies.name_ar || policy.insurance_companies.name}
-                        </p>
+                        <p className="text-lg font-bold">{policy.insurance_companies.name_ar || policy.insurance_companies.name}</p>
                         {policy.brokers && (
                           <p className="text-sm text-muted-foreground mt-1">الوسيط: {policy.brokers.name}</p>
                         )}
@@ -431,16 +398,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">المتبقي</p>
-                          <p
-                            className={cn(
-                              "font-semibold",
-                              remainingDays < 0
-                                ? "text-destructive"
-                                : remainingDays <= 30
-                                  ? "text-amber-600"
-                                  : "text-success",
-                            )}
-                          >
+                          <p className={cn(
+                            "font-semibold",
+                            remainingDays < 0 ? "text-destructive" : remainingDays <= 30 ? "text-amber-600" : "text-success"
+                          )}>
                             {remainingDays < 0 ? `منتهية` : `${remainingDays} يوم`}
                           </p>
                         </div>
@@ -462,9 +423,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                           <>
                             <div className="flex justify-between py-2 border-b">
                               <span className="text-muted-foreground">مدفوع للشركة</span>
-                              <span className="font-bold text-orange-600">
-                                {formatCurrency(policy.payed_for_company)}
-                              </span>
+                              <span className="font-bold text-orange-600">{formatCurrency(policy.payed_for_company)}</span>
                             </div>
                             <div className="flex justify-between py-2">
                               <span className="text-muted-foreground">الربح</span>
@@ -489,8 +448,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
 
                   {/* Payments Tab */}
                   <TabsContent value="payments" className="p-6 m-0">
-                    <PolicyPaymentsSection
-                      policyId={policy.id}
+                    <PolicyPaymentsSection 
+                      policyId={policy.id} 
                       payments={payments}
                       insurancePrice={policy.insurance_price}
                       onPaymentsChange={handlePaymentsChange}
@@ -514,9 +473,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         </div>
                         <div>
                           <span className="text-muted-foreground text-xs">رقم الهوية</span>
-                          <p className="font-mono font-semibold" dir="ltr">
-                            {policy.clients.id_number}
-                          </p>
+                          <p className="font-mono font-semibold" dir="ltr">{policy.clients.id_number}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground text-xs">رقم الملف</span>
@@ -524,9 +481,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         </div>
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-mono" dir="ltr">
-                            {policy.clients.phone_number || "-"}
-                          </span>
+                          <span className="font-mono" dir="ltr">{policy.clients.phone_number || "-"}</span>
                         </div>
                       </div>
                     </Card>
@@ -541,9 +496,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground text-xs">رقم السيارة</span>
-                            <p className="font-mono font-semibold text-base" dir="ltr">
-                              {policy.cars.car_number}
-                            </p>
+                            <p className="font-mono font-semibold text-base" dir="ltr">{policy.cars.car_number}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground text-xs">الشركة المصنعة</span>
@@ -555,15 +508,11 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                           </div>
                           <div>
                             <span className="text-muted-foreground text-xs">النوع</span>
-                            <p>
-                              {policy.cars.car_type ? carTypeLabels[policy.cars.car_type] || policy.cars.car_type : "-"}
-                            </p>
+                            <p>{policy.cars.car_type ? carTypeLabels[policy.cars.car_type] || policy.cars.car_type : "-"}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground text-xs">قيمة السيارة</span>
-                            <p className="font-semibold">
-                              {policy.cars.car_value ? formatCurrency(policy.cars.car_value) : "-"}
-                            </p>
+                            <p className="font-semibold">{policy.cars.car_value ? formatCurrency(policy.cars.car_value) : "-"}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground text-xs">اللون</span>
@@ -595,13 +544,20 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
               </Tabs>
             </div>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">لم يتم العثور على الوثيقة</div>
+            <div className="p-8 text-center text-muted-foreground">
+              لم يتم العثور على الوثيقة
+            </div>
           )}
         </DialogContent>
       </Dialog>
 
       {policy && (
-        <PolicyEditDrawer open={editOpen} onOpenChange={setEditOpen} policy={policy} onSaved={handleEditComplete} />
+        <PolicyEditDrawer
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          policy={policy}
+          onSaved={handleEditComplete}
+        />
       )}
     </>
   );

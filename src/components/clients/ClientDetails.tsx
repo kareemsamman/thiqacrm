@@ -40,6 +40,7 @@ import {
   CreditCard,
   Download,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -49,6 +50,8 @@ import { PolicyWizard } from '@/components/policies/PolicyWizard';
 import { ClientDrawer } from '@/components/clients/ClientDrawer';
 import { cn } from '@/lib/utils';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useBranches } from '@/hooks/useBranches';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
   id: string;
@@ -62,6 +65,7 @@ interface Client {
   image_url: string | null;
   created_at: string;
   broker_id: string | null;
+  branch_id: string | null;
 }
 
 interface Broker {
@@ -157,6 +161,8 @@ const carTypeLabels: Record<string, string> = {
 };
 
 export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps) {
+  const { getBranchName } = useBranches();
+  const { isAdmin } = useAuth();
   const [cars, setCars] = useState<CarRecord[]>([]);
   const [policies, setPolicies] = useState<PolicyRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -556,16 +562,25 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   )}
                 </div>
                 
-                {/* Broker Badge */}
-                {broker && (
-                  <div className="mt-3">
+                {/* Badges row */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {/* Branch Badge */}
+                  {client.branch_id && (
+                    <Badge variant="secondary" className="gap-1.5 bg-primary/10 text-primary border-primary/20">
+                      <Building2 className="h-3 w-3" />
+                      {getBranchName(client.branch_id)}
+                    </Badge>
+                  )}
+                  
+                  {/* Broker Badge */}
+                  {broker && (
                     <Badge variant="outline" className="gap-1.5 bg-background">
                       <Users className="h-3 w-3" />
                       الوسيط: {broker.name}
                       {broker.phone && <span className="text-muted-foreground mr-1" dir="ltr">({broker.phone})</span>}
                     </Badge>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               
               <div className="flex gap-2 shrink-0">

@@ -10,6 +10,7 @@ interface UserProfile {
   full_name: string | null;
   status: 'pending' | 'active' | 'blocked';
   avatar_url: string | null;
+  branch_id: string | null;
 }
 
 interface AuthContextType {
@@ -21,6 +22,7 @@ interface AuthContextType {
   isActive: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  branchId: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -145,6 +147,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Order: super admin → admin → active status
   const isActive = isSuperAdmin || isAdmin || profile?.status === 'active';
 
+  // User's branch - admins can see all, workers only their branch
+  const branchId = profile?.branch_id || null;
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -155,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isActive,
       isAdmin: isAdmin || isSuperAdmin,
       isSuperAdmin,
+      branchId,
       signOut,
     }}>
       {children}

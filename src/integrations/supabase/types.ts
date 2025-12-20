@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brokers: {
         Row: {
           created_at: string
@@ -46,6 +76,7 @@ export type Database = {
       }
       cars: {
         Row: {
+          branch_id: string | null
           car_number: string
           car_type: Database["public"]["Enums"]["car_type"] | null
           car_value: number | null
@@ -64,6 +95,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          branch_id?: string | null
           car_number: string
           car_type?: Database["public"]["Enums"]["car_type"] | null
           car_value?: number | null
@@ -82,6 +114,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          branch_id?: string | null
           car_number?: string
           car_type?: Database["public"]["Enums"]["car_type"] | null
           car_value?: number | null
@@ -101,6 +134,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "cars_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cars_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -111,6 +151,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          branch_id: string | null
           broker_id: string | null
           created_at: string
           date_joined: string | null
@@ -126,6 +167,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch_id?: string | null
           broker_id?: string | null
           created_at?: string
           date_joined?: string | null
@@ -141,6 +183,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch_id?: string | null
           broker_id?: string | null
           created_at?: string
           date_joined?: string | null
@@ -156,6 +199,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "clients_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clients_broker_id_fkey"
             columns: ["broker_id"]
@@ -304,6 +354,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          branch_id: string | null
           created_at: string
           created_by_admin_id: string | null
           error_message: string | null
@@ -320,6 +371,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
           created_by_admin_id?: string | null
           error_message?: string | null
@@ -336,6 +388,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
           created_by_admin_id?: string | null
           error_message?: string | null
@@ -352,6 +405,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_created_by_admin_id_fkey"
             columns: ["created_by_admin_id"]
@@ -407,6 +467,7 @@ export type Database = {
       }
       media_files: {
         Row: {
+          branch_id: string | null
           cdn_url: string
           created_at: string
           deleted_at: string | null
@@ -420,6 +481,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          branch_id?: string | null
           cdn_url: string
           created_at?: string
           deleted_at?: string | null
@@ -433,6 +495,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          branch_id?: string | null
           cdn_url?: string
           created_at?: string
           deleted_at?: string | null
@@ -445,11 +508,20 @@ export type Database = {
           storage_path?: string
           uploaded_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "media_files_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       outside_cheques: {
         Row: {
           amount: number
+          branch_id: string | null
           cheque_date: string | null
           cheque_image_url: string | null
           cheque_number: string | null
@@ -462,6 +534,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          branch_id?: string | null
           cheque_date?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
@@ -474,6 +547,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          branch_id?: string | null
           cheque_date?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
@@ -484,7 +558,15 @@ export type Database = {
           refused?: boolean | null
           used?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "outside_cheques_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_settings: {
         Row: {
@@ -530,6 +612,7 @@ export type Database = {
       }
       policies: {
         Row: {
+          branch_id: string | null
           broker_id: string | null
           calc_status: string | null
           cancelled: boolean | null
@@ -558,6 +641,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch_id?: string | null
           broker_id?: string | null
           calc_status?: string | null
           cancelled?: boolean | null
@@ -586,6 +670,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch_id?: string | null
           broker_id?: string | null
           calc_status?: string | null
           cancelled?: boolean | null
@@ -614,6 +699,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policies_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policies_broker_id_fkey"
             columns: ["broker_id"]
@@ -661,6 +753,7 @@ export type Database = {
       policy_payments: {
         Row: {
           amount: number
+          branch_id: string | null
           cheque_image_url: string | null
           cheque_number: string | null
           cheque_status: string | null
@@ -680,6 +773,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          branch_id?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
           cheque_status?: string | null
@@ -699,6 +793,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          branch_id?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
           cheque_status?: string | null
@@ -717,6 +812,13 @@ export type Database = {
           tranzila_transaction_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_payments_created_by_admin_id_fkey"
             columns: ["created_by_admin_id"]
@@ -789,6 +891,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          branch_id: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -799,6 +902,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          branch_id?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -809,6 +913,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          branch_id?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
@@ -817,7 +922,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -861,8 +974,13 @@ export type Database = {
           profit: number
         }[]
       }
+      can_access_branch: {
+        Args: { _branch_id: string; _user_id: string }
+        Returns: boolean
+      }
       generate_file_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
+      get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

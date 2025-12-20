@@ -24,6 +24,7 @@ import InvoiceTemplates from "./pages/InvoiceTemplates";
 import InsuranceCategories from "./pages/InsuranceCategories";
 import PaymentSettings from "./pages/PaymentSettings";
 import SmsSettings from "./pages/SmsSettings";
+import CustomerSignatures from "./pages/CustomerSignatures";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
 import SignaturePage from "./pages/SignaturePage";
@@ -127,6 +128,11 @@ const App = () => (
               <Route path="/admin/sms-settings" element={
                 <ProtectedRoute>
                   <SmsSettings />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/customer-signatures" element={
+                <ProtectedRoute>
+                  <CustomerSignatures />
                 </ProtectedRoute>
               } />
               {/* Public payment callback routes (loaded in iframe) */}

@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   MessageSquare,
+  FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,6 +45,7 @@ const adminNav = [
   { name: "المستخدمون", href: "/admin/users", icon: UserCog },
   { name: "أنواع التأمين", href: "/admin/insurance-categories", icon: FileText },
   { name: "قوالب الفواتير", href: "/admin/invoice-templates", icon: FileText },
+  { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
   { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
   { name: "إعدادات SMS", href: "/admin/sms-settings", icon: MessageSquare },
   { name: "الإعدادات", href: "/settings", icon: Settings },

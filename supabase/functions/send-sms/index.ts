@@ -114,13 +114,12 @@ serve(async (req) => {
     }
 
     // Build 019sms API request
-    // API documentation: https://www.019sms.co.il/developer/
-    const smsApiUrl = "https://019sms.co.il/api";
+    // API documentation: https://apidocs.api19.com/sms-mms/send-sms
+    const smsApiUrl = "https://v1.api19.com/sms/send";
     const smsParams = new URLSearchParams({
-      user: sms_user,
-      password: sms_token,
-      from: sms_source,
-      recipient: cleanPhone,
+      key: sms_token,
+      source: sms_source,
+      destination: cleanPhone,
       message: message,
     });
 
@@ -133,40 +132,32 @@ serve(async (req) => {
     const smsResult = await smsResponse.text();
     console.log("019sms API response:", smsResult);
 
-    // Parse 019sms response (usually returns status code like "1" for success)
-    // The API returns different codes:
-    // 1 = Success
-    // 2 = Bad username/password
-    // 3 = Bad "from" parameter
-    // etc.
-    const responseCode = parseInt(smsResult.trim(), 10);
+    // Parse JSON response from API
+    let responseData: { status?: string; error?: string; uuid?: string } = {};
+    try {
+      responseData = JSON.parse(smsResult);
+    } catch {
+      console.error("Failed to parse API response:", smsResult);
+      return new Response(
+        JSON.stringify({ error: `Invalid API response: ${smsResult.substring(0, 200)}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    if (responseCode === 1) {
+    if (responseData.status === "ok") {
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "SMS sent successfully",
-          phone: cleanPhone 
+          phone: cleanPhone,
+          uuid: responseData.uuid
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      const errorMessages: Record<number, string> = {
-        2: "Invalid username or password",
-        3: "Invalid sender name",
-        4: "Invalid recipient number",
-        5: "Message is empty",
-        6: "Message too long",
-        7: "Insufficient credits",
-        8: "Scheduled time is in the past",
-        9: "Invalid sender (blacklisted)",
-        10: "Recipient blocked",
-      };
-
       return new Response(
         JSON.stringify({ 
-          error: errorMessages[responseCode] || `SMS API error: ${smsResult}`,
-          code: responseCode
+          error: responseData.error || "SMS API error",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

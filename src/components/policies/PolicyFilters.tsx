@@ -7,6 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useBranches } from "@/hooks/useBranches";
 
 interface PolicyFiltersProps {
   onFiltersChange: (filters: PolicyFilterValues) => void;
@@ -19,6 +21,7 @@ export interface PolicyFilterValues {
   status: string;
   brokerId: string;
   creatorId: string;
+  branchId: string;
 }
 
 const POLICY_TYPES = [
@@ -36,6 +39,8 @@ const STATUS_OPTIONS = [
 ];
 
 export function PolicyFilters({ onFiltersChange, filters }: PolicyFiltersProps) {
+  const { isAdmin } = useAuth();
+  const { branches } = useBranches();
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<{ id: string; name: string; name_ar: string | null }[]>([]);
   const [brokers, setBrokers] = useState<{ id: string; name: string }[]>([]);
@@ -71,6 +76,7 @@ export function PolicyFilters({ onFiltersChange, filters }: PolicyFiltersProps) 
       status: 'all',
       brokerId: 'all',
       creatorId: 'all',
+      branchId: 'all',
     };
     setLocalFilters(cleared);
     onFiltersChange(cleared);
@@ -180,6 +186,24 @@ export function PolicyFilters({ onFiltersChange, filters }: PolicyFiltersProps) 
               </SelectContent>
             </Select>
           </div>
+
+          {/* Branch - Only for admins */}
+          {isAdmin && (
+            <div className="space-y-1.5">
+              <Label className="text-right block text-sm">الفرع</Label>
+              <Select value={localFilters.branchId} onValueChange={v => setLocalFilters(f => ({ ...f, branchId: v }))}>
+                <SelectTrigger className="h-9 text-right">
+                  <SelectValue placeholder="الكل" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-right">الكل</SelectItem>
+                  {branches.map(b => (
+                    <SelectItem key={b.id} value={b.id} className="text-right">{b.name_ar || b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <Button className="w-full" onClick={handleApply}>
             تطبيق الفلترة

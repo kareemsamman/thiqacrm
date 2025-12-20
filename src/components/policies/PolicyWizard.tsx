@@ -13,8 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useBranches } from "@/hooks/useBranches";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle, CheckCircle } from "lucide-react";
+import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle, CheckCircle, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { digitsOnly, isValidIsraeliId, isValidPhoneNumber10 } from "@/lib/validation";
 import { calculatePolicyProfit } from "@/lib/pricingCalculator";
@@ -130,10 +131,14 @@ const POLICY_WIZARD_DRAFT_KEY = "abcrm:policyWizardDraft:v2";
 export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultBrokerId, preselectedClientId }: PolicyWizardProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin, branchId: userBranchId } = useAuth();
+  const { branches } = useBranches();
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+
+  // Branch selection (admin only, workers use their branch)
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
   // Insurance Categories
   const [categories, setCategories] = useState<InsuranceCategory[]>([]);
@@ -142,6 +147,9 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
   // Computed: STEPS based on category mode
   const isLightMode = selectedCategory?.mode === 'LIGHT';
   const STEPS = isLightMode ? STEPS_LIGHT : STEPS_FULL;
+
+  // Get the effective branch ID (admin selected or worker's branch)
+  const effectiveBranchId = isAdmin ? selectedBranchId : userBranchId;
 
   // Step 1: Client
   const [clientSearch, setClientSearch] = useState("");
@@ -309,6 +317,13 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
   useEffect(() => {
     if (!open) return;
     
+    // Set default branch (first branch for admin, or user's branch for worker)
+    if (isAdmin && branches.length > 0 && !selectedBranchId) {
+      setSelectedBranchId(branches[0].id);
+    } else if (!isAdmin && userBranchId) {
+      setSelectedBranchId(userBranchId);
+    }
+    
     // Try to restore draft
     try {
       const draft = sessionStorage.getItem(POLICY_WIZARD_DRAFT_KEY);
@@ -343,7 +358,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
     fetchBrokers();
     fetchCategories();
     checkTranzilaEnabled();
-  }, [open, defaultBrokerId]);
+  }, [open, defaultBrokerId, branches, isAdmin, userBranchId]);
 
   // Re-fetch categories when opening
   useEffect(() => {
@@ -732,6 +747,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
               less_than_24: newClient.less_than_24,
               notes: newClient.notes.trim() || null,
               broker_id: newClient.broker_id || defaultBrokerId || null,
+              branch_id: effectiveBranchId || null,
             })
             .select()
             .single();
@@ -754,6 +770,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
               car_type: newCar.car_type as any,
               car_value: newCar.car_value ? parseFloat(newCar.car_value) : null,
               license_expiry: newCar.license_expiry || null,
+              branch_id: effectiveBranchId || null,
             })
             .select()
             .single();
@@ -806,6 +823,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
             is_under_24: clientForCalc.less_than_24 || false,
             payed_for_company: profitResult.companyPayment,
             profit: profitResult.profit,
+            branch_id: effectiveBranchId || null,
           })
           .select()
           .single();
@@ -1012,6 +1030,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
               less_than_24: newClient.less_than_24,
               notes: newClient.notes.trim() || null,
               broker_id: newClient.broker_id || defaultBrokerId || null,
+              branch_id: effectiveBranchId || null,
             })
             .select()
             .single();
@@ -1041,6 +1060,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
               car_type: newCar.car_type as any,
               car_value: newCar.car_value ? parseFloat(newCar.car_value) : null,
               license_expiry: newCar.license_expiry || null,
+              branch_id: effectiveBranchId || null,
             })
             .select()
             .single();
@@ -1126,6 +1146,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
             payed_for_company: profitCalc.companyPayment,
             broker_id: createNewClient ? (newClient.broker_id || defaultBrokerId || null) : (selectedClient?.broker_id || defaultBrokerId || null),
             category_id: selectedCategory?.id || null,
+            branch_id: effectiveBranchId || null,
           })
           .select()
           .single();

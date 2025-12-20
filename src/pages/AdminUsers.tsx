@@ -302,6 +302,34 @@ export default function AdminUsers() {
     }
   };
 
+  const handleChangeBranch = async (userId: string, branchId: string) => {
+    setActionLoading(userId);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ branch_id: branchId })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث فرع المستخدم بنجاح",
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error changing branch:', error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث فرع المستخدم",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const pendingUsers = users.filter(u => u.status === 'pending');
   const activeUsers = users.filter(u => u.status === 'active');
   const blockedUsers = users.filter(u => u.status === 'blocked');
@@ -540,6 +568,7 @@ export default function AdminUsers() {
                     <TableRow>
                       <TableHead className="text-right">الاسم</TableHead>
                       <TableHead className="text-right">البريد الإلكتروني</TableHead>
+                      <TableHead className="text-right">الفرع</TableHead>
                       <TableHead className="text-right">الدور</TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
@@ -553,6 +582,24 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell dir="ltr" className="text-right">
                           {user.email}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={user.branch_id || ''}
+                            onValueChange={(value) => handleChangeBranch(user.id, value)}
+                            disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="اختر الفرع" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map(branch => (
+                                <SelectItem key={branch.id} value={branch.id}>
+                                  {branch.name_ar || branch.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <Select

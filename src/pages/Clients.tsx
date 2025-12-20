@@ -56,6 +56,7 @@ export default function Clients() {
   const [filters, setFilters] = useState<ClientFilterValues>({
     brokerId: 'all',
     ageGroup: 'all',
+    branchId: 'all',
   });
   const pageSize = 25;
 
@@ -92,6 +93,9 @@ export default function Clients() {
         } else if (filters.ageGroup === 'over24') {
           query = query.or('less_than_24.eq.false,less_than_24.is.null');
         }
+      }
+      if (filters.branchId !== 'all') {
+        query = query.eq('branch_id', filters.branchId);
       }
 
       const { data, error, count } = await query;

@@ -107,6 +107,7 @@ export default function Policies() {
     status: 'all',
     brokerId: 'all',
     creatorId: 'all',
+    branchId: 'all',
   });
   const pageSize = 25;
 
@@ -160,6 +161,9 @@ export default function Policies() {
         } else if (filters.status === 'active') {
           query = query.gte('end_date', today).eq('cancelled', false).eq('transferred', false);
         }
+      }
+      if (filters.branchId !== 'all') {
+        query = query.eq('branch_id', filters.branchId);
       }
 
       const { data, error, count } = await query;

@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.payment-result]
 verify_jwt = false
+
+[functions.wordpress-import]
+verify_jwt = false

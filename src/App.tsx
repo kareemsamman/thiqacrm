@@ -29,6 +29,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
 import SignaturePage from "./pages/SignaturePage";
 import Notifications from "./pages/Notifications";
+import WordPressImport from "./pages/WordPressImport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({

@@ -33,6 +33,15 @@ interface ImportStats {
   [key: string]: { inserted: number; updated: number; errors: string[] };
 }
 
+interface ImportStep {
+  key: string;
+  label: string;
+  status: 'pending' | 'running' | 'done' | 'error';
+  count: number;
+}
+
+const BATCH_SIZE = 50; // Process 50 items at a time
+
 const WordPressImport = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
@@ -47,6 +56,154 @@ const WordPressImport = () => {
   const [clearing, setClearing] = useState(false);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState<string>("");
+  const [steps, setSteps] = useState<ImportStep[]>([]);
+
+  const entityLabels: Record<string, string> = {
+    companies: "شركات التأمين",
+    brokers: "الوسطاء",
+    clients: "العملاء",
+    cars: "السيارات",
+    policies: "الوثائق",
+    payments: "المدفوعات",
+    outsideCheques: "الشيكات الخارجية",
+    media: "ملفات الوسائط",
+    insuranceCompanies: "شركات التأمين",
+    pricingRules: "قواعد التسعير",
+    invoices: "الفواتير",
+    mediaFiles: "ملفات الوسائط",
+    carAccidents: "حوادث السيارات",
+  };
+
+  // Extract unique companies from policies
+  const extractCompaniesFromPolicies = (policies: any[]): any[] => {
+    const companiesMap = new Map<string, any>();
+    for (const policy of policies || []) {
+      if (policy.company_details && policy.company_name) {
+        const companyName = policy.company_name.toLowerCase();
+        if (!companiesMap.has(companyName)) {
+          companiesMap.set(companyName, {
+            name: policy.company_name,
+            legacy_wp_id: policy.company_legacy_id,
+            category_parent: mapCategoryFromParentTerm(policy.company_details.parent_term_name),
+          });
+        }
+      }
+    }
+    return Array.from(companiesMap.values());
+  };
+
+  const mapCategoryFromParentTerm = (termName: string | null | undefined): string | null => {
+    if (!termName) return null;
+    const mapping: Record<string, string> = {
+      'الزامي': 'ELZAMI',
+      'ثالث/شامل': 'THIRD_FULL',
+      'خدمات الطريق': 'ROAD_SERVICE',
+      'اعفاء رسوم حادث': 'ACCIDENT_FEE_EXEMPTION',
+    };
+    return mapping[termName] || null;
+  };
+
+  // Extract unique cars from policies
+  const extractCarsFromPolicies = (policies: any[]): any[] => {
+    const carsMap = new Map<string, any>();
+    for (const policy of policies || []) {
+      if (policy.car_details && policy.car_number) {
+        const carNumber = policy.car_number;
+        if (!carsMap.has(carNumber)) {
+          carsMap.set(carNumber, {
+            ...policy.car_details,
+            car_number: carNumber,
+            client_id_number: policy.client_details?.id_number,
+          });
+        }
+      }
+    }
+    return Array.from(carsMap.values());
+  };
+
+  // Extract policies with simplified structure
+  const extractPolicies = (policies: any[]): any[] => {
+    return (policies || []).map(p => ({
+      legacy_wp_id: p.legacy_wp_id,
+      policy_number_hint: p.policy_number_hint,
+      client_id_number: p.client_details?.id_number,
+      car_number: p.car_number,
+      company_name: p.company_name,
+      broker_name: p.broker_name,
+      policy_type_parent: p.policy_type_parent,
+      policy_type_child: p.policy_type_child,
+      start_date: p.start_date,
+      end_date: p.end_date,
+      insurance_price: p.insurance_price,
+      profit: p.profit,
+      payed_for_company: p.payed_for_company,
+      is_under_24: p.is_under_24,
+      cancelled: p.cancelled,
+      transferred: p.transferred,
+      transferred_car_number: p.transferred_car_number,
+      notes: p.notes,
+      calc_status: p.calc_status,
+    }));
+  };
+
+  // Extract payments from policies
+  const extractPayments = (policies: any[]): any[] => {
+    const payments: any[] = [];
+    for (const policy of policies || []) {
+      for (const payment of policy.payments || []) {
+        payments.push({
+          policy_legacy_wp_id: policy.legacy_wp_id,
+          ...payment,
+        });
+      }
+    }
+    return payments;
+  };
+
+  // Extract media from policies
+  const extractMedia = (policies: any[]): any[] => {
+    const media: any[] = [];
+    for (const policy of policies || []) {
+      for (const url of policy.images || []) {
+        media.push({
+          policy_legacy_wp_id: policy.legacy_wp_id,
+          url,
+        });
+      }
+    }
+    return media;
+  };
+
+  // Count data for preview
+  const countData = (data: any): PreviewCounts => {
+    const policies = data.policies || [];
+    const companiesMap = new Map<string, any>();
+    const carsMap = new Map<string, any>();
+    let paymentsCount = 0;
+    let mediaCount = 0;
+
+    for (const policy of policies) {
+      if (policy.company_name) companiesMap.set(policy.company_name.toLowerCase(), true);
+      if (policy.car_number) carsMap.set(policy.car_number, true);
+      paymentsCount += (policy.payments || []).length;
+      mediaCount += (policy.images || []).length;
+    }
+
+    return {
+      insuranceCompanies: companiesMap.size,
+      pricingRules: 0,
+      brokers: (data.brokers || []).length,
+      clients: (data.clients || []).length,
+      cars: carsMap.size,
+      policies: policies.length,
+      payments: paymentsCount,
+      outsideCheques: (data.outside_cheques || []).length,
+      invoices: 0,
+      mediaFiles: mediaCount,
+      carAccidents: 0,
+    };
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,20 +216,17 @@ const WordPressImport = () => {
 
     setFileName(file.name);
     setImportStats(null);
+    setSteps([]);
 
     try {
       const text = await file.text();
       const data = JSON.parse(text);
       setJsonData(data);
 
-      // Get preview counts
-      const { data: result, error } = await supabase.functions.invoke('wordpress-import', {
-        body: { action: 'preview', data }
-      });
-
-      if (error) throw error;
-      setPreview(result.counts);
-      toast({ title: "تم تحميل الملف", description: "تم قراءة الملف بنجاح" });
+      // Calculate preview counts locally (no API call needed for large files)
+      const counts = countData(data);
+      setPreview(counts);
+      toast({ title: "تم تحميل الملف", description: `${(file.size / 1024 / 1024).toFixed(2)} MB` });
     } catch (err: any) {
       toast({ title: "خطأ في قراءة الملف", description: err.message, variant: "destructive" });
       setJsonData(null);
@@ -80,27 +234,211 @@ const WordPressImport = () => {
     }
   };
 
+  // Chunk array into batches
+  const chunkArray = <T,>(array: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  };
+
   const handleImport = async () => {
     if (!jsonData) return;
 
     setImporting(true);
-    setProgress(10);
+    setProgress(0);
     setImportStats(null);
 
+    const stats: ImportStats = {
+      companies: { inserted: 0, updated: 0, errors: [] },
+      brokers: { inserted: 0, updated: 0, errors: [] },
+      clients: { inserted: 0, updated: 0, errors: [] },
+      cars: { inserted: 0, updated: 0, errors: [] },
+      policies: { inserted: 0, updated: 0, errors: [] },
+      payments: { inserted: 0, updated: 0, errors: [] },
+      media: { inserted: 0, updated: 0, errors: [] },
+      outsideCheques: { inserted: 0, updated: 0, errors: [] },
+    };
+
+    // Initialize steps
+    const initialSteps: ImportStep[] = [
+      { key: 'clear', label: 'تنظيف البيانات', status: 'pending', count: 0 },
+      { key: 'companies', label: 'شركات التأمين', status: 'pending', count: 0 },
+      { key: 'brokers', label: 'الوسطاء', status: 'pending', count: 0 },
+      { key: 'clients', label: 'العملاء', status: 'pending', count: 0 },
+      { key: 'cars', label: 'السيارات', status: 'pending', count: 0 },
+      { key: 'policies', label: 'الوثائق', status: 'pending', count: 0 },
+      { key: 'payments', label: 'المدفوعات', status: 'pending', count: 0 },
+      { key: 'media', label: 'ملفات الوسائط', status: 'pending', count: 0 },
+      { key: 'outsideCheques', label: 'الشيكات الخارجية', status: 'pending', count: 0 },
+    ];
+    setSteps(initialSteps);
+
+    const updateStep = (key: string, status: ImportStep['status'], count?: number) => {
+      setSteps(prev => prev.map(s => s.key === key ? { ...s, status, count: count ?? s.count } : s));
+      setCurrentStep(key);
+    };
+
     try {
-      setProgress(30);
-      const { data: result, error } = await supabase.functions.invoke('wordpress-import', {
-        body: { action: 'import', data: jsonData, clearBeforeImport }
+      // Step 1: Clear data if requested
+      if (clearBeforeImport) {
+        updateStep('clear', 'running');
+        const { error } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'clear' }
+        });
+        if (error) throw error;
+        updateStep('clear', 'done');
+      } else {
+        updateStep('clear', 'done');
+      }
+      setProgress(5);
+
+      // Step 2: Get existing mappings
+      const { data: mappingsResult } = await supabase.functions.invoke('wordpress-import', {
+        body: { action: 'getMappings' }
       });
+      let mappings = mappingsResult?.mappings || { companies: {}, brokers: {}, clients: {}, cars: {}, policies: {} };
 
-      setProgress(90);
-      if (error) throw error;
+      // Step 3: Import companies
+      const companies = extractCompaniesFromPolicies(jsonData.policies || []);
+      updateStep('companies', 'running', companies.length);
+      for (const batch of chunkArray(companies, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'companies', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.companies.inserted += result.stats.inserted;
+          stats.companies.updated += result.stats.updated;
+          stats.companies.errors.push(...result.stats.errors);
+          mappings.companies = { ...mappings.companies, ...result.newMappings };
+        }
+      }
+      updateStep('companies', 'done', companies.length);
+      setProgress(15);
 
-      setImportStats(result.stats);
+      // Step 4: Import brokers
+      const brokers = jsonData.brokers || [];
+      updateStep('brokers', 'running', brokers.length);
+      for (const batch of chunkArray(brokers, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'brokers', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.brokers.inserted += result.stats.inserted;
+          stats.brokers.updated += result.stats.updated;
+          stats.brokers.errors.push(...result.stats.errors);
+          mappings.brokers = { ...mappings.brokers, ...result.newMappings };
+        }
+      }
+      updateStep('brokers', 'done', brokers.length);
+      setProgress(25);
+
+      // Step 5: Import clients
+      const clients = jsonData.clients || [];
+      updateStep('clients', 'running', clients.length);
+      for (const batch of chunkArray(clients, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'clients', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.clients.inserted += result.stats.inserted;
+          stats.clients.updated += result.stats.updated;
+          stats.clients.errors.push(...result.stats.errors);
+          mappings.clients = { ...mappings.clients, ...result.newMappings };
+        }
+      }
+      updateStep('clients', 'done', clients.length);
+      setProgress(40);
+
+      // Step 6: Import cars
+      const cars = extractCarsFromPolicies(jsonData.policies || []);
+      updateStep('cars', 'running', cars.length);
+      for (const batch of chunkArray(cars, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'cars', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.cars.inserted += result.stats.inserted;
+          stats.cars.updated += result.stats.updated;
+          stats.cars.errors.push(...result.stats.errors);
+          mappings.cars = { ...mappings.cars, ...result.newMappings };
+        }
+      }
+      updateStep('cars', 'done', cars.length);
+      setProgress(55);
+
+      // Step 7: Import policies
+      const policies = extractPolicies(jsonData.policies || []);
+      updateStep('policies', 'running', policies.length);
+      for (const batch of chunkArray(policies, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'policies', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.policies.inserted += result.stats.inserted;
+          stats.policies.updated += result.stats.updated;
+          stats.policies.errors.push(...result.stats.errors);
+          mappings.policies = { ...mappings.policies, ...result.newMappings };
+        }
+      }
+      updateStep('policies', 'done', policies.length);
+      setProgress(75);
+
+      // Step 8: Import payments
+      const payments = extractPayments(jsonData.policies || []);
+      updateStep('payments', 'running', payments.length);
+      for (const batch of chunkArray(payments, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'payments', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.payments.inserted += result.stats.inserted;
+          stats.payments.updated += result.stats.updated;
+          stats.payments.errors.push(...result.stats.errors);
+        }
+      }
+      updateStep('payments', 'done', payments.length);
+      setProgress(85);
+
+      // Step 9: Import media
+      const media = extractMedia(jsonData.policies || []);
+      updateStep('media', 'running', media.length);
+      for (const batch of chunkArray(media, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'media', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.media.inserted += result.stats.inserted;
+          stats.media.updated += result.stats.updated;
+          stats.media.errors.push(...result.stats.errors);
+        }
+      }
+      updateStep('media', 'done', media.length);
+      setProgress(92);
+
+      // Step 10: Import outside cheques
+      const outsideCheques = jsonData.outside_cheques || [];
+      updateStep('outsideCheques', 'running', outsideCheques.length);
+      for (const batch of chunkArray(outsideCheques, BATCH_SIZE)) {
+        const { data: result } = await supabase.functions.invoke('wordpress-import', {
+          body: { action: 'importBatch', entityType: 'outsideCheques', batch, data: { mappings } }
+        });
+        if (result) {
+          stats.outsideCheques.inserted += result.stats.inserted;
+          stats.outsideCheques.updated += result.stats.updated;
+          stats.outsideCheques.errors.push(...result.stats.errors);
+        }
+      }
+      updateStep('outsideCheques', 'done', outsideCheques.length);
       setProgress(100);
+
+      setImportStats(stats);
+      setCurrentStep("");
       toast({ title: "تم الاستيراد بنجاح", description: "تم استيراد البيانات من WordPress" });
     } catch (err: any) {
       toast({ title: "خطأ في الاستيراد", description: err.message, variant: "destructive" });
+      updateStep(currentStep, 'error');
     } finally {
       setImporting(false);
     }
@@ -134,20 +472,6 @@ const WordPressImport = () => {
       </MainLayout>
     );
   }
-
-  const entityLabels: Record<string, string> = {
-    insuranceCompanies: "شركات التأمين",
-    pricingRules: "قواعد التسعير",
-    brokers: "الوسطاء",
-    clients: "العملاء",
-    cars: "السيارات",
-    policies: "الوثائق",
-    payments: "المدفوعات",
-    outsideCheques: "الشيكات الخارجية",
-    invoices: "الفواتير",
-    mediaFiles: "ملفات الوسائط",
-    carAccidents: "حوادث السيارات",
-  };
 
   return (
     <MainLayout>
@@ -211,7 +535,32 @@ const WordPressImport = () => {
                 </Label>
               </div>
 
-              {importing && <Progress value={progress} className="w-full" />}
+              {importing && (
+                <div className="space-y-3">
+                  <Progress value={progress} className="w-full" />
+                  <div className="text-sm text-muted-foreground text-center">
+                    {progress}%
+                  </div>
+                </div>
+              )}
+
+              {/* Import Steps Progress */}
+              {steps.length > 0 && (
+                <div className="space-y-2 border rounded-lg p-4">
+                  {steps.map((step) => (
+                    <div key={step.key} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        {step.status === 'pending' && <div className="w-4 h-4 rounded-full border-2 border-muted" />}
+                        {step.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                        {step.status === 'done' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {step.status === 'error' && <XCircle className="w-4 h-4 text-destructive" />}
+                        <span className={step.status === 'running' ? 'font-medium text-primary' : ''}>{step.label}</span>
+                      </div>
+                      {step.count > 0 && <Badge variant="outline">{step.count}</Badge>}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <Button onClick={handleImport} disabled={importing} className="w-full">
                 {importing ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Upload className="h-4 w-4 ml-2" />}

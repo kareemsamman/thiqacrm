@@ -142,6 +142,11 @@ const App = () => (
                   <Notifications />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/wordpress-import" element={
+                <ProtectedRoute>
+                  <WordPressImport />
+                </ProtectedRoute>
+              } />
               {/* Public payment callback routes (loaded in iframe) */}
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/fail" element={<PaymentFail />} />

@@ -22,6 +22,7 @@ import {
   X,
   MessageSquare,
   FileSignature,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,6 +49,7 @@ const adminNav = [
   { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
   { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
   { name: "إعدادات SMS", href: "/admin/sms-settings", icon: MessageSquare },
+  { name: "استيراد WordPress", href: "/admin/wordpress-import", icon: Upload },
   { name: "الإعدادات", href: "/settings", icon: Settings },
 ];
 

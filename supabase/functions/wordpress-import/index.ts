@@ -5,26 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ImportStats {
-  insuranceCompanies: { inserted: number; updated: number; errors: string[] };
-  pricingRules: { inserted: number; updated: number; errors: string[] };
-  brokers: { inserted: number; updated: number; errors: string[] };
-  clients: { inserted: number; updated: number; errors: string[] };
-  cars: { inserted: number; updated: number; errors: string[] };
-  policies: { inserted: number; updated: number; errors: string[] };
-  payments: { inserted: number; updated: number; errors: string[] };
-  outsideCheques: { inserted: number; updated: number; errors: string[] };
-  invoices: { inserted: number; updated: number; errors: string[] };
-  mediaFiles: { inserted: number; updated: number; errors: string[] };
-  carAccidents: { inserted: number; updated: number; errors: string[] };
-}
-
 // Date conversion: d-m-Y to YYYY-MM-DD
 function convertDate(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
-  // Check if already in YYYY-MM-DD format
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  // Convert d-m-Y to YYYY-MM-DD
   const match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
   if (match) {
     const [, day, month, year] = match;
@@ -99,56 +83,6 @@ function mapPaymentType(wpType: string | null | undefined): string {
   return mapping[wpType.toLowerCase()] || 'cash';
 }
 
-// Rule type mapping
-function mapRuleType(wpType: string | null | undefined): string | null {
-  if (!wpType) return null;
-  const mapping: Record<string, string> = {
-    'THIRD_PRICE': 'THIRD_PRICE',
-    'FULL_PERCENT': 'FULL_PERCENT',
-    'MIN_PRICE': 'MIN_PRICE',
-    'DISCOUNT': 'DISCOUNT',
-    'ROAD_SERVICE_BASE': 'ROAD_SERVICE_BASE',
-    'ROAD_SERVICE_PRICE': 'ROAD_SERVICE_PRICE',
-    'ROAD_SERVICE_EXTRA_OLD_CAR': 'ROAD_SERVICE_EXTRA_OLD_CAR',
-  };
-  return mapping[wpType.toUpperCase()] || null;
-}
-
-// Age band mapping
-function mapAgeBand(wpBand: string | null | undefined): string {
-  if (!wpBand) return 'ANY';
-  const mapping: Record<string, string> = {
-    'UNDER_24': 'UNDER_24',
-    'under_24': 'UNDER_24',
-    'UP_24': 'UP_24',
-    'up_24': 'UP_24',
-    'OVER_24': 'UP_24',
-    'ANY': 'ANY',
-  };
-  return mapping[wpBand] || 'ANY';
-}
-
-// Extract unique companies from policies
-function extractCompaniesFromPolicies(policies: any[]): any[] {
-  const companiesMap = new Map<string, any>();
-  
-  for (const policy of policies || []) {
-    if (policy.company_details && policy.company_name) {
-      const companyName = policy.company_name.toLowerCase();
-      if (!companiesMap.has(companyName)) {
-        companiesMap.set(companyName, {
-          name: policy.company_name,
-          legacy_wp_id: policy.company_legacy_id,
-          category_parent: mapCategoryFromParentTerm(policy.company_details.parent_term_name),
-          details: policy.company_details,
-        });
-      }
-    }
-  }
-  
-  return Array.from(companiesMap.values());
-}
-
 // Map parent term name to category
 function mapCategoryFromParentTerm(termName: string | null | undefined): string | null {
   if (!termName) return null;
@@ -161,107 +95,6 @@ function mapCategoryFromParentTerm(termName: string | null | undefined): string 
   return mapping[termName] || null;
 }
 
-// Extract unique cars from policies
-function extractCarsFromPolicies(policies: any[]): any[] {
-  const carsMap = new Map<string, any>();
-  
-  for (const policy of policies || []) {
-    if (policy.car_details && policy.car_number) {
-      const carNumber = policy.car_number;
-      if (!carsMap.has(carNumber)) {
-        carsMap.set(carNumber, {
-          ...policy.car_details,
-          car_number: carNumber,
-          client_id_number: policy.client_details?.id_number,
-        });
-      }
-    }
-  }
-  
-  return Array.from(carsMap.values());
-}
-
-// Extract unique clients from both clients array and policies
-function extractClientsFromData(data: any): any[] {
-  const clientsMap = new Map<string, any>();
-  
-  // First, add clients from the clients array
-  for (const client of data.clients || []) {
-    if (client.id_number) {
-      clientsMap.set(client.id_number, client);
-    }
-  }
-  
-  // Then, add any missing clients from policies
-  for (const policy of data.policies || []) {
-    if (policy.client_details && policy.client_details.id_number) {
-      const idNumber = policy.client_details.id_number;
-      if (!clientsMap.has(idNumber)) {
-        clientsMap.set(idNumber, policy.client_details);
-      }
-    }
-  }
-  
-  return Array.from(clientsMap.values());
-}
-
-// Count all data for preview
-function countData(data: any) {
-  // Extract unique entities from policies
-  const policies = data.policies || [];
-  
-  // Extract companies from policies
-  const companiesMap = new Map<string, any>();
-  for (const policy of policies) {
-    if (policy.company_name) {
-      companiesMap.set(policy.company_name.toLowerCase(), policy.company_details);
-    }
-  }
-  
-  // Extract cars from policies
-  const carsMap = new Map<string, any>();
-  for (const policy of policies) {
-    if (policy.car_number) {
-      carsMap.set(policy.car_number, policy.car_details);
-    }
-  }
-  
-  // Count payments from policies
-  let paymentsCount = 0;
-  let mediaCount = 0;
-  let accidentsCount = 0;
-  
-  for (const policy of policies) {
-    paymentsCount += (policy.payments || []).length;
-    mediaCount += (policy.images || []).length;
-    
-    if (policy.car_details?.accidents) {
-      accidentsCount += policy.car_details.accidents.length;
-    }
-  }
-  
-  // Add media from cars
-  for (const policy of policies) {
-    if (policy.car_details?.images) {
-      mediaCount += policy.car_details.images.length;
-    }
-  }
-  
-  return {
-    insuranceCompanies: companiesMap.size,
-    pricingRules: 0, // Will be computed from company details later
-    brokers: (data.brokers || []).length,
-    clients: (data.clients || []).length,
-    cars: carsMap.size,
-    policies: policies.length,
-    payments: paymentsCount,
-    outsideCheques: (data.outside_cheques || []).length,
-    invoices: 0, // No separate invoices array
-    mediaFiles: mediaCount,
-    carAccidents: accidentsCount,
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -272,19 +105,11 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, data, clearBeforeImport } = await req.json();
+    const { action, data, entityType, batch } = await req.json();
 
-    if (action === 'preview') {
-      const counts = countData(data);
-      return new Response(JSON.stringify({ success: true, counts }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
+    // Action: Clear all data
     if (action === 'clear') {
       console.log('Clearing all data...');
-      
-      // Delete in correct order (respecting foreign keys)
       await supabase.from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('policy_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('customer_signatures').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -301,347 +126,323 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === 'import') {
-      const stats: ImportStats = {
-        insuranceCompanies: { inserted: 0, updated: 0, errors: [] },
-        pricingRules: { inserted: 0, updated: 0, errors: [] },
-        brokers: { inserted: 0, updated: 0, errors: [] },
-        clients: { inserted: 0, updated: 0, errors: [] },
-        cars: { inserted: 0, updated: 0, errors: [] },
-        policies: { inserted: 0, updated: 0, errors: [] },
-        payments: { inserted: 0, updated: 0, errors: [] },
-        outsideCheques: { inserted: 0, updated: 0, errors: [] },
-        invoices: { inserted: 0, updated: 0, errors: [] },
-        mediaFiles: { inserted: 0, updated: 0, errors: [] },
-        carAccidents: { inserted: 0, updated: 0, errors: [] },
+    // Action: Get existing mappings (for reference during batch imports)
+    if (action === 'getMappings') {
+      const [companiesRes, brokersRes, clientsRes, carsRes, policiesRes] = await Promise.all([
+        supabase.from('insurance_companies').select('id, name'),
+        supabase.from('brokers').select('id, name'),
+        supabase.from('clients').select('id, id_number').is('deleted_at', null),
+        supabase.from('cars').select('id, car_number').is('deleted_at', null),
+        supabase.from('policies').select('id, legacy_wp_id').is('deleted_at', null),
+      ]);
+
+      const mappings = {
+        companies: Object.fromEntries((companiesRes.data || []).map(c => [c.name.toLowerCase(), c.id])),
+        brokers: Object.fromEntries((brokersRes.data || []).map(b => [b.name.toLowerCase(), b.id])),
+        clients: Object.fromEntries((clientsRes.data || []).map(c => [c.id_number, c.id])),
+        cars: Object.fromEntries((carsRes.data || []).map(c => [c.car_number, c.id])),
+        policies: Object.fromEntries((policiesRes.data || []).filter(p => p.legacy_wp_id).map(p => [p.legacy_wp_id, p.id])),
       };
 
-      // Maps for tracking legacy IDs to new UUIDs
-      const companyMap = new Map<string, string>(); // wp_name -> uuid
-      const brokerMap = new Map<string, string>(); // wp_name -> uuid
-      const clientMap = new Map<string, string>(); // wp_id_number -> uuid
-      const carMap = new Map<string, string>(); // wp_car_number -> uuid
-      const policyMap = new Map<number, string>(); // wp_id -> uuid
+      return new Response(JSON.stringify({ success: true, mappings }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-      // Clear data if requested
-      if (clearBeforeImport) {
-        console.log('Clearing data before import...');
-        await supabase.from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('policy_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('customer_signatures').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('car_accidents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('media_files').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('policies').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('outside_cheques').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('cars').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('brokers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      }
+    // Action: Import a batch of a specific entity type
+    if (action === 'importBatch') {
+      const stats = { inserted: 0, updated: 0, errors: [] as string[] };
+      const newMappings: Record<string, string> = {};
+      const mappings = data.mappings || {};
 
-      // 1. Extract and Import Insurance Companies from policies
-      console.log('Extracting and importing insurance companies...');
-      const companies = extractCompaniesFromPolicies(data.policies || []);
-      console.log(`Found ${companies.length} unique companies`);
-      
-      for (const company of companies) {
-        try {
-          const { data: existing } = await supabase
-            .from('insurance_companies')
-            .select('id')
-            .ilike('name', company.name)
-            .maybeSingle();
-
-          const companyData = {
-            name: company.name,
-            name_ar: company.name,
-            active: true,
-            category_parent: company.category_parent,
-          };
-
-          if (existing) {
-            await supabase
+      if (entityType === 'companies') {
+        for (const company of batch || []) {
+          try {
+            const { data: existing } = await supabase
               .from('insurance_companies')
-              .update(companyData)
-              .eq('id', existing.id);
-            companyMap.set(company.name.toLowerCase(), existing.id);
-            stats.insuranceCompanies.updated++;
-          } else {
-            const { data: inserted, error } = await supabase
-              .from('insurance_companies')
-              .insert(companyData)
               .select('id')
-              .single();
-            if (inserted) {
-              companyMap.set(company.name.toLowerCase(), inserted.id);
-              stats.insuranceCompanies.inserted++;
-            } else if (error) {
-              stats.insuranceCompanies.errors.push(`Company ${company.name}: ${error.message}`);
+              .ilike('name', company.name)
+              .maybeSingle();
+
+            const companyData = {
+              name: company.name,
+              name_ar: company.name,
+              active: true,
+              category_parent: company.category_parent,
+            };
+
+            if (existing) {
+              await supabase.from('insurance_companies').update(companyData).eq('id', existing.id);
+              newMappings[company.name.toLowerCase()] = existing.id;
+              stats.updated++;
+            } else {
+              const { data: inserted, error } = await supabase
+                .from('insurance_companies')
+                .insert(companyData)
+                .select('id')
+                .single();
+              if (inserted) {
+                newMappings[company.name.toLowerCase()] = inserted.id;
+                stats.inserted++;
+              } else if (error) {
+                stats.errors.push(`Company ${company.name}: ${error.message}`);
+              }
             }
+          } catch (e: any) {
+            stats.errors.push(`Company ${company.name}: ${e.message}`);
           }
-        } catch (e: any) {
-          stats.insuranceCompanies.errors.push(`Company ${company.name}: ${e.message}`);
         }
       }
 
-      // 2. Import Brokers
-      console.log('Importing brokers...');
-      for (const broker of data.brokers || []) {
-        try {
-          const { data: existing } = await supabase
-            .from('brokers')
-            .select('id')
-            .ilike('name', broker.name)
-            .maybeSingle();
-
-          const brokerData = {
-            name: broker.name,
-            phone: broker.phone || null,
-            image_url: broker.image_url || null,
-            notes: broker.notes || null,
-          };
-
-          if (existing) {
-            await supabase
+      if (entityType === 'brokers') {
+        for (const broker of batch || []) {
+          try {
+            const { data: existing } = await supabase
               .from('brokers')
-              .update(brokerData)
-              .eq('id', existing.id);
-            brokerMap.set(broker.name.toLowerCase(), existing.id);
-            stats.brokers.updated++;
-          } else {
-            const { data: inserted, error } = await supabase
-              .from('brokers')
-              .insert(brokerData)
               .select('id')
-              .single();
-            if (inserted) {
-              brokerMap.set(broker.name.toLowerCase(), inserted.id);
-              stats.brokers.inserted++;
-            } else if (error) {
-              stats.brokers.errors.push(`Broker ${broker.name}: ${error.message}`);
+              .ilike('name', broker.name)
+              .maybeSingle();
+
+            const brokerData = {
+              name: broker.name,
+              phone: broker.phone || null,
+              image_url: broker.image_url || null,
+              notes: broker.notes || null,
+            };
+
+            if (existing) {
+              await supabase.from('brokers').update(brokerData).eq('id', existing.id);
+              newMappings[broker.name.toLowerCase()] = existing.id;
+              stats.updated++;
+            } else {
+              const { data: inserted, error } = await supabase
+                .from('brokers')
+                .insert(brokerData)
+                .select('id')
+                .single();
+              if (inserted) {
+                newMappings[broker.name.toLowerCase()] = inserted.id;
+                stats.inserted++;
+              } else if (error) {
+                stats.errors.push(`Broker ${broker.name}: ${error.message}`);
+              }
             }
+          } catch (e: any) {
+            stats.errors.push(`Broker ${broker.name}: ${e.message}`);
           }
-        } catch (e: any) {
-          stats.brokers.errors.push(`Broker ${broker.name}: ${e.message}`);
         }
       }
 
-      // 3. Import Clients
-      console.log('Importing clients...');
-      const clients = extractClientsFromData(data);
-      console.log(`Found ${clients.length} unique clients`);
-      
-      for (const client of clients) {
-        try {
-          if (!client.id_number) {
-            stats.clients.errors.push(`Client missing id_number: ${client.full_name}`);
-            continue;
-          }
+      if (entityType === 'clients') {
+        for (const client of batch || []) {
+          try {
+            if (!client.id_number) {
+              stats.errors.push(`Client missing id_number: ${client.full_name}`);
+              continue;
+            }
 
-          const { data: existing } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('id_number', client.id_number)
-            .is('deleted_at', null)
-            .maybeSingle();
-
-          const brokerId = client.broker_name ? brokerMap.get(client.broker_name.toLowerCase()) : null;
-
-          const clientData = {
-            full_name: client.full_name || 'غير معروف',
-            id_number: client.id_number,
-            phone_number: client.phone_number || null,
-            file_number: client.file_number || null,
-            date_joined: convertDate(client.date_joined),
-            image_url: client.image_url || null,
-            signature_url: client.signature_url || null,
-            notes: client.notes || null,
-            less_than_24: client.less_than_24 === true,
-            broker_id: brokerId,
-          };
-
-          if (existing) {
-            await supabase
+            const { data: existing } = await supabase
               .from('clients')
-              .update(clientData)
-              .eq('id', existing.id);
-            clientMap.set(client.id_number, existing.id);
-            stats.clients.updated++;
-          } else {
-            const { data: inserted, error } = await supabase
-              .from('clients')
-              .insert(clientData)
               .select('id')
-              .single();
-            if (inserted) {
-              clientMap.set(client.id_number, inserted.id);
-              stats.clients.inserted++;
-            } else if (error) {
-              stats.clients.errors.push(`Client ${client.id_number}: ${error.message}`);
+              .eq('id_number', client.id_number)
+              .is('deleted_at', null)
+              .maybeSingle();
+
+            const brokerId = client.broker_name ? mappings.brokers?.[client.broker_name.toLowerCase()] : null;
+
+            const clientData = {
+              full_name: client.full_name || 'غير معروف',
+              id_number: client.id_number,
+              phone_number: client.phone_number || null,
+              file_number: client.file_number || null,
+              date_joined: convertDate(client.date_joined),
+              image_url: client.image_url || null,
+              signature_url: client.signature_url || null,
+              notes: client.notes || null,
+              less_than_24: client.less_than_24 === true,
+              broker_id: brokerId,
+            };
+
+            if (existing) {
+              await supabase.from('clients').update(clientData).eq('id', existing.id);
+              newMappings[client.id_number] = existing.id;
+              stats.updated++;
+            } else {
+              const { data: inserted, error } = await supabase
+                .from('clients')
+                .insert(clientData)
+                .select('id')
+                .single();
+              if (inserted) {
+                newMappings[client.id_number] = inserted.id;
+                stats.inserted++;
+              } else if (error) {
+                stats.errors.push(`Client ${client.id_number}: ${error.message}`);
+              }
             }
+          } catch (e: any) {
+            stats.errors.push(`Client ${client.id_number}: ${e.message}`);
           }
-        } catch (e: any) {
-          stats.clients.errors.push(`Client ${client.id_number}: ${e.message}`);
         }
       }
 
-      // 4. Extract and Import Cars from policies
-      console.log('Extracting and importing cars...');
-      const cars = extractCarsFromPolicies(data.policies || []);
-      console.log(`Found ${cars.length} unique cars`);
-      
-      for (const car of cars) {
-        try {
-          const clientId = car.client_id_number ? clientMap.get(car.client_id_number) : null;
-          if (!clientId) {
-            stats.cars.errors.push(`Car ${car.car_number}: Client not found: ${car.client_id_number}`);
-            continue;
-          }
-
-          const { data: existing } = await supabase
-            .from('cars')
-            .select('id')
-            .eq('car_number', car.car_number)
-            .is('deleted_at', null)
-            .maybeSingle();
-
-          const carData = {
-            car_number: car.car_number,
-            client_id: clientId,
-            manufacturer_name: car.manufacturer_name || null,
-            model: car.model || null,
-            model_number: car.model_number || null,
-            year: car.year ? parseInt(car.year) : null,
-            color: car.color || null,
-            car_value: car.car_value ? parseFloat(car.car_value) : null,
-            car_type: mapCarType(car.car_type),
-            license_type: car.license_type || null,
-            last_license: convertDate(car.last_license),
-            license_expiry: convertDate(car.license_finish),
-          };
-
-          if (existing) {
-            await supabase
-              .from('cars')
-              .update(carData)
-              .eq('id', existing.id);
-            carMap.set(car.car_number, existing.id);
-            stats.cars.updated++;
-          } else {
-            const { data: inserted, error } = await supabase
-              .from('cars')
-              .insert(carData)
-              .select('id')
-              .single();
-            if (inserted) {
-              carMap.set(car.car_number, inserted.id);
-              stats.cars.inserted++;
-            } else if (error) {
-              stats.cars.errors.push(`Car ${car.car_number}: ${error.message}`);
+      if (entityType === 'cars') {
+        for (const car of batch || []) {
+          try {
+            const clientId = car.client_id_number ? mappings.clients?.[car.client_id_number] : null;
+            if (!clientId) {
+              stats.errors.push(`Car ${car.car_number}: Client not found: ${car.client_id_number}`);
+              continue;
             }
+
+            const { data: existing } = await supabase
+              .from('cars')
+              .select('id')
+              .eq('car_number', car.car_number)
+              .is('deleted_at', null)
+              .maybeSingle();
+
+            const carData = {
+              car_number: car.car_number,
+              client_id: clientId,
+              manufacturer_name: car.manufacturer_name || null,
+              model: car.model || null,
+              model_number: car.model_number || null,
+              year: car.year ? parseInt(car.year) : null,
+              color: car.color || null,
+              car_value: car.car_value ? parseFloat(car.car_value) : null,
+              car_type: mapCarType(car.car_type),
+              license_type: car.license_type || null,
+              last_license: convertDate(car.last_license),
+              license_expiry: convertDate(car.license_finish),
+            };
+
+            if (existing) {
+              await supabase.from('cars').update(carData).eq('id', existing.id);
+              newMappings[car.car_number] = existing.id;
+              stats.updated++;
+            } else {
+              const { data: inserted, error } = await supabase
+                .from('cars')
+                .insert(carData)
+                .select('id')
+                .single();
+              if (inserted) {
+                newMappings[car.car_number] = inserted.id;
+                stats.inserted++;
+              } else if (error) {
+                stats.errors.push(`Car ${car.car_number}: ${error.message}`);
+              }
+            }
+          } catch (e: any) {
+            stats.errors.push(`Car ${car.car_number}: ${e.message}`);
           }
-        } catch (e: any) {
-          stats.cars.errors.push(`Car ${car.car_number}: ${e.message}`);
         }
       }
 
-      // 5. Import Policies
-      console.log('Importing policies...');
-      for (const policy of data.policies || []) {
-        try {
-          const clientIdNumber = policy.client_details?.id_number;
-          if (!clientIdNumber) {
-            stats.policies.errors.push(`Policy ${policy.legacy_wp_id}: No client id_number`);
-            continue;
-          }
-
-          const clientId = clientMap.get(clientIdNumber);
-          if (!clientId) {
-            stats.policies.errors.push(`Policy ${policy.legacy_wp_id}: Client not found: ${clientIdNumber}`);
-            continue;
-          }
-
-          const carId = policy.car_number ? carMap.get(policy.car_number) : null;
-          const companyId = policy.company_name ? companyMap.get(policy.company_name.toLowerCase()) : null;
-          const brokerId = policy.broker_name ? brokerMap.get(policy.broker_name.toLowerCase()) : null;
-
-          const policyTypeParent = mapPolicyTypeParent(policy.policy_type_parent);
-          if (!policyTypeParent) {
-            stats.policies.errors.push(`Policy ${policy.legacy_wp_id}: Invalid policy type: ${policy.policy_type_parent}`);
-            continue;
-          }
-
-          // Check if policy exists by legacy_wp_id
-          const { data: existing } = await supabase
-            .from('policies')
-            .select('id')
-            .eq('legacy_wp_id', policy.legacy_wp_id)
-            .is('deleted_at', null)
-            .maybeSingle();
-
-          const policyData = {
-            legacy_wp_id: policy.legacy_wp_id,
-            policy_number: policy.policy_number_hint || null,
-            client_id: clientId,
-            car_id: carId,
-            company_id: companyId,
-            broker_id: brokerId,
-            policy_type_parent: policyTypeParent,
-            policy_type_child: mapPolicyTypeChild(policy.policy_type_child),
-            start_date: convertDate(policy.start_date) || new Date().toISOString().split('T')[0],
-            end_date: convertDate(policy.end_date) || new Date().toISOString().split('T')[0],
-            insurance_price: parseFloat(policy.insurance_price) || 0,
-            profit: parseFloat(policy.profit) || 0,
-            payed_for_company: parseFloat(policy.payed_for_company) || 0,
-            is_under_24: policy.is_under_24 === true,
-            cancelled: policy.cancelled === true,
-            transferred: policy.transferred === true,
-            transferred_car_number: policy.transferred_car_number || null,
-            notes: policy.notes || null,
-            calc_status: policy.calc_status || 'pending',
-          };
-
-          if (existing) {
-            await supabase
-              .from('policies')
-              .update(policyData)
-              .eq('id', existing.id);
-            policyMap.set(policy.legacy_wp_id, existing.id);
-            stats.policies.updated++;
-          } else {
-            const { data: inserted, error } = await supabase
-              .from('policies')
-              .insert(policyData)
-              .select('id')
-              .single();
-            if (inserted) {
-              policyMap.set(policy.legacy_wp_id, inserted.id);
-              stats.policies.inserted++;
-            } else if (error) {
-              stats.policies.errors.push(`Policy ${policy.legacy_wp_id}: ${error.message}`);
+      if (entityType === 'policies') {
+        for (const policy of batch || []) {
+          try {
+            const clientIdNumber = policy.client_id_number;
+            if (!clientIdNumber) {
+              stats.errors.push(`Policy ${policy.legacy_wp_id}: No client id_number`);
+              continue;
             }
+
+            const clientId = mappings.clients?.[clientIdNumber];
+            if (!clientId) {
+              stats.errors.push(`Policy ${policy.legacy_wp_id}: Client not found: ${clientIdNumber}`);
+              continue;
+            }
+
+            const carId = policy.car_number ? mappings.cars?.[policy.car_number] : null;
+            const companyId = policy.company_name ? mappings.companies?.[policy.company_name.toLowerCase()] : null;
+            const brokerId = policy.broker_name ? mappings.brokers?.[policy.broker_name.toLowerCase()] : null;
+
+            const policyTypeParent = mapPolicyTypeParent(policy.policy_type_parent);
+            if (!policyTypeParent) {
+              stats.errors.push(`Policy ${policy.legacy_wp_id}: Invalid policy type: ${policy.policy_type_parent}`);
+              continue;
+            }
+
+            const { data: existing } = await supabase
+              .from('policies')
+              .select('id')
+              .eq('legacy_wp_id', policy.legacy_wp_id)
+              .is('deleted_at', null)
+              .maybeSingle();
+
+            const policyData = {
+              legacy_wp_id: policy.legacy_wp_id,
+              policy_number: policy.policy_number_hint || null,
+              client_id: clientId,
+              car_id: carId,
+              company_id: companyId,
+              broker_id: brokerId,
+              policy_type_parent: policyTypeParent,
+              policy_type_child: mapPolicyTypeChild(policy.policy_type_child),
+              start_date: convertDate(policy.start_date) || new Date().toISOString().split('T')[0],
+              end_date: convertDate(policy.end_date) || new Date().toISOString().split('T')[0],
+              insurance_price: parseFloat(policy.insurance_price) || 0,
+              profit: parseFloat(policy.profit) || 0,
+              payed_for_company: parseFloat(policy.payed_for_company) || 0,
+              is_under_24: policy.is_under_24 === true,
+              cancelled: policy.cancelled === true,
+              transferred: policy.transferred === true,
+              transferred_car_number: policy.transferred_car_number || null,
+              notes: policy.notes || null,
+              calc_status: policy.calc_status || 'done',
+            };
+
+            if (existing) {
+              await supabase.from('policies').update(policyData).eq('id', existing.id);
+              newMappings[policy.legacy_wp_id] = existing.id;
+              stats.updated++;
+            } else {
+              const { data: inserted, error } = await supabase
+                .from('policies')
+                .insert(policyData)
+                .select('id')
+                .single();
+              if (inserted) {
+                newMappings[policy.legacy_wp_id] = inserted.id;
+                stats.inserted++;
+              } else if (error) {
+                stats.errors.push(`Policy ${policy.legacy_wp_id}: ${error.message}`);
+              }
+            }
+          } catch (e: any) {
+            stats.errors.push(`Policy ${policy.legacy_wp_id}: ${e.message}`);
           }
+        }
+      }
 
-          // Import policy payments
-          const policyId = policyMap.get(policy.legacy_wp_id);
-          if (policyId && policy.payments && Array.isArray(policy.payments)) {
-            for (const payment of policy.payments) {
-              try {
-                const paymentDate = convertDate(payment.date);
-                if (!paymentDate) continue;
+      if (entityType === 'payments') {
+        for (const payment of batch || []) {
+          try {
+            const policyId = payment.policy_legacy_wp_id ? mappings.policies?.[payment.policy_legacy_wp_id] : null;
+            if (!policyId) {
+              continue; // Skip if policy not found
+            }
 
-                const amount = parseFloat(payment.amount) || 0;
-                if (amount <= 0) continue;
+            const paymentDate = convertDate(payment.date);
+            if (!paymentDate) continue;
 
-                // Check for existing payment
-                const { data: existingPayment } = await supabase
-                  .from('policy_payments')
-                  .select('id')
-                  .eq('policy_id', policyId)
-                  .eq('payment_date', paymentDate)
-                  .eq('amount', amount)
-                  .maybeSingle();
+            const amount = parseFloat(payment.amount) || 0;
+            if (amount <= 0) continue;
 
-                const paymentData = {
+            const { data: existingPayment } = await supabase
+              .from('policy_payments')
+              .select('id')
+              .eq('policy_id', policyId)
+              .eq('payment_date', paymentDate)
+              .eq('amount', amount)
+              .maybeSingle();
+
+            if (!existingPayment) {
+              const { error } = await supabase
+                .from('policy_payments')
+                .insert({
                   policy_id: policyId,
                   payment_type: mapPaymentType(payment.payment_type) as any,
                   amount: amount,
@@ -649,114 +450,97 @@ Deno.serve(async (req) => {
                   cheque_number: payment.check_number || null,
                   cheque_image_url: payment.check_image_url || null,
                   refused: payment.refused_status === 'refused',
-                };
-
-                if (existingPayment) {
-                  stats.payments.updated++;
-                } else {
-                  const { error } = await supabase
-                    .from('policy_payments')
-                    .insert(paymentData);
-                  if (error) {
-                    stats.payments.errors.push(`Payment for policy ${policy.legacy_wp_id}: ${error.message}`);
-                  } else {
-                    stats.payments.inserted++;
-                  }
-                }
-              } catch (e: any) {
-                stats.payments.errors.push(`Payment: ${e.message}`);
+                });
+              if (error) {
+                stats.errors.push(`Payment: ${error.message}`);
+              } else {
+                stats.inserted++;
               }
-            }
-          }
-
-          // Import policy images as media files
-          if (policyId && policy.images && Array.isArray(policy.images)) {
-            for (const imageUrl of policy.images) {
-              try {
-                if (!imageUrl) continue;
-
-                const { data: existingMedia } = await supabase
-                  .from('media_files')
-                  .select('id')
-                  .eq('cdn_url', imageUrl)
-                  .maybeSingle();
-
-                if (!existingMedia) {
-                  const fileName = imageUrl.split('/').pop() || 'file';
-                  const mimeType = imageUrl.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
-
-                  await supabase
-                    .from('media_files')
-                    .insert({
-                      cdn_url: imageUrl,
-                      storage_path: imageUrl,
-                      original_name: fileName,
-                      mime_type: mimeType,
-                      size: 0,
-                      entity_type: 'policy',
-                      entity_id: policyId,
-                    });
-                  stats.mediaFiles.inserted++;
-                } else {
-                  stats.mediaFiles.updated++;
-                }
-              } catch (e: any) {
-                stats.mediaFiles.errors.push(`Media: ${e.message}`);
-              }
-            }
-          }
-        } catch (e: any) {
-          stats.policies.errors.push(`Policy ${policy.legacy_wp_id}: ${e.message}`);
-        }
-      }
-
-      // 6. Import Outside Cheques
-      console.log('Importing outside cheques...');
-      for (const cheque of data.outside_cheques || []) {
-        try {
-          const { data: existing } = await supabase
-            .from('outside_cheques')
-            .select('id')
-            .eq('name', cheque.name)
-            .eq('amount', parseFloat(cheque.amount) || 0)
-            .maybeSingle();
-
-          const chequeData = {
-            name: cheque.name || 'غير معروف',
-            amount: parseFloat(cheque.amount) || 0,
-            cheque_number: cheque.cheque_number || null,
-            cheque_date: convertDate(cheque.cheque_date),
-            cheque_image_url: cheque.cheque_image_url || null,
-            notes: cheque.notes || null,
-            refused: cheque.refused === true,
-            used: cheque.used === true,
-          };
-
-          if (existing) {
-            await supabase
-              .from('outside_cheques')
-              .update(chequeData)
-              .eq('id', existing.id);
-            stats.outsideCheques.updated++;
-          } else {
-            const { error } = await supabase
-              .from('outside_cheques')
-              .insert(chequeData);
-            if (error) {
-              stats.outsideCheques.errors.push(`Cheque ${cheque.name}: ${error.message}`);
             } else {
-              stats.outsideCheques.inserted++;
+              stats.updated++;
             }
+          } catch (e: any) {
+            stats.errors.push(`Payment: ${e.message}`);
           }
-        } catch (e: any) {
-          stats.outsideCheques.errors.push(`Cheque: ${e.message}`);
         }
       }
 
-      console.log('Import completed!');
-      console.log('Stats:', JSON.stringify(stats, null, 2));
+      if (entityType === 'media') {
+        for (const media of batch || []) {
+          try {
+            const policyId = media.policy_legacy_wp_id ? mappings.policies?.[media.policy_legacy_wp_id] : null;
+            if (!policyId || !media.url) continue;
 
-      return new Response(JSON.stringify({ success: true, stats }), {
+            const { data: existingMedia } = await supabase
+              .from('media_files')
+              .select('id')
+              .eq('cdn_url', media.url)
+              .maybeSingle();
+
+            if (!existingMedia) {
+              const fileName = media.url.split('/').pop() || 'file';
+              const mimeType = media.url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+
+              await supabase
+                .from('media_files')
+                .insert({
+                  cdn_url: media.url,
+                  storage_path: media.url,
+                  original_name: fileName,
+                  mime_type: mimeType,
+                  size: 0,
+                  entity_type: 'policy',
+                  entity_id: policyId,
+                });
+              stats.inserted++;
+            } else {
+              stats.updated++;
+            }
+          } catch (e: any) {
+            stats.errors.push(`Media: ${e.message}`);
+          }
+        }
+      }
+
+      if (entityType === 'outsideCheques') {
+        for (const cheque of batch || []) {
+          try {
+            const { data: existing } = await supabase
+              .from('outside_cheques')
+              .select('id')
+              .eq('name', cheque.name)
+              .eq('amount', parseFloat(cheque.amount) || 0)
+              .maybeSingle();
+
+            const chequeData = {
+              name: cheque.name || 'غير معروف',
+              amount: parseFloat(cheque.amount) || 0,
+              cheque_number: cheque.cheque_number || null,
+              cheque_date: convertDate(cheque.cheque_date),
+              cheque_image_url: cheque.cheque_image_url || null,
+              notes: cheque.notes || null,
+              refused: cheque.refused === true,
+              used: cheque.used === true,
+            };
+
+            if (existing) {
+              await supabase.from('outside_cheques').update(chequeData).eq('id', existing.id);
+              stats.updated++;
+            } else {
+              const { error } = await supabase.from('outside_cheques').insert(chequeData);
+              if (error) {
+                stats.errors.push(`Cheque ${cheque.name}: ${error.message}`);
+              } else {
+                stats.inserted++;
+              }
+            }
+          } catch (e: any) {
+            stats.errors.push(`Cheque: ${e.message}`);
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, stats, newMappings }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

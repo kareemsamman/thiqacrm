@@ -74,6 +74,54 @@ export type Database = {
         }
         Relationships: []
       }
+      car_accidents: {
+        Row: {
+          accident_date: string | null
+          accident_name: string
+          branch_id: string | null
+          car_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          accident_date?: string | null
+          accident_name: string
+          branch_id?: string | null
+          car_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accident_date?: string | null
+          accident_name?: string
+          branch_id?: string | null
+          car_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_accidents_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "car_accidents_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cars: {
         Row: {
           branch_id: string | null

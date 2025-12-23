@@ -342,6 +342,9 @@ Deno.serve(async (req) => {
       // First delete pricing rules (they'll be restored)
       await supabase.from('pricing_rules').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       
+      // Remove company references from policies (set to null, don't delete policies)
+      await supabase.from('policies').update({ company_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
+      
       // Then delete companies
       const { error } = await supabase.from('insurance_companies').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       
@@ -625,11 +628,29 @@ Deno.serve(async (req) => {
 
             const brokerId = client.broker_name ? mappings.brokers?.[client.broker_name.toLowerCase()] : null;
 
+            // Check for duplicate file_number if provided
+            let fileNumber = client.file_number || null;
+            if (fileNumber) {
+              const { data: existingFileNum } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('file_number', fileNumber)
+                .neq('id_number', client.id_number) // Not the same client
+                .is('deleted_at', null)
+                .maybeSingle();
+              
+              if (existingFileNum) {
+                // Duplicate file_number, set to null (will be auto-generated or fixed later)
+                fileNumber = null;
+                console.warn(`Duplicate file_number ${client.file_number} for client ${client.id_number}, setting to null`);
+              }
+            }
+
             const clientData = {
               full_name: client.full_name || 'غير معروف',
               id_number: client.id_number,
               phone_number: client.phone_number || null,
-              file_number: client.file_number || null,
+              file_number: fileNumber,
               date_joined: convertDate(client.date_joined),
               image_url: client.image_url || null,
               signature_url: client.signature_url || null,

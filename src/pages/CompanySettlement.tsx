@@ -82,7 +82,7 @@ export default function CompanySettlement() {
       const { data, error } = await supabase
         .from('insurance_companies')
         .select('*')
-        .eq('active', true)
+        .or('active.is.null,active.eq.true')
         .order('name_ar');
 
       if (error) throw error;

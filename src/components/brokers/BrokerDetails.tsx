@@ -17,17 +17,19 @@ import {
   ArrowRight,
   Pencil,
   Phone,
-  Users,
   FileText,
   Wallet,
   TrendingUp,
-  UserPlus,
+  TrendingDown,
   Plus,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientDrawer } from "@/components/clients/ClientDrawer";
 import { PolicyWizard } from "@/components/policies/PolicyWizard";
+import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 
 interface Broker {
   id: string;
@@ -79,12 +81,14 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
   const [stats, setStats] = useState({
     totalCollected: 0,
     totalRemaining: 0,
-    // Balance tracking
-    fromBrokerTotal: 0,   // ما عليه لي (الوسيط يعمل لي)
-    toBrokerTotal: 0,     // ما عليي له (أنا أعمل للوسيط)
+    // له علي = insurance from broker (broker_direction = 'from_broker')
+    fromBrokerTotal: 0,
+    // علي له = insurance I made for broker (broker_direction = 'to_broker' or null for existing)
+    toBrokerTotal: 0,
   });
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [viewingPolicyId, setViewingPolicyId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -138,20 +142,24 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         (sum, p) => sum + Number(p.insurance_price),
         0
       );
+
       // Calculate broker balance by direction
+      // له علي = from_broker policies (insurance came from broker, I owe him)
       const fromBrokerPolicies = formattedPolicies.filter(
         (p) => p.broker_direction === 'from_broker'
       );
+      // علي له = to_broker OR null (existing policies = I made for broker, he owes me)
       const toBrokerPolicies = formattedPolicies.filter(
-        (p) => p.broker_direction === 'to_broker'
+        (p) => p.broker_direction === 'to_broker' || p.broker_direction === null
       );
 
+      // Use insurance_price instead of profit for broker accounting
       const fromBrokerTotal = fromBrokerPolicies.reduce(
-        (sum, p) => sum + Number(p.profit || 0),
+        (sum, p) => sum + Number(p.insurance_price || 0),
         0
       );
       const toBrokerTotal = toBrokerPolicies.reduce(
-        (sum, p) => sum + Number(p.profit || 0),
+        (sum, p) => sum + Number(p.insurance_price || 0),
         0
       );
 
@@ -182,6 +190,9 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("ar-EG");
   };
+
+  // Net balance: positive = broker owes me, negative = I owe broker
+  const netBalance = stats.toBrokerTotal - stats.fromBrokerTotal;
 
   return (
     <MainLayout>
@@ -221,21 +232,9 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">العملاء</p>
-                  <p className="text-2xl font-bold">{clients.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stats Cards - 5 cards without clients */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* المحصل - Total collected */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -244,13 +243,15 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">المحصل</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    <span dir="ltr">{formatCurrency(stats.totalCollected)}</span>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatCurrency(stats.totalCollected)}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* المتبقي - Remaining */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -259,14 +260,32 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">المتبقي</p>
-                  <p className="text-2xl font-bold text-destructive">
-                    <span dir="ltr">{formatCurrency(stats.totalRemaining)}</span>
+                  <p className="text-xl font-bold text-destructive">
+                    {formatCurrency(stats.totalRemaining)}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          {/* Balance: From Broker (he owes me) */}
+
+          {/* له علي - What broker wants from me (from_broker) */}
+          <Card className="border-orange-200 dark:border-orange-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <TrendingDown className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">له علي</p>
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatCurrency(stats.fromBrokerTotal)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* علي له - What I want from broker (to_broker or null) */}
           <Card className="border-green-200 dark:border-green-800">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -274,25 +293,40 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                   <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">له عليي</p>
+                  <p className="text-sm text-muted-foreground">علي له</p>
                   <p className="text-xl font-bold text-green-600">
-                    <span dir="ltr">{formatCurrency(stats.fromBrokerTotal)}</span>
+                    {formatCurrency(stats.toBrokerTotal)}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          {/* Balance: To Broker (I owe him) */}
-          <Card className="border-orange-200 dark:border-orange-800">
+
+          {/* Net Balance */}
+          <Card className={cn(
+            "border-2",
+            netBalance >= 0 ? "border-green-300 dark:border-green-700" : "border-red-300 dark:border-red-700"
+          )}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                  <Wallet className="h-5 w-5 text-orange-600" />
+                <div className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg",
+                  netBalance >= 0 ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"
+                )}>
+                  <Wallet className={cn(
+                    "h-5 w-5",
+                    netBalance >= 0 ? "text-green-600" : "text-red-600"
+                  )} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">عليي له</p>
-                  <p className="text-xl font-bold text-orange-600">
-                    <span dir="ltr">{formatCurrency(stats.toBrokerTotal)}</span>
+                  <p className="text-sm text-muted-foreground">
+                    {netBalance >= 0 ? "لي عليه" : "له علي (صافي)"}
+                  </p>
+                  <p className={cn(
+                    "text-xl font-bold",
+                    netBalance >= 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    {formatCurrency(Math.abs(netBalance))}
                   </p>
                 </div>
               </div>
@@ -341,16 +375,33 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>الجهة</TableHead>
                         <TableHead>العميل</TableHead>
                         <TableHead>السيارة</TableHead>
                         <TableHead>النوع</TableHead>
                         <TableHead>السعر</TableHead>
                         <TableHead>الصلاحية</TableHead>
+                        <TableHead className="w-[80px]">إجراءات</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {policies.map((policy) => (
-                        <TableRow key={policy.id}>
+                        <TableRow 
+                          key={policy.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => setViewingPolicyId(policy.id)}
+                        >
+                          <TableCell>
+                            {policy.broker_direction === 'from_broker' ? (
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                عن طريق {broker.name}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                تم تصديرها عن طريقي
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium">
                             {policy.client?.full_name || "-"}
                           </TableCell>
@@ -368,6 +419,12 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(policy.start_date)} - {formatDate(policy.end_date)}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <RowActionsMenu
+                              onView={() => setViewingPolicyId(policy.id)}
+                              onEdit={() => setViewingPolicyId(policy.id)}
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -402,6 +459,17 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           onRefresh();
         }}
         defaultBrokerId={broker.id}
+      />
+
+      {/* Policy Details Drawer */}
+      <PolicyDetailsDrawer
+        open={!!viewingPolicyId}
+        onOpenChange={(open) => !open && setViewingPolicyId(null)}
+        policyId={viewingPolicyId}
+        onUpdated={() => {
+          fetchData();
+          onRefresh();
+        }}
       />
     </MainLayout>
   );

@@ -53,6 +53,7 @@ interface Policy {
   profit: number;
   start_date: string;
   end_date: string;
+  broker_direction: 'from_broker' | 'to_broker' | null;
   client: { full_name: string } | null;
   car: { car_number: string } | null;
 }
@@ -79,6 +80,9 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
     totalCollected: 0,
     totalRemaining: 0,
     totalProfit: 0,
+    // Balance tracking
+    fromBrokerTotal: 0,   // ما عليه لي (الوسيط يعمل لي)
+    toBrokerTotal: 0,     // ما عليي له (أنا أعمل للوسيط)
   });
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -100,7 +104,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
       const { data: policiesData } = await supabase
         .from("policies")
         .select(`
-          id, policy_type_parent, insurance_price, profit, start_date, end_date,
+          id, policy_type_parent, insurance_price, profit, start_date, end_date, broker_direction,
           clients!policies_client_id_fkey(full_name),
           cars!policies_car_id_fkey(car_number)
         `)
@@ -140,10 +144,29 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         0
       );
 
+      // Calculate broker balance by direction
+      const fromBrokerPolicies = formattedPolicies.filter(
+        (p) => p.broker_direction === 'from_broker'
+      );
+      const toBrokerPolicies = formattedPolicies.filter(
+        (p) => p.broker_direction === 'to_broker'
+      );
+
+      const fromBrokerTotal = fromBrokerPolicies.reduce(
+        (sum, p) => sum + Number(p.profit || 0),
+        0
+      );
+      const toBrokerTotal = toBrokerPolicies.reduce(
+        (sum, p) => sum + Number(p.profit || 0),
+        0
+      );
+
       setStats({
         totalCollected,
         totalRemaining: totalPrice - totalCollected,
         totalProfit,
+        fromBrokerTotal,
+        toBrokerTotal,
       });
     } catch (error) {
       console.error("Error fetching broker data:", error);
@@ -206,7 +229,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -260,6 +283,38 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                   <p className="text-sm text-muted-foreground">الربح</p>
                   <p className="text-2xl font-bold text-primary">
                     <span dir="ltr">{formatCurrency(stats.totalProfit)}</span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {/* Balance: From Broker (he owes me) */}
+          <Card className="border-green-200 dark:border-green-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">له عليي</p>
+                  <p className="text-xl font-bold text-green-600">
+                    <span dir="ltr">{formatCurrency(stats.fromBrokerTotal)}</span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {/* Balance: To Broker (I owe him) */}
+          <Card className="border-orange-200 dark:border-orange-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <Wallet className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">عليي له</p>
+                  <p className="text-xl font-bold text-orange-600">
+                    <span dir="ltr">{formatCurrency(stats.toBrokerTotal)}</span>
                   </p>
                 </div>
               </div>

@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useBranches } from "@/hooks/useBranches";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle, CheckCircle, Building2 } from "lucide-react";
+import { Search, Plus, Check, Car, User, FileText, CreditCard, Loader2, X, AlertCircle, CheckCircle, Building2, Users, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { digitsOnly, isValidIsraeliId, isValidPhoneNumber10 } from "@/lib/validation";
 import { calculatePolicyProfit } from "@/lib/pricingCalculator";
@@ -27,6 +27,7 @@ interface PolicyWizardProps {
   onComplete?: (policyId: string) => void;
   onSaved?: () => void;
   defaultBrokerId?: string;
+  defaultBrokerDirection?: 'from_broker' | 'to_broker';
   preselectedClientId?: string;
 }
 
@@ -128,7 +129,7 @@ const PAYMENT_TYPES = [
 
 const POLICY_WIZARD_DRAFT_KEY = "abcrm:policyWizardDraft:v2";
 
-export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultBrokerId, preselectedClientId }: PolicyWizardProps) {
+export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultBrokerId, defaultBrokerDirection, preselectedClientId }: PolicyWizardProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, isAdmin, branchId: userBranchId } = useAuth();
@@ -139,6 +140,10 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
 
   // Branch selection (admin only, workers use their branch)
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  
+  // Broker selection for policy
+  const [policyBrokerId, setPolicyBrokerId] = useState<string>(defaultBrokerId || '');
+  const [brokerDirection, setBrokerDirection] = useState<'from_broker' | 'to_broker' | ''>(defaultBrokerDirection || '');
 
   // Insurance Categories
   const [categories, setCategories] = useState<InsuranceCategory[]>([]);
@@ -283,6 +288,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
     setExistingCar(null);
     setCarConflict(null);
     setErrors({});
+    setPolicyBrokerId(defaultBrokerId || '');
+    setBrokerDirection(defaultBrokerDirection || '');
   };
 
   // Fetch insurance categories
@@ -824,6 +831,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
             payed_for_company: profitResult.companyPayment,
             profit: profitResult.profit,
             branch_id: effectiveBranchId || null,
+            broker_id: policyBrokerId && policyBrokerId !== 'none' ? policyBrokerId : null,
+            broker_direction: brokerDirection && policyBrokerId && policyBrokerId !== 'none' ? brokerDirection as any : null,
           })
           .select()
           .single();
@@ -1144,7 +1153,8 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
             notes: policy.notes.trim() || null,
             profit: profitCalc.profit,
             payed_for_company: profitCalc.companyPayment,
-            broker_id: createNewClient ? (newClient.broker_id || defaultBrokerId || null) : (selectedClient?.broker_id || defaultBrokerId || null),
+            broker_id: policyBrokerId && policyBrokerId !== 'none' ? policyBrokerId : null,
+            broker_direction: brokerDirection && policyBrokerId && policyBrokerId !== 'none' ? brokerDirection as any : null,
             category_id: selectedCategory?.id || null,
             branch_id: effectiveBranchId || null,
           })
@@ -1368,6 +1378,109 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
           {/* Step 1: Client */}
           {currentStep === 1 && (
             <div className="space-y-4">
+              {/* Branch and Broker Selection Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-lg border">
+                {/* Branch Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    الفرع
+                  </Label>
+                  <Select 
+                    value={selectedBranchId} 
+                    onValueChange={setSelectedBranchId}
+                    disabled={!isAdmin}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="اختر الفرع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name_ar || branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Broker Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    الوسيط (اختياري)
+                  </Label>
+                  <Select 
+                    value={policyBrokerId} 
+                    onValueChange={(val) => {
+                      setPolicyBrokerId(val);
+                      // Clear direction if broker is cleared
+                      if (val === 'none') {
+                        setBrokerDirection('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="بدون وسيط" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون وسيط</SelectItem>
+                      {brokers.map((broker) => (
+                        <SelectItem key={broker.id} value={broker.id}>
+                          {broker.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Broker Direction - Only show when broker is selected */}
+              {policyBrokerId && policyBrokerId !== 'none' && (
+                <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                  <Label className="text-sm font-medium flex items-center gap-2 mb-3">
+                    <ArrowLeftRight className="h-4 w-4" />
+                    نوع التعامل مع الوسيط
+                  </Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Card 
+                      className={cn(
+                        "p-3 cursor-pointer transition-all",
+                        brokerDirection === 'from_broker' 
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/30" 
+                          : "hover:bg-secondary/50"
+                      )}
+                      onClick={() => setBrokerDirection('from_broker')}
+                    >
+                      <div className="text-center">
+                        <p className="font-medium text-sm">الوسيط يعمل لي</p>
+                        <p className="text-xs text-muted-foreground mt-1">الوسيط جلب لي هذا التأمين</p>
+                        {brokerDirection === 'from_broker' && (
+                          <Check className="h-4 w-4 text-primary mx-auto mt-2" />
+                        )}
+                      </div>
+                    </Card>
+                    <Card 
+                      className={cn(
+                        "p-3 cursor-pointer transition-all",
+                        brokerDirection === 'to_broker' 
+                          ? "border-primary bg-primary/10 ring-2 ring-primary/30" 
+                          : "hover:bg-secondary/50"
+                      )}
+                      onClick={() => setBrokerDirection('to_broker')}
+                    >
+                      <div className="text-center">
+                        <p className="font-medium text-sm">أنا أعمل للوسيط</p>
+                        <p className="text-xs text-muted-foreground mt-1">أنا عملت هذا التأمين للوسيط</p>
+                        {brokerDirection === 'to_broker' && (
+                          <Check className="h-4 w-4 text-primary mx-auto mt-2" />
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
               {/* Category Selector */}
               <div className="mb-4">
                 <Label className="text-base font-semibold">نوع التأمين</Label>

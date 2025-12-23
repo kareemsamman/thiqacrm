@@ -847,6 +847,9 @@ export type Database = {
       policies: {
         Row: {
           branch_id: string | null
+          broker_direction:
+            | Database["public"]["Enums"]["broker_direction"]
+            | null
           broker_id: string | null
           calc_status: string | null
           cancelled: boolean | null
@@ -878,6 +881,9 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          broker_direction?:
+            | Database["public"]["Enums"]["broker_direction"]
+            | null
           broker_id?: string | null
           calc_status?: string | null
           cancelled?: boolean | null
@@ -909,6 +915,9 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          broker_direction?:
+            | Database["public"]["Enums"]["broker_direction"]
+            | null
           broker_id?: string | null
           calc_status?: string | null
           cancelled?: boolean | null
@@ -1331,6 +1340,7 @@ export type Database = {
     Enums: {
       age_band: "UNDER_24" | "UP_24" | "ANY"
       app_role: "admin" | "worker"
+      broker_direction: "from_broker" | "to_broker"
       car_type: "car" | "cargo" | "small" | "taxi" | "tjeradown4" | "tjeraup4"
       payment_status: "paid" | "partial" | "unpaid"
       payment_type: "cash" | "cheque" | "visa" | "transfer"
@@ -1484,6 +1494,7 @@ export const Constants = {
     Enums: {
       age_band: ["UNDER_24", "UP_24", "ANY"],
       app_role: ["admin", "worker"],
+      broker_direction: ["from_broker", "to_broker"],
       car_type: ["car", "cargo", "small", "taxi", "tjeradown4", "tjeraup4"],
       payment_status: ["paid", "partial", "unpaid"],
       payment_type: ["cash", "cheque", "visa", "transfer"],

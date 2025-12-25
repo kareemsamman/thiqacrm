@@ -198,7 +198,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
         .select(
           `
           *,
-          clients!inner(id, full_name, phone_number, file_number, id_number, less_than_24, signature_url),
+          clients!inner(id, full_name, phone_number, file_number, id_number, less_than_24, signature_url, under24_type, under24_driver_name, under24_driver_id),
           cars(id, car_number, manufacturer_name, year, car_type, car_value, model, color),
           insurance_companies(id, name, name_ar),
           brokers(id, name)
@@ -323,8 +323,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated }:
                         <StatusIcon className="h-3 w-3" />
                         {status.label}
                       </Badge>
-                      {policy.is_under_24 && (
-                        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">أقل من 24</Badge>
+                      {(policy.is_under_24 || policy.clients.under24_type !== 'none') && (
+                        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                          {policy.clients.under24_type === 'additional_driver' ? 'سائق إضافي -24' : 'أقل من 24'}
+                        </Badge>
                       )}
                     </div>
                     {/* Signature Warning */}

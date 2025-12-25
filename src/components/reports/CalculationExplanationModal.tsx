@@ -419,7 +419,7 @@ export function CalculationExplanationModal({
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">الفئة العمرية:</span>
                 <Badge variant={policy.is_under_24 ? 'destructive' : 'secondary'}>
-                  {policy.is_under_24 ? 'أقل من 24' : '24 فأكثر'}
+                  {policy.is_under_24 ? 'أقل من 24 سنة' : '24 سنة فأكثر'}
                 </Badge>
               </div>
             </div>

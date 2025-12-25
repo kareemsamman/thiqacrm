@@ -100,9 +100,9 @@ export default function Clients() {
       }
       if (filters.ageGroup !== 'all') {
         if (filters.ageGroup === 'under24') {
-          query = query.eq('less_than_24', true);
+          query = query.or('under24_type.eq.client,under24_type.eq.additional_driver');
         } else if (filters.ageGroup === 'over24') {
-          query = query.or('less_than_24.eq.false,less_than_24.is.null');
+          query = query.or('under24_type.eq.none,under24_type.is.null');
         }
       }
       if (filters.branchId !== 'all') {

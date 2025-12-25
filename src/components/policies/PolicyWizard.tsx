@@ -48,6 +48,9 @@ interface Client {
   file_number: string | null;
   phone_number: string | null;
   less_than_24: boolean | null;
+  under24_type?: 'none' | 'client' | 'additional_driver' | null;
+  under24_driver_name?: string | null;
+  under24_driver_id?: string | null;
   broker_id: string | null;
 }
 
@@ -382,7 +385,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
       const fetchPreselectedClient = async () => {
         const { data } = await supabase
           .from('clients')
-          .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
+          .select('id, full_name, id_number, file_number, phone_number, less_than_24, under24_type, under24_driver_name, under24_driver_id, broker_id')
           .eq('id', preselectedClientId)
           .single();
         if (data) {
@@ -489,7 +492,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
       setCheckingDuplicate(true);
       const { data } = await supabase
         .from('clients')
-        .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
+        .select('id, full_name, id_number, file_number, phone_number, less_than_24, under24_type, under24_driver_name, under24_driver_id, broker_id')
         .eq('id_number', id)
         .is('deleted_at', null)
         .maybeSingle();
@@ -562,7 +565,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
     setLoadingClients(true);
     const { data, error } = await supabase
       .from('clients')
-      .select('id, full_name, id_number, file_number, phone_number, less_than_24, broker_id')
+      .select('id, full_name, id_number, file_number, phone_number, less_than_24, under24_type, under24_driver_name, under24_driver_id, broker_id')
       .is('deleted_at', null)
       .or(`full_name.ilike.%${query}%,id_number.ilike.%${query}%,file_number.ilike.%${query}%,phone_number.ilike.%${query}%`)
       .limit(10);

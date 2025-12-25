@@ -52,9 +52,9 @@ const adminNav = [
   { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
   { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
   { name: "إعدادات SMS", href: "/admin/sms-settings", icon: MessageSquare },
+  { name: "إعدادات المصادقة", href: "/admin/auth-settings", icon: Settings },
   { name: "سجل الرسائل", href: "/sms-history", icon: History },
   { name: "استيراد WordPress", href: "/admin/wordpress-import", icon: Upload },
-  { name: "الإعدادات", href: "/settings", icon: Settings },
 ];
 
 function SidebarContent({ collapsed, onCollapse, onNavigate }: { 

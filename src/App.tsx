@@ -34,6 +34,7 @@ import DatabaseMigration from "./pages/DatabaseMigration";
 import NotFound from "./pages/NotFound";
 import SmsHistory from "./pages/SmsHistory";
 import DebtTracking from "./pages/DebtTracking";
+import AuthSettings from "./pages/AuthSettings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,6 +164,11 @@ const App = () => (
               <Route path="/debt-tracking" element={
                 <ProtectedRoute>
                   <DebtTracking />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/auth-settings" element={
+                <ProtectedRoute>
+                  <AuthSettings />
                 </ProtectedRoute>
               } />
               {/* Public payment callback routes (loaded in iframe) */}

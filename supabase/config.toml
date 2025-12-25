@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.send-manual-reminder]
 verify_jwt = true
+
+[functions.auth-email-start]
+verify_jwt = false
+
+[functions.auth-email-verify]
+verify_jwt = false
+
+[functions.auth-sms-start]
+verify_jwt = false
+
+[functions.auth-sms-verify]
+verify_jwt = false

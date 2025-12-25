@@ -544,7 +544,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                     <User className="h-10 w-10 text-primary" />
                   </div>
                 )}
-                {client.less_than_24 && (
+                {(client.under24_type !== 'none' && client.under24_type) && (
                   <Badge className="absolute -bottom-2 -right-2 bg-amber-500 text-white text-[10px] px-1.5">-24</Badge>
                 )}
               </div>
@@ -753,9 +753,21 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   <div className="flex justify-between items-center py-2">
                     <dt className="text-muted-foreground">الفئة العمرية</dt>
                     <dd>
-                      <Badge variant={client.less_than_24 ? "warning" : "outline"}>
-                        {client.less_than_24 ? 'أقل من 24 سنة' : '24 سنة فأكثر'}
-                      </Badge>
+                      {client.under24_type === 'additional_driver' ? (
+                        <div className="text-left">
+                          <Badge variant="warning">سائق إضافي أقل من 24</Badge>
+                          {client.under24_driver_name && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {client.under24_driver_name}
+                              {client.under24_driver_id && <span className="font-mono mr-1"> ({client.under24_driver_id})</span>}
+                            </p>
+                          )}
+                        </div>
+                      ) : client.under24_type === 'client' ? (
+                        <Badge variant="warning">العميل أقل من 24 سنة</Badge>
+                      ) : (
+                        <Badge variant="outline">24 سنة فأكثر</Badge>
+                      )}
                     </dd>
                   </div>
                 </dl>

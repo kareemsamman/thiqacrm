@@ -83,6 +83,18 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [brokers, setBrokers] = useState<Broker[]>([]);
 
+  // Determine initial under24_type from client data or fallback to policy is_under_24
+  const getInitialUnder24Type = (): 'none' | 'client' | 'additional_driver' => {
+    if (policy.clients?.under24_type && policy.clients.under24_type !== 'none') {
+      return policy.clients.under24_type;
+    }
+    // Fallback for legacy data: if is_under_24 is true but no under24_type, assume 'client'
+    if (policy.is_under_24 || policy.clients?.less_than_24) {
+      return 'client';
+    }
+    return 'none';
+  };
+
   const [formData, setFormData] = useState({
     policy_type_parent: policy.policy_type_parent,
     policy_type_child: policy.policy_type_child || "",
@@ -96,7 +108,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
     is_under_24: policy.is_under_24 || false,
     notes: policy.notes || "",
     broker_id: policy.broker_id ?? NO_BROKER,
-    under24_type: (policy.clients?.under24_type || 'none') as 'none' | 'client' | 'additional_driver',
+    under24_type: getInitialUnder24Type(),
     under24_driver_name: policy.clients?.under24_driver_name || "",
     under24_driver_id: policy.clients?.under24_driver_id || "",
   });
@@ -105,6 +117,16 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
     if (open) {
       fetchCompanies(policy.policy_type_parent);
       fetchBrokers();
+      const initialUnder24Type = (): 'none' | 'client' | 'additional_driver' => {
+        if (policy.clients?.under24_type && policy.clients.under24_type !== 'none') {
+          return policy.clients.under24_type;
+        }
+        if (policy.is_under_24 || policy.clients?.less_than_24) {
+          return 'client';
+        }
+        return 'none';
+      };
+
       setFormData({
         policy_type_parent: policy.policy_type_parent,
         policy_type_child: policy.policy_type_child || "",
@@ -118,7 +140,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
         is_under_24: policy.is_under_24 || false,
         notes: policy.notes || "",
         broker_id: policy.broker_id ?? NO_BROKER,
-        under24_type: (policy.clients?.under24_type || 'none') as 'none' | 'client' | 'additional_driver',
+        under24_type: initialUnder24Type(),
         under24_driver_name: policy.clients?.under24_driver_name || "",
         under24_driver_id: policy.clients?.under24_driver_id || "",
       });

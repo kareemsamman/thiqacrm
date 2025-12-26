@@ -14,13 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Settings, Building2, Truck } from 'lucide-react';
+import { Plus, Search, Settings, Building2, Truck, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { CompanyDrawer } from '@/components/companies/CompanyDrawer';
 import { PricingRulesDrawer } from '@/components/companies/PricingRulesDrawer';
 import { RoadServicePricingDrawer } from '@/components/companies/RoadServicePricingDrawer';
+import { AccidentFeePricingDrawer } from '@/components/companies/AccidentFeePricingDrawer';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Company = Tables<'insurance_companies'>;
@@ -45,6 +46,8 @@ export default function Companies() {
   const [pricingCompany, setPricingCompany] = useState<Company | null>(null);
   const [roadServicePricingOpen, setRoadServicePricingOpen] = useState(false);
   const [roadServicePricingCompany, setRoadServicePricingCompany] = useState<Company | null>(null);
+  const [accidentFeePricingOpen, setAccidentFeePricingOpen] = useState(false);
+  const [accidentFeePricingCompany, setAccidentFeePricingCompany] = useState<Company | null>(null);
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -101,6 +104,11 @@ export default function Companies() {
   const handleManageRoadServicePricing = (company: Company) => {
     setRoadServicePricingCompany(company);
     setRoadServicePricingOpen(true);
+  };
+
+  const handleManageAccidentFeePricing = (company: Company) => {
+    setAccidentFeePricingCompany(company);
+    setAccidentFeePricingOpen(true);
   };
 
   const handleDrawerClose = () => {
@@ -265,6 +273,19 @@ export default function Companies() {
                             خدمات الطريق
                           </Button>
                         )}
+                        {(company.category_parent?.includes('THIRD_FULL') || company.category_parent?.includes('ACCIDENT_FEE_EXEMPTION')) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleManageAccidentFeePricing(company);
+                            }}
+                          >
+                            <Shield className="h-4 w-4 ml-2" />
+                            إعفاء الحادث
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -295,6 +316,13 @@ export default function Companies() {
         open={roadServicePricingOpen}
         onOpenChange={setRoadServicePricingOpen}
         company={roadServicePricingCompany}
+      />
+
+      {/* Accident Fee Pricing Drawer */}
+      <AccidentFeePricingDrawer
+        open={accidentFeePricingOpen}
+        onOpenChange={setAccidentFeePricingOpen}
+        company={accidentFeePricingCompany}
       />
     </MainLayout>
   );

@@ -140,6 +140,115 @@ export type Database = {
         }
         Relationships: []
       }
+      broker_settlement_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          policy_id: string
+          settlement_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          policy_id: string
+          settlement_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          policy_id?: string
+          settlement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_settlement_items_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broker_settlement_items_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "broker_settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broker_settlements: {
+        Row: {
+          branch_id: string | null
+          broker_id: string
+          created_at: string
+          created_by_admin_id: string | null
+          direction: string
+          id: string
+          notes: string | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          broker_id: string
+          created_at?: string
+          created_by_admin_id?: string | null
+          direction: string
+          id?: string
+          notes?: string | null
+          settlement_date?: string
+          settlement_number?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          broker_id?: string
+          created_at?: string
+          created_by_admin_id?: string | null
+          direction?: string
+          id?: string
+          notes?: string | null
+          settlement_date?: string
+          settlement_number?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_settlements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broker_settlements_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broker_settlements_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brokers: {
         Row: {
           created_at: string
@@ -665,6 +774,7 @@ export type Database = {
       insurance_companies: {
         Row: {
           active: boolean | null
+          broker_id: string | null
           category_parent:
             | Database["public"]["Enums"]["policy_type_parent"][]
             | null
@@ -678,6 +788,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          broker_id?: string | null
           category_parent?:
             | Database["public"]["Enums"]["policy_type_parent"][]
             | null
@@ -691,6 +802,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          broker_id?: string | null
           category_parent?:
             | Database["public"]["Enums"]["policy_type_parent"][]
             | null
@@ -702,7 +814,15 @@ export type Database = {
           name_ar?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "insurance_companies_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       insurance_company_groups: {
         Row: {

@@ -289,12 +289,16 @@ export function PolicyWizard({
     }
   };
 
-  // Upload files to Bunny CDN
+  // Upload files to Bunny CDN - PARALLEL for speed
   const uploadFiles = async (policyId: string): Promise<void> => {
     const allFiles = [...insuranceFiles, ...crmFiles];
     if (allFiles.length === 0) return;
 
-    for (const file of allFiles) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+
+    // Upload all files in parallel for speed
+    const uploadPromises = allFiles.map(async (file) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('entity_type', insuranceFiles.includes(file) ? 'policy_insurance' : 'policy_crm');
@@ -303,22 +307,27 @@ export function PolicyWizard({
         formData.append('branch_id', effectiveBranchId);
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-media`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: formData,
-        }
-      );
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-media`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: formData,
+          }
+        );
 
-      if (!response.ok) {
-        console.error('File upload error');
+        if (!response.ok) {
+          console.error('File upload error for:', file.name);
+        }
+      } catch (error) {
+        console.error('File upload failed for:', file.name, error);
       }
-    }
+    });
+
+    await Promise.all(uploadPromises);
   };
 
   // Create a temporary policy for Tranzila payment (returns UUID)
@@ -735,50 +744,38 @@ export function PolicyWizard({
       }
       
       if (clientPhone && policyIdToUse && finalClientId) {
-        // Send signature SMS if customer has NEVER signed before
-        // Check by client.signature_url (the edge function also checks this)
-        try {
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('signature_url')
-            .eq('id', finalClientId)
-            .single();
-
-          console.log('[PolicyWizard] Checking signature status for client:', finalClientId, 'signature_url:', clientData?.signature_url);
-
-          // If client has never signed (no signature_url), send signature SMS
-          if (!clientData?.signature_url) {
-            console.log('[PolicyWizard] Client has no signature, sending SMS...');
-            const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-signature-sms', {
-              body: { 
-                client_id: finalClientId,  // Use snake_case to match edge function
-                policy_id: policyIdToUse   // Use snake_case to match edge function
-              },
-            });
-            
-            if (smsError) {
-              console.error('[PolicyWizard] Signature SMS error:', smsError);
-            } else {
-              console.log('[PolicyWizard] Signature SMS sent:', smsResult);
+        // Fire-and-forget SMS sending (don't await - for speed)
+        // Signature SMS
+        supabase
+          .from('clients')
+          .select('signature_url')
+          .eq('id', finalClientId)
+          .single()
+          .then(({ data: clientData }) => {
+            if (!clientData?.signature_url) {
+              console.log('[PolicyWizard] Sending signature SMS...');
+              supabase.functions.invoke('send-signature-sms', {
+                body: { 
+                  client_id: finalClientId,
+                  policy_id: policyIdToUse
+                },
+              }).then(({ error }) => {
+                if (error) console.error('[PolicyWizard] Signature SMS error:', error);
+                else console.log('[PolicyWizard] Signature SMS sent');
+              });
             }
-          } else {
-            console.log('[PolicyWizard] Client already has signature, skipping SMS');
-          }
-        } catch (smsError) {
-          console.error('[PolicyWizard] Failed to send signature SMS:', smsError);
-        }
-
-        // Send invoice SMS
-        try {
-          await supabase.functions.invoke('send-invoice-sms', {
-            body: { 
-              policyId: policyIdToUse,
-              phoneNumber: clientPhone 
-            },
           });
-        } catch (invoiceError) {
-          console.error('Failed to send invoice SMS:', invoiceError);
-        }
+
+        // Invoice SMS (fire-and-forget)
+        supabase.functions.invoke('send-invoice-sms', {
+          body: { 
+            policyId: policyIdToUse,
+            phoneNumber: clientPhone 
+          },
+        }).then(({ error }) => {
+          if (error) console.error('[PolicyWizard] Invoice SMS error:', error);
+          else console.log('[PolicyWizard] Invoice SMS sent');
+        });
       }
 
       clearDraft();

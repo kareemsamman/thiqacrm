@@ -195,50 +195,38 @@ serve(async (req) => {
       );
     }
 
-    // Prepare email content - use proper line breaks, not \n
+    // Prepare email content
     const subject = "رمز التحقق - AB Insurance CRM";
     
-    // Plain text version with proper line breaks
-    const textContent = `رمز التحقق الخاص بك هو: ${otp}
-
-هذا الرمز صالح لمدة 5 دقائق فقط.
-
-إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.`;
+    // Plain text version
+    const textContent = [
+      "رمز التحقق الخاص بك هو: " + otp,
+      "",
+      "هذا الرمز صالح لمدة 5 دقائق فقط.",
+      "",
+      "إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة."
+    ].join("\r\n");
     
-    // HTML version with proper styling
-    const htmlContent = `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: Arial, sans-serif; padding: 20px; direction: rtl; text-align: right; background-color: #f3f4f6;">
-  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="color: #2563eb; margin: 0; font-size: 28px;">AB Insurance CRM</h1>
-      <p style="color: #6b7280; margin-top: 8px;">نظام إدارة التأمين</p>
-    </div>
-    
-    <p style="font-size: 18px; color: #374151; margin-bottom: 24px; text-align: center;">
-      رمز التحقق الخاص بك هو:
-    </p>
-    
-    <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; font-size: 36px; font-weight: bold; padding: 24px; text-align: center; border-radius: 12px; letter-spacing: 12px; margin-bottom: 24px;">
-      ${otp}
-    </div>
-    
-    <p style="font-size: 14px; color: #6b7280; text-align: center; margin-bottom: 16px;">
-      هذا الرمز صالح لمدة <strong>5 دقائق</strong> فقط.
-    </p>
-    
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
-    
-    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-      إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.
-    </p>
-  </div>
-</body>
-</html>`;
+    // HTML version - simple structure to avoid encoding issues
+    const htmlContent = [
+      '<!DOCTYPE html>',
+      '<html dir="rtl" lang="ar">',
+      '<head><meta charset="UTF-8"></head>',
+      '<body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;">',
+      '<div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;">',
+      '<h1 style="color:#2563eb;margin:0 0 8px 0;">AB Insurance CRM</h1>',
+      '<p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p>',
+      '<p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p>',
+      '<div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">',
+      otp,
+      '</div>',
+      '<p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p>',
+      '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">',
+      '<p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>',
+      '</div>',
+      '</body>',
+      '</html>'
+    ].join('');
 
     // Send email via SMTP
     const emailResult = await sendEmailViaSMTP(

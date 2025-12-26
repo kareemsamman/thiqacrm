@@ -9,6 +9,11 @@ interface ProfitSummary {
   todayRevenue: number;
   monthRevenue: number;
   yearRevenue: number;
+  // Breakdown for charts
+  elzamiCommission: number;
+  otherProfit: number;
+  monthElzamiCommission: number;
+  monthOtherProfit: number;
 }
 
 export function useProfitSummary() {
@@ -20,6 +25,10 @@ export function useProfitSummary() {
     todayRevenue: 0,
     monthRevenue: 0,
     yearRevenue: 0,
+    elzamiCommission: 0,
+    otherProfit: 0,
+    monthElzamiCommission: 0,
+    monthOtherProfit: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -69,28 +78,33 @@ export function useProfitSummary() {
       let todayRevenue = 0;
       let monthRevenue = 0;
       let yearRevenue = 0;
+      let elzamiCommission = 0;
+      let otherProfit = 0;
+      let monthElzamiCommission = 0;
+      let monthOtherProfit = 0;
 
       policies?.forEach((policy) => {
         const isElzami = policy.policy_type_parent === 'ELZAMI';
         
-        // For ELZAMI: profit = commission from company, NOT the stored profit
-        // For other types: use the stored profit
         let policyProfit: number;
         let policyRevenue: number;
         
         if (isElzami) {
-          // ELZAMI: profit is the commission from the company
           const commission = policy.company_id ? (elzamiCommissionMap.get(policy.company_id) || 0) : 0;
           policyProfit = commission;
-          // ELZAMI insurance_price should NOT be added to revenue
           policyRevenue = 0;
-          // ELZAMI doesn't have company payment due (it's passed through)
+          elzamiCommission += commission;
+          if (policy.start_date >= monthStart) {
+            monthElzamiCommission += commission;
+          }
         } else {
-          // Other types: use stored profit and insurance_price as revenue
           policyProfit = Number(policy.profit) || 0;
           policyRevenue = Number(policy.insurance_price) || 0;
-          // Add to company payment due (excluding ELZAMI)
           totalCompanyPaymentDue += Number(policy.payed_for_company) || 0;
+          otherProfit += policyProfit;
+          if (policy.start_date >= monthStart) {
+            monthOtherProfit += policyProfit;
+          }
         }
 
         yearProfit += policyProfit;
@@ -115,6 +129,10 @@ export function useProfitSummary() {
         todayRevenue,
         monthRevenue,
         yearRevenue,
+        elzamiCommission,
+        otherProfit,
+        monthElzamiCommission,
+        monthOtherProfit,
       });
     } catch (error) {
       console.error('Error fetching profit summary:', error);

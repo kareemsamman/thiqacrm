@@ -23,6 +23,7 @@ import Invoices from "./pages/Invoices";
 import InvoiceTemplates from "./pages/InvoiceTemplates";
 import InsuranceCategories from "./pages/InsuranceCategories";
 import RoadServices from "./pages/RoadServices";
+import AccidentFeeServices from "./pages/AccidentFeeServices";
 import PaymentSettings from "./pages/PaymentSettings";
 import SmsSettings from "./pages/SmsSettings";
 import CustomerSignatures from "./pages/CustomerSignatures";
@@ -130,6 +131,11 @@ const App = () => (
               <Route path="/admin/road-services" element={
                 <ProtectedRoute>
                   <RoadServices />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/accident-fee-services" element={
+                <ProtectedRoute>
+                  <AccidentFeeServices />
                 </ProtectedRoute>
               } />
               <Route path="/admin/payment-settings" element={

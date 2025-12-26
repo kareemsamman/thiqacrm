@@ -26,7 +26,9 @@ import {
   FileText,
   CalendarIcon,
   X,
+  Wallet,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +57,7 @@ interface BrokerWithStats extends Broker {
 
 export default function Brokers() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [brokers, setBrokers] = useState<BrokerWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -406,17 +409,28 @@ export default function Brokers() {
                         {formatCurrency(broker.total_remaining)}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <RowActionsMenu
-                          onView={() => setViewingBroker(broker)}
-                          onEdit={() => {
-                            setSelectedBroker(broker);
-                            setDrawerOpen(true);
-                          }}
-                          onDelete={() => {
-                            setDeletingBroker(broker);
-                            setDeleteDialogOpen(true);
-                          }}
-                        />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/brokers/${broker.id}/wallet`)}
+                            title="محفظة الوسيط"
+                          >
+                            <Wallet className="h-4 w-4" />
+                          </Button>
+                          <RowActionsMenu
+                            onView={() => setViewingBroker(broker)}
+                            onEdit={() => {
+                              setSelectedBroker(broker);
+                              setDrawerOpen(true);
+                            }}
+                            onDelete={() => {
+                              setDeletingBroker(broker);
+                              setDeleteDialogOpen(true);
+                            }}
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

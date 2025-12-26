@@ -71,6 +71,7 @@ interface Company {
   name: string;
   name_ar: string | null;
   category_parent: string | null;
+  elzami_commission: number | null;
 }
 
 interface Broker {
@@ -594,7 +595,7 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
     setLoadingCompanies(true);
     let query = supabase
       .from('insurance_companies')
-      .select('*')
+      .select('id, name, name_ar, category_parent, elzami_commission')
       .eq('active', true)
       .order('name');
     
@@ -1138,6 +1139,13 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
             profit: parseFloat(policy.insurance_price),
             companyPayment: 0,
           };
+        } else if (policy.policy_type_parent === 'ELZAMI') {
+          // ELZAMI: profit = commission, companyPayment = insurance_price
+          const selectedCompany = companies.find(c => c.id === policy.company_id);
+          profitCalc = {
+            profit: selectedCompany?.elzami_commission || 0,
+            companyPayment: parseFloat(policy.insurance_price),
+          };
         } else {
           // FULL mode: calculate profit based on pricing rules
           const carType = (createNewCar ? newCar.car_type : (selectedCar?.car_type || existingCar?.car_type)) || 'car';
@@ -1245,6 +1253,37 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
           console.error('[PolicyWizard] Invoice generation error:', e);
         }
       })();
+
+      // Auto-send signature request if new client was created and has phone number
+      if (createNewClient && clientId && newClient.phone_number) {
+        (async () => {
+          try {
+            // Check if client already has a signature (by id_number)
+            const { data: existingClient } = await supabase
+              .from('clients')
+              .select('signature_url')
+              .eq('id', clientId)
+              .single();
+            
+            // Only send if client doesn't already have a signature
+            if (!existingClient?.signature_url) {
+              const { error: signatureError } = await supabase.functions.invoke('send-signature-sms', {
+                body: { client_id: clientId, policy_id: policyId },
+              });
+              
+              if (signatureError) {
+                console.error('[PolicyWizard] Signature SMS error:', signatureError);
+              } else {
+                console.log('[PolicyWizard] Signature SMS sent successfully');
+              }
+            } else {
+              console.log('[PolicyWizard] Client already has signature, skipping SMS');
+            }
+          } catch (e) {
+            console.error('[PolicyWizard] Signature SMS error:', e);
+          }
+        })();
+      }
       if (allFiles.length > 0) {
         // Run uploads in background without blocking UI
         (async () => {
@@ -2061,6 +2100,23 @@ export function PolicyWizard({ open, onOpenChange, onComplete, onSaved, defaultB
                     />
                     <FieldError error={errors.insurance_price} />
                   </div>
+
+                  {/* ELZAMI Commission Display */}
+                  {policy.policy_type_parent === 'ELZAMI' && policy.company_id && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">العمولة (الربح)</Label>
+                        <span className={`text-lg font-bold ${
+                          (companies.find(c => c.id === policy.company_id)?.elzami_commission || 0) >= 0 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          ₪{(companies.find(c => c.id === policy.company_id)?.elzami_commission || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">العمولة محددة من شركة التأمين</p>
+                    </div>
+                  )}
 
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">

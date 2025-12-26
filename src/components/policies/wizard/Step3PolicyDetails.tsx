@@ -196,7 +196,7 @@ export function Step3PolicyDetails({
     setLoadingCompanies(true);
     let query = supabase
       .from('insurance_companies')
-      .select('id, name, name_ar, category_parent, elzami_commission')
+      .select('id, name, name_ar, category_parent, elzami_commission, broker_id')
       .eq('active', true)
       .order('name');
     
@@ -209,8 +209,35 @@ export function Step3PolicyDetails({
     if (data) {
       setCompanies(data as Company[]);
       if (data.length === 1) {
-        setPolicy({ ...policy, company_id: data[0].id });
+        const company = data[0];
+        setPolicy({ ...policy, company_id: company.id });
+        // Auto-set broker if company has broker_id
+        handleCompanyBrokerAutoSet(company);
       }
+    }
+  };
+
+  // Auto-set broker when company is selected (if company has broker_id)
+  const handleCompanyBrokerAutoSet = (company: Company | undefined) => {
+    if (company?.broker_id) {
+      // Company is linked to a broker - auto-set broker and direction
+      setPolicyBrokerId(company.broker_id);
+      setBrokerDirection('from_broker');  // Broker created for us
+    }
+  };
+
+  // Handle company change
+  const handleCompanyChange = (companyId: string) => {
+    setPolicy({ ...policy, company_id: companyId });
+    const company = companies.find(c => c.id === companyId);
+    
+    if (company?.broker_id) {
+      // Company is linked to a broker - auto-set and lock
+      setPolicyBrokerId(company.broker_id);
+      setBrokerDirection('from_broker');
+    } else {
+      // Company has no broker - clear auto-set values (user can select manually)
+      // If user selects a broker manually, direction will be "to_broker"
     }
   };
 
@@ -432,7 +459,7 @@ export function Step3PolicyDetails({
           <Label>شركة التأمين *</Label>
           <Select 
             value={policy.company_id} 
-            onValueChange={(v) => setPolicy({ ...policy, company_id: v })}
+            onValueChange={handleCompanyChange}
             disabled={!policy.policy_type_parent}
           >
             <SelectTrigger className={cn(
@@ -448,7 +475,10 @@ export function Step3PolicyDetails({
                 <div className="p-2 text-center text-sm text-muted-foreground">لا توجد شركات لهذا النوع</div>
               ) : (
                 companies.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name_ar || c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name_ar || c.name}
+                    {c.broker_id && <span className="text-muted-foreground text-xs mr-2">(وسيط)</span>}
+                  </SelectItem>
                 ))
               )}
             </SelectContent>
@@ -457,46 +487,79 @@ export function Step3PolicyDetails({
         </div>
       )}
 
-      {/* Broker Section - Only for types that require broker */}
-      {requiresBroker && (
-        <Card className="p-4 space-y-4 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <ArrowLeftRight className="h-4 w-4" />
-            <Label className="font-medium">الوسيط</Label>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm">اختيار الوسيط</Label>
-              <Select value={policyBrokerId || 'none'} onValueChange={(v) => setPolicyBrokerId(v === 'none' ? '' : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="بدون وسيط" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">بدون وسيط</SelectItem>
-                  {brokers.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Broker Section - Auto-detection or manual selection */}
+      {requiresBroker && (() => {
+        const selectedCompany = companies.find(c => c.id === policy.company_id);
+        const isCompanyLinkedToBroker = !!selectedCompany?.broker_id;
+        const linkedBroker = isCompanyLinkedToBroker 
+          ? brokers.find(b => b.id === selectedCompany.broker_id) 
+          : null;
+        
+        return (
+          <Card className="p-4 space-y-4 bg-muted/30">
+            <div className="flex items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4" />
+              <Label className="font-medium">الوسيط</Label>
+              {isCompanyLinkedToBroker && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  تم التحديد تلقائياً
+                </span>
+              )}
             </div>
-            {policyBrokerId && policyBrokerId !== 'none' && (
-              <div>
-                <Label className="text-sm">نوع التعامل *</Label>
-                <Select value={brokerDirection} onValueChange={(v) => setBrokerDirection(v as any)}>
-                  <SelectTrigger className={cn(errors.broker_direction ? "border-destructive" : "")}>
-                    <SelectValue placeholder="اختر نوع التعامل" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="from_broker">من الوسيط</SelectItem>
-                    <SelectItem value="to_broker">إلى الوسيط</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldError error={errors.broker_direction} />
+            
+            {isCompanyLinkedToBroker ? (
+              // Company is linked to broker - show locked info
+              <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{linkedBroker?.name || 'وسيط'}</p>
+                    <p className="text-xs text-muted-foreground">من الوسيط (تلقائي)</p>
+                  </div>
+                  <ArrowLeftRight className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+            ) : (
+              // No linked broker - show manual selection
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm">اختيار الوسيط</Label>
+                  <Select 
+                    value={policyBrokerId || 'none'} 
+                    onValueChange={(v) => {
+                      const newBrokerId = v === 'none' ? '' : v;
+                      setPolicyBrokerId(newBrokerId);
+                      // If user selects a broker manually, set direction to "to_broker"
+                      if (newBrokerId) {
+                        setBrokerDirection('to_broker');
+                      } else {
+                        setBrokerDirection('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="بدون وسيط" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون وسيط</SelectItem>
+                      {brokers.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {policyBrokerId && policyBrokerId !== 'none' && (
+                  <div className="flex items-end">
+                    <div className="p-3 bg-muted rounded-lg flex-1">
+                      <p className="text-sm font-medium">إلى الوسيط</p>
+                      <p className="text-xs text-muted-foreground">نحن أنشأنا للوسيط</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </Card>
-      )}
+          </Card>
+        );
+      })()}
 
       {/* Dates */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

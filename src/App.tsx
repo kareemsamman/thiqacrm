@@ -14,6 +14,7 @@ import Cars from "./pages/Cars";
 import Policies from "./pages/Policies";
 import Companies from "./pages/Companies";
 import Brokers from "./pages/Brokers";
+import BrokerWallet from "./pages/BrokerWallet";
 import Cheques from "./pages/Cheques";
 import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
@@ -86,6 +87,11 @@ const App = () => (
               <Route path="/brokers" element={
                 <ProtectedRoute>
                   <Brokers />
+                </ProtectedRoute>
+              } />
+              <Route path="/brokers/:brokerId/wallet" element={
+                <ProtectedRoute>
+                  <BrokerWallet />
                 </ProtectedRoute>
               } />
               <Route path="/cheques" element={

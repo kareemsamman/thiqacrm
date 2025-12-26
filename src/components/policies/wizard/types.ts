@@ -43,6 +43,7 @@ export interface Company {
   name_ar: string | null;
   category_parent: string[] | null;
   elzami_commission: number | null;
+  broker_id: string | null;  // If set, this company is linked to a broker
 }
 
 export interface Broker {

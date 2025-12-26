@@ -162,16 +162,22 @@ export function PolicyDrawer({ open, onOpenChange, onSaved }: PolicyDrawerProps)
   const onSubmit = async (data: PolicyFormData) => {
     setSaving(true);
     try {
-      // For ELZAMI type, profit is 0 and payed_for_company equals price
       let profit = data.profit || 0;
       let payedForCompany = data.payed_for_company || 0;
       
       if (data.policy_type_parent === 'ELZAMI') {
-        profit = 0;
+        // Fetch ELZAMI commission from the selected company
+        const { data: company } = await supabase
+          .from('insurance_companies')
+          .select('elzami_commission')
+          .eq('id', data.company_id)
+          .single();
+        
+        profit = company?.elzami_commission || 0;
         payedForCompany = data.insurance_price;
       }
 
-const { error } = await supabase
+      const { error } = await supabase
         .from('policies')
         .insert({
           created_by_admin_id: user?.id || null,

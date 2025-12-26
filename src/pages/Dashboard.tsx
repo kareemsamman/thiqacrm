@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/Header";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ExpiringPolicies } from "@/components/dashboard/ExpiringPolicies";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { ProfitBreakdownChart } from "@/components/dashboard/ProfitBreakdownChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -189,6 +190,13 @@ export default function Dashboard() {
             </div>
           </Card>
         </div>
+
+        {/* Profit Breakdown Chart */}
+        <ProfitBreakdownChart
+          elzamiCommission={profitSummary.elzamiCommission}
+          otherProfit={profitSummary.otherProfit}
+          loading={profitLoading}
+        />
 
         {/* Bottom Grid */}
         <div className="grid gap-6 lg:grid-cols-2">

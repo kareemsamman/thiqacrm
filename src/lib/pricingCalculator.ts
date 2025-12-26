@@ -10,6 +10,7 @@ interface CalculateProfitParams {
   carValue: number | null;
   carYear: number | null;
   insurancePrice: number;
+  roadServiceId?: string | null; // For ROAD_SERVICE policies
 }
 
 interface ProfitResult {
@@ -31,6 +32,7 @@ export async function calculatePolicyProfit(params: CalculateProfitParams): Prom
     carValue,
     carYear,
     insurancePrice,
+    roadServiceId,
   } = params;
 
   // ELZAMI: profit = commission from company, company gets insurance_price
@@ -78,8 +80,46 @@ export async function calculatePolicyProfit(params: CalculateProfitParams): Prom
       return matchingRules[0]?.value ?? 0;
     };
 
-    // ROAD_SERVICE calculation
+    // ROAD_SERVICE calculation - fetch from company_road_service_prices table
     if (policyTypeParent === 'ROAD_SERVICE') {
+      // Use roadServiceId if provided, otherwise fall back to old pricing_rules logic
+      if (roadServiceId) {
+        const { data: roadServicePrice } = await supabase
+          .from('company_road_service_prices')
+          .select('company_cost')
+          .eq('company_id', companyId)
+          .eq('road_service_id', roadServiceId)
+          .eq('car_type', carType)
+          .or(`age_band.eq.${ageBand},age_band.eq.ANY`)
+          .order('age_band', { ascending: ageBand === 'UNDER_24' }) // Prefer exact match
+          .limit(1)
+          .maybeSingle();
+
+        if (roadServicePrice) {
+          const companyPayment = roadServicePrice.company_cost || 0;
+          return { companyPayment, profit: insurancePrice - companyPayment };
+        }
+        
+        // If no specific pricing found, try without car_type filter
+        const { data: fallbackPrice } = await supabase
+          .from('company_road_service_prices')
+          .select('company_cost')
+          .eq('company_id', companyId)
+          .eq('road_service_id', roadServiceId)
+          .or(`age_band.eq.${ageBand},age_band.eq.ANY`)
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackPrice) {
+          const companyPayment = fallbackPrice.company_cost || 0;
+          return { companyPayment, profit: insurancePrice - companyPayment };
+        }
+        
+        // No pricing found = full profit
+        return { companyPayment: 0, profit: insurancePrice };
+      }
+      
+      // Fallback to old pricing_rules logic for backward compatibility
       let basePrice = getRuleValue('ROAD_SERVICE_PRICE', false, true);
       if (basePrice === 0) {
         basePrice = getRuleValue('ROAD_SERVICE_BASE', false, true);

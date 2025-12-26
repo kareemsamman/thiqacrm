@@ -18,6 +18,7 @@ import { Trash2, Loader2 } from 'lucide-react';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 
 type Company = Tables<'insurance_companies'>;
+type CompanyGroup = Tables<'insurance_company_groups'>;
 
 const POLICY_TYPES = [
   { value: "ELZAMI", label: "إلزامي" },
@@ -38,13 +39,29 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [groups, setGroups] = useState<CompanyGroup[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     name_ar: '',
     category_parent: '' as string,
     active: true,
     elzami_commission: 0,
+    group_id: '' as string,
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchGroups();
+    }
+  }, [open]);
+
+  const fetchGroups = async () => {
+    const { data } = await supabase
+      .from('insurance_company_groups')
+      .select('*')
+      .order('display_name');
+    if (data) setGroups(data);
+  };
 
   useEffect(() => {
     if (company) {
@@ -54,6 +71,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
         category_parent: company.category_parent || '',
         active: company.active ?? true,
         elzami_commission: (company as any).elzami_commission ?? 0,
+        group_id: company.group_id || '',
       });
     } else {
       setFormData({
@@ -62,6 +80,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
         category_parent: '',
         active: true,
         elzami_commission: 0,
+        group_id: '',
       });
     }
   }, [company, open]);
@@ -98,6 +117,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             category_parent: formData.category_parent as Enums<'policy_type_parent'>,
             active: formData.active,
             elzami_commission: formData.category_parent === 'ELZAMI' ? formData.elzami_commission : 0,
+            group_id: formData.group_id || null,
           } as any)
           .eq('id', company.id);
 
@@ -116,6 +136,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             category_parent: formData.category_parent as Enums<'policy_type_parent'>,
             active: formData.active,
             elzami_commission: formData.category_parent === 'ELZAMI' ? formData.elzami_commission : 0,
+            group_id: formData.group_id || null,
           } as any);
 
         if (error) throw error;
@@ -257,6 +278,30 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Company Group Selector */}
+            <div className="space-y-2">
+              <Label className="text-right block">مجموعة الشركة</Label>
+              <Select
+                value={formData.group_id || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, group_id: v === "__none__" ? '' : v })}
+              >
+                <SelectTrigger className="text-right">
+                  <SelectValue placeholder="اختر المجموعة (اختياري)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">بدون مجموعة</SelectItem>
+                  {groups.map(group => (
+                    <SelectItem key={group.id} value={group.id} className="text-right">
+                      {group.display_name_ar || group.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                المجموعة تسمح بتجميع الشركات تحت علامة تجارية واحدة في التقارير
+              </p>
             </div>
 
             {/* ELZAMI Commission Field - Only show when type is ELZAMI */}

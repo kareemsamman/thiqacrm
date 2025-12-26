@@ -672,9 +672,54 @@ function buildSignaturePageHtml(
     
     let isDrawing = false;
     let hasDrawn = false;
+    let pageBlocked = false;
+    
+    // Check if signature is still valid on page load
+    async function checkSignatureStatus() {
+      try {
+        const response = await fetch('${supabaseUrl}/functions/v1/get-signature-info?token=${token}');
+        const data = await response.json();
+        
+        if (!response.ok || data.error) {
+          showBlockedMessage(data.error || 'رابط غير صالح');
+          return;
+        }
+        
+        if (data.already_signed) {
+          showBlockedMessage('تم التوقيع مسبقاً. شكراً لك!');
+          return;
+        }
+        
+        if (data.expired) {
+          showBlockedMessage('انتهت صلاحية هذا الرابط');
+          return;
+        }
+      } catch (e) {
+        console.error('Error checking signature status:', e);
+      }
+    }
+    
+    function showBlockedMessage(message) {
+      pageBlocked = true;
+      document.querySelector('.content').innerHTML = \`
+        <div style="text-align: center; padding: 40px 20px;">
+          <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 style="color: #1e3a5f; font-size: 22px; margin-bottom: 15px;">\${message}</h2>
+          <p style="color: #64748b; font-size: 15px;">يمكنك إغلاق هذه الصفحة</p>
+        </div>
+      \`;
+    }
+    
+    // Check on page load
+    checkSignatureStatus();
     
     // Set canvas size
     function resizeCanvas() {
+      if (pageBlocked) return;
       const rect = wrapper.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = 200;

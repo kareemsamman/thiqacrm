@@ -60,6 +60,7 @@ interface Company {
   name: string;
   name_ar: string | null;
   category_parent: string | null;
+  elzami_commission: number | null;
 }
 
 interface Broker {
@@ -151,7 +152,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
     setLoadingCompanies(true);
     let query = supabase
       .from('insurance_companies')
-      .select('id, name, name_ar, category_parent')
+      .select('id, name, name_ar, category_parent, elzami_commission')
       .eq('active', true)
       .order('name');
     
@@ -192,7 +193,12 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
       let companyPayment = insurancePrice;
       let profit = 0;
 
-      if (formData.policy_type_parent !== 'ELZAMI') {
+      if (formData.policy_type_parent === 'ELZAMI') {
+        // For ELZAMI: profit = commission, companyPayment = insurance_price
+        const selectedCompany = companies.find(c => c.id === formData.company_id);
+        profit = selectedCompany?.elzami_commission || 0;
+        companyPayment = insurancePrice;
+      } else {
         const ageBand: Enums<'age_band'> = formData.under24_type !== 'none' ? 'UNDER_24' : 'UP_24';
         const result = await calculatePolicyProfit({
           policyTypeParent: formData.policy_type_parent as Enums<'policy_type_parent'>,
@@ -397,6 +403,23 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
                 className="h-9 text-left"
               />
             </div>
+
+            {/* ELZAMI Commission Display */}
+            {formData.policy_type_parent === 'ELZAMI' && formData.company_id && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">العمولة (الربح)</Label>
+                  <span className={`text-lg font-bold ${
+                    (companies.find(c => c.id === formData.company_id)?.elzami_commission || 0) >= 0 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    ₪{(companies.find(c => c.id === formData.company_id)?.elzami_commission || 0).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">العمولة محددة من شركة التأمين</p>
+              </div>
+            )}
 
             {/* Under-24 Type Selection */}
             <div className="space-y-2 p-3 bg-muted/30 rounded-lg">

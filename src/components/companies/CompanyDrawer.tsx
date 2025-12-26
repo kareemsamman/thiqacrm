@@ -11,6 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +25,7 @@ import { Trash2, Loader2 } from 'lucide-react';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 
 type Company = Tables<'insurance_companies'>;
+type Broker = Tables<'brokers'>;
 type PolicyTypeParent = Enums<'policy_type_parent'>;
 
 const POLICY_TYPES: { value: PolicyTypeParent; label: string }[] = [
@@ -39,13 +47,27 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [brokers, setBrokers] = useState<Broker[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     name_ar: '',
     category_parents: [] as PolicyTypeParent[],
     active: true,
     elzami_commission: 0,
+    broker_id: null as string | null,
   });
+
+  useEffect(() => {
+    // Fetch brokers for dropdown
+    const fetchBrokers = async () => {
+      const { data } = await supabase
+        .from('brokers')
+        .select('*')
+        .order('name');
+      if (data) setBrokers(data);
+    };
+    fetchBrokers();
+  }, []);
 
   useEffect(() => {
     if (company) {
@@ -55,6 +77,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
         category_parents: company.category_parent || [],
         active: company.active ?? true,
         elzami_commission: company.elzami_commission ?? 0,
+        broker_id: company.broker_id || null,
       });
     } else {
       setFormData({
@@ -63,6 +86,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
         category_parents: [],
         active: true,
         elzami_commission: 0,
+        broker_id: null,
       });
     }
   }, [company, open]);
@@ -108,6 +132,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             category_parent: formData.category_parents,
             active: formData.active,
             elzami_commission: formData.category_parents.includes('ELZAMI') ? formData.elzami_commission : 0,
+            broker_id: formData.broker_id || null,
           })
           .eq('id', company.id);
 
@@ -126,6 +151,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             category_parent: formData.category_parents,
             active: formData.active,
             elzami_commission: formData.category_parents.includes('ELZAMI') ? formData.elzami_commission : 0,
+            broker_id: formData.broker_id || null,
           });
 
         if (error) throw error;
@@ -300,6 +326,29 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
                 </p>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="broker_id" className="text-right block">الوسيط المرتبط</Label>
+              <Select
+                value={formData.broker_id || "none"}
+                onValueChange={(value) => setFormData({ ...formData, broker_id: value === "none" ? null : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر الوسيط (اختياري)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون وسيط</SelectItem>
+                  {brokers.map((broker) => (
+                    <SelectItem key={broker.id} value={broker.id}>
+                      {broker.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                إذا كانت الشركة مرتبطة بوسيط، سيتم اختيار الوسيط تلقائياً عند إنشاء وثيقة
+              </p>
+            </div>
 
             <div className="flex items-center justify-between">
               <Label htmlFor="active">الشركة نشطة</Label>

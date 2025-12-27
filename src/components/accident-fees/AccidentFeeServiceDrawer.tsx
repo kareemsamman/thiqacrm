@@ -116,7 +116,7 @@ export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved 
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Service Name"
-              dir="ltr"
+              className="ltr-input"
             />
           </div>
 
@@ -151,8 +151,7 @@ export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved 
               value={formData.sort_order}
               onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
               placeholder="0"
-              dir="ltr"
-              className="w-24"
+              className="ltr-input w-24"
             />
           </div>
 

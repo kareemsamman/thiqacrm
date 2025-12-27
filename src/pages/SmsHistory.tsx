@@ -219,8 +219,8 @@ export default function SmsHistory() {
                             <TableCell className="font-medium">
                               {log.clients?.full_name || "-"}
                             </TableCell>
-                            <TableCell dir="ltr" className="text-left">
-                              {log.phone_number}
+                            <TableCell className="text-left">
+                              <bdi>{log.phone_number}</bdi>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">

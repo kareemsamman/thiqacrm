@@ -589,8 +589,8 @@ export default function CompanySettlementDetail() {
                             <Badge variant="destructive" className="mr-2 text-xs">ملغية</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="font-mono" dir="ltr">
-                          {policy.car?.car_number || '-'}
+                        <TableCell className="font-mono">
+                          <bdi>{policy.car?.car_number || '-'}</bdi>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getInsuranceTypeBadgeClass(policy.policy_type_parent)}>

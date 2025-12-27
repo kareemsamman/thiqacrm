@@ -366,8 +366,7 @@ export function Step4Payments({
                           value={payment.cheque_number || ''}
                           onChange={(e) => updatePayment(payment.id, 'cheque_number', e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="رقم الشيك"
-                          className="h-9 flex-1 font-mono"
-                          dir="ltr"
+                          className="h-9 flex-1 font-mono ltr-input"
                         />
                       )}
                       

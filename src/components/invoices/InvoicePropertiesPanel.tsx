@@ -251,8 +251,7 @@ export function InvoicePropertiesPanel({
                 value={element.content || ''}
                 onChange={(e) => onUpdate({ content: e.target.value })}
                 placeholder="https://..."
-                className="text-xs"
-                dir="ltr"
+                className="text-xs ltr-input"
               />
             </div>
           )}
@@ -407,8 +406,7 @@ export function InvoicePropertiesPanel({
                 <Input
                   value={element.style.color || '#000000'}
                   onChange={(e) => updateStyle('color', e.target.value)}
-                  className="h-9 text-xs flex-1 font-mono"
-                  dir="ltr"
+                  className="h-9 text-xs flex-1 font-mono ltr-input"
                 />
               </div>
             </div>
@@ -426,8 +424,7 @@ export function InvoicePropertiesPanel({
                   <Input
                     value={element.style.backgroundColor || 'transparent'}
                     onChange={(e) => updateStyle('backgroundColor', e.target.value)}
-                    className="h-9 text-xs flex-1 font-mono"
-                    dir="ltr"
+                    className="h-9 text-xs flex-1 font-mono ltr-input"
                     placeholder="transparent"
                   />
                 </div>

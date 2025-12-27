@@ -239,7 +239,7 @@ const { data, error } = await supabase
                   <div className="flex items-center gap-2">
                     {getStatusBadge(invoice.status)}
                     <Badge variant="outline">{getLanguageLabel(invoice.language)}</Badge>
-                    <span className="font-mono text-sm" dir="ltr">{invoice.invoice_number}</span>
+                    <span className="font-mono text-sm"><bdi>{invoice.invoice_number}</bdi></span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground" dir="auto">
                     {invoice.template?.name && (
@@ -374,7 +374,7 @@ const { data, error } = await supabase
                 <Printer className="h-4 w-4 ml-1" />
                 طباعة
               </Button>
-              <DialogTitle className="text-right">معاينة الفاتورة - <span dir="ltr">{previewInvoice?.invoice_number}</span></DialogTitle>
+              <DialogTitle className="text-right">معاينة الفاتورة - <bdi>{previewInvoice?.invoice_number}</bdi></DialogTitle>
             </div>
             <p className="text-sm text-muted-foreground text-right" dir="auto">
               أنشئ بواسطة: {previewInvoice?.created_by?.full_name || previewInvoice?.created_by?.email || '-'}

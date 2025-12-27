@@ -656,8 +656,8 @@ export default function CompanySettlement() {
                             <TableCell className="font-medium">
                               {policy.client_name || '-'}
                             </TableCell>
-                            <TableCell className="font-mono" dir="ltr">
-                              {policy.car_number || '-'}
+                            <TableCell className="font-mono">
+                              <bdi>{policy.car_number || '-'}</bdi>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={getInsuranceTypeBadgeClass(policy.policy_type_parent)}>

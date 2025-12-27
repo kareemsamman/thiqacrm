@@ -484,8 +484,8 @@ export default function AdminUsers() {
                         <TableCell className="font-medium">
                           {user.full_name || 'غير محدد'}
                         </TableCell>
-                        <TableCell dir="ltr" className="text-right">
-                          {user.email}
+                        <TableCell className="text-right">
+                          <bdi>{user.email}</bdi>
                         </TableCell>
                         <TableCell>{formatDate(user.created_at)}</TableCell>
                         <TableCell>
@@ -580,8 +580,8 @@ export default function AdminUsers() {
                         <TableCell className="font-medium">
                           {user.full_name || 'غير محدد'}
                         </TableCell>
-                        <TableCell dir="ltr" className="text-right">
-                          {user.email}
+                        <TableCell className="text-right">
+                          <bdi>{user.email}</bdi>
                         </TableCell>
                         <TableCell>
                           <Select
@@ -683,8 +683,8 @@ export default function AdminUsers() {
                         <TableCell className="font-medium">
                           {user.full_name || 'غير محدد'}
                         </TableCell>
-                        <TableCell dir="ltr" className="text-right">
-                          {user.email}
+                        <TableCell className="text-right">
+                          <bdi>{user.email}</bdi>
                         </TableCell>
                         <TableCell>{getStatusBadge(user.status)}</TableCell>
                         <TableCell>
@@ -741,8 +741,8 @@ export default function AdminUsers() {
                 <TableBody>
                   {loginAttempts.slice(0, 10).map((attempt) => (
                     <TableRow key={attempt.id}>
-                      <TableCell dir="ltr" className="text-right">
-                        {attempt.email}
+                      <TableCell className="text-right">
+                        <bdi>{attempt.email}</bdi>
                       </TableCell>
                       <TableCell>{formatDate(attempt.created_at)}</TableCell>
                       <TableCell>
@@ -756,8 +756,8 @@ export default function AdminUsers() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell dir="ltr" className="text-right text-muted-foreground">
-                        {attempt.ip_address || '-'}
+                      <TableCell className="text-right text-muted-foreground">
+                        <bdi>{attempt.ip_address || '-'}</bdi>
                       </TableCell>
                     </TableRow>
                   ))}

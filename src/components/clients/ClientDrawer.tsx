@@ -321,7 +321,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                       placeholder="أدخل رقم الهوية"
                       inputMode="numeric"
                       maxLength={9}
-                      dir="ltr"
+                      className="ltr-input"
                       value={field.value}
                       onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 9))}
                     />
@@ -356,7 +356,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                       placeholder="أدخل رقم الهاتف"
                       inputMode="numeric"
                       maxLength={10}
-                      dir="ltr"
+                      className="ltr-input"
                       value={field.value}
                       onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 10))}
                     />
@@ -491,7 +491,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                       placeholder="أدخل رقم الهاتف الإضافي"
                       inputMode="numeric"
                       maxLength={10}
-                      dir="ltr"
+                      className="ltr-input"
                       value={field.value}
                       onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 10))}
                     />
@@ -560,7 +560,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                           placeholder="أدخل رقم هوية السائق"
                           inputMode="numeric"
                           maxLength={9}
-                          dir="ltr"
+                          className="ltr-input"
                           value={field.value}
                           onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 9))}
                         />

@@ -1134,7 +1134,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   <TableBody>
                     {cars.map((car) => (
                       <TableRow key={car.id}>
-                        <TableCell className="font-mono font-semibold" dir="ltr">{car.car_number}</TableCell>
+                        <TableCell className="font-mono font-semibold"><bdi>{car.car_number}</bdi></TableCell>
                         <TableCell>{car.manufacturer_name || '-'}</TableCell>
                         <TableCell>{car.model || '-'}</TableCell>
                         <TableCell>{car.year || '-'}</TableCell>

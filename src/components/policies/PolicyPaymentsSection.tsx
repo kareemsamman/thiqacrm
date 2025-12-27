@@ -580,8 +580,7 @@ export function PolicyPaymentsSection({
                 type="number"
                 value={formData.amount}
                 onChange={(e) => handleAmountChange(e.target.value)}
-                dir="ltr"
-                className={cn("text-left", validationError && "border-destructive")}
+                className={cn("ltr-input text-left", validationError && "border-destructive")}
               />
               {validationError && (
                 <div className="flex items-center gap-2 text-destructive text-sm">
@@ -614,9 +613,8 @@ export function PolicyPaymentsSection({
                 <Input
                   value={formData.cheque_number}
                   onChange={(e) => setFormData(f => ({ ...f, cheque_number: e.target.value.replace(/[^0-9]/g, '') }))}
-                  dir="ltr"
                   placeholder="أدخل رقم الشيك"
-                  className="font-mono"
+                  className="font-mono ltr-input"
                 />
               </div>
             )}
@@ -662,8 +660,7 @@ export function PolicyPaymentsSection({
                 type="number"
                 value={formData.amount}
                 onChange={(e) => handleAmountChange(e.target.value, true, selectedPayment?.id)}
-                dir="ltr"
-                className={cn("text-left", validationError && "border-destructive")}
+                className={cn("ltr-input text-left", validationError && "border-destructive")}
               />
               {validationError && (
                 <div className="flex items-center gap-2 text-destructive text-sm">
@@ -693,8 +690,7 @@ export function PolicyPaymentsSection({
                 <Input
                   value={formData.cheque_number}
                   onChange={(e) => setFormData(f => ({ ...f, cheque_number: e.target.value.replace(/[^0-9]/g, '') }))}
-                  dir="ltr"
-                  className="font-mono"
+                  className="font-mono ltr-input"
                 />
               </div>
             )}

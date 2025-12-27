@@ -545,8 +545,8 @@ export default function Policies() {
                         <TableCell className="font-medium">
                           {policy.clients?.full_name || "-"}
                         </TableCell>
-                        <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">
-                          {policy.cars?.car_number || "-"}
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          <bdi>{policy.cars?.car_number || "-"}</bdi>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">

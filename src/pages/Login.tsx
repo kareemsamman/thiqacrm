@@ -407,7 +407,7 @@ export default function Login() {
                   placeholder="your-email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  dir="ltr"
+                  className="ltr-input"
                   disabled={loading}
                 />
               </div>
@@ -434,7 +434,7 @@ export default function Login() {
                   placeholder="05XXXXXXXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  dir="ltr"
+                  className="ltr-input"
                   disabled={loading}
                 />
               </div>

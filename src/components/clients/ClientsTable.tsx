@@ -194,8 +194,8 @@ export function ClientsTable() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">
-                    {client.idNumber}
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    <bdi>{client.idNumber}</bdi>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="font-mono">
@@ -203,9 +203,9 @@ export function ClientsTable() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground" dir="ltr">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Phone className="h-3 w-3" />
-                      {client.phone}
+                      <bdi>{client.phone}</bdi>
                     </div>
                   </TableCell>
                   <TableCell className="text-center">

@@ -524,7 +524,7 @@ export default function DebtTracking() {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-2">رقم الهاتف</p>
-              <p className="font-medium" dir="ltr">{selectedClient?.phone_number}</p>
+              <p className="font-medium"><bdi>{selectedClient?.phone_number}</bdi></p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-2">المبلغ المستحق</p>

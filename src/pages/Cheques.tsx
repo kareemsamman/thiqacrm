@@ -859,8 +859,8 @@ export default function Cheques() {
                             </button>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{cheque.broker_name || "-"}</TableCell>
-                          <TableCell className="font-mono text-sm" dir="ltr">{cheque.cheque_number || "-"}</TableCell>
-                          <TableCell className="font-medium" dir="ltr">{formatCurrency(cheque.amount)}</TableCell>
+                          <TableCell className="font-mono text-sm"><bdi>{cheque.cheque_number || "-"}</bdi></TableCell>
+                          <TableCell className="font-medium"><bdi>{formatCurrency(cheque.amount)}</bdi></TableCell>
                           <TableCell className={cn(isOverdue(cheque.payment_date, cheque.cheque_status) && "text-destructive font-medium")}>
                             {formatDate(cheque.payment_date)}
                             {isOverdue(cheque.payment_date, cheque.cheque_status) && <Badge variant="destructive" className="mr-2 text-xs">متأخر</Badge>}
@@ -998,7 +998,7 @@ export default function Cheques() {
                 value={editChequeNumber}
                 onChange={(e) => setEditChequeNumber(e.target.value.replace(/\D/g, ''))}
                 placeholder="أدخل رقم الشيك الجديد"
-                dir="ltr"
+                className="ltr-input font-mono"
               />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -1021,7 +1021,7 @@ export default function Cheques() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>رقم الهاتف</Label>
-              <Input value={smsCheque?.policy?.client?.phone_number || "لا يوجد رقم"} disabled dir="ltr" />
+              <Input value={smsCheque?.policy?.client?.phone_number || "لا يوجد رقم"} disabled className="ltr-input" />
             </div>
             <div className="space-y-2">
               <Label>نص الرسالة</Label>

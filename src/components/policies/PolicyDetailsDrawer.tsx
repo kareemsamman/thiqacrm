@@ -795,8 +795,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         </div>
                         <div>
                           <span className="text-muted-foreground text-xs">رقم الهوية</span>
-                          <p className="font-mono font-semibold" dir="ltr">
-                            {policy.clients.id_number}
+                          <p className="font-mono font-semibold">
+                            <bdi>{policy.clients.id_number}</bdi>
                           </p>
                         </div>
                         <div>
@@ -805,8 +805,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         </div>
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-mono" dir="ltr">
-                            {policy.clients.phone_number || "-"}
+                          <span className="font-mono">
+                            <bdi>{policy.clients.phone_number || "-"}</bdi>
                           </span>
                         </div>
                       </div>
@@ -822,8 +822,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground text-xs">رقم السيارة</span>
-                            <p className="font-mono font-semibold text-base" dir="ltr">
-                              {policy.cars.car_number}
+                            <p className="font-mono font-semibold text-base">
+                              <bdi>{policy.cars.car_number}</bdi>
                             </p>
                           </div>
                           <div>

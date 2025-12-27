@@ -264,7 +264,7 @@ export default function Cars() {
                             <CarIcon className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <p className="font-mono font-medium text-foreground" dir="ltr">{car.car_number}</p>
+                            <p className="font-mono font-medium text-foreground"><bdi>{car.car_number}</bdi></p>
                             <p className="text-sm text-muted-foreground">
                               {car.manufacturer_name || ""} {car.model || ""} {car.year || ""}
                             </p>

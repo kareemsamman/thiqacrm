@@ -299,8 +299,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                         <Input 
                           placeholder="أدخل رقم السيارة" 
                           {...field} 
-                          className="flex-1 text-right"
-                          dir="ltr"
+                          className="flex-1 text-right ltr-input"
                           disabled={isEditMode}
                         />
                       </FormControl>
@@ -402,7 +401,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                   <FormItem>
                     <FormLabel className="text-right block">سنة الصنع</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="2024" {...field} className="text-right" dir="ltr" />
+                      <Input type="number" placeholder="2024" {...field} className="text-right ltr-input" />
                     </FormControl>
                   </FormItem>
                 )}

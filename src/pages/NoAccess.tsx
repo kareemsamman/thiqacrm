@@ -57,7 +57,7 @@ export default function NoAccess() {
               <Mail className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">تم تسجيل الدخول بـ:</span>
             </div>
-            <p className="font-medium text-foreground" dir="ltr">{user?.email || profile?.email || "..."}</p>
+            <p className="font-medium text-foreground"><bdi>{user?.email || profile?.email || "..."}</bdi></p>
           </div>
 
           <div className="space-y-3">
@@ -67,8 +67,8 @@ export default function NoAccess() {
             <p className="text-sm text-muted-foreground text-center">
               إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع:
             </p>
-            <p className="text-sm font-medium text-primary text-center" dir="ltr">
-              morshed500@gmail.com
+            <p className="text-sm font-medium text-primary text-center">
+              <bdi>morshed500@gmail.com</bdi>
             </p>
           </div>
 

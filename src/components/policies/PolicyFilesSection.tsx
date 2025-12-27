@@ -428,8 +428,7 @@ export function PolicyFilesSection({
               setPolicyNumber(e.target.value);
               setPolicyNumberSaved(false);
             }}
-            className="flex-1"
-            dir="ltr"
+            className="flex-1 ltr-input"
           />
           <Button 
             onClick={handleSavePolicyNumber}

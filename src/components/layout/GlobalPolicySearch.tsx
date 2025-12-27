@@ -187,13 +187,13 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
                         {result.policy_number && (
                           <span className="flex items-center gap-1">
                             <Hash className="h-3 w-3" />
-                            <span dir="ltr" className="font-mono">{result.policy_number}</span>
+                            <bdi className="font-mono">{result.policy_number}</bdi>
                           </span>
                         )}
                         {result.cars?.car_number && (
                           <span className="flex items-center gap-1">
                             <Car className="h-3 w-3" />
-                            <span dir="ltr" className="font-mono">{result.cars.car_number}</span>
+                            <bdi className="font-mono">{result.cars.car_number}</bdi>
                           </span>
                         )}
                       </div>

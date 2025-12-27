@@ -276,14 +276,14 @@ export default function CustomerSignatures() {
                             <span className="font-medium">{client.full_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell dir="ltr" className="text-right">
-                          {client.id_number}
+                        <TableCell className="text-right">
+                          <bdi>{client.id_number}</bdi>
                         </TableCell>
                         <TableCell>
                           {client.phone_number ? (
                             <div className="flex items-center gap-1">
                               <Phone className="h-3 w-3 text-muted-foreground" />
-                              <span dir="ltr">{client.phone_number}</span>
+                              <bdi>{client.phone_number}</bdi>
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">-</span>

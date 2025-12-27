@@ -464,7 +464,7 @@ export function PricingRulesDrawer({ open, onClose, company }: PricingRulesDrawe
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                 placeholder={isPercentRule(formData.rule_type as Enums<'pricing_rule_type'>) ? 'النسبة المئوية' : 'المبلغ بالشيكل'}
-                dir="ltr"
+                className="ltr-input"
               />
               <p className="text-xs text-muted-foreground">
                 {isPercentRule(formData.rule_type as Enums<'pricing_rule_type'>)

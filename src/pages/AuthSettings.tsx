@@ -266,7 +266,7 @@ export default function AuthSettings() {
                           setSettings({ ...settings, smtp_host: e.target.value })
                         }
                         placeholder="smtp.hostinger.com"
-                        dir="ltr"
+                        className="ltr-input"
                       />
                     </div>
                     <div className="space-y-2">
@@ -279,7 +279,7 @@ export default function AuthSettings() {
                           setSettings({ ...settings, smtp_port: parseInt(e.target.value) || 465 })
                         }
                         placeholder="465"
-                        dir="ltr"
+                        className="ltr-input"
                       />
                     </div>
                     <div className="space-y-2">
@@ -311,7 +311,7 @@ export default function AuthSettings() {
                       onChange={(e) =>
                         setSettings({ ...settings, smtp_user: e.target.value })
                       }
-                      dir="ltr"
+                      className="ltr-input"
                     />
                   </div>
                   <div className="space-y-2">
@@ -325,7 +325,7 @@ export default function AuthSettings() {
                         onChange={(e) =>
                           setSettings({ ...settings, smtp_password: e.target.value })
                         }
-                        dir="ltr"
+                        className="ltr-input"
                       />
                       <Button
                         type="button"
@@ -349,8 +349,7 @@ export default function AuthSettings() {
                       placeholder="أدخل بريد إلكتروني للاختبار"
                       value={testEmail}
                       onChange={(e) => setTestEmail(e.target.value)}
-                      dir="ltr"
-                      className="flex-1"
+                      className="ltr-input flex-1"
                     />
                     <Button 
                       onClick={handleTestSmtp} 
@@ -430,7 +429,7 @@ export default function AuthSettings() {
                       onChange={(e) =>
                         setSettings({ ...settings, sms_019_user: e.target.value })
                       }
-                      dir="ltr"
+                      className="ltr-input"
                     />
                   </div>
                   <div className="space-y-2">
@@ -443,7 +442,7 @@ export default function AuthSettings() {
                         onChange={(e) =>
                           setSettings({ ...settings, sms_019_token: e.target.value })
                         }
-                        dir="ltr"
+                        className="ltr-input"
                       />
                       <Button
                         type="button"
@@ -464,7 +463,7 @@ export default function AuthSettings() {
                       onChange={(e) =>
                         setSettings({ ...settings, sms_019_source: e.target.value })
                       }
-                      dir="ltr"
+                      className="ltr-input"
                       placeholder="ABInsurance"
                     />
                   </div>

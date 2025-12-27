@@ -111,7 +111,7 @@ export function ExpiringPolicies() {
                 <ExpiryBadge endDate={policy.end_date} showDays={true} />
                 <div>
                   <p className="font-medium text-foreground">{policy.client?.full_name || "غير معروف"}</p>
-                  <p className="text-sm text-muted-foreground" dir="ltr">{policy.car?.car_number || "-"}</p>
+                  <p className="text-sm text-muted-foreground"><bdi>{policy.car?.car_number || "-"}</bdi></p>
                 </div>
               </div>
               <div className="text-left">

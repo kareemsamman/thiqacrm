@@ -400,8 +400,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
                 type="number"
                 value={formData.insurance_price}
                 onChange={(e) => setFormData(f => ({ ...f, insurance_price: e.target.value }))}
-                dir="ltr"
-                className="h-9 text-left"
+                className="h-9 text-left ltr-input"
               />
             </div>
 
@@ -463,8 +462,7 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
                       value={formData.under24_driver_id}
                       onChange={(e) => setFormData(f => ({ ...f, under24_driver_id: e.target.value }))}
                       placeholder="رقم الهوية"
-                      dir="ltr"
-                      className="h-8 text-left"
+                      className="h-8 text-left ltr-input"
                     />
                   </div>
                 </div>
@@ -497,9 +495,8 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
                 <Input
                   value={formData.transferred_car_number}
                   onChange={(e) => setFormData(f => ({ ...f, transferred_car_number: e.target.value }))}
-                  dir="ltr"
                   placeholder="رقم السيارة"
-                  className="h-9"
+                  className="h-9 ltr-input"
                 />
               </div>
             )}

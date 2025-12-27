@@ -560,7 +560,7 @@ export default function Cheques() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">شيكات مرتجعة</p>
-                <p className="text-xl font-bold text-destructive" dir="ltr">
+                <p className="text-xl font-bold text-destructive ltr-nums">
                   {formatCurrency(summaryStats.returnedTotal)}
                 </p>
                 <p className="text-xs text-muted-foreground">{summaryStats.returnedCount} شيك</p>
@@ -574,7 +574,7 @@ export default function Cheques() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">شيكات قيد الانتظار</p>
-                <p className="text-xl font-bold text-amber-600" dir="ltr">
+                <p className="text-xl font-bold text-amber-600 ltr-nums">
                   {formatCurrency(summaryStats.pendingTotal)}
                 </p>
                 <p className="text-xs text-muted-foreground">{summaryStats.pendingCount} شيك</p>
@@ -623,19 +623,19 @@ export default function Cheques() {
                           <TableCell className="font-medium">{formatMonthName(month.month)}</TableCell>
                           <TableCell className="text-center">
                             <div>{month.total} شيك</div>
-                            <div className="text-xs text-muted-foreground" dir="ltr">{formatCurrency(month.totalAmount)}</div>
+                            <div className="text-xs text-muted-foreground ltr-nums">{formatCurrency(month.totalAmount)}</div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="secondary">{month.pending}</Badge>
-                            <div className="text-xs text-muted-foreground mt-1" dir="ltr">{formatCurrency(month.pendingAmount)}</div>
+                            <div className="text-xs text-muted-foreground mt-1 ltr-nums">{formatCurrency(month.pendingAmount)}</div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="default">{month.cashed}</Badge>
-                            <div className="text-xs text-muted-foreground mt-1" dir="ltr">{formatCurrency(month.cashedAmount)}</div>
+                            <div className="text-xs text-muted-foreground mt-1 ltr-nums">{formatCurrency(month.cashedAmount)}</div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="destructive">{month.returned}</Badge>
-                            <div className="text-xs text-muted-foreground mt-1" dir="ltr">{formatCurrency(month.returnedAmount)}</div>
+                            <div className="text-xs text-muted-foreground mt-1 ltr-nums">{formatCurrency(month.returnedAmount)}</div>
                           </TableCell>
                         </TableRow>
                       ))

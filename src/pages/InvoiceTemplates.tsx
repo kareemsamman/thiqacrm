@@ -487,7 +487,7 @@ export default function InvoiceTemplates() {
                           value={formData.logo_url}
                           onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
                           placeholder="https://..."
-                          dir="ltr"
+                          className="ltr-input"
                         />
                       </div>
                       <div>
@@ -496,8 +496,7 @@ export default function InvoiceTemplates() {
                           value={formData.header_html}
                           onChange={(e) => setFormData({ ...formData, header_html: e.target.value })}
                           rows={6}
-                          dir="ltr"
-                          className="font-mono text-sm"
+                          className="font-mono text-sm ltr-input"
                         />
                       </div>
                       <div>
@@ -506,8 +505,7 @@ export default function InvoiceTemplates() {
                           value={formData.body_html}
                           onChange={(e) => setFormData({ ...formData, body_html: e.target.value })}
                           rows={10}
-                          dir="ltr"
-                          className="font-mono text-sm"
+                          className="font-mono text-sm ltr-input"
                         />
                       </div>
                       <div>
@@ -516,8 +514,7 @@ export default function InvoiceTemplates() {
                           value={formData.footer_html}
                           onChange={(e) => setFormData({ ...formData, footer_html: e.target.value })}
                           rows={4}
-                          dir="ltr"
-                          className="font-mono text-sm"
+                          className="font-mono text-sm ltr-input"
                         />
                       </div>
                     </div>

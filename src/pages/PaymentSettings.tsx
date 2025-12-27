@@ -230,7 +230,7 @@ export default function PaymentSettings() {
                   <CreditCard className="h-4 w-4" />
                   بطاقات تجريبية للاختبار
                 </h4>
-                <div className="text-sm text-blue-600 space-y-1 font-mono" dir="ltr">
+                <div className="text-sm text-blue-600 space-y-1 font-mono ltr-nums">
                   <p>Card: <span className="bg-blue-100 px-2 py-0.5 rounded">4580 4580 4580 4580</span></p>
                   <p>Expiry: Any future date (e.g., 12/29)</p>
                   <p>CVV: <span className="bg-blue-100 px-2 py-0.5 rounded">123</span></p>
@@ -251,8 +251,7 @@ export default function PaymentSettings() {
                 value={formData.terminal_name}
                 onChange={(e) => setFormData(f => ({ ...f, terminal_name: e.target.value }))}
                 placeholder="مثال: basheer"
-                dir="ltr"
-                className="text-left"
+                className="ltr-input"
               />
               <p className="text-xs text-muted-foreground">
                 اسم المسوف الخاص بك في Tranzila
@@ -270,8 +269,7 @@ export default function PaymentSettings() {
                 value={formData.api_password}
                 onChange={(e) => setFormData(f => ({ ...f, api_password: e.target.value }))}
                 placeholder="••••••••"
-                dir="ltr"
-                className="text-left"
+                className="ltr-input"
               />
               <p className="text-xs text-muted-foreground">
                 يُستخدم فقط لعمليات الإرجاع والإلغاء (اختياري)
@@ -299,8 +297,7 @@ export default function PaymentSettings() {
                   value={formData.success_url}
                   onChange={(e) => setFormData(f => ({ ...f, success_url: e.target.value }))}
                   placeholder="https://yoursite.com/payment/success"
-                  dir="ltr"
-                  className="text-left text-sm"
+                  className="ltr-input text-sm"
                 />
               </div>
 
@@ -311,8 +308,7 @@ export default function PaymentSettings() {
                   value={formData.fail_url}
                   onChange={(e) => setFormData(f => ({ ...f, fail_url: e.target.value }))}
                   placeholder="https://yoursite.com/payment/fail"
-                  dir="ltr"
-                  className="text-left text-sm"
+                  className="ltr-input text-sm"
                 />
               </div>
 
@@ -323,8 +319,7 @@ export default function PaymentSettings() {
                   value={formData.notify_url}
                   onChange={(e) => setFormData(f => ({ ...f, notify_url: e.target.value }))}
                   placeholder="https://yourproject.supabase.co/functions/v1/tranzila-webhook"
-                  dir="ltr"
-                  className="text-left text-sm"
+                  className="ltr-input text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
                   هذا الرابط يُستخدم للتحقق من الدفع (server-to-server)

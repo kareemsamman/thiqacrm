@@ -243,7 +243,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                 {broker.phone && (
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Phone className="h-4 w-4" />
-                    <span dir="ltr">{broker.phone}</span>
+                    <bdi>{broker.phone}</bdi>
                   </div>
                 )}
               </div>
@@ -270,7 +270,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           <div className="text-center border-b-2 border-primary pb-4 mb-4">
             <h1 className="text-3xl font-bold">تقرير الوسيط</h1>
             <h2 className="text-2xl mt-2">{broker.name}</h2>
-            {broker.phone && <p className="text-lg text-muted-foreground mt-1" dir="ltr">{broker.phone}</p>}
+            {broker.phone && <p className="text-lg text-muted-foreground mt-1"><bdi>{broker.phone}</bdi></p>}
             <p className="text-sm text-muted-foreground mt-2">
               تاريخ التقرير: {format(new Date(), "yyyy/MM/dd", { locale: ar })}
             </p>
@@ -514,7 +514,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                             <TableCell className="font-medium print:text-xs">
                               {policy.client?.full_name || "-"}
                             </TableCell>
-                            <TableCell className="font-mono text-sm print:text-xs" dir="ltr">
+                            <TableCell className="font-mono text-sm print:text-xs ltr-nums">
                               {policy.car?.car_number || "-"}
                             </TableCell>
                             <TableCell className="print:text-xs">
@@ -523,7 +523,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                                   policy.policy_type_parent}
                               </Badge>
                             </TableCell>
-                            <TableCell dir="ltr" className="print:text-xs">
+                            <TableCell className="print:text-xs ltr-nums">
                               {formatCurrency(policy.insurance_price)}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground print:text-xs">
@@ -542,7 +542,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                           <TableCell colSpan={5} className="text-left print:text-xs">
                             المجموع
                           </TableCell>
-                          <TableCell dir="ltr" className="print:text-xs">
+                          <TableCell className="print:text-xs ltr-nums">
                             {formatCurrency(policies.reduce((sum, p) => sum + Number(p.insurance_price), 0))}
                           </TableCell>
                           <TableCell colSpan={2}></TableCell>

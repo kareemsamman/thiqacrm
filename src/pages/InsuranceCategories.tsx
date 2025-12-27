@@ -352,7 +352,7 @@ export default function InsuranceCategories() {
                         <div className="flex flex-col">
                           <span className="font-medium">{category.name_ar || category.name}</span>
                           {category.name_he && (
-                            <span className="text-xs text-muted-foreground" dir="ltr">{category.name_he}</span>
+                            <span className="text-xs text-muted-foreground ltr-nums">{category.name_he}</span>
                           )}
                         </div>
                       </TableCell>
@@ -433,7 +433,7 @@ export default function InsuranceCategories() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Car Insurance"
-                  dir="ltr"
+                  className="ltr-input"
                 />
               </div>
               <div>
@@ -461,7 +461,7 @@ export default function InsuranceCategories() {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toUpperCase().replace(/[^A-Z_]/g, '') })}
                 placeholder="NEW_TYPE"
-                dir="ltr"
+                className="ltr-input"
                 disabled={!!editingCategory} // Don't allow changing slug for existing categories
               />
               <p className="text-xs text-muted-foreground mt-1">

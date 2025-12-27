@@ -263,7 +263,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Company Name"
-                dir="ltr"
+                className="ltr-input"
               />
             </div>
 
@@ -318,8 +318,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
                   value={formData.elzami_commission}
                   onChange={(e) => setFormData({ ...formData, elzami_commission: parseFloat(e.target.value) || 0 })}
                   placeholder="0"
-                  dir="ltr"
-                  className="text-left"
+                  className="ltr-input"
                 />
                 <p className="text-xs text-muted-foreground">
                   هذا المبلغ يُدفع للشركة عند كل وثيقة إلزامي. الربح = سعر التأمين - هذا المبلغ

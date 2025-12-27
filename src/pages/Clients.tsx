@@ -281,7 +281,7 @@ export default function Clients() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">
+                      <TableCell className="font-mono text-sm text-muted-foreground ltr-nums">
                         {client.id_number}
                       </TableCell>
                       <TableCell>
@@ -295,7 +295,7 @@ export default function Clients() {
                       </TableCell>
                       <TableCell>
                         {client.phone_number ? (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground" dir="ltr">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground ltr-nums">
                             <Phone className="h-3 w-3" />
                             {client.phone_number}
                           </div>
@@ -305,7 +305,7 @@ export default function Clients() {
                       </TableCell>
                       <TableCell>
                         {client.phone_number_2 ? (
-                          <span className="text-sm text-muted-foreground" dir="ltr">
+                          <span className="text-sm text-muted-foreground ltr-nums">
                             {client.phone_number_2}
                           </span>
                         ) : (

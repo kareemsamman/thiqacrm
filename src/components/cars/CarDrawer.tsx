@@ -453,7 +453,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                   <FormItem>
                     <FormLabel className="text-right block">قيمة السيارة (₪)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="قيمة السيارة" {...field} className="text-right" dir="ltr" />
+                      <Input type="number" placeholder="قيمة السيارة" {...field} className="ltr-input" />
                     </FormControl>
                   </FormItem>
                 )}
@@ -468,7 +468,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                   <FormItem>
                     <FormLabel className="text-right block">انتهاء الرخصة</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} className="text-right" dir="ltr" />
+                      <Input type="date" {...field} className="ltr-input" />
                     </FormControl>
                   </FormItem>
                 )}
@@ -481,7 +481,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                   <FormItem>
                     <FormLabel className="text-right block">آخر فحص</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} className="text-right" dir="ltr" />
+                      <Input type="date" {...field} className="ltr-input" />
                     </FormControl>
                   </FormItem>
                 )}

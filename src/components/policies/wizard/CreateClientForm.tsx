@@ -45,8 +45,7 @@ export function CreateClientForm({ form, onChange, errors, checkingDuplicate }: 
             onChange={(e) => onChange('id_number', digitsOnly(e.target.value).slice(0, 9))}
             placeholder="9 أرقام"
             maxLength={9}
-            dir="ltr"
-            className={cn("text-left", errors.id_number && "border-destructive")}
+            className={cn("ltr-input", errors.id_number && "border-destructive")}
           />
           {checkingDuplicate && (
             <p className="text-xs text-muted-foreground">جاري التحقق...</p>
@@ -76,8 +75,7 @@ export function CreateClientForm({ form, onChange, errors, checkingDuplicate }: 
             onChange={(e) => onChange('phone_number', digitsOnly(e.target.value).slice(0, 10))}
             placeholder="10 أرقام"
             maxLength={10}
-            dir="ltr"
-            className={cn("text-left", errors.phone_number && "border-destructive")}
+            className={cn("ltr-input", errors.phone_number && "border-destructive")}
           />
           {errors.phone_number && (
             <p className="text-xs text-destructive">{errors.phone_number}</p>
@@ -92,8 +90,7 @@ export function CreateClientForm({ form, onChange, errors, checkingDuplicate }: 
             onChange={(e) => onChange('phone_number_2', digitsOnly(e.target.value).slice(0, 10))}
             placeholder="10 أرقام"
             maxLength={10}
-            dir="ltr"
-            className={cn("text-left", errors.phone_number_2 && "border-destructive")}
+            className={cn("ltr-input", errors.phone_number_2 && "border-destructive")}
           />
           {errors.phone_number_2 && (
             <p className="text-xs text-destructive">{errors.phone_number_2}</p>
@@ -145,8 +142,7 @@ export function CreateClientForm({ form, onChange, errors, checkingDuplicate }: 
                 onChange={(e) => onChange('under24_driver_id', digitsOnly(e.target.value).slice(0, 9))}
                 placeholder="9 أرقام"
                 maxLength={9}
-                dir="ltr"
-                className={cn("text-left", errors.under24_driver_id && "border-destructive")}
+                className={cn("ltr-input", errors.under24_driver_id && "border-destructive")}
               />
               {errors.under24_driver_id && (
                 <p className="text-xs text-destructive">{errors.under24_driver_id}</p>

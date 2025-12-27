@@ -387,7 +387,7 @@ export default function Brokers() {
                         {broker.phone ? (
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Phone className="h-3 w-3" />
-                            <span dir="ltr">{broker.phone}</span>
+                            <bdi>{broker.phone}</bdi>
                           </div>
                         ) : (
                           "-"

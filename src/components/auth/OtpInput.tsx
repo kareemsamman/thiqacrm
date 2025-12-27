@@ -19,8 +19,7 @@ export function OtpInput({ value, onChange, disabled }: OtpInputProps) {
 
   return (
     <div 
-      className="flex justify-center" 
-      dir="ltr"
+      className="flex justify-center ltr-nums" 
       onPaste={handlePaste}
     >
       <InputOTP

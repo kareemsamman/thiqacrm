@@ -400,7 +400,7 @@ export default function SmsSettings() {
                       onChange={(e) =>
                         setSettings((prev) => ({ ...prev, sms_user: e.target.value }))
                       }
-                      dir="ltr"
+                      className="ltr-input"
                     />
                   </div>
 
@@ -415,7 +415,7 @@ export default function SmsSettings() {
                       onChange={(e) =>
                         setSettings((prev) => ({ ...prev, sms_token: e.target.value }))
                       }
-                      dir="ltr"
+                      className="ltr-input"
                     />
                   </div>
 
@@ -429,7 +429,7 @@ export default function SmsSettings() {
                       onChange={(e) =>
                         setSettings((prev) => ({ ...prev, sms_source: e.target.value }))
                       }
-                      dir="ltr"
+                      className="ltr-input"
                     />
                     <p className="text-xs text-muted-foreground">
                       الاسم الذي سيظهر للعميل كمرسل الرسالة
@@ -706,7 +706,7 @@ export default function SmsSettings() {
                     placeholder="05xxxxxxxx"
                     value={testPhone}
                     onChange={(e) => setTestPhone(e.target.value)}
-                    dir="ltr"
+                    className="ltr-input"
                   />
                 </div>
 

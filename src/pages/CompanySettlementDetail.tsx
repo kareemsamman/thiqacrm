@@ -404,7 +404,7 @@ export default function CompanySettlementDetail() {
                     setStartDate(e.target.value);
                     setShowAllTime(false);
                   }}
-                  dir="ltr"
+                  className="ltr-input"
                 />
               </div>
 
@@ -417,7 +417,7 @@ export default function CompanySettlementDetail() {
                     setEndDate(e.target.value);
                     setShowAllTime(false);
                   }}
-                  dir="ltr"
+                  className="ltr-input"
                 />
               </div>
 

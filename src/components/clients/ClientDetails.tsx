@@ -560,13 +560,13 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   {client.phone_number && (
                     <span className="flex items-center gap-1.5">
                       <Phone className="h-3.5 w-3.5" />
-                      <span dir="ltr">{client.phone_number}</span>
+                      <bdi>{client.phone_number}</bdi>
                     </span>
                   )}
                   {client.phone_number_2 && (
                     <span className="flex items-center gap-1.5 text-muted-foreground/70">
                       <Phone className="h-3.5 w-3.5" />
-                      <span dir="ltr">{client.phone_number_2}</span>
+                      <bdi>{client.phone_number_2}</bdi>
                     </span>
                   )}
                   {client.file_number && (
@@ -598,7 +598,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                     <Badge variant="outline" className="gap-1.5 bg-background">
                       <Users className="h-3 w-3" />
                       الوسيط: {broker.name}
-                      {broker.phone && <span className="text-muted-foreground mr-1" dir="ltr">({broker.phone})</span>}
+                      {broker.phone && <span className="text-muted-foreground mr-1"><bdi>({broker.phone})</bdi></span>}
                     </Badge>
                   )}
                 </div>
@@ -736,11 +736,11 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                   </div>
                   <div className="flex justify-between items-center py-2 border-b">
                     <dt className="text-muted-foreground">رقم الهوية</dt>
-                    <dd className="font-mono font-semibold" dir="ltr">{client.id_number}</dd>
+                    <dd className="font-mono font-semibold ltr-nums">{client.id_number}</dd>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b">
                     <dt className="text-muted-foreground">رقم الهاتف</dt>
-                    <dd className="font-mono" dir="ltr">{client.phone_number || '-'}</dd>
+                    <dd className="font-mono ltr-nums">{client.phone_number || '-'}</dd>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b">
                     <dt className="text-muted-foreground">رقم الملف</dt>
@@ -786,7 +786,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <dt className="text-muted-foreground">هاتف الوسيط</dt>
-                      <dd className="font-mono" dir="ltr">{broker.phone || '-'}</dd>
+                      <dd className="font-mono ltr-nums">{broker.phone || '-'}</dd>
                     </div>
                   </dl>
                 ) : (

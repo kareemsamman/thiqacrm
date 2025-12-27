@@ -198,8 +198,7 @@ export function AccidentFeePricingDrawer({ open, onOpenChange, company }: Accide
                         min="0"
                         value={editedPrices.get(service.id) || 0}
                         onChange={(e) => handlePriceChange(service.id, e.target.value)}
-                        className="w-32 text-left"
-                        dir="ltr"
+                        className="w-32 ltr-input"
                       />
                     </TableCell>
                   </TableRow>

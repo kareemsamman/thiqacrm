@@ -121,6 +121,25 @@
 }
 
 @layer utilities {
+  /* LTR numeric content - use this for numbers, codes, prices, etc. that should display LTR */
+  .ltr-nums {
+    unicode-bidi: isolate;
+    direction: ltr;
+    display: inline-block;
+  }
+
+  /* Input fields that expect LTR content (emails, URLs, codes, API keys) */
+  .ltr-input {
+    unicode-bidi: plaintext;
+    text-align: left;
+  }
+
+  /* Font mono with LTR isolation for code/technical content */
+  .font-mono-ltr {
+    unicode-bidi: isolate;
+    direction: ltr;
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.4s ease-out forwards;
   }

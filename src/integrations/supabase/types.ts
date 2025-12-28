@@ -2007,6 +2007,15 @@ export type Database = {
           total_rows: number
         }[]
       }
+      report_client_debts_summary: {
+        Args: { p_filter_days?: number; p_search?: string }
+        Returns: {
+          expired: number
+          expiring_soon: number
+          total_clients: number
+          total_owed: number
+        }[]
+      }
       report_company_settlement: {
         Args: {
           p_broker_id?: string
@@ -2036,6 +2045,20 @@ export type Database = {
           company_id: string
           company_name: string
           company_name_ar: string
+        }[]
+      }
+      report_debt_policies_for_clients: {
+        Args: { p_client_ids: string[] }
+        Returns: {
+          client_id: string
+          days_until_expiry: number
+          end_date: string
+          insurance_price: number
+          paid: number
+          policy_id: string
+          policy_number: string
+          remaining: number
+          status: string
         }[]
       }
       user_directory_get_by_ids: {

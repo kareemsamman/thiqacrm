@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays } from "date-fns";
-import { ar } from "date-fns/locale";
+
 import { 
   DollarSign, Search, AlertTriangle, Clock, Send, 
   Phone, Eye, Filter, Users, TrendingDown, Calendar,
@@ -44,6 +44,7 @@ interface PolicyDebt {
 
 export default function DebtTracking() {
   const { toast } = useToast();
+
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientDebt[]>([]);
   const [search, setSearch] = useState("");
@@ -56,95 +57,113 @@ export default function DebtTracking() {
   const [policyDrawerOpen, setPolicyDrawerOpen] = useState(false);
   const [filterDays, setFilterDays] = useState<number | null>(null);
 
+  const [totalRows, setTotalRows] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const pageSize = 50;
+
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [summary, setSummary] = useState({
+    totalClients: 0,
+    totalOwed: 0,
+    expiringSoon: 0,
+    expired: 0,
+  });
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [debouncedSearch, filterDays]);
+
   useEffect(() => {
     fetchDebtData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, filterDays, pageIndex]);
 
   const fetchDebtData = async () => {
     setLoading(true);
     try {
-      // Fetch all active policies with payments
-      const { data: policies, error } = await supabase
-        .from("policies")
-        .select(`
-          id,
-          policy_number,
-          insurance_price,
-          end_date,
-          client_id,
-          clients!inner(id, full_name, phone_number),
-          policy_payments(amount, refused)
-        `)
-        .eq("cancelled", false)
-        .is("deleted_at", null);
+      const { data: clientRows, error: clientError } = await supabase.rpc(
+        "report_client_debts",
+        {
+          p_search: debouncedSearch || null,
+          p_filter_days: filterDays,
+          p_limit: pageSize,
+          p_offset: pageIndex * pageSize,
+        },
+      );
 
-      if (error) throw error;
+      if (clientError) throw clientError;
 
-      const today = new Date();
-      const clientMap = new Map<string, ClientDebt>();
+      const total = Number(clientRows?.[0]?.total_rows ?? 0) || 0;
+      setTotalRows(total);
 
-      for (const policy of policies || []) {
-        const client = policy.clients as any;
-        if (!client) continue;
+      const baseClients: ClientDebt[] = (clientRows || []).map((r: any) => ({
+        client_id: r.client_id,
+        client_name: r.client_name,
+        phone_number: r.phone_number,
+        total_owed: Number(r.total_owed) || 0,
+        policies: [],
+        policies_count: Number(r.policies_count) || 0,
+        earliest_expiry: r.earliest_expiry ? String(r.earliest_expiry) : null,
+        days_until_expiry: r.days_until_expiry === null ? null : Number(r.days_until_expiry),
+      }));
 
-        // Calculate paid and remaining - only count non-refused payments
-        const payments = policy.policy_payments || [];
-        const paid = payments
-          .filter((p: any) => p.refused !== true) // Include null and false
-          .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-        const remaining = Number(policy.insurance_price) - paid;
+      const clientIds = baseClients.map((c) => c.client_id);
 
-        // Skip fully paid policies
-        if (remaining <= 0) continue;
+      const summaryPromise = supabase.rpc("report_client_debts_summary", {
+        p_search: debouncedSearch || null,
+        p_filter_days: filterDays,
+      });
 
-        const endDate = new Date(policy.end_date);
-        const daysUntilExpiry = differenceInDays(endDate, today);
+      const policiesPromise = clientIds.length
+        ? supabase.rpc("report_debt_policies_for_clients", {
+            p_client_ids: clientIds,
+          })
+        : Promise.resolve({ data: [], error: null } as any);
 
-        let status: 'active' | 'expiring_soon' | 'expired' = 'active';
-        if (daysUntilExpiry < 0) status = 'expired';
-        else if (daysUntilExpiry <= 30) status = 'expiring_soon';
+      const [summaryRes, policiesRes] = await Promise.all([summaryPromise, policiesPromise]);
 
-        const policyDebt: PolicyDebt = {
-          id: policy.id,
-          policy_number: policy.policy_number,
-          insurance_price: policy.insurance_price,
-          paid,
-          remaining,
-          end_date: policy.end_date,
-          days_until_expiry: daysUntilExpiry,
-          status,
+      if (summaryRes.error) throw summaryRes.error;
+      if (policiesRes.error) throw policiesRes.error;
+
+      const s = (summaryRes.data as any[])?.[0];
+      setSummary({
+        totalClients: Number(s?.total_clients) || 0,
+        totalOwed: Number(s?.total_owed) || 0,
+        expiringSoon: Number(s?.expiring_soon) || 0,
+        expired: Number(s?.expired) || 0,
+      });
+
+      const policiesByClient = new Map<string, PolicyDebt[]>();
+      for (const row of (policiesRes.data as any[]) || []) {
+        const policy: PolicyDebt = {
+          id: row.policy_id,
+          policy_number: row.policy_number,
+          insurance_price: Number(row.insurance_price) || 0,
+          paid: Number(row.paid) || 0,
+          remaining: Number(row.remaining) || 0,
+          end_date: String(row.end_date),
+          days_until_expiry: Number(row.days_until_expiry) || 0,
+          status: row.status,
         };
-
-        if (!clientMap.has(client.id)) {
-          clientMap.set(client.id, {
-            client_id: client.id,
-            client_name: client.full_name,
-            phone_number: client.phone_number,
-            total_owed: 0,
-            policies: [],
-            policies_count: 0,
-            earliest_expiry: null,
-            days_until_expiry: null,
-          });
-        }
-
-        const clientDebt = clientMap.get(client.id)!;
-        clientDebt.total_owed += remaining;
-        clientDebt.policies.push(policyDebt);
-        clientDebt.policies_count++;
-
-        // Track earliest expiry
-        if (!clientDebt.earliest_expiry || policy.end_date < clientDebt.earliest_expiry) {
-          clientDebt.earliest_expiry = policy.end_date;
-          clientDebt.days_until_expiry = daysUntilExpiry;
-        }
+        const list = policiesByClient.get(row.client_id) || [];
+        list.push(policy);
+        policiesByClient.set(row.client_id, list);
       }
 
-      // Sort by total owed descending
-      const sortedClients = Array.from(clientMap.values())
-        .sort((a, b) => b.total_owed - a.total_owed);
+      const hydrated = baseClients.map((c) => ({
+        ...c,
+        policies: policiesByClient.get(c.client_id) || [],
+      }));
 
-      setClients(sortedClients);
+      setExpandedClients(new Set());
+      setClients(hydrated);
     } catch (error: any) {
       console.error("Error fetching debt data:", error);
       toast({
@@ -156,37 +175,6 @@ export default function DebtTracking() {
       setLoading(false);
     }
   };
-
-  const filteredClients = useMemo(() => {
-    let result = clients;
-
-    // Search filter
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter((c) =>
-        c.client_name.toLowerCase().includes(searchLower) ||
-        c.phone_number?.includes(search)
-      );
-    }
-
-    // Days filter
-    if (filterDays !== null) {
-      result = result.filter((c) =>
-        c.days_until_expiry !== null && c.days_until_expiry <= filterDays
-      );
-    }
-
-    return result;
-  }, [clients, search, filterDays]);
-
-  const totals = useMemo(() => {
-    return {
-      totalClients: filteredClients.length,
-      totalOwed: filteredClients.reduce((sum, c) => sum + c.total_owed, 0),
-      expiringSoon: filteredClients.filter((c) => c.days_until_expiry !== null && c.days_until_expiry <= 30 && c.days_until_expiry >= 0).length,
-      expired: filteredClients.filter((c) => c.days_until_expiry !== null && c.days_until_expiry < 0).length,
-    };
-  }, [filteredClients]);
 
   const toggleExpanded = (clientId: string) => {
     setExpandedClients((prev) => {
@@ -277,7 +265,7 @@ export default function DebtTracking() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">إجمالي الديون</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totals.totalOwed)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(summary.totalOwed)}</p>
                 </div>
               </div>
             </CardContent>
@@ -291,7 +279,7 @@ export default function DebtTracking() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">عدد العملاء</p>
-                  <p className="text-2xl font-bold">{totals.totalClients}</p>
+                  <p className="text-2xl font-bold">{summary.totalClients}</p>
                 </div>
               </div>
             </CardContent>
@@ -305,7 +293,7 @@ export default function DebtTracking() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">تنتهي قريباً</p>
-                  <p className="text-2xl font-bold">{totals.expiringSoon}</p>
+                  <p className="text-2xl font-bold">{summary.expiringSoon}</p>
                 </div>
               </div>
             </CardContent>
@@ -319,7 +307,7 @@ export default function DebtTracking() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">منتهية</p>
-                  <p className="text-2xl font-bold">{totals.expired}</p>
+                  <p className="text-2xl font-bold">{summary.expired}</p>
                 </div>
               </div>
             </CardContent>
@@ -397,14 +385,14 @@ export default function DebtTracking() {
                   <Skeleton key={i} className="h-20 w-full" />
                 ))}
               </div>
-            ) : filteredClients.length === 0 ? (
+            ) : clients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>لا توجد ديون مستحقة</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredClients.map((client) => (
+                {clients.map((client) => (
                   <div key={client.client_id} className="border rounded-lg overflow-hidden">
                     {/* Client Row */}
                     <div
@@ -412,11 +400,7 @@ export default function DebtTracking() {
                       onClick={() => toggleExpanded(client.client_id)}
                     >
                       <div className="flex items-center gap-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           {expandedClients.has(client.client_id) ? (
                             <ChevronUp className="h-4 w-4" />
                           ) : (
@@ -486,9 +470,7 @@ export default function DebtTracking() {
                                 <TableCell>
                                   {format(new Date(policy.end_date), "dd/MM/yyyy")}
                                 </TableCell>
-                                <TableCell>
-                                  {getExpiryBadge(policy.days_until_expiry)}
-                                </TableCell>
+                                <TableCell>{getExpiryBadge(policy.days_until_expiry)}</TableCell>
                                 <TableCell>
                                   <Button
                                     variant="ghost"
@@ -507,6 +489,32 @@ export default function DebtTracking() {
                     )}
                   </div>
                 ))}
+
+                {/* Pagination */}
+                <div className="mt-4 flex flex-col md:flex-row items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    عرض {totalRows === 0 ? 0 : pageIndex * pageSize + 1}–
+                    {Math.min((pageIndex + 1) * pageSize, totalRows)} من {totalRows}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPageIndex((p) => Math.max(p - 1, 0))}
+                      disabled={pageIndex === 0}
+                    >
+                      السابق
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPageIndex((p) => p + 1)}
+                      disabled={(pageIndex + 1) * pageSize >= totalRows}
+                    >
+                      التالي
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

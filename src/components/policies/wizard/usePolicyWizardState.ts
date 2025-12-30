@@ -302,6 +302,8 @@ export function usePolicyWizardState({ open, defaultBrokerId, defaultBrokerDirec
         if (createNewCar) {
           if (!newCar.car_number.trim()) newErrors.car_number = "رقم السيارة مطلوب";
           if (carConflict) newErrors.car_number = carConflict;
+          if (!newCar.model?.trim()) newErrors.model = "الموديل مطلوب";
+          if (!newCar.year?.trim()) newErrors.year = "سنة الصنع مطلوبة";
         }
         break;
 

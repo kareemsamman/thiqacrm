@@ -750,7 +750,7 @@ export function PolicyWizard({
                       const data = await response.json();
                       await supabase.from('payment_images').insert({
                         payment_id: insertedPayment.id,
-                        image_url: data.url,
+                        image_url: data.file?.cdn_url || data.url,
                         image_type: imgIndex === 0 ? 'front' : imgIndex === 1 ? 'back' : 'receipt',
                         sort_order: imgIndex,
                       });

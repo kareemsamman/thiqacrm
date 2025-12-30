@@ -339,8 +339,11 @@ export function Step2Car({
                   <Label>رقم السيارة *</Label>
                   <Input
                     value={newCar.car_number}
-                    onChange={(e) => setNewCar({ ...newCar, car_number: e.target.value })}
-                    placeholder="مثال: 1234567"
+                    onChange={(e) => setNewCar({ ...newCar, car_number: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                    placeholder="مثال: 12345678"
+                    maxLength={8}
+                    inputMode="numeric"
+                    dir="ltr"
                     className={cn(errors.car_number || carConflict ? "border-destructive" : "")}
                   />
                   <FieldError error={errors.car_number || carConflict || undefined} />
@@ -376,21 +379,25 @@ export function Step2Car({
                   />
                 </div>
                 <div>
-                  <Label>الموديل</Label>
+                  <Label>الموديل *</Label>
                   <Input
                     value={newCar.model}
                     onChange={(e) => setNewCar({ ...newCar, model: e.target.value })}
                     placeholder="مثال: كورولا"
+                    className={cn(errors.model ? "border-destructive" : "")}
                   />
+                  <FieldError error={errors.model} />
                 </div>
                 <div>
-                  <Label>سنة الصنع</Label>
+                  <Label>سنة الصنع *</Label>
                   <Input
                     type="number"
                     value={newCar.year}
                     onChange={(e) => setNewCar({ ...newCar, year: e.target.value })}
                     placeholder="مثال: 2022"
+                    className={cn(errors.year ? "border-destructive" : "")}
                   />
+                  <FieldError error={errors.year} />
                 </div>
                 <div>
                   <Label>اللون</Label>

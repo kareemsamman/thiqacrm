@@ -325,12 +325,11 @@ export function TransferPolicyModal({
         }
       }
 
-      // 3. Update ALL policies being transferred: set end_date to transfer date and mark as transferred
+      // 3. Update ALL policies being transferred: MOVE to new car
       const { error: policiesUpdateError } = await supabase
         .from("policies")
         .update({
-          end_date: transferDate,
-          transferred: true,
+          car_id: selectedCarId,
           transferred_car_number: currentCar?.car_number || null,
           updated_at: new Date().toISOString(),
         })

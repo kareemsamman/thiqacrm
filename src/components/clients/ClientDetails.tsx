@@ -50,6 +50,7 @@ import { PolicyWizard } from '@/components/policies/PolicyWizard';
 import { ClientDrawer } from '@/components/clients/ClientDrawer';
 import { ClientSignatureSection } from '@/components/clients/ClientSignatureSection';
 import { PolicyTreeView } from '@/components/clients/PolicyTreeView';
+import { ClientReportModal } from '@/components/clients/ClientReportModal';
 import { CarFilterChips } from '@/components/clients/CarFilterChips';
 import { ExpiryBadge } from '@/components/shared/ExpiryBadge';
 import { DebtIndicator } from '@/components/shared/DebtIndicator';
@@ -196,6 +197,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [policyWizardOpen, setPolicyWizardOpen] = useState(false);
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   
   // Notes editing
   const [editingNotes, setEditingNotes] = useState(false);
@@ -654,6 +656,10 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               </div>
               
               <div className="flex gap-2 shrink-0">
+                <Button variant="outline" onClick={() => setReportModalOpen(true)}>
+                  <FileText className="h-4 w-4 ml-2" />
+                  تقرير
+                </Button>
                 <Button variant="outline" onClick={exportToCSV}>
                   <Download className="h-4 w-4 ml-2" />
                   تصدير
@@ -1297,6 +1303,19 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
           onRefresh();
           fetchBroker();
         }}
+      />
+
+      {/* Client Report Modal */}
+      <ClientReportModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        client={client}
+        cars={cars}
+        policies={policies}
+        paymentSummary={paymentSummary}
+        walletBalance={walletBalance}
+        broker={broker}
+        branchName={client.branch_id ? getBranchName(client.branch_id) : null}
       />
     </MainLayout>
   );

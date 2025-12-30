@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.check-cheque-reminders]
 verify_jwt = false
+
+[functions.generate-client-report]
+verify_jwt = true

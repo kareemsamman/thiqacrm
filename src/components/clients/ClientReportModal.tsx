@@ -361,28 +361,36 @@ export function ClientReportModal({
 
     setSendingSms(true);
     try {
-      // Build SMS message summary
-      const activePolicies = policies.filter(p => {
-        const endDate = new Date(p.end_date);
-        return !p.cancelled && !p.transferred && endDate >= new Date();
-      });
-
-      const message = buildSmsMessage(client, cars, activePolicies, paymentSummary, walletBalance);
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('يرجى تسجيل الدخول');
         return;
       }
 
-      const response = await supabase.functions.invoke('send-sms', {
+      // Generate the HTML report and upload to CDN
+      const reportResponse = await supabase.functions.invoke('generate-client-report', {
+        body: { client_id: client.id },
+      });
+
+      if (reportResponse.error) throw reportResponse.error;
+      
+      const reportUrl = reportResponse.data?.url;
+      if (!reportUrl) throw new Error('Failed to generate report URL');
+
+      // Build SMS message with link
+      const message = `${client.full_name} عزيزنا/ي\n` +
+        `يمكنك مشاهدة تقرير تأميناتك الكامل عبر الرابط:\n${reportUrl}\n\n` +
+        `بشير للتأمينات 🚗`;
+
+      // Send SMS with the link
+      const smsResponse = await supabase.functions.invoke('send-sms', {
         body: {
           phone: client.phone_number,
           message,
         },
       });
 
-      if (response.error) throw response.error;
+      if (smsResponse.error) throw smsResponse.error;
 
       // Log the SMS
       await supabase.from('sms_logs').insert([{
@@ -394,52 +402,13 @@ export function ClientReportModal({
         sent_at: new Date().toISOString(),
       }]);
 
-      toast.success('تم إرسال التقرير عبر SMS بنجاح');
+      toast.success('تم إرسال رابط التقرير عبر SMS بنجاح');
     } catch (error) {
       console.error('Error sending SMS:', error);
       toast.error('فشل في إرسال الرسالة');
     } finally {
       setSendingSms(false);
     }
-  };
-
-  const buildSmsMessage = (
-    client: ClientReportModalProps['client'],
-    cars: ClientReportModalProps['cars'],
-    activePolicies: ClientReportModalProps['policies'],
-    paymentSummary: ClientReportModalProps['paymentSummary'],
-    walletBalance: ClientReportModalProps['walletBalance']
-  ) => {
-    let msg = `تقرير تأميناتك - ${client.full_name}\n`;
-    msg += `━━━━━━━━━━━━━━\n`;
-    
-    if (activePolicies.length > 0) {
-      msg += `📋 وثائقك السارية:\n`;
-      activePolicies.forEach((p, i) => {
-        const type = policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
-        msg += `${i + 1}. ${type}`;
-        if (p.car?.car_number) msg += ` - ${p.car.car_number}`;
-        msg += `\n   تنتهي: ${formatDateShort(p.end_date)}\n`;
-      });
-    } else {
-      msg += `لا توجد وثائق سارية حالياً\n`;
-    }
-
-    msg += `━━━━━━━━━━━━━━\n`;
-    msg += `💰 المدفوع: ₪${paymentSummary.total_paid.toLocaleString()}\n`;
-    
-    if (paymentSummary.total_remaining > 0) {
-      msg += `⚠️ المتبقي: ₪${paymentSummary.total_remaining.toLocaleString()}\n`;
-    }
-    
-    if (walletBalance.total_refunds > 0) {
-      msg += `🔄 رصيد لك: ₪${walletBalance.total_refunds.toLocaleString()}\n`;
-    }
-
-    msg += `━━━━━━━━━━━━━━\n`;
-    msg += `بشير للتأمينات 🚗`;
-
-    return msg;
   };
 
   const activePolicies = policies.filter(p => {

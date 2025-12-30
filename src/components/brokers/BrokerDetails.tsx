@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -25,10 +26,11 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
-  Printer,
   Download,
   CalendarIcon,
   X,
+  MessageSquare,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +38,7 @@ import { ClientDrawer } from "@/components/clients/ClientDrawer";
 import { PolicyWizard } from "@/components/policies/PolicyWizard";
 import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
+import { BrokerSmsModal } from "./BrokerSmsModal";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -95,12 +98,14 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [viewingPolicyId, setViewingPolicyId] = useState<string | null>(null);
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   
   // Date filter state
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   
-  const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -208,8 +213,37 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
     return new Date(dateStr).toLocaleDateString("ar-EG");
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-broker-report", {
+        body: {
+          broker_id: broker.id,
+          start_date: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
+          end_date: endDate ? format(endDate, "yyyy-MM-dd") : undefined,
+          direction_filter: 'all',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        toast({
+          title: "تم التصدير",
+          description: "تم إنشاء التقرير بنجاح",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error exporting PDF:", error);
+      toast({
+        title: "خطأ",
+        description: "فشل في تصدير التقرير",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const clearDateFilter = () => {
@@ -225,9 +259,9 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
 
   return (
     <MainLayout>
-      <div className="p-6 space-y-6" ref={printRef}>
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={onBack}>
               <ArrowRight className="h-5 w-5" />
@@ -249,10 +283,20 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="h-4 w-4 ml-2" />
-              طباعة
+          <div className="flex flex-wrap items-center gap-2">
+            {broker.phone && (
+              <Button variant="outline" onClick={() => setSmsModalOpen(true)}>
+                <MessageSquare className="h-4 w-4 ml-2" />
+                إرسال SMS
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 ml-2" />
+              )}
+              تصدير PDF
             </Button>
             <Button variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4 ml-2" />
@@ -265,20 +309,6 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           </div>
         </div>
 
-        {/* Print Header - Only visible when printing */}
-        <div className="hidden print:block print:mb-6">
-          <div className="text-center border-b-2 border-primary pb-4 mb-4">
-            <h1 className="text-3xl font-bold">تقرير الوسيط</h1>
-            <h2 className="text-2xl mt-2">{broker.name}</h2>
-            {broker.phone && <p className="text-lg text-muted-foreground mt-1"><bdi>{broker.phone}</bdi></p>}
-            <p className="text-sm text-muted-foreground mt-2">
-              تاريخ التقرير: {format(new Date(), "yyyy/MM/dd", { locale: ar })}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              الفترة: {dateRangeText}
-            </p>
-          </div>
-        </div>
 
         {/* Date Filter */}
         <Card className="print:hidden">
@@ -556,13 +586,6 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           </TabsContent>
         </Tabs>
 
-        {/* Print Footer */}
-        <div className="hidden print:block print:mt-8 print:pt-4 print:border-t">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>تم إنشاء التقرير بواسطة نظام AB Insurance CRM</span>
-            <span>{format(new Date(), "yyyy/MM/dd HH:mm")}</span>
-          </div>
-        </div>
       </div>
 
       {/* Add Client Drawer - pre-selected broker */}
@@ -598,6 +621,14 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           fetchData();
           onRefresh();
         }}
+      />
+
+      {/* SMS Modal */}
+      <BrokerSmsModal
+        open={smsModalOpen}
+        onOpenChange={setSmsModalOpen}
+        broker={{ id: broker.id, name: broker.name, phone: broker.phone }}
+        defaultMessage={`مرحباً ${broker.name}،\n\nنود إعلامك بتحديثات جديدة على حسابك.\n\nبشير للتأمينات 🚗`}
       />
     </MainLayout>
   );

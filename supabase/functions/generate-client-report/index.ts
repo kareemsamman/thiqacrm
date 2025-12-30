@@ -314,235 +314,223 @@ function generateReportHtml(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>تقرير التأمينات - ${client.full_name}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Cairo', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: #f8fafc;
       min-height: 100vh;
-      padding: 20px;
+      padding: 16px;
+      direction: rtl;
     }
     .container {
-      max-width: 900px;
+      max-width: 800px;
       margin: 0 auto;
       background: white;
-      border-radius: 24px;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+      background: linear-gradient(135deg, #1a365d 0%, #2d4a7c 100%);
       color: white;
-      padding: 40px;
+      padding: 24px 20px;
       text-align: center;
-      position: relative;
     }
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100px;
-      height: 40px;
-      background: white;
-      border-radius: 50%;
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
     }
-    .logo-en { font-size: 12px; letter-spacing: 4px; opacity: 0.8; margin-bottom: 8px; }
-    .logo-ar { font-size: 32px; font-weight: 800; }
-    .report-title { font-size: 18px; margin-top: 16px; opacity: 0.9; }
-    .report-date { font-size: 14px; margin-top: 8px; opacity: 0.7; }
+    .header p {
+      font-size: 14px;
+      opacity: 0.85;
+    }
     
-    .content { padding: 50px 40px 40px; }
+    .content { padding: 20px; }
     
+    /* Client Card */
     .client-card {
-      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 30px;
-      border: 1px solid #bae6fd;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
     }
     .client-name {
-      font-size: 28px;
-      font-weight: 800;
-      color: #1e3a8a;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .client-name::before {
-      content: '👤';
-      font-size: 32px;
-    }
-    .client-info {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-    }
-    .info-item {
-      background: white;
-      padding: 16px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    .info-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-    .info-value { font-size: 16px; font-weight: 600; color: #1e293b; }
-    
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 30px;
-    }
-    .summary-card {
-      padding: 24px;
-      border-radius: 16px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .summary-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-    }
-    .summary-card.primary { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
-    .summary-card.primary::before { background: #3b82f6; }
-    .summary-card.success { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-    .summary-card.success::before { background: #22c55e; }
-    .summary-card.danger { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); }
-    .summary-card.danger::before { background: #ef4444; }
-    .summary-card.warning { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
-    .summary-card.warning::before { background: #f59e0b; }
-    .summary-icon { font-size: 32px; margin-bottom: 8px; }
-    .summary-label { font-size: 13px; color: #64748b; margin-bottom: 4px; }
-    .summary-value { font-size: 26px; font-weight: 800; }
-    .summary-card.primary .summary-value { color: #1e40af; }
-    .summary-card.success .summary-value { color: #16a34a; }
-    .summary-card.danger .summary-value { color: #dc2626; }
-    .summary-card.warning .summary-value { color: #d97706; }
-    
-    .section { margin-bottom: 30px; }
-    .section-title {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 700;
-      color: #1e3a8a;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-      border-radius: 12px;
+      color: #1a365d;
       margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 10px;
     }
+    .client-name::before {
+      content: '👤';
+      font-size: 24px;
+    }
+    .client-info {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 480px) {
+      .client-info { grid-template-columns: 1fr; }
+    }
+    .info-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .info-label { font-size: 11px; color: #64748b; margin-bottom: 2px; }
+    .info-value { font-size: 14px; font-weight: 600; color: #1e293b; }
     
+    /* Summary Grid */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 600px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .summary-card {
+      padding: 16px 12px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+    }
+    .summary-card.primary { background: #eff6ff; border-color: #bfdbfe; }
+    .summary-card.success { background: #f0fdf4; border-color: #bbf7d0; }
+    .summary-card.danger { background: #fef2f2; border-color: #fecaca; }
+    .summary-card.warning { background: #fffbeb; border-color: #fde68a; }
+    .summary-icon { font-size: 24px; margin-bottom: 6px; }
+    .summary-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+    .summary-value { font-size: 18px; font-weight: 700; }
+    .summary-card.primary .summary-value { color: #1e40af; }
+    .summary-card.success .summary-value { color: #16a34a; }
+    .summary-card.danger .summary-value { color: #dc2626; }
+    .summary-card.warning .summary-value { color: #d97706; }
+    
+    /* Section */
+    .section { margin-bottom: 24px; }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a365d;
+      padding: 10px 16px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* Mobile-responsive table container */
+    .table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
     table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      min-width: 500px;
+      border-collapse: collapse;
     }
     th {
-      background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+      background: #1a365d;
       color: white;
-      padding: 16px 12px;
-      font-size: 13px;
+      padding: 12px 10px;
+      font-size: 12px;
       font-weight: 600;
       text-align: right;
+      white-space: nowrap;
     }
     td {
-      padding: 14px 12px;
-      font-size: 13px;
+      padding: 10px;
+      font-size: 12px;
       border-bottom: 1px solid #e2e8f0;
       background: white;
     }
     tr.alt td { background: #f8fafc; }
     tr:last-child td { border-bottom: none; }
     
+    /* Car plate styling */
     .car-plate, .car-plate-sm {
       display: inline-block;
       background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
       border: 2px solid #1e293b;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 4px;
       font-family: monospace;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12px;
+      white-space: nowrap;
     }
-    .car-plate-sm { padding: 2px 6px; font-size: 11px; }
+    .car-plate-sm { padding: 2px 6px; font-size: 10px; }
     
+    /* Status badges */
     .status {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
       font-weight: 600;
+      white-space: nowrap;
     }
     .status-active { background: #dcfce7; color: #16a34a; }
     .status-expired { background: #f3f4f6; color: #6b7280; }
     .status-cancelled { background: #fee2e2; color: #dc2626; }
     .status-transferred { background: #fef3c7; color: #d97706; }
     
-    .price { font-weight: 700; color: #1e3a8a; }
+    .price { font-weight: 700; color: #1a365d; white-space: nowrap; }
     .type-cell { font-weight: 600; }
-    .empty { text-align: center; color: #94a3b8; padding: 30px !important; }
+    .empty { text-align: center; color: #94a3b8; padding: 24px !important; }
     .ltr { direction: ltr; text-align: center; }
     
-    .footer {
-      margin-top: 40px;
-      padding-top: 30px;
-      border-top: 2px dashed #e2e8f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+    /* Footer */
+      border-top: 2px solid #e2e8f0;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
     }
-    .footer-brand { text-align: center; }
-    .footer-brand-ar { font-size: 18px; font-weight: 700; color: #1e3a8a; }
-    .footer-brand-en { font-size: 11px; color: #64748b; letter-spacing: 2px; }
-    .footer-date { font-size: 12px; color: #94a3b8; }
+    .footer-brand { margin-bottom: 8px; }
+    .footer-brand-ar { font-size: 18px; font-weight: 700; color: #1a365d; }
+    .footer-brand-en { font-size: 10px; color: #94a3b8; letter-spacing: 2px; }
+    .footer-date { font-size: 11px; color: #94a3b8; }
     
+    /* Active policies highlight */
     .active-summary {
       background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
       border: 2px solid #10b981;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 30px;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
       text-align: center;
     }
     .active-count {
-      font-size: 48px;
-      font-weight: 800;
+      font-size: 36px;
+      font-weight: 700;
       color: #059669;
     }
-    .active-label { font-size: 16px; color: #047857; margin-top: 4px; }
+    .active-label { font-size: 14px; color: #047857; margin-top: 4px; }
 
     @media print {
       body { background: white; padding: 0; }
       .container { box-shadow: none; border-radius: 0; }
-    }
-    @media (max-width: 600px) {
-      .content { padding: 30px 20px; }
-      .client-info { grid-template-columns: 1fr 1fr; }
-      .summary-grid { grid-template-columns: 1fr 1fr; }
-      table { font-size: 11px; }
-      th, td { padding: 10px 8px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo-en">BASHEER INSURANCE</div>
-      <div class="logo-ar">بشير للتأمينات</div>
-      <div class="report-title">تقرير تأميناتك الشامل</div>
-      <div class="report-date">${formatDate(new Date().toISOString())}</div>
+      <h1>بشير للتأمينات</h1>
+      <p>تقرير تأميناتك الشامل</p>
     </div>
     
     <div class="content">
@@ -606,53 +594,53 @@ function generateReportHtml(
 
       <div class="section">
         <div class="section-title">🚗 السيارات (${cars.length})</div>
-        <table>
-          <thead>
-            <tr>
-              <th>رقم السيارة</th>
-              <th>الشركة المصنعة</th>
-              <th>الموديل</th>
-              <th>السنة</th>
-              <th>اللون</th>
-              <th>النوع</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${carsHtml}
-          </tbody>
-        </table>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم السيارة</th>
+                <th>الشركة</th>
+                <th>الموديل</th>
+                <th>السنة</th>
+                <th>اللون</th>
+                <th>النوع</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${carsHtml}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="section">
         <div class="section-title">📄 وثائق التأمين (${policies.length})</div>
-        <table>
-          <thead>
-            <tr>
-              <th>نوع التأمين</th>
-              <th>الشركة</th>
-              <th>السيارة</th>
-              <th>من</th>
-              <th>إلى</th>
-              <th>السعر</th>
-              <th>الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${policiesHtml}
-          </tbody>
-        </table>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>نوع التأمين</th>
+                <th>الشركة</th>
+                <th>السيارة</th>
+                <th>من</th>
+                <th>إلى</th>
+                <th>السعر</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${policiesHtml}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="footer">
-        <div class="footer-date">
-          تاريخ التقرير<br>
-          <span class="ltr">${new Date().toLocaleString('ar-EG', { calendar: 'gregory' })}</span>
-        </div>
         <div class="footer-brand">
           <div class="footer-brand-ar">بشير للتأمينات</div>
           <div class="footer-brand-en">BASHEER INSURANCE</div>
         </div>
-        <div></div>
+        <div class="footer-date">${formatDate(new Date().toISOString())}</div>
       </div>
     </div>
   </div>

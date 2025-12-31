@@ -124,6 +124,7 @@ export default function CompanyWallet() {
   const [totalPayable, setTotalPayable] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
   const [outstanding, setOutstanding] = useState(0);
+  const [elzamiCosts, setElzamiCosts] = useState(0);
 
   // Payment lines
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([]);
@@ -164,8 +165,9 @@ export default function CompanyWallet() {
 
       if (balanceData && balanceData.length > 0) {
         setTotalPayable(Number(balanceData[0].total_payable) || 0);
-        setTotalPaid(Number(balanceData[0].total_paid) || 0);
+        setTotalPaid(Math.max(Number(balanceData[0].total_paid) || 0, 0)); // safeguard
         setOutstanding(Number(balanceData[0].outstanding) || 0);
+        setElzamiCosts(Number(balanceData[0].elzami_costs) || 0);
       }
     } catch (error) {
       console.error('Error fetching company data:', error);
@@ -347,7 +349,7 @@ export default function CompanyWallet() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* إجمالي المستحق للشركة */}
           <Card className="p-4 border-orange-200 dark:border-orange-800">
             <div className="flex items-center gap-3">
@@ -400,6 +402,21 @@ export default function CompanyWallet() {
               </div>
             </div>
           </Card>
+
+          {/* تكلفة الإلزامي */}
+          {elzamiCosts > 0 && (
+            <Card className="p-4 border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                  <Receipt className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">تكلفة الإلزامي (علينا)</p>
+                  <p className="text-lg font-bold text-purple-600">₪{elzamiCosts.toLocaleString()}</p>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Settlements Table */}

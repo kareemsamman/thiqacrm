@@ -2370,6 +2370,7 @@ export type Database = {
           company_id: string
           company_name: string
           company_name_ar: string
+          elzami_costs: number
           outstanding: number
           total_paid: number
           total_payable: number
@@ -2386,6 +2387,7 @@ export type Database = {
       get_company_wallet_balance: {
         Args: { p_company_id: string; p_from_date?: string; p_to_date?: string }
         Returns: {
+          elzami_costs: number
           outstanding: number
           total_paid: number
           total_payable: number

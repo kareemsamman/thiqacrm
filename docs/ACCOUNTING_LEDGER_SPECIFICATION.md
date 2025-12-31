@@ -17,18 +17,24 @@ outstanding = -SUM(amount) for all posted entries
 
 ### 1. قيود شركات التأمين (insurance_company)
 
-| Category | الوصف | الإشارة | متى يُنشأ |
-|----------|-------|---------|-----------|
-| `company_payable` | مستحق لشركة التأمين | - | عند إنشاء بوليصة |
-| `company_payable_reversal` | عكس المستحق (إلغاء) | + | عند إلغاء بوليصة |
-| `commission_expense` | تكلفة عمولة الإلزامي | - | عند إنشاء بوليصة ELZAMI |
-| `company_settlement_paid` | تسديد للشركة | + | عند دفع للشركة |
-| `company_settlement_reversal` | عكس التسديد (رفض) | - | عند رفض دفعة |
+| Category | الوصف | الإشارة | متى يُنشأ | يدخل في Wallet؟ |
+|----------|-------|---------|-----------|-----------------|
+| `company_payable` | مستحق لشركة التأمين | - | عند إنشاء بوليصة | ✅ نعم |
+| `company_payable_reversal` | عكس المستحق (إلغاء) | + | عند إلغاء بوليصة | ✅ نعم |
+| `commission_expense` | تكلفة عمولة الإلزامي | - | عند إنشاء بوليصة ELZAMI | ❌ لا (منفصل) |
+| `company_settlement_paid` | تسديد للشركة | + | عند دفع للشركة | ✅ نعم |
+| `company_settlement_reversal` | عكس التسديد (رفض) | - | عند رفض دفعة | ✅ نعم |
 
-**حساب رصيد الشركة:**
+**حساب رصيد الشركة (Wallet):**
 ```sql
-outstanding = -SUM(amount) WHERE status = 'posted'
+-- فقط القيود التالية تدخل في حساب outstanding:
+-- company_payable, company_payable_reversal, company_settlement_paid, company_settlement_reversal
+
+outstanding = -SUM(amount) WHERE category IN (wallet_categories) AND status = 'posted'
 total_paid = SUM(settlement_paid + settlement_reversal) WHERE status = 'posted'
+
+-- تكلفة الإلزامي منفصلة:
+elzami_costs = -SUM(amount) WHERE category = 'commission_expense' AND status = 'posted'
 ```
 
 ### 2. قيود الوسطاء (broker)

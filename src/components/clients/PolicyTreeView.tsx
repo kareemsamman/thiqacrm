@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { 
   ChevronDown, 
   ChevronLeft, 
@@ -14,9 +15,15 @@ import {
   Calendar,
   Building2,
   ArrowUpDown,
-  Hash
+  Hash,
+  AlertCircle,
+  CheckCircle,
+  Banknote,
+  List
 } from 'lucide-react';
 import { ExpiryBadge } from '@/components/shared/ExpiryBadge';
+import { PackagePaymentModal } from './PackagePaymentModal';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface PolicyRecord {
@@ -34,11 +41,13 @@ interface PolicyRecord {
   company: { name: string; name_ar: string | null } | null;
   car: { id: string; car_number: string } | null;
   creator: { full_name: string | null; email: string } | null;
+  branch_id?: string | null;
 }
 
 interface PolicyTreeViewProps {
   policies: PolicyRecord[];
   onPolicyClick: (policyId: string) => void;
+  onPaymentAdded?: () => void;
 }
 
 const policyTypeLabels: Record<string, string> = {
@@ -108,7 +117,57 @@ interface PolicyGroup {
   priority: number; // 1=active, 2=expired, 3=transferred, 4=cancelled
 }
 
-export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps) {
+interface PaymentInfo {
+  [policyId: string]: { paid: number; remaining: number };
+}
+
+export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: PolicyTreeViewProps) {
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({});
+  const [loadingPayments, setLoadingPayments] = useState(true);
+  const [packagePaymentOpen, setPackagePaymentOpen] = useState(false);
+  const [selectedPackagePolicyIds, setSelectedPackagePolicyIds] = useState<string[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+
+  // Fetch payment info for all policies
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      if (policies.length === 0) {
+        setPaymentInfo({});
+        setLoadingPayments(false);
+        return;
+      }
+
+      setLoadingPayments(true);
+      const policyIds = policies.map(p => p.id);
+      
+      try {
+        const { data: paymentsData } = await supabase
+          .from('policy_payments')
+          .select('policy_id, amount, refused')
+          .in('policy_id', policyIds);
+
+        const info: PaymentInfo = {};
+        policies.forEach(p => {
+          const policyPayments = (paymentsData || [])
+            .filter(pay => pay.policy_id === p.id && !pay.refused);
+          const paid = policyPayments.reduce((sum, pay) => sum + pay.amount, 0);
+          info[p.id] = {
+            paid,
+            remaining: p.insurance_price - paid,
+          };
+        });
+
+        setPaymentInfo(info);
+      } catch (error) {
+        console.error('Error fetching payment info:', error);
+      } finally {
+        setLoadingPayments(false);
+      }
+    };
+
+    fetchPaymentInfo();
+  }, [policies]);
+
   // Group policies by group_id
   const groupedPolicies = useMemo(() => {
     const groups: Map<string, PolicyGroup> = new Map();
@@ -238,6 +297,37 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
     });
   };
 
+  const handlePackagePayment = (e: React.MouseEvent, policyIds: string[], branchId: string | null) => {
+    e.stopPropagation();
+    setSelectedPackagePolicyIds(policyIds);
+    setSelectedBranchId(branchId);
+    setPackagePaymentOpen(true);
+  };
+
+  const getPackagePaymentStatus = (group: PolicyGroup) => {
+    const allPolicyIds = [
+      ...(group.mainPolicy ? [group.mainPolicy.id] : []),
+      ...group.addons.map(a => a.id)
+    ];
+    
+    let totalPrice = 0;
+    let totalPaid = 0;
+    
+    allPolicyIds.forEach(id => {
+      const policy = policies.find(p => p.id === id);
+      if (policy) {
+        totalPrice += policy.insurance_price;
+        totalPaid += paymentInfo[id]?.paid || 0;
+      }
+    });
+    
+    const remaining = totalPrice - totalPaid;
+    const isPaid = remaining <= 0;
+    const percentage = totalPrice > 0 ? Math.round((totalPaid / totalPrice) * 100) : 0;
+    
+    return { totalPrice, totalPaid, remaining, isPaid, percentage };
+  };
+
   if (policies.length === 0) {
     return (
       <Card className="text-center py-12">
@@ -258,6 +348,16 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
         const totalPrice = (group.mainPolicy?.insurance_price || 0) + 
           group.addons.reduce((sum, a) => sum + a.insurance_price, 0);
         
+        // Get payment status for this package/policy
+        const paymentStatus = isPackage || hasMainPolicy 
+          ? getPackagePaymentStatus(group) 
+          : { totalPrice: 0, totalPaid: 0, remaining: 0, isPaid: true, percentage: 100 };
+        
+        const allPolicyIds = [
+          ...(group.mainPolicy ? [group.mainPolicy.id] : []),
+          ...group.addons.map(a => a.id)
+        ];
+        
         // For groups that only have add-ons without a main policy
         if (!hasMainPolicy && hasAddons) {
           // Render add-ons as standalone items
@@ -267,6 +367,7 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
               policy={addon}
               isAddon={false}
               onPolicyClick={onPolicyClick}
+              paymentInfo={paymentInfo[addon.id]}
             />
           ));
         }
@@ -279,6 +380,7 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
               policy={group.mainPolicy!}
               isAddon={false}
               onPolicyClick={onPolicyClick}
+              paymentInfo={paymentInfo[group.mainPolicy!.id]}
             />
           );
         }
@@ -289,13 +391,14 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
             key={groupKey}
             className={cn(
               "overflow-hidden transition-all",
-              group.isActive ? "border-primary/30 shadow-sm" : "opacity-80"
+              group.isActive ? "border-primary/30 shadow-sm" : "opacity-80",
+              !paymentStatus.isPaid && group.isActive && "border-l-4 border-l-destructive"
             )}
           >
             <Collapsible open={isExpanded} onOpenChange={() => toggleGroup(groupKey)}>
               <CollapsibleTrigger asChild>
                 <div className={cn(
-                  "flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors",
+                  "flex flex-wrap items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors",
                   group.isActive && "bg-primary/5"
                 )}>
                   {/* Expand/Collapse Icon */}
@@ -315,20 +418,92 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
                     </Badge>
                   </div>
                   
+                  {/* Payment Status Indicator (visible when collapsed) */}
+                  {!paymentStatus.isPaid && (
+                    <Badge variant="destructive" className="gap-1 shrink-0">
+                      <AlertCircle className="h-3 w-3" />
+                      غير مدفوع ({paymentStatus.percentage}%)
+                    </Badge>
+                  )}
+                  {paymentStatus.isPaid && (
+                    <Badge variant="success" className="gap-1 shrink-0">
+                      <CheckCircle className="h-3 w-3" />
+                      مدفوع
+                    </Badge>
+                  )}
+                  
+                  {/* Quick Preview HoverCard */}
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 px-2 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <List className="h-3.5 w-3.5 ml-1" />
+                        معاينة
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80" align="start">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          محتويات الباقة
+                        </h4>
+                        <div className="space-y-1.5">
+                          {/* Main Policy */}
+                          <div 
+                            className="flex items-center justify-between p-2 rounded bg-muted/50 cursor-pointer hover:bg-muted"
+                            onClick={() => onPolicyClick(group.mainPolicy!.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{policyTypeIcons[group.mainPolicy!.policy_type_parent]}</span>
+                              <span className="text-sm font-medium">
+                                {policyTypeLabels[group.mainPolicy!.policy_type_parent]}
+                              </span>
+                            </div>
+                            <span className="text-sm font-bold">₪{group.mainPolicy!.insurance_price.toLocaleString()}</span>
+                          </div>
+                          {/* Add-ons */}
+                          {group.addons.map(addon => (
+                            <div 
+                              key={addon.id}
+                              className="flex items-center justify-between p-2 rounded bg-orange-50 cursor-pointer hover:bg-orange-100 mr-3"
+                              onClick={() => onPolicyClick(addon.id)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Zap className="h-3 w-3 text-orange-500" />
+                                <span className="text-sm">
+                                  {policyTypeLabels[addon.policy_type_parent]}
+                                </span>
+                              </div>
+                              <span className="text-sm font-medium">₪{addon.insurance_price.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pt-2 border-t flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">الإجمالي</span>
+                          <span className="font-bold">₪{totalPrice.toLocaleString()}</span>
+                        </div>
+                        {!paymentStatus.isPaid && (
+                          <div className="flex justify-between items-center text-destructive">
+                            <span className="text-sm">المتبقي</span>
+                            <span className="font-bold">₪{paymentStatus.remaining.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                  
                   {/* Main Policy Info */}
-                  <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
                     <div>
                       <Badge className={cn("border", policyTypeColors[group.mainPolicy!.policy_type_parent])}>
                         {policyTypeLabels[group.mainPolicy!.policy_type_parent] || group.mainPolicy!.policy_type_parent}
                       </Badge>
                     </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">الشركة: </span>
-                      <span className="font-medium">
-                        {group.mainPolicy!.company?.name_ar || group.mainPolicy!.company?.name || '-'}
-                      </span>
-                    </div>
-                    <div className="text-sm">
+                    <div className="text-sm hidden sm:block">
                       <span className="text-muted-foreground">السيارة: </span>
                       <span className="font-mono">{group.mainPolicy!.car?.car_number || '-'}</span>
                     </div>
@@ -346,18 +521,22 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
                     </Badge>
                   </div>
                   
+                  {/* Package Pay Button */}
+                  {!paymentStatus.isPaid && group.isActive && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 shrink-0 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                      onClick={(e) => handlePackagePayment(e, allPolicyIds, group.mainPolicy?.branch_id || null)}
+                    >
+                      <Banknote className="h-3.5 w-3.5" />
+                      دفع للباقة
+                    </Button>
+                  )}
+                  
                   {/* Status */}
                   <div className="shrink-0">
                     <ExpiryBadge endDate={group.mainPolicy!.end_date} cancelled={group.mainPolicy!.cancelled} />
-                  </div>
-                  <div className="shrink-0">
-                    {getPolicyStatus(group.mainPolicy!).isActive ? (
-                      <Badge variant="success">سارية</Badge>
-                    ) : group.mainPolicy!.cancelled ? (
-                      <Badge variant="destructive">ملغاة</Badge>
-                    ) : (
-                      <Badge variant="secondary">منتهية</Badge>
-                    )}
                   </div>
                 </div>
               </CollapsibleTrigger>
@@ -441,6 +620,40 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
           </Card>
         );
       })}
+      
+      {/* Package Payment Modal */}
+      <PackagePaymentModal
+        open={packagePaymentOpen}
+        onOpenChange={setPackagePaymentOpen}
+        policyIds={selectedPackagePolicyIds}
+        branchId={selectedBranchId}
+        onSuccess={() => {
+          // Refresh payment info
+          if (onPaymentAdded) onPaymentAdded();
+          // Refetch payment info
+          const fetchPaymentInfo = async () => {
+            if (policies.length === 0) return;
+            const policyIds = policies.map(p => p.id);
+            const { data: paymentsData } = await supabase
+              .from('policy_payments')
+              .select('policy_id, amount, refused')
+              .in('policy_id', policyIds);
+
+            const info: PaymentInfo = {};
+            policies.forEach(p => {
+              const policyPayments = (paymentsData || [])
+                .filter(pay => pay.policy_id === p.id && !pay.refused);
+              const paid = policyPayments.reduce((sum, pay) => sum + pay.amount, 0);
+              info[p.id] = {
+                paid,
+                remaining: p.insurance_price - paid,
+              };
+            });
+            setPaymentInfo(info);
+          };
+          fetchPaymentInfo();
+        }}
+      />
     </div>
   );
 }
@@ -449,13 +662,16 @@ export function PolicyTreeView({ policies, onPolicyClick }: PolicyTreeViewProps)
 function PolicyRow({ 
   policy, 
   isAddon,
-  onPolicyClick 
+  onPolicyClick,
+  paymentInfo
 }: { 
   policy: PolicyRecord; 
   isAddon: boolean;
   onPolicyClick: (id: string) => void;
+  paymentInfo?: { paid: number; remaining: number };
 }) {
   const status = getPolicyStatus(policy);
+  const isPaid = !paymentInfo || paymentInfo.remaining <= 0;
   
   return (
     <Card 
@@ -466,7 +682,8 @@ function PolicyRow({
           ? "bg-card hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30" 
           : "bg-muted/30 hover:bg-muted/50",
         status.priority === 3 && "border-amber-500/30 bg-amber-50/50",
-        status.priority === 4 && "border-destructive/30 bg-destructive/5"
+        status.priority === 4 && "border-destructive/30 bg-destructive/5",
+        !isPaid && status.isActive && "border-l-4 border-l-destructive"
       )}
       onClick={() => onPolicyClick(policy.id)}
     >
@@ -486,6 +703,14 @@ function PolicyRow({
               </Badge>
             )}
           </div>
+          
+          {/* Payment Status */}
+          {!isPaid && status.isActive && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertCircle className="h-3 w-3" />
+              متبقي ₪{paymentInfo?.remaining.toLocaleString()}
+            </Badge>
+          )}
           
           {/* Spacer */}
           <div className="flex-1" />

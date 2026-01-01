@@ -433,58 +433,21 @@ function buildSignaturePageHtml(
       background: #f8fafc;
       border-radius: 12px;
       margin-bottom: 20px;
-    }
-    .custom-checkbox {
-      position: relative;
-      width: 24px;
-      height: 24px;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .custom-checkbox input[type="checkbox"] {
-      position: absolute;
-      opacity: 0;
-      width: 100%;
-      height: 100%;
       cursor: pointer;
-      z-index: 2;
-      margin: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .custom-checkbox .checkmark {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 24px;
-      height: 24px;
-      background: white;
-      border: 2px solid #cbd5e1;
-      border-radius: 6px;
-      transition: all 0.2s;
+    .terms-checkbox {
+      width: 22px;
+      height: 22px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: #1e3a5f;
     }
-    .custom-checkbox input[type="checkbox"]:checked + .checkmark {
-      background: #1e3a5f;
-      border-color: #1e3a5f;
-    }
-    .custom-checkbox .checkmark:after {
-      content: '';
-      position: absolute;
-      display: none;
-      left: 8px;
-      top: 4px;
-      width: 6px;
-      height: 11px;
-      border: solid white;
-      border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
-    }
-    .custom-checkbox input[type="checkbox"]:checked + .checkmark:after {
-      display: block;
-    }
-    .checkbox-wrapper label {
+    .terms-text {
       font-size: 14px;
       color: #475569;
       line-height: 1.6;
-      cursor: pointer;
       flex: 1;
     }
     .buttons {
@@ -624,13 +587,10 @@ function buildSignaturePageHtml(
 
       <div class="error-message" id="errorMessage"></div>
 
-      <div class="checkbox-wrapper">
-        <div class="custom-checkbox">
-          <input type="checkbox" id="acceptTerms">
-          <span class="checkmark"></span>
-        </div>
-        <label for="acceptTerms">أقرّ أنني قرأت وأوافق على جميع الشروط والأحكام المذكورة أعلاه</label>
-      </div>
+      <label class="checkbox-wrapper" for="acceptTerms">
+        <input type="checkbox" id="acceptTerms" class="terms-checkbox" />
+        <span class="terms-text">أقرّ أنني قرأت وأوافق على جميع الشروط والأحكام المذكورة أعلاه</span>
+      </label>
 
       <div class="buttons">
         <button class="btn btn-clear" onclick="clearCanvas()">مسح</button>

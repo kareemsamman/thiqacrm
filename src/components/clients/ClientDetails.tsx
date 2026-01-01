@@ -1030,7 +1030,35 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
             ) : (
               <PolicyTreeView 
                 policies={filteredPolicies} 
-                onPolicyClick={handlePolicyClick} 
+                onPolicyClick={handlePolicyClick}
+                onPaymentAdded={() => {
+                  fetchPaymentSummary();
+                  fetchPayments();
+                }}
+                onTransferPolicy={(policyId) => {
+                  setSelectedPolicyId(policyId);
+                  setPolicyDetailsOpen(true);
+                  // User can then use transfer from details drawer
+                }}
+                onCancelPolicy={(policyId) => {
+                  setSelectedPolicyId(policyId);
+                  setPolicyDetailsOpen(true);
+                  // User can then use cancel from details drawer
+                }}
+                onTransferPackage={(policyIds) => {
+                  // Open the first policy's details, they can transfer package from there
+                  if (policyIds.length > 0) {
+                    setSelectedPolicyId(policyIds[0]);
+                    setPolicyDetailsOpen(true);
+                  }
+                }}
+                onCancelPackage={(policyIds) => {
+                  // Open the first policy's details
+                  if (policyIds.length > 0) {
+                    setSelectedPolicyId(policyIds[0]);
+                    setPolicyDetailsOpen(true);
+                  }
+                }}
               />
             )}
           </TabsContent>

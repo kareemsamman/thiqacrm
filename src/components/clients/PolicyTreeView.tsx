@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   ChevronDown, 
   ChevronLeft, 
@@ -21,7 +28,10 @@ import {
   Banknote,
   List,
   Send,
-  Loader2
+  Loader2,
+  MoreVertical,
+  XCircle,
+  ArrowRightLeft
 } from 'lucide-react';
 import { ExpiryBadge } from '@/components/shared/ExpiryBadge';
 import { PackagePaymentModal } from './PackagePaymentModal';
@@ -51,6 +61,10 @@ interface PolicyTreeViewProps {
   policies: PolicyRecord[];
   onPolicyClick: (policyId: string) => void;
   onPaymentAdded?: () => void;
+  onTransferPolicy?: (policyId: string) => void;
+  onCancelPolicy?: (policyId: string) => void;
+  onTransferPackage?: (policyIds: string[]) => void;
+  onCancelPackage?: (policyIds: string[]) => void;
 }
 
 const policyTypeLabels: Record<string, string> = {
@@ -124,7 +138,15 @@ interface PaymentInfo {
   [policyId: string]: { paid: number; remaining: number };
 }
 
-export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: PolicyTreeViewProps) {
+export function PolicyTreeView({ 
+  policies, 
+  onPolicyClick, 
+  onPaymentAdded,
+  onTransferPolicy,
+  onCancelPolicy,
+  onTransferPackage,
+  onCancelPackage
+}: PolicyTreeViewProps) {
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({});
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [packagePaymentOpen, setPackagePaymentOpen] = useState(false);
@@ -343,9 +365,22 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
       });
       
       if (error) {
-        const errorBody = error.context?.body ? 
-          (typeof error.context.body === 'string' ? JSON.parse(error.context.body) : error.context.body) : null;
-        throw new Error(errorBody?.error || 'فشل في الإرسال');
+        let errorMessage = 'فشل في الإرسال';
+        try {
+          if (error.context?.body) {
+            const body = typeof error.context.body === 'string' 
+              ? JSON.parse(error.context.body) 
+              : error.context.body;
+            errorMessage = body?.error || errorMessage;
+          }
+        } catch {
+          // Keep default
+        }
+        throw new Error(errorMessage);
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
       }
       
       if (data?.success) {
@@ -371,7 +406,6 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
       });
       
       if (error) {
-        // Try to parse error message from various formats
         let errorMessage = 'فشل في الإرسال';
         try {
           if (error.context?.body) {
@@ -386,7 +420,6 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
         throw new Error(errorMessage);
       }
       
-      // Check if the response indicates an error
       if (data?.error) {
         throw new Error(data.error);
       }
@@ -402,6 +435,27 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
     } finally {
       setSendingPolicy(null);
     }
+  };
+
+  const refreshPaymentInfo = async () => {
+    if (policies.length === 0) return;
+    const policyIds = policies.map(p => p.id);
+    const { data: paymentsData } = await supabase
+      .from('policy_payments')
+      .select('policy_id, amount, refused')
+      .in('policy_id', policyIds);
+
+    const info: PaymentInfo = {};
+    policies.forEach(p => {
+      const policyPayments = (paymentsData || [])
+        .filter(pay => pay.policy_id === p.id && !pay.refused);
+      const paid = policyPayments.reduce((sum, pay) => sum + pay.amount, 0);
+      info[p.id] = {
+        paid,
+        remaining: p.insurance_price - paid,
+      };
+    });
+    setPaymentInfo(info);
   };
 
   if (policies.length === 0) {
@@ -438,282 +492,46 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
         if (!hasMainPolicy && hasAddons) {
           // Render add-ons as standalone items
           return group.addons.map(addon => (
-            <PolicyRow
+            <UnifiedPolicyCard
               key={addon.id}
               policy={addon}
-              isAddon={false}
-              onPolicyClick={onPolicyClick}
+              isPackage={false}
+              addons={[]}
               paymentInfo={paymentInfo[addon.id]}
+              onPolicyClick={onPolicyClick}
               onSendInvoice={handleSendPolicyInvoice}
               isSending={sendingPolicy === addon.id}
+              onTransfer={onTransferPolicy}
+              onCancel={onCancelPolicy}
             />
           ));
         }
         
-        // Single policy without add-ons
-        if (!hasAddons && hasMainPolicy) {
-          return (
-            <PolicyRow
-              key={group.mainPolicy!.id}
-              policy={group.mainPolicy!}
-              isAddon={false}
-              onPolicyClick={onPolicyClick}
-              paymentInfo={paymentInfo[group.mainPolicy!.id]}
-              onSendInvoice={handleSendPolicyInvoice}
-              isSending={sendingPolicy === group.mainPolicy!.id}
-            />
-          );
-        }
-        
-        // Package with main policy + add-ons
+        // Single policy without add-ons OR Package with add-ons - same card design
         return (
-          <Card 
+          <UnifiedPolicyCard
             key={groupKey}
-            className={cn(
-              "overflow-hidden transition-all",
-              group.isActive ? "border-primary/30 shadow-sm" : "opacity-80",
-              !paymentStatus.isPaid && group.isActive && "border-l-4 border-l-destructive"
-            )}
-          >
-            <Collapsible open={isExpanded} onOpenChange={() => toggleGroup(groupKey)}>
-              <CollapsibleTrigger asChild>
-                <div className={cn(
-                  "flex flex-wrap items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors",
-                  group.isActive && "bg-primary/5"
-                )}>
-                  {/* Expand/Collapse Icon */}
-                  <div className="shrink-0">
-                    {isExpanded ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  
-                  {/* Package Badge */}
-                  <div className="shrink-0">
-                    <Badge variant="outline" className="gap-1.5 bg-primary/10 text-primary border-primary/20">
-                      <Package className="h-3.5 w-3.5" />
-                      باقة
-                    </Badge>
-                  </div>
-                  
-                  {/* Payment Status Indicator (visible when collapsed) */}
-                  {!paymentStatus.isPaid && (
-                    <Badge variant="destructive" className="gap-1 shrink-0">
-                      <AlertCircle className="h-3 w-3" />
-                      غير مدفوع ({paymentStatus.percentage}%)
-                    </Badge>
-                  )}
-                  {paymentStatus.isPaid && (
-                    <Badge variant="success" className="gap-1 shrink-0">
-                      <CheckCircle className="h-3 w-3" />
-                      مدفوع
-                    </Badge>
-                  )}
-                  
-                  {/* Quick Preview HoverCard */}
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 px-2 shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <List className="h-3.5 w-3.5 ml-1" />
-                        معاينة
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80" align="start">
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-sm flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          محتويات الباقة
-                        </h4>
-                        <div className="space-y-1.5">
-                          {/* Main Policy */}
-                          <div 
-                            className="flex items-center justify-between p-2 rounded bg-muted/50 cursor-pointer hover:bg-muted"
-                            onClick={() => onPolicyClick(group.mainPolicy!.id)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span>{policyTypeIcons[group.mainPolicy!.policy_type_parent]}</span>
-                              <span className="text-sm font-medium">
-                                {policyTypeLabels[group.mainPolicy!.policy_type_parent]}
-                              </span>
-                            </div>
-                            <span className="text-sm font-bold">₪{group.mainPolicy!.insurance_price.toLocaleString()}</span>
-                          </div>
-                          {/* Add-ons */}
-                          {group.addons.map(addon => (
-                            <div 
-                              key={addon.id}
-                              className="flex items-center justify-between p-2 rounded bg-orange-50 cursor-pointer hover:bg-orange-100 mr-3"
-                              onClick={() => onPolicyClick(addon.id)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Zap className="h-3 w-3 text-orange-500" />
-                                <span className="text-sm">
-                                  {policyTypeLabels[addon.policy_type_parent]}
-                                </span>
-                              </div>
-                              <span className="text-sm font-medium">₪{addon.insurance_price.toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="pt-2 border-t flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">الإجمالي</span>
-                          <span className="font-bold">₪{totalPrice.toLocaleString()}</span>
-                        </div>
-                        {!paymentStatus.isPaid && (
-                          <div className="flex justify-between items-center text-destructive">
-                            <span className="text-sm">المتبقي</span>
-                            <span className="font-bold">₪{paymentStatus.remaining.toLocaleString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                  
-                  {/* Main Policy Info */}
-                  <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-                    <div>
-                      <Badge className={cn("border", policyTypeColors[group.mainPolicy!.policy_type_parent])}>
-                        {policyTypeLabels[group.mainPolicy!.policy_type_parent] || group.mainPolicy!.policy_type_parent}
-                      </Badge>
-                    </div>
-                    <div className="text-sm hidden sm:block">
-                      <span className="text-muted-foreground">السيارة: </span>
-                      <span className="font-mono">{group.mainPolicy!.car?.car_number || '-'}</span>
-                    </div>
-                    <div className="text-sm flex items-center gap-2">
-                      <span className="text-muted-foreground">الإجمالي: </span>
-                      <span className="font-bold">₪{totalPrice.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Add-ons Count */}
-                  <div className="shrink-0">
-                    <Badge variant="secondary" className="gap-1">
-                      <Zap className="h-3 w-3" />
-                      {group.addons.length} إضافات
-                    </Badge>
-                  </div>
-                  
-                  {/* Package Pay Button */}
-                  {!paymentStatus.isPaid && group.isActive && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 shrink-0 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                      onClick={(e) => handlePackagePayment(e, allPolicyIds, group.mainPolicy?.branch_id || null)}
-                    >
-                      <Banknote className="h-3.5 w-3.5" />
-                      دفع للباقة
-                    </Button>
-                  )}
-                  
-                  {/* Send Package Invoice Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 shrink-0"
-                    onClick={(e) => handleSendPackageInvoice(e, allPolicyIds, groupKey)}
-                    disabled={sendingPackage === groupKey}
-                  >
-                    {sendingPackage === groupKey ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Send className="h-3.5 w-3.5" />
-                    )}
-                    إرسال للعميل
-                  </Button>
-                  
-                  {/* Status */}
-                  <div className="shrink-0">
-                    <ExpiryBadge endDate={group.mainPolicy!.end_date} cancelled={group.mainPolicy!.cancelled} />
-                  </div>
-                </div>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent>
-                <div className="border-t">
-                  {/* Main Policy Row */}
-                  <div 
-                    className="flex items-center gap-3 p-4 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors border-b"
-                    onClick={() => onPolicyClick(group.mainPolicy!.id)}
-                  >
-                    <div className="w-5" /> {/* Spacer for alignment */}
-                    <FileText className="h-4 w-4 text-primary shrink-0" />
-                    <Badge variant="outline" className="text-xs bg-primary/5">الوثيقة الأساسية</Badge>
-                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
-                      <div>
-                        <Badge className={cn("border text-xs", policyTypeColors[group.mainPolicy!.policy_type_parent])}>
-                          {policyTypeLabels[group.mainPolicy!.policy_type_parent]}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">من: </span>
-                        {formatDate(group.mainPolicy!.start_date)}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">إلى: </span>
-                        {formatDate(group.mainPolicy!.end_date)}
-                      </div>
-                      <div className="font-semibold">₪{group.mainPolicy!.insurance_price.toLocaleString()}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {group.mainPolicy!.creator?.full_name || group.mainPolicy!.creator?.email || '-'}
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  {/* Add-on Rows */}
-                  {group.addons.map((addon, addonIndex) => (
-                    <div 
-                      key={addon.id}
-                      className={cn(
-                        "flex items-center gap-3 p-4 pr-12 cursor-pointer hover:bg-muted/30 transition-colors",
-                        addonIndex < group.addons.length - 1 && "border-b border-dashed"
-                      )}
-                      onClick={() => onPolicyClick(addon.id)}
-                    >
-                      <div className="w-5 flex justify-center">
-                        <div className="w-px h-full bg-border" />
-                      </div>
-                      <Zap className="h-4 w-4 text-orange-500 shrink-0" />
-                      <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200">إضافة</Badge>
-                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
-                        <div>
-                          <Badge className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
-                            {policyTypeLabels[addon.policy_type_parent]}
-                          </Badge>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">من: </span>
-                          {formatDate(addon.start_date)}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">إلى: </span>
-                          {formatDate(addon.end_date)}
-                        </div>
-                        <div className="font-semibold">₪{addon.insurance_price.toLocaleString()}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {addon.creator?.full_name || addon.creator?.email || '-'}
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
+            policy={group.mainPolicy!}
+            isPackage={isPackage}
+            addons={group.addons}
+            paymentInfo={paymentInfo[group.mainPolicy!.id]}
+            packagePaymentStatus={paymentStatus}
+            allPolicyIds={allPolicyIds}
+            groupKey={groupKey}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup(groupKey)}
+            onPolicyClick={onPolicyClick}
+            onSendInvoice={handleSendPolicyInvoice}
+            onSendPackageInvoice={handleSendPackageInvoice}
+            isSending={sendingPolicy === group.mainPolicy!.id}
+            isSendingPackage={sendingPackage === groupKey}
+            onPackagePayment={(e) => handlePackagePayment(e, allPolicyIds, group.mainPolicy?.branch_id || null)}
+            onTransfer={onTransferPolicy}
+            onCancel={onCancelPolicy}
+            onTransferPackage={onTransferPackage}
+            onCancelPackage={onCancelPackage}
+            allPaymentInfo={paymentInfo}
+          />
         );
       })}
       
@@ -724,60 +542,76 @@ export function PolicyTreeView({ policies, onPolicyClick, onPaymentAdded }: Poli
         policyIds={selectedPackagePolicyIds}
         branchId={selectedBranchId}
         onSuccess={() => {
-          // Refresh payment info
           if (onPaymentAdded) onPaymentAdded();
-          // Refetch payment info
-          const fetchPaymentInfo = async () => {
-            if (policies.length === 0) return;
-            const policyIds = policies.map(p => p.id);
-            const { data: paymentsData } = await supabase
-              .from('policy_payments')
-              .select('policy_id, amount, refused')
-              .in('policy_id', policyIds);
-
-            const info: PaymentInfo = {};
-            policies.forEach(p => {
-              const policyPayments = (paymentsData || [])
-                .filter(pay => pay.policy_id === p.id && !pay.refused);
-              const paid = policyPayments.reduce((sum, pay) => sum + pay.amount, 0);
-              info[p.id] = {
-                paid,
-                remaining: p.insurance_price - paid,
-              };
-            });
-            setPaymentInfo(info);
-          };
-          fetchPaymentInfo();
+          refreshPaymentInfo();
         }}
       />
     </div>
   );
 }
 
-// Modern card-style row for standalone policies
-function PolicyRow({ 
-  policy, 
-  isAddon,
-  onPolicyClick,
+// Unified card for both standalone policies and packages
+function UnifiedPolicyCard({
+  policy,
+  isPackage,
+  addons,
   paymentInfo,
+  packagePaymentStatus,
+  allPolicyIds,
+  groupKey,
+  isExpanded,
+  onToggle,
+  onPolicyClick,
   onSendInvoice,
-  isSending
-}: { 
-  policy: PolicyRecord; 
-  isAddon: boolean;
-  onPolicyClick: (id: string) => void;
+  onSendPackageInvoice,
+  isSending,
+  isSendingPackage,
+  onPackagePayment,
+  onTransfer,
+  onCancel,
+  onTransferPackage,
+  onCancelPackage,
+  allPaymentInfo
+}: {
+  policy: PolicyRecord;
+  isPackage: boolean;
+  addons: PolicyRecord[];
   paymentInfo?: { paid: number; remaining: number };
-  onSendInvoice?: (e: React.MouseEvent, policyId: string) => void;
+  packagePaymentStatus?: { totalPrice: number; totalPaid: number; remaining: number; isPaid: boolean; percentage: number };
+  allPolicyIds?: string[];
+  groupKey?: string;
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  onPolicyClick: (id: string) => void;
+  onSendInvoice: (e: React.MouseEvent, policyId: string) => void;
+  onSendPackageInvoice?: (e: React.MouseEvent, policyIds: string[], groupKey: string) => void;
   isSending?: boolean;
+  isSendingPackage?: boolean;
+  onPackagePayment?: (e: React.MouseEvent) => void;
+  onTransfer?: (policyId: string) => void;
+  onCancel?: (policyId: string) => void;
+  onTransferPackage?: (policyIds: string[]) => void;
+  onCancelPackage?: (policyIds: string[]) => void;
+  allPaymentInfo?: PaymentInfo;
 }) {
   const status = getPolicyStatus(policy);
-  const isPaid = !paymentInfo || paymentInfo.remaining <= 0;
+  const isPaid = isPackage 
+    ? (packagePaymentStatus?.isPaid ?? true) 
+    : (!paymentInfo || paymentInfo.remaining <= 0);
+  const remaining = isPackage 
+    ? (packagePaymentStatus?.remaining ?? 0) 
+    : (paymentInfo?.remaining ?? 0);
+  const totalPrice = isPackage 
+    ? (packagePaymentStatus?.totalPrice ?? policy.insurance_price)
+    : policy.insurance_price;
   
+  const CardWrapper = isPackage ? Collapsible : 'div';
+  const cardWrapperProps = isPackage ? { open: isExpanded, onOpenChange: onToggle } : {};
+
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-200 overflow-hidden",
-        isAddon && "mr-6 border-r-4 border-r-orange-400",
+        "group overflow-hidden transition-all duration-200",
         status.isActive 
           ? "bg-card hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30" 
           : "bg-muted/30 hover:bg-muted/50",
@@ -785,123 +619,429 @@ function PolicyRow({
         status.priority === 4 && "border-destructive/30 bg-destructive/5",
         !isPaid && status.isActive && "border-l-4 border-l-destructive"
       )}
-      onClick={() => onPolicyClick(policy.id)}
     >
-      <div className="p-4">
-        {/* Top Row - Main Info */}
-        <div className="flex items-center gap-4 mb-3">
-          {/* Policy Type with Icon */}
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{policyTypeIcons[policy.policy_type_parent] || '📄'}</span>
-            <Badge className={cn("border font-semibold", policyTypeColors[policy.policy_type_parent])}>
-              {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
-            </Badge>
-            {policy.transferred && (
-              <Badge variant="warning" className="gap-1">
-                <ArrowUpDown className="h-3 w-3" />
-                محولة
-              </Badge>
-            )}
-          </div>
-          
-          {/* Payment Status */}
-          {!isPaid && status.isActive && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertCircle className="h-3 w-3" />
-              متبقي ₪{paymentInfo?.remaining.toLocaleString()}
-            </Badge>
+      <CardWrapper {...cardWrapperProps}>
+        {/* Main Header Row - Same for both */}
+        <div 
+          className={cn(
+            "p-4",
+            isPackage && "cursor-pointer"
+          )}
+        >
+          {isPackage && (
+            <CollapsibleTrigger asChild>
+              <div className="w-full">
+                <PolicyCardHeader
+                  policy={policy}
+                  isPackage={isPackage}
+                  addons={addons}
+                  status={status}
+                  isPaid={isPaid}
+                  remaining={remaining}
+                  totalPrice={totalPrice}
+                  percentage={packagePaymentStatus?.percentage}
+                  groupKey={groupKey}
+                  isExpanded={isExpanded}
+                  isSending={isSending}
+                  isSendingPackage={isSendingPackage}
+                  onPolicyClick={onPolicyClick}
+                  onSendInvoice={onSendInvoice}
+                  onSendPackageInvoice={onSendPackageInvoice}
+                  allPolicyIds={allPolicyIds}
+                  onPackagePayment={onPackagePayment}
+                  onTransfer={onTransfer}
+                  onCancel={onCancel}
+                  onTransferPackage={onTransferPackage}
+                  onCancelPackage={onCancelPackage}
+                />
+              </div>
+            </CollapsibleTrigger>
           )}
           
-          {/* Spacer */}
-          <div className="flex-1" />
-          
-          {/* Send Invoice Button */}
-          {onSendInvoice && (
+          {!isPackage && (
+            <PolicyCardHeader
+              policy={policy}
+              isPackage={isPackage}
+              addons={addons}
+              status={status}
+              isPaid={isPaid}
+              remaining={remaining}
+              totalPrice={totalPrice}
+              isSending={isSending}
+              onPolicyClick={onPolicyClick}
+              onSendInvoice={onSendInvoice}
+              onTransfer={onTransfer}
+              onCancel={onCancel}
+            />
+          )}
+        </div>
+        
+        {/* Package Expanded Content */}
+        {isPackage && (
+          <CollapsibleContent>
+            <div className="border-t">
+              {/* Main Policy Row */}
+              <div 
+                className="flex items-center gap-3 p-4 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors border-b"
+                onClick={() => onPolicyClick(policy.id)}
+              >
+                <div className="w-5" />
+                <FileText className="h-4 w-4 text-primary shrink-0" />
+                <Badge variant="outline" className="text-xs bg-primary/5">الوثيقة الأساسية</Badge>
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+                  <div>
+                    <Badge className={cn("border text-xs", policyTypeColors[policy.policy_type_parent])}>
+                      {policyTypeLabels[policy.policy_type_parent]}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">من: </span>
+                    {formatDate(policy.start_date)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">إلى: </span>
+                    {formatDate(policy.end_date)}
+                  </div>
+                  <div className="font-semibold">₪{policy.insurance_price.toLocaleString()}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {policy.creator?.full_name || policy.creator?.email || '-'}
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Add-on Rows */}
+              {addons.map((addon, addonIndex) => (
+                <div 
+                  key={addon.id}
+                  className={cn(
+                    "flex items-center gap-3 p-4 pr-12 cursor-pointer hover:bg-muted/30 transition-colors",
+                    addonIndex < addons.length - 1 && "border-b border-dashed"
+                  )}
+                  onClick={() => onPolicyClick(addon.id)}
+                >
+                  <div className="w-5 flex justify-center">
+                    <div className="w-px h-full bg-border" />
+                  </div>
+                  <Zap className="h-4 w-4 text-orange-500 shrink-0" />
+                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-600 border-orange-200">إضافة</Badge>
+                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+                    <div>
+                      <Badge className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
+                        {policyTypeLabels[addon.policy_type_parent]}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">من: </span>
+                      {formatDate(addon.start_date)}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">إلى: </span>
+                      {formatDate(addon.end_date)}
+                    </div>
+                    <div className="font-semibold">₪{addon.insurance_price.toLocaleString()}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {addon.creator?.full_name || addon.creator?.email || '-'}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        )}
+      </CardWrapper>
+    </Card>
+  );
+}
+
+// Shared header component for both package and standalone cards
+function PolicyCardHeader({
+  policy,
+  isPackage,
+  addons,
+  status,
+  isPaid,
+  remaining,
+  totalPrice,
+  percentage,
+  groupKey,
+  isExpanded,
+  isSending,
+  isSendingPackage,
+  onPolicyClick,
+  onSendInvoice,
+  onSendPackageInvoice,
+  allPolicyIds,
+  onPackagePayment,
+  onTransfer,
+  onCancel,
+  onTransferPackage,
+  onCancelPackage
+}: {
+  policy: PolicyRecord;
+  isPackage: boolean;
+  addons: PolicyRecord[];
+  status: ReturnType<typeof getPolicyStatus>;
+  isPaid: boolean;
+  remaining: number;
+  totalPrice: number;
+  percentage?: number;
+  groupKey?: string;
+  isExpanded?: boolean;
+  isSending?: boolean;
+  isSendingPackage?: boolean;
+  onPolicyClick: (id: string) => void;
+  onSendInvoice: (e: React.MouseEvent, policyId: string) => void;
+  onSendPackageInvoice?: (e: React.MouseEvent, policyIds: string[], groupKey: string) => void;
+  allPolicyIds?: string[];
+  onPackagePayment?: (e: React.MouseEvent) => void;
+  onTransfer?: (policyId: string) => void;
+  onCancel?: (policyId: string) => void;
+  onTransferPackage?: (policyIds: string[]) => void;
+  onCancelPackage?: (policyIds: string[]) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {/* Top Row */}
+      <div className="flex items-center flex-wrap gap-2 sm:gap-3">
+        {/* Expand/Collapse for packages */}
+        {isPackage && (
+          <div className="shrink-0">
+            {isExpanded ? (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronLeft className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+        )}
+        
+        {/* Package or Policy Type Badge */}
+        {isPackage ? (
+          <Badge variant="outline" className="gap-1.5 bg-primary/10 text-primary border-primary/20">
+            <Package className="h-3.5 w-3.5" />
+            باقة
+          </Badge>
+        ) : (
+          <span className="text-xl">{policyTypeIcons[policy.policy_type_parent] || '📄'}</span>
+        )}
+        
+        {/* Policy Type */}
+        <Badge className={cn("border font-semibold", policyTypeColors[policy.policy_type_parent])}>
+          {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+        </Badge>
+        
+        {/* Transferred Badge */}
+        {policy.transferred && (
+          <Badge variant="warning" className="gap-1">
+            <ArrowUpDown className="h-3 w-3" />
+            محولة
+          </Badge>
+        )}
+        
+        {/* Payment Status */}
+        {!isPaid && status.isActive && (
+          <Badge variant="destructive" className="gap-1">
+            <AlertCircle className="h-3 w-3" />
+            متبقي ₪{remaining.toLocaleString()}
+          </Badge>
+        )}
+        {isPaid && (
+          <Badge variant="success" className="gap-1 hidden sm:flex">
+            <CheckCircle className="h-3 w-3" />
+            مدفوع
+          </Badge>
+        )}
+        
+        {/* Package: Add-ons count */}
+        {isPackage && addons.length > 0 && (
+          <Badge variant="secondary" className="gap-1">
+            <Zap className="h-3 w-3" />
+            {addons.length} إضافات
+          </Badge>
+        )}
+        
+        {/* Spacer */}
+        <div className="flex-1" />
+        
+        {/* Actions Group */}
+        <div className="flex items-center gap-2">
+          {/* Pay Button (Package or Single) */}
+          {!isPaid && status.isActive && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-1 shrink-0"
-              onClick={(e) => onSendInvoice(e, policy.id)}
-              disabled={isSending}
+              className="gap-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPackage && onPackagePayment) {
+                  onPackagePayment(e);
+                }
+              }}
             >
-              {isSending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              إرسال للعميل
+              <Banknote className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{isPackage ? 'دفع للباقة' : 'دفع'}</span>
             </Button>
           )}
           
+          {/* Send Invoice Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPackage && onSendPackageInvoice && allPolicyIds && groupKey) {
+                onSendPackageInvoice(e, allPolicyIds, groupKey);
+              } else {
+                onSendInvoice(e, policy.id);
+              }
+            }}
+            disabled={isPackage ? isSendingPackage : isSending}
+          >
+            {(isPackage ? isSendingPackage : isSending) ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">إرسال للعميل</span>
+          </Button>
+          
           {/* Status */}
           <ExpiryBadge endDate={policy.end_date} cancelled={policy.cancelled} />
-          <Badge variant={status.variant} className="font-medium">
-            {status.label}
-          </Badge>
           
-          {/* View Button */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Eye className="h-4 w-4 ml-1" />
-            عرض
-          </Button>
+          {/* Actions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onPolicyClick(policy.id);
+              }}>
+                <Eye className="h-4 w-4 ml-2" />
+                عرض التفاصيل
+              </DropdownMenuItem>
+              
+              {status.isActive && (
+                <>
+                  <DropdownMenuSeparator />
+                  {isPackage && onTransferPackage && allPolicyIds && (
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      onTransferPackage(allPolicyIds);
+                    }}>
+                      <ArrowRightLeft className="h-4 w-4 ml-2" />
+                      تحويل الباقة كاملة
+                    </DropdownMenuItem>
+                  )}
+                  {!isPackage && onTransfer && (
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      onTransfer(policy.id);
+                    }}>
+                      <ArrowRightLeft className="h-4 w-4 ml-2" />
+                      تحويل الوثيقة
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  {isPackage && onCancelPackage && allPolicyIds && (
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCancelPackage(allPolicyIds);
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 ml-2" />
+                      إلغاء الباقة كاملة
+                    </DropdownMenuItem>
+                  )}
+                  {!isPackage && onCancel && (
+                    <DropdownMenuItem 
+                      className="text-destructive focus:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCancel(policy.id);
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 ml-2" />
+                      إلغاء الوثيقة
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      
+      {/* Bottom Row - Details Grid */}
+      <div 
+        className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPolicyClick(policy.id);
+        }}
+      >
+        {/* Policy Number */}
+        <div className="flex items-center gap-2">
+          <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">رقم الوثيقة</p>
+            <p className="font-mono font-medium ltr-nums">{policy.policy_number || '-'}</p>
+          </div>
         </div>
         
-        {/* Bottom Row - Details Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
-          {/* Policy Number */}
-          <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">رقم الوثيقة</p>
-              <p className="font-mono font-medium ltr-nums">{policy.policy_number || '-'}</p>
-            </div>
+        {/* Company */}
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الشركة</p>
+            <p className="font-medium truncate">{policy.company?.name_ar || policy.company?.name || '-'}</p>
           </div>
-          
-          {/* Company */}
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الشركة</p>
-              <p className="font-medium truncate">{policy.company?.name_ar || policy.company?.name || '-'}</p>
-            </div>
+        </div>
+        
+        {/* Car */}
+        <div className="flex items-center gap-2">
+          <Car className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">السيارة</p>
+            <p className="font-mono font-medium ltr-nums">{policy.car?.car_number || '-'}</p>
           </div>
-          
-          {/* Car */}
-          <div className="flex items-center gap-2">
-            <Car className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">السيارة</p>
-              <p className="font-mono font-medium ltr-nums">{policy.car?.car_number || '-'}</p>
-            </div>
+        </div>
+        
+        {/* Dates */}
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الفترة</p>
+            <p className="font-medium ltr-nums">{formatDate(policy.start_date)} → {formatDate(policy.end_date)}</p>
           </div>
-          
-          {/* Dates */}
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الفترة</p>
-              <p className="font-medium ltr-nums">{formatDate(policy.start_date)} → {formatDate(policy.end_date)}</p>
-            </div>
-          </div>
-          
-          {/* Price */}
-          <div className="flex items-center justify-end gap-2">
-            <div className="text-left">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">السعر</p>
-              <p className={cn(
-                "text-lg font-bold ltr-nums",
-                status.isActive ? "text-primary" : "text-muted-foreground"
-              )}>
-                ₪{policy.insurance_price.toLocaleString()}
-              </p>
-            </div>
+        </div>
+        
+        {/* Price */}
+        <div className="flex items-center justify-end gap-2">
+          <div className="text-left">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              {isPackage ? 'الإجمالي' : 'السعر'}
+            </p>
+            <p className={cn(
+              "text-lg font-bold ltr-nums",
+              status.isActive ? "text-primary" : "text-muted-foreground"
+            )}>
+              ₪{totalPrice.toLocaleString()}
+            </p>
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

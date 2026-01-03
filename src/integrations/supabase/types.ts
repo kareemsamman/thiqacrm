@@ -3036,6 +3036,7 @@ export type Database = {
           p_to_date?: string
         }
         Returns: {
+          branch_name: string
           car_number: string
           client_file_number: string
           client_id: string
@@ -3046,6 +3047,7 @@ export type Database = {
           created_at: string
           created_by_id: string
           created_by_name: string
+          created_by_phone: string
           end_date: string
           id: string
           insurance_price: number

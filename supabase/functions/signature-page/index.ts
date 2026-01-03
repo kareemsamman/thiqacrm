@@ -425,9 +425,9 @@ function buildSignaturePageHtml(
       transition: opacity 0.3s;
     }
     .canvas-hint.hidden { opacity: 0; }
-    .checkbox-wrapper {
+    .toggle-wrapper {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
       padding: 15px;
       background: #f8fafc;
@@ -437,12 +437,45 @@ function buildSignaturePageHtml(
       user-select: none;
       -webkit-tap-highlight-color: transparent;
     }
-    .terms-checkbox {
-      width: 22px;
-      height: 22px;
-      margin-top: 2px;
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
       flex-shrink: 0;
-      accent-color: #1e3a5f;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: 0.3s;
+      border-radius: 28px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    input:checked + .toggle-slider {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
     }
     .terms-text {
       font-size: 14px;
@@ -587,10 +620,13 @@ function buildSignaturePageHtml(
 
       <div class="error-message" id="errorMessage"></div>
 
-      <label class="checkbox-wrapper" for="acceptTerms">
-        <input type="checkbox" id="acceptTerms" class="terms-checkbox" />
+      <div class="toggle-wrapper" onclick="toggleAccept()">
+        <label class="toggle-switch">
+          <input type="checkbox" id="acceptTerms" />
+          <span class="toggle-slider"></span>
+        </label>
         <span class="terms-text">أقرّ أنني قرأت وأوافق على جميع الشروط والأحكام المذكورة أعلاه</span>
-      </label>
+      </div>
 
       <div class="buttons">
         <button class="btn btn-clear" onclick="clearCanvas()">مسح</button>
@@ -700,6 +736,11 @@ function buildSignaturePageHtml(
     
     function updateSubmitButton() {
       submitBtn.disabled = !hasDrawn || !acceptTerms.checked;
+    }
+    
+    function toggleAccept() {
+      acceptTerms.checked = !acceptTerms.checked;
+      updateSubmitButton();
     }
     
     acceptTerms.addEventListener('change', updateSubmitButton);

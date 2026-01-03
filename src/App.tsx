@@ -20,7 +20,7 @@ import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
 import CompanySettlement from "./pages/CompanySettlement";
 import CompanySettlementDetail from "./pages/CompanySettlementDetail";
-import Invoices from "./pages/Invoices";
+
 import InvoiceTemplates from "./pages/InvoiceTemplates";
 import InsuranceCategories from "./pages/InsuranceCategories";
 import RoadServices from "./pages/RoadServices";
@@ -126,11 +126,6 @@ const App = () => (
               <Route path="/companies/:companyId/wallet" element={
                 <ProtectedRoute>
                   <CompanyWallet />
-                </ProtectedRoute>
-              } />
-              <Route path="/invoices" element={
-                <ProtectedRoute>
-                  <Invoices />
                 </ProtectedRoute>
               } />
               <Route path="/admin/invoice-templates" element={

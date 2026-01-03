@@ -118,22 +118,21 @@ export function Step2Car({
     return () => clearTimeout(timer);
   }, [newCar.car_number, createNewCar, selectedClient?.id]);
 
-  const fetchCarData = async () => {
-    if (!newCar.car_number) {
-      toast({ title: "خطأ", description: "الرجاء إدخال رقم السيارة", variant: "destructive" });
+  const fetchCarData = async (carNumber?: string) => {
+    const numberToFetch = carNumber || newCar.car_number;
+    if (!numberToFetch || numberToFetch.length < 7) {
       return;
     }
 
     setFetchingCarData(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-vehicle', {
-        body: { car_number: newCar.car_number }
+        body: { car_number: numberToFetch }
       });
 
       if (error) throw error;
 
       if (data.error) {
-        toast({ title: "خطأ", description: data.error, variant: "destructive" });
         return;
       }
 
@@ -141,6 +140,7 @@ export function Step2Car({
 
       setNewCar({
         ...newCar,
+        car_number: numberToFetch,
         manufacturer_name: vehicleData.manufacturer_name || "",
         model: vehicleData.model || "",
         year: vehicleData.year?.toString() || "",
@@ -151,15 +151,28 @@ export function Step2Car({
       setCarDataFetched(true);
       toast({ title: "تم جلب البيانات تلقائياً" });
     } catch {
-      toast({ title: "خطأ", description: "لم يتم العثور على مركبة بهذا الرقم", variant: "destructive" });
+      // Silent fail - user can manually enter data
     } finally {
       setFetchingCarData(false);
     }
   };
 
+  // Auto-fetch car data on blur when 7-8 digits entered
+  const handleCarNumberBlur = () => {
+    if (newCar.car_number.length >= 7 && !carDataFetched && !fetchingCarData) {
+      fetchCarData(newCar.car_number);
+    }
+  };
+
+  // Auto-fetch car price when manufacturer and year are available
+  useEffect(() => {
+    if (newCar.manufacturer_name && newCar.year && !newCar.car_value && carDataFetched) {
+      fetchCarPrice();
+    }
+  }, [newCar.manufacturer_name, newCar.year, carDataFetched]);
+
   const fetchCarPrice = async () => {
     if (!newCar.manufacturer_name || !newCar.year) {
-      toast({ title: "خطأ", description: "الرجاء إدخال بيانات السيارة أولاً", variant: "destructive" });
       return;
     }
 
@@ -180,11 +193,9 @@ export function Step2Car({
       if (priceData?.price && priceData.price > 0) {
         setNewCar({ ...newCar, car_value: priceData.price.toString() });
         toast({ title: "تم جلب سعر السيارة", description: `₪ ${priceData.price.toLocaleString()}` });
-      } else {
-        toast({ title: "تنبيه", description: "لم يتم العثور على سعر لهذه السيارة" });
       }
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب سعر السيارة", variant: "destructive" });
+      // Silent fail
     } finally {
       setFetchingCarPrice(false);
     }
@@ -333,31 +344,27 @@ export function Step2Car({
                 </Button>
               </div>
 
-              {/* Car Number + Fetch */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label>رقم السيارة *</Label>
+              {/* Car Number - Auto-fetch on blur */}
+              <div>
+                <Label>رقم السيارة *</Label>
+                <div className="relative">
                   <Input
                     value={newCar.car_number}
                     onChange={(e) => setNewCar({ ...newCar, car_number: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                    onBlur={handleCarNumberBlur}
                     placeholder="مثال: 12345678"
                     maxLength={8}
                     inputMode="numeric"
                     dir="ltr"
                     className={cn(errors.car_number || carConflict ? "border-destructive" : "")}
                   />
-                  <FieldError error={errors.car_number || carConflict || undefined} />
+                  {fetchingCarData && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="self-end"
-                  onClick={fetchCarData}
-                  disabled={fetchingCarData || !newCar.car_number}
-                >
-                  {fetchingCarData ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  جلب
-                </Button>
+                <FieldError error={errors.car_number || carConflict || undefined} />
               </div>
 
               {/* Car Data Fetched Success */}
@@ -423,25 +430,22 @@ export function Step2Car({
                   </Select>
                 </div>
                 <div>
-                  <Label>قيمة السيارة (₪)</Label>
-                  <div className="flex gap-2">
+                  <Label>قيمة السيارة (₪) - مחיר יבואן</Label>
+                  <div className="relative">
                     <Input
                       type="number"
                       value={newCar.car_value}
                       onChange={(e) => setNewCar({ ...newCar, car_value: e.target.value })}
-                      placeholder="القيمة"
+                      placeholder="يتم جلبها تلقائياً"
                       className="flex-1"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchCarPrice}
-                      disabled={fetchingCarPrice || !newCar.manufacturer_name || !newCar.year}
-                    >
-                      {fetchingCarPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : "جلب"}
-                    </Button>
+                    {fetchingCarPrice && (
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">سعر مחיר יבואן من وزارة النقل</p>
                 </div>
               </div>
             </Card>

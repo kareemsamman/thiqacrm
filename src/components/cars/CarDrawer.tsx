@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Save, Search, CheckCircle } from 'lucide-react';
+import { Loader2, Save, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -177,8 +177,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
 
   const fetchVehicleData = async () => {
     const carNumber = form.getValues('car_number');
-    if (!carNumber) {
-      toast.error('الرجاء إدخال رقم السيارة');
+    if (!carNumber || carNumber.length < 7) {
       return;
     }
 
@@ -195,7 +194,6 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
       }
 
       if (!response.data.found) {
-        toast.error(response.data.error || 'لم يتم العثور على مركبة بهذا الرقم');
         return;
       }
 
@@ -215,10 +213,17 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
       toast.success('تم جلب بيانات السيارة بنجاح');
 
     } catch (error: any) {
+      // Silent fail - user can manually enter data
       console.error('Fetch vehicle error:', error);
-      toast.error(error.message || 'فشل جلب بيانات السيارة');
     } finally {
       setFetching(false);
+    }
+  };
+
+  const handleCarNumberBlur = () => {
+    const carNumber = form.getValues('car_number');
+    if (carNumber && carNumber.length >= 7 && !fetchedFromGov && !fetching && !isEditMode) {
+      fetchVehicleData();
     }
   };
 
@@ -286,7 +291,7 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Car Number with Fetch Button */}
+            {/* Car Number - Auto-fetch on blur */}
             <div className="space-y-2">
               <FormField
                 control={form.control}
@@ -294,29 +299,25 @@ export function CarDrawer({ open, onOpenChange, clientId, car, onSaved }: CarDra
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-right block">رقم السيارة *</FormLabel>
-                    <div className="flex gap-2">
+                    <div className="relative">
                       <FormControl>
                         <Input 
-                          placeholder="أدخل رقم السيارة" 
+                          placeholder="أدخل رقم السيارة (7-8 أرقام)" 
                           {...field} 
-                          className="flex-1 text-right ltr-input"
+                          onBlur={(e) => {
+                            field.onBlur();
+                            handleCarNumberBlur();
+                          }}
+                          className="text-right ltr-input"
                           disabled={isEditMode}
+                          maxLength={8}
+                          inputMode="numeric"
                         />
                       </FormControl>
-                      {!isEditMode && (
-                        <Button 
-                          type="button" 
-                          variant="secondary"
-                          onClick={fetchVehicleData}
-                          disabled={fetching}
-                        >
-                          {fetching ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Search className="h-4 w-4" />
-                          )}
-                          <span className="mr-2">جلب البيانات</span>
-                        </Button>
+                      {fetching && (
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
                       )}
                     </div>
                     <FormMessage className="text-right" />

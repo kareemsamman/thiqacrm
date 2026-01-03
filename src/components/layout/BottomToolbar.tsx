@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { PolicyWizard } from "@/components/policies/PolicyWizard";
+import { GlobalPolicySearch } from "./GlobalPolicySearch";
 
 interface BottomToolbarProps {
   onPolicyComplete?: () => void;
@@ -10,6 +11,7 @@ interface BottomToolbarProps {
 
 export function BottomToolbar({ onPolicyComplete }: BottomToolbarProps) {
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   return (
     <>
@@ -30,6 +32,19 @@ export function BottomToolbar({ onPolicyComplete }: BottomToolbarProps) {
           {/* Separator */}
           <div className="h-6 w-px bg-border/50" />
 
+          {/* Search Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full h-9 w-9"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-border/50" />
+
           {/* Notifications */}
           <NotificationsDropdown />
         </div>
@@ -43,6 +58,9 @@ export function BottomToolbar({ onPolicyComplete }: BottomToolbarProps) {
           onPolicyComplete?.();
         }}
       />
+
+      {/* Global Search Dialog */}
+      <GlobalPolicySearch open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }

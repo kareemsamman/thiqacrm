@@ -88,6 +88,8 @@ interface CreatedPolicy {
   created_at: string;
   created_by_id: string | null;
   created_by_name: string | null;
+  created_by_phone: string | null;
+  branch_name: string | null;
   client_id: string;
   client_name: string;
   client_file_number: string | null;
@@ -607,7 +609,7 @@ export default function PolicyReports() {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead className="text-right">تاريخ الإنشاء</TableHead>
-                        {isAdmin && <TableHead className="text-right">أنشأه</TableHead>}
+                        <TableHead className="text-right">أنشأه</TableHead>
                         <TableHead className="text-right">العميل</TableHead>
                         <TableHead className="text-right">الهاتف</TableHead>
                         <TableHead className="text-right">السيارة</TableHead>
@@ -622,7 +624,17 @@ export default function PolicyReports() {
                       {createdPolicies.map(policy => (
                         <TableRow key={policy.id} className="hover:bg-muted/30">
                           <TableCell className="font-mono text-xs">{formatDateTime(policy.created_at)}</TableCell>
-                          {isAdmin && <TableCell>{policy.created_by_name || '-'}</TableCell>}
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{policy.created_by_name || '-'}</p>
+                              {policy.branch_name && (
+                                <p className="text-xs text-muted-foreground">{policy.branch_name}</p>
+                              )}
+                              {policy.created_by_phone && (
+                                <p dir="ltr" className="text-xs text-muted-foreground text-right">{policy.created_by_phone}</p>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <p className="font-medium">{policy.client_name}</p>

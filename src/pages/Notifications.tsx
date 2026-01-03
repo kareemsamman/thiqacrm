@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Bell, 
   Check, 
@@ -17,7 +19,9 @@ import {
   FileText,
   UserPlus,
   AlertTriangle,
-  Clock
+  Clock,
+  Search,
+  Filter
 } from 'lucide-react';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -80,6 +84,39 @@ export default function Notifications() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Filtered notifications
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(notification => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = notification.title.toLowerCase().includes(query);
+        const matchesMessage = notification.message.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesMessage) return false;
+      }
+      
+      // Type filter
+      if (typeFilter !== 'all' && notification.type !== typeFilter) {
+        return false;
+      }
+      
+      // Status filter
+      if (statusFilter === 'unread' && notification.is_read) {
+        return false;
+      }
+      if (statusFilter === 'read' && !notification.is_read) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [notifications, searchQuery, typeFilter, statusFilter]);
 
   const handleNotificationClick = async (notification: Notification) => {
     setSelectedNotification(notification);
@@ -133,11 +170,17 @@ export default function Notifications() {
     }
   };
 
+  // Get unique notification types for filter dropdown
+  const availableTypes = useMemo(() => {
+    const types = new Set(notifications.map(n => n.type));
+    return Array.from(types);
+  }, [notifications]);
+
   return (
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold">الإشعارات</h1>
             <p className="text-muted-foreground">
@@ -165,6 +208,67 @@ export default function Notifications() {
           </div>
         </div>
 
+        {/* Search and Filters */}
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="بحث في الإشعارات..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10"
+              />
+            </div>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[140px]">
+                <Filter className="h-4 w-4 ml-2 text-muted-foreground" />
+                <SelectValue placeholder="النوع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأنواع</SelectItem>
+                {availableTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {NOTIFICATION_TYPE_LABELS[type] || type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="الحالة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="unread">غير مقروء</SelectItem>
+                <SelectItem value="read">مقروء</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {(searchQuery || typeFilter !== 'all' || statusFilter !== 'all') && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setTypeFilter('all');
+                  setStatusFilter('all');
+                }}
+              >
+                مسح الفلاتر
+              </Button>
+            )}
+          </div>
+          
+          {filteredNotifications.length !== notifications.length && (
+            <p className="text-sm text-muted-foreground mt-2">
+              عرض {filteredNotifications.length} من {notifications.length} إشعار
+            </p>
+          )}
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Notifications List */}
           <div className="lg:col-span-2 space-y-3">
@@ -183,18 +287,22 @@ export default function Notifications() {
                   </CardContent>
                 </Card>
               ))
-            ) : notifications.length === 0 ? (
+            ) : filteredNotifications.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <Bell className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                  <h3 className="text-lg font-medium mb-2">لا توجد إشعارات</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    {notifications.length === 0 ? 'لا توجد إشعارات' : 'لا توجد نتائج'}
+                  </h3>
                   <p className="text-muted-foreground text-sm">
-                    ستظهر هنا الإشعارات عند حدوث أي نشاط
+                    {notifications.length === 0 
+                      ? 'ستظهر هنا الإشعارات عند حدوث أي نشاط'
+                      : 'جرب تغيير معايير البحث أو الفلاتر'}
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              notifications.map((notification) => (
+              filteredNotifications.map((notification) => (
                 <Card 
                   key={notification.id}
                   className={`cursor-pointer transition-all hover:shadow-md ${

@@ -6,37 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Hash, User, Car, FileText, X } from "lucide-react";
+import { Search, User, Car, Phone, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface SearchResult {
+interface ClientSearchResult {
   id: string;
-  policy_number: string | null;
-  policy_type_parent: string;
-  insurance_price: number;
-  start_date: string;
-  end_date: string;
-  clients: {
-    id: string;
-    full_name: string;
-  };
+  full_name: string;
+  id_number: string;
+  phone_number: string | null;
   cars: {
     car_number: string;
-  } | null;
+  }[];
+  policies_count: number;
 }
-
-const policyTypeLabels: Record<string, string> = {
-  ELZAMI: "إلزامي",
-  THIRD_FULL: "ثالث/شامل",
-  ROAD_SERVICE: "خدمات الطريق",
-  ACCIDENT_FEE_EXEMPTION: "إعفاء رسوم حادث",
-  HEALTH: "صحي",
-  LIFE: "حياة",
-  PROPERTY: "ممتلكات",
-  TRAVEL: "سفر",
-  BUSINESS: "أعمال",
-  OTHER: "أخرى",
-};
 
 interface GlobalPolicySearchProps {
   open: boolean;
@@ -44,11 +26,11 @@ interface GlobalPolicySearchProps {
   onSelectPolicy?: (policyId: string) => void;
 }
 
-export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: GlobalPolicySearchProps) {
+export function GlobalPolicySearch({ open, onOpenChange }: GlobalPolicySearchProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<ClientSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
@@ -69,25 +51,100 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
     setLoading(true);
     setSearched(true);
     try {
-      // Search by policy_number, client name, or car number
-      const { data, error } = await supabase
-        .from("policies")
+      const searchTerm = query.trim();
+      
+      // Search clients by name, phone, id_number
+      const { data: clientsData, error: clientsError } = await supabase
+        .from("clients")
         .select(`
           id,
-          policy_number,
-          policy_type_parent,
-          insurance_price,
-          start_date,
-          end_date,
-          clients(id, full_name),
-          cars(car_number)
+          full_name,
+          id_number,
+          phone_number
         `)
         .is("deleted_at", null)
-        .or(`policy_number.ilike.%${query}%,clients.full_name.ilike.%${query}%,cars.car_number.ilike.%${query}%`)
-        .limit(20);
+        .or(`full_name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%,id_number.ilike.%${searchTerm}%`)
+        .limit(10);
 
-      if (error) throw error;
-      setResults(data || []);
+      if (clientsError) throw clientsError;
+
+      // Also search by car number
+      const { data: carsData, error: carsError } = await supabase
+        .from("cars")
+        .select(`
+          client_id,
+          car_number,
+          clients(id, full_name, id_number, phone_number)
+        `)
+        .is("deleted_at", null)
+        .ilike("car_number", `%${searchTerm}%`)
+        .limit(10);
+
+      if (carsError) throw carsError;
+
+      // Merge results - unique clients
+      const clientMap = new Map<string, ClientSearchResult>();
+
+      // Add clients from direct search
+      for (const client of clientsData || []) {
+        if (!clientMap.has(client.id)) {
+          // Fetch cars for this client
+          const { data: clientCars } = await supabase
+            .from("cars")
+            .select("car_number")
+            .eq("client_id", client.id)
+            .is("deleted_at", null)
+            .limit(3);
+
+          // Count policies
+          const { count } = await supabase
+            .from("policies")
+            .select("id", { count: "exact", head: true })
+            .eq("client_id", client.id)
+            .is("deleted_at", null);
+
+          clientMap.set(client.id, {
+            id: client.id,
+            full_name: client.full_name,
+            id_number: client.id_number,
+            phone_number: client.phone_number,
+            cars: clientCars || [],
+            policies_count: count || 0,
+          });
+        }
+      }
+
+      // Add clients from car search
+      for (const car of carsData || []) {
+        const client = car.clients as any;
+        if (client && !clientMap.has(client.id)) {
+          // Fetch all cars for this client
+          const { data: clientCars } = await supabase
+            .from("cars")
+            .select("car_number")
+            .eq("client_id", client.id)
+            .is("deleted_at", null)
+            .limit(3);
+
+          // Count policies
+          const { count } = await supabase
+            .from("policies")
+            .select("id", { count: "exact", head: true })
+            .eq("client_id", client.id)
+            .is("deleted_at", null);
+
+          clientMap.set(client.id, {
+            id: client.id,
+            full_name: client.full_name,
+            id_number: client.id_number,
+            phone_number: client.phone_number,
+            cars: clientCars || [],
+            policies_count: count || 0,
+          });
+        }
+      }
+
+      setResults(Array.from(clientMap.values()));
     } catch (error) {
       console.error("Search error:", error);
     } finally {
@@ -106,18 +163,10 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
     }
   }, [query, handleSearch]);
 
-  const handleSelectPolicy = (policyId: string) => {
+  const handleSelectClient = (clientId: string) => {
     onOpenChange(false);
-    if (onSelectPolicy) {
-      onSelectPolicy(policyId);
-    } else {
-      // Navigate to policies page with the selected policy
-      navigate(`/policies?open=${policyId}`);
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("ar-EG");
+    // Navigate to client details page
+    navigate(`/clients?open=${clientId}`);
   };
 
   return (
@@ -126,7 +175,7 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
-            بحث سريع عن وثيقة
+            بحث سريع عن عميل
           </DialogTitle>
         </DialogHeader>
 
@@ -136,7 +185,7 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={inputRef}
-              placeholder="رقم البوليصة، اسم العميل، أو رقم السيارة..."
+              placeholder="اسم العميل، رقم الهاتف، أو رقم السيارة..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -173,43 +222,42 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
                     "w-full text-right p-3 border rounded-lg transition-colors",
                     "hover:bg-secondary/50 focus:bg-secondary/50 focus:outline-none"
                   )}
-                  onClick={() => handleSelectPolicy(result.id)}
+                  onClick={() => handleSelectClient(result.id)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="font-medium truncate">
-                          {result.clients?.full_name || "—"}
+                          {result.full_name}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {result.policy_number && (
+                        {result.phone_number && (
                           <span className="flex items-center gap-1">
-                            <Hash className="h-3 w-3" />
-                            <bdi className="font-mono">{result.policy_number}</bdi>
+                            <Phone className="h-3 w-3" />
+                            <bdi className="font-mono">{result.phone_number}</bdi>
                           </span>
                         )}
-                        {result.cars?.car_number && (
+                        {result.cars.length > 0 && (
                           <span className="flex items-center gap-1">
                             <Car className="h-3 w-3" />
-                            <bdi className="font-mono">{result.cars.car_number}</bdi>
+                            <bdi className="font-mono">
+                              {result.cars.map(c => c.car_number).join(", ")}
+                            </bdi>
                           </span>
                         )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {formatDate(result.start_date)} - {formatDate(result.end_date)}
                       </div>
                     </div>
                     <Badge variant="secondary" className="shrink-0 text-xs">
-                      {policyTypeLabels[result.policy_type_parent] || result.policy_type_parent}
+                      {result.policies_count} وثيقة
                     </Badge>
                   </div>
                 </button>
               ))
             ) : searched ? (
               <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>لا توجد نتائج</p>
               </div>
             ) : (
@@ -222,7 +270,7 @@ export function GlobalPolicySearch({ open, onOpenChange, onSelectPolicy }: Globa
 
           {/* Hint */}
           <p className="text-xs text-muted-foreground text-center">
-            يمكنك البحث برقم البوليصة، اسم العميل، أو رقم السيارة
+            يمكنك البحث باسم العميل، رقم الهاتف، أو رقم السيارة
           </p>
         </div>
       </DialogContent>

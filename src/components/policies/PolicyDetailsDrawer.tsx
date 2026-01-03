@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { PolicyEditDrawer } from "./PolicyEditDrawer";
 import { PolicyPaymentsSection } from "./PolicyPaymentsSection";
 import { PolicyFilesSection } from "./PolicyFilesSection";
-import { PolicyInvoicesSection } from "./PolicyInvoicesSection";
+
 import { CancelPolicyModal } from "./CancelPolicyModal";
 import { TransferPolicyModal } from "./TransferPolicyModal";
 
@@ -646,7 +646,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                 className="flex-1 flex flex-col overflow-hidden"
                 dir="rtl"
               >
-                <TabsList className="mx-6 mt-4 grid grid-cols-5 h-10" dir="rtl">
+                <TabsList className="mx-6 mt-4 grid grid-cols-4 h-10" dir="rtl">
                   <TabsTrigger value="insurance" className="text-xs gap-1">
                     <Banknote className="h-3 w-3" />
                     التأمين
@@ -662,10 +662,6 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                   <TabsTrigger value="files" className="text-xs gap-1">
                     <ImageIcon className="h-3 w-3" />
                     الملفات
-                  </TabsTrigger>
-                  <TabsTrigger value="invoices" className="text-xs gap-1">
-                    <FileText className="h-3 w-3" />
-                    الفواتير
                   </TabsTrigger>
                 </TabsList>
 
@@ -983,11 +979,6 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                       clientName={policy.clients.full_name}
                       onPolicyNumberSaved={() => fetchPolicyDetails()}
                     />
-                  </TabsContent>
-
-                  {/* Invoices Tab */}
-                  <TabsContent value="invoices" className="p-6 m-0">
-                    <PolicyInvoicesSection policyId={policy.id} />
                   </TabsContent>
                 </ScrollArea>
               </Tabs>

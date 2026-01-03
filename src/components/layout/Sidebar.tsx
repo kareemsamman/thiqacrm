@@ -37,7 +37,7 @@ const navigation = [
   { name: "العملاء", href: "/clients", icon: Users },
   { name: "السيارات", href: "/cars", icon: Car },
   { name: "الوثائق", href: "/policies", icon: FileText },
-  { name: "الفواتير", href: "/invoices", icon: FileText },
+  
   { name: "شركات التأمين", href: "/companies", icon: Building2 },
   { name: "الوسطاء", href: "/brokers", icon: Wallet },
   { name: "الشيكات", href: "/cheques", icon: CreditCard },

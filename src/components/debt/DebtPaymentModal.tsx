@@ -419,26 +419,14 @@ export function DebtPaymentModal({
 
     setSaving(true);
     try {
-      // Process each non-visa payment line
+      // Process each payment line
       for (const paymentLine of paymentLines) {
+        // Skip visa payments that are already paid via Tranzila - payment record already created
         if (paymentLine.paymentType === 'visa' && paymentLine.tranzilaPaid) {
-          // Visa already handled by Tranzila - create split payments for other policies
-          const splits = calculateSplitPayments(paymentLine.amount);
-          const otherSplits = splits.filter(s => s.policyId !== activeTranzilaPolicyId);
-          
-          if (otherSplits.length > 0) {
-            const payments = otherSplits.map(split => ({
-              policy_id: split.policyId,
-              amount: split.amount,
-              payment_type: 'visa' as const,
-              payment_date: paymentLine.paymentDate,
-              notes: paymentLine.notes || `تسديد دين`,
-              branch_id: split.branchId,
-            }));
-
-            await supabase.from('policy_payments').insert(payments);
-          }
-        } else if (paymentLine.paymentType !== 'visa') {
+          continue;
+        }
+        
+        if (paymentLine.paymentType !== 'visa') {
           // Non-visa payment - split across policies
           const splits = calculateSplitPayments(paymentLine.amount);
           

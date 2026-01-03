@@ -7,12 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
-import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split } from 'lucide-react';
+import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split, Upload, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TranzilaPaymentModal } from '@/components/payments/TranzilaPaymentModal';
 import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from '@/lib/chequeUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface PolicyPaymentInfo {
   policyId: string;
@@ -33,6 +34,11 @@ interface PaymentLine {
   chequeNumber?: string;
   notes?: string;
   tranzilaPaid?: boolean;
+  pendingImages?: File[];
+}
+
+interface PreviewUrls {
+  [paymentId: string]: string[];
 }
 
 interface DebtPaymentModalProps {
@@ -74,6 +80,7 @@ export function DebtPaymentModal({
   totalOwed,
   onSuccess,
 }: DebtPaymentModalProps) {
+  const { toast: uiToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [policies, setPolicies] = useState<PolicyPaymentInfo[]>([]);
@@ -84,17 +91,31 @@ export function DebtPaymentModal({
   const [activeTranzilaPolicyId, setActiveTranzilaPolicyId] = useState<string | null>(null);
   const [splitPopoverOpen, setSplitPopoverOpen] = useState(false);
   const [splitCount, setSplitCount] = useState(2);
+  const [previewUrls, setPreviewUrls] = useState<PreviewUrls>({});
 
   const totalRemaining = policies.reduce((sum, p) => sum + p.remaining, 0);
   const totalPrice = policies.reduce((sum, p) => sum + p.price, 0);
   const totalPaid = policies.reduce((sum, p) => sum + p.paid, 0);
+  
+  // Calculate total payments - count paid visa payments as already completed
+  const paidVisaTotal = paymentLines
+    .filter(p => p.paymentType === 'visa' && p.tranzilaPaid)
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  const pendingPaymentsTotal = paymentLines
+    .filter(p => !(p.paymentType === 'visa' && p.tranzilaPaid))
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  
   const totalPaymentAmount = paymentLines.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const isOverpaying = totalPaymentAmount > totalRemaining;
+  
+  // Remaining to pay should account for already completed visa payments
+  const effectiveRemaining = totalRemaining - paidVisaTotal;
+  const isOverpaying = pendingPaymentsTotal > effectiveRemaining;
   
   // Check if all non-visa payments have valid data, and visa payments are either paid or have valid amount
   const isValid = paymentLines.length > 0 && 
     totalPaymentAmount > 0 && 
-    totalPaymentAmount <= totalRemaining &&
+    !isOverpaying &&
     paymentLines.every(p => {
       if (p.paymentType === 'cheque' && !p.chequeNumber?.trim()) return false;
       if (p.paymentType === 'visa' && !p.tranzilaPaid && p.amount <= 0) return false;
@@ -112,8 +133,70 @@ export function DebtPaymentModal({
         paymentType: 'cash',
         paymentDate: new Date().toISOString().split('T')[0],
       }]);
+      setPreviewUrls({});
     }
   }, [open, clientId]);
+
+  // Image handling functions
+  const handleImageSelect = (paymentId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        uiToast({ title: "خطأ", description: "يرجى اختيار صور فقط", variant: "destructive" });
+        return false;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        uiToast({ title: "خطأ", description: "حجم الصورة يجب أن يكون أقل من 10MB", variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    // Create preview URLs
+    const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(prev => ({
+      ...prev,
+      [paymentId]: [...(prev[paymentId] || []), ...newPreviewUrls],
+    }));
+    
+    // Store files in payment object for later upload
+    const payment = paymentLines.find(p => p.id === paymentId);
+    if (payment) {
+      const existingFiles = payment.pendingImages || [];
+      updatePaymentLine(paymentId, 'pendingImages', [...existingFiles, ...validFiles]);
+    }
+  };
+
+  const removeImage = (paymentId: string, index: number) => {
+    // Revoke preview URL
+    const urls = previewUrls[paymentId] || [];
+    if (urls[index]) {
+      URL.revokeObjectURL(urls[index]);
+    }
+    
+    // Update preview URLs
+    setPreviewUrls(prev => {
+      const newUrls = (prev[paymentId] || []).filter((_, i) => i !== index);
+      if (newUrls.length === 0) {
+        const { [paymentId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [paymentId]: newUrls };
+    });
+    
+    // Update payment files
+    const payment = paymentLines.find(p => p.id === paymentId);
+    if (payment && payment.pendingImages) {
+      const newFiles = payment.pendingImages.filter((_, i) => i !== index);
+      updatePaymentLine(paymentId, 'pendingImages', newFiles.length > 0 ? newFiles : undefined);
+    }
+  };
+
+  const getPreviewUrls = (paymentId: string) => previewUrls[paymentId] || [];
 
   const checkTranzilaEnabled = async () => {
     const { data } = await supabase
@@ -360,7 +443,8 @@ export function DebtPaymentModal({
           const splits = calculateSplitPayments(paymentLine.amount);
           
           if (splits.length > 0) {
-            const payments = splits.map(split => ({
+            // Insert all payments first
+            const paymentsToInsert = splits.map(split => ({
               policy_id: split.policyId,
               amount: split.amount,
               payment_type: paymentLine.paymentType,
@@ -370,8 +454,47 @@ export function DebtPaymentModal({
               branch_id: split.branchId,
             }));
 
-            const { error } = await supabase.from('policy_payments').insert(payments);
+            const { data: insertedPayments, error } = await supabase
+              .from('policy_payments')
+              .insert(paymentsToInsert)
+              .select('id');
+            
             if (error) throw error;
+
+            // Upload images for cheque/transfer payments
+            if ((paymentLine.paymentType === 'cheque' || paymentLine.paymentType === 'transfer') && 
+                paymentLine.pendingImages && paymentLine.pendingImages.length > 0 && 
+                insertedPayments && insertedPayments.length > 0) {
+              
+              // Upload images for the first inserted payment (they all share the same cheque/transfer)
+              const firstPaymentId = insertedPayments[0].id;
+              
+              for (let imgIndex = 0; imgIndex < paymentLine.pendingImages.length; imgIndex++) {
+                const file = paymentLine.pendingImages[imgIndex];
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('entity_type', 'payment');
+                formData.append('entity_id', firstPaymentId);
+
+                try {
+                  const { data: uploadResult, error: uploadError } = await supabase.functions.invoke('upload-media', {
+                    body: formData,
+                  });
+
+                  if (!uploadError && uploadResult?.url) {
+                    // Insert into payment_images
+                    await supabase.from('payment_images').insert({
+                      payment_id: firstPaymentId,
+                      image_url: uploadResult.url,
+                      image_type: imgIndex === 0 ? 'front' : 'back',
+                      sort_order: imgIndex,
+                    });
+                  }
+                } catch (uploadErr) {
+                  console.error('Error uploading payment image:', uploadErr);
+                }
+              }
+            }
           }
         }
       }
@@ -429,11 +552,20 @@ export function DebtPaymentModal({
               </div>
               <div className="bg-green-500/10 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">المدفوع</p>
-                <p className="text-lg font-bold text-green-600">₪{totalPaid.toLocaleString()}</p>
+                <p className="text-lg font-bold text-green-600">
+                  ₪{(totalPaid + paidVisaTotal).toLocaleString()}
+                </p>
+                {paidVisaTotal > 0 && (
+                  <p className="text-[10px] text-green-600 mt-0.5">
+                    (منها ₪{paidVisaTotal.toLocaleString()} بطاقة ائتمان)
+                  </p>
+                )}
               </div>
               <div className="bg-destructive/10 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">المتبقي</p>
-                <p className="text-lg font-bold text-destructive">₪{totalRemaining.toLocaleString()}</p>
+                <p className="text-lg font-bold text-destructive">
+                  ₪{effectiveRemaining.toLocaleString()}
+                </p>
               </div>
             </div>
 
@@ -495,11 +627,14 @@ export function DebtPaymentModal({
               </div>
 
               {paymentLines.map((payment, index) => (
-                <Card key={payment.id} className="p-3">
+                <Card key={payment.id} className={cn(
+                  "p-3",
+                  payment.tranzilaPaid && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                )}>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-muted-foreground">دفعة {index + 1}</span>
-                      {paymentLines.length > 1 && (
+                      {paymentLines.length > 1 && !payment.tranzilaPaid && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -518,7 +653,8 @@ export function DebtPaymentModal({
                           type="number"
                           value={payment.amount || ''}
                           onChange={e => updatePaymentLine(payment.id, 'amount', parseFloat(e.target.value) || 0)}
-                          placeholder={`أقصى: ₪${totalRemaining.toLocaleString()}`}
+                          placeholder={`أقصى: ₪${effectiveRemaining.toLocaleString()}`}
+                          disabled={payment.tranzilaPaid}
                         />
                       </div>
                       <div>
@@ -526,6 +662,7 @@ export function DebtPaymentModal({
                         <Select 
                           value={payment.paymentType} 
                           onValueChange={v => updatePaymentLine(payment.id, 'paymentType', v)}
+                          disabled={payment.tranzilaPaid}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -553,6 +690,7 @@ export function DebtPaymentModal({
                           type="date"
                           value={payment.paymentDate}
                           onChange={e => updatePaymentLine(payment.id, 'paymentDate', e.target.value)}
+                          disabled={payment.tranzilaPaid}
                         />
                       </div>
                       {payment.paymentType === 'cheque' && (
@@ -589,6 +727,54 @@ export function DebtPaymentModal({
                         )}
                       </div>
                     )}
+
+                    {/* Image Upload Section for Cheque/Transfer */}
+                    {(payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
+                      <div className="pt-3 border-t border-border/50">
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground mb-2 block">
+                            {payment.paymentType === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : 'صور إيصال التحويل'}
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            {/* Preview existing images */}
+                            {getPreviewUrls(payment.id).map((url, imgIndex) => (
+                              <div key={imgIndex} className="relative group">
+                                <img 
+                                  src={url} 
+                                  alt="" 
+                                  className="h-14 w-18 object-cover rounded border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(payment.id, imgIndex)}
+                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                            {/* Upload button */}
+                            <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                multiple 
+                                onChange={(e) => handleImageSelect(payment.id, e)} 
+                                className="hidden" 
+                              />
+                              <Upload className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-[10px] text-muted-foreground mt-0.5">إضافة</span>
+                            </label>
+                          </div>
+                          {payment.pendingImages && payment.pendingImages.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                              <ImageIcon className="h-3 w-3" />
+                              {payment.pendingImages.length} صور سيتم رفعها عند الحفظ
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -605,7 +791,7 @@ export function DebtPaymentModal({
             {isOverpaying && (
               <p className="text-sm text-destructive flex items-center gap-1">
                 <AlertCircle className="h-4 w-4" />
-                مجموع الدفعات أكبر من المبلغ المتبقي (₪{totalRemaining.toLocaleString()})
+                مجموع الدفعات أكبر من المبلغ المتبقي (₪{effectiveRemaining.toLocaleString()})
               </p>
             )}
           </div>

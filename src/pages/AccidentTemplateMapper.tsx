@@ -399,12 +399,33 @@ export default function AccidentTemplateMapper() {
                   transformOrigin: "top center",
                 }}
               >
-                {/* PDF Preview - iframe for now */}
-                <iframe
-                  src={templateUrl}
-                  className="w-[800px] h-[1100px] border-0"
-                  title="PDF Preview"
-                />
+                {/* PDF Preview using object tag for better compatibility */}
+                <div className="w-[800px] h-[1100px] bg-white relative overflow-hidden">
+                  <object
+                    data={templateUrl}
+                    type="application/pdf"
+                    className="w-full h-full"
+                  >
+                    {/* Fallback to iframe */}
+                    <iframe
+                      src={templateUrl}
+                      className="w-full h-full border-0"
+                      title="PDF Preview"
+                    >
+                      <p className="p-4 text-center text-muted-foreground">
+                        لا يمكن عرض ملف PDF. 
+                        <a 
+                          href={templateUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary underline mr-1"
+                        >
+                          افتحه في نافذة جديدة
+                        </a>
+                      </p>
+                    </iframe>
+                  </object>
+                </div>
 
                 {/* Overlay for field markers */}
                 <div

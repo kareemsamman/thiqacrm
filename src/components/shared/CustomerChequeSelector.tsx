@@ -254,6 +254,7 @@ export function CustomerChequeSelector({
                       <Checkbox
                         checked={selected}
                         onCheckedChange={() => toggleCheque(cheque)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell>

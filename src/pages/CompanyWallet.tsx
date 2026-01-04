@@ -212,7 +212,9 @@ export default function CompanyWallet() {
   };
 
   const updatePaymentLine = (id: string, field: string, value: any) => {
-    setPaymentLines(paymentLines.map(p => p.id === id ? { ...p, [field]: value } : p));
+    setPaymentLines((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
   };
 
   const handleSplitPayments = () => {
@@ -706,35 +708,33 @@ export default function CompanyWallet() {
                         </div>
                       )}
 
-                      {/* Receipt Image Upload - سند قبض (for all payment types except customer_cheque) */}
-                      {payment.payment_type !== 'customer_cheque' && (
-                        <div className="space-y-2 border-t pt-4">
-                          <Label>سند قبض / إيصال</Label>
-                          <FileUploader
-                            entityType="company_receipt"
-                            entityId={payment.id}
-                            accept="image/*"
-                            maxFiles={3}
-                            onUploadComplete={(files) => {
-                              if (files.length > 0) {
-                                updatePaymentLine(payment.id, 'receipt_images', files.map(f => f.cdn_url));
-                              }
-                            }}
-                          />
-                          {payment.receipt_images && payment.receipt_images.length > 0 && (
-                            <div className="mt-2 flex gap-2 flex-wrap">
-                              {payment.receipt_images.map((url, idx) => (
-                                <img 
-                                  key={idx}
-                                  src={url} 
-                                  alt={`سند قبض ${idx + 1}`} 
-                                  className="h-16 w-auto rounded border"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Receipt Image Upload - سند قبض / إيصال */}
+                      <div className="space-y-2 border-t pt-4">
+                        <Label>سند قبض / إيصال</Label>
+                        <FileUploader
+                          entityType="company_receipt"
+                          entityId={payment.id}
+                          accept="image/*"
+                          maxFiles={3}
+                          onUploadComplete={(files) => {
+                            if (files.length > 0) {
+                              updatePaymentLine(payment.id, 'receipt_images', files.map((f) => f.cdn_url));
+                            }
+                          }}
+                        />
+                        {payment.receipt_images && payment.receipt_images.length > 0 && (
+                          <div className="mt-2 flex gap-2 flex-wrap">
+                            {payment.receipt_images.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`سند قبض ${idx + 1}`}
+                                className="h-16 w-auto rounded border"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
                       <div className="space-y-2">
                         <Label>ملاحظات</Label>

@@ -160,10 +160,56 @@ export function AccidentTemplateTab({ companyId }: AccidentTemplateTabProps) {
     }
   };
 
-  const handleFileUploaded = (files: any[]) => {
+  const handleFileUploaded = async (files: any[]) => {
     if (files.length > 0 && files[0].cdn_url) {
-      setTemplatePdfUrl(files[0].cdn_url);
+      const uploadedUrl = files[0].cdn_url;
+      setTemplatePdfUrl(uploadedUrl);
       setShowUploader(false);
+
+      // Auto-save immediately after upload
+      setSaving(true);
+      try {
+        const templateData = {
+          company_id: companyId,
+          template_pdf_url: uploadedUrl,
+          mapping_json: mappingJson,
+          version,
+          is_active: isActive,
+          notes: notes || null,
+        };
+
+        if (template) {
+          // Update existing
+          const { error } = await supabase
+            .from("company_accident_templates")
+            .update({ template_pdf_url: uploadedUrl })
+            .eq("id", template.id);
+
+          if (error) throw error;
+        } else {
+          // Create new
+          const { error } = await supabase
+            .from("company_accident_templates")
+            .insert({
+              ...templateData,
+              created_by_admin_id: profile?.id,
+            });
+
+          if (error) throw error;
+        }
+
+        toast({ title: "تم الحفظ", description: "تم رفع وحفظ القالب تلقائياً" });
+        await fetchTemplate();
+      } catch (error: any) {
+        console.error("Error auto-saving template:", error);
+        toast({ 
+          title: "خطأ", 
+          description: error.message || "فشل في حفظ القالب تلقائياً", 
+          variant: "destructive" 
+        });
+      } finally {
+        setSaving(false);
+      }
     }
   };
 

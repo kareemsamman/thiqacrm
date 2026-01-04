@@ -1,10 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, rgb, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+interface FieldMapping {
+  page: number;
+  x: number;
+  y: number;
+  size: number;
+  type: "text" | "checkbox" | "freetext";
+  freeTextValue?: string;
+}
+
+interface MappingJson {
+  [fieldId: string]: FieldMapping;
+}
 
 interface AccidentReport {
   id: string;
@@ -17,17 +31,16 @@ interface AccidentReport {
   driver_id_number: string | null;
   driver_phone: string | null;
   driver_license_number: string | null;
-  police_reported: boolean;
-  police_station: string | null;
-  police_report_number: string | null;
-  // New fields
-  owner_address: string | null;
   driver_address: string | null;
   driver_age: number | null;
   driver_occupation: string | null;
   license_issue_place: string | null;
   license_expiry_date: string | null;
   first_license_date: string | null;
+  police_reported: boolean;
+  police_station: string | null;
+  police_report_number: string | null;
+  owner_address: string | null;
   vehicle_license_expiry: string | null;
   passengers_count: number | null;
   vehicle_usage_purpose: string | null;
@@ -38,6 +51,8 @@ interface AccidentReport {
   passengers_info: string | null;
   responsible_party: string | null;
   additional_details: string | null;
+  company_id: string | null;
+  branch_id: string | null;
   clients: {
     full_name: string;
     id_number: string;
@@ -72,6 +87,7 @@ interface ThirdParty {
   vehicle_model: string | null;
   vehicle_year: number | null;
   vehicle_color: string | null;
+  vehicle_type: string | null;
   insurance_company: string | null;
   insurance_policy_number: string | null;
   damage_description: string | null;
@@ -87,10 +103,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyStorageKey = Deno.env.get("BUNNY_API_KEY");
     const bunnyStorageZone = Deno.env.get("BUNNY_STORAGE_ZONE") || "basheer-ab";
-    // Always use the correct CDN URL - hardcoded as per project standard
     const bunnyCdnUrl = "https://basheer-ab.b-cdn.net";
-
-    console.log("Bunny config - Zone:", bunnyStorageZone, "API Key present:", !!bunnyStorageKey);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -99,6 +112,8 @@ serve(async (req) => {
     if (!accident_report_id) {
       throw new Error("accident_report_id is required");
     }
+
+    console.log("Generating PDF for accident report:", accident_report_id);
 
     // Fetch accident report with related data
     const { data: report, error: reportError } = await supabase
@@ -124,39 +139,134 @@ serve(async (req) => {
       .eq("accident_report_id", accident_report_id)
       .order("sort_order");
 
-    // Generate HTML content for PDF
-    const htmlContent = generateHtmlReport(report as AccidentReport, thirdParties || []);
+    // Check if company has a template
+    let pdfBytes: Uint8Array | null = null;
+    let usedTemplate = false;
+
+    if (report.company_id) {
+      const { data: template } = await supabase
+        .from("company_accident_templates")
+        .select("template_pdf_url, mapping_json, is_active")
+        .eq("company_id", report.company_id)
+        .eq("is_active", true)
+        .single();
+
+      if (template?.template_pdf_url && template?.mapping_json) {
+        console.log("Found company template, generating filled PDF");
+        
+        try {
+          // Fetch the template PDF
+          const pdfResponse = await fetch(template.template_pdf_url);
+          if (!pdfResponse.ok) {
+            throw new Error("Failed to fetch template PDF");
+          }
+          const templatePdfBytes = await pdfResponse.arrayBuffer();
+          
+          // Load the PDF
+          const pdfDoc = await PDFDocument.load(templatePdfBytes);
+          const pages = pdfDoc.getPages();
+          
+          // Get mapping data
+          const mapping = template.mapping_json as MappingJson;
+          
+          // Build field values from report data
+          const fieldValues = buildFieldValues(report as AccidentReport, thirdParties || []);
+          
+          console.log("Mapping fields:", Object.keys(mapping).length);
+          
+          // Apply each mapped field to the PDF
+          for (const [fieldId, fieldConfig] of Object.entries(mapping)) {
+            const pageIndex = fieldConfig.page || 0;
+            if (pageIndex >= pages.length) continue;
+            
+            const page = pages[pageIndex];
+            const { width, height } = page.getSize();
+            
+            let textValue = "";
+            if (fieldConfig.type === "freetext") {
+              textValue = fieldConfig.freeTextValue || "";
+            } else {
+              textValue = fieldValues[fieldId] || "";
+            }
+            
+            if (!textValue) continue;
+            
+            // Convert coordinates from mapper (top-left origin) to PDF (bottom-left origin)
+            // The mapper uses canvas coordinates where Y increases downward
+            // PDF uses coordinates where Y increases upward
+            const pdfX = fieldConfig.x;
+            const pdfY = height - fieldConfig.y - (fieldConfig.size || 12);
+            
+            try {
+              page.drawText(textValue, {
+                x: pdfX,
+                y: pdfY,
+                size: fieldConfig.size || 12,
+                color: rgb(0, 0, 0),
+              });
+            } catch (drawError) {
+              console.warn(`Failed to draw field ${fieldId}:`, drawError);
+            }
+          }
+          
+          pdfBytes = await pdfDoc.save();
+          usedTemplate = true;
+          console.log("Successfully generated filled PDF");
+          
+        } catch (templateError) {
+          console.error("Error using template, falling back to HTML:", templateError);
+        }
+      }
+    }
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `accident-reports/${report.id}/${timestamp}.html`;
+    let filename: string;
+    let contentType: string;
+    let fileContent: Uint8Array | string;
+    
+    if (pdfBytes && usedTemplate) {
+      filename = `accident-reports/${report.id}/${timestamp}.pdf`;
+      contentType = "application/pdf";
+      fileContent = pdfBytes;
+    } else {
+      // Fallback to HTML report
+      console.log("Using HTML fallback report");
+      filename = `accident-reports/${report.id}/${timestamp}.html`;
+      contentType = "text/html; charset=utf-8";
+      fileContent = generateHtmlReport(report as AccidentReport, thirdParties || []);
+    }
 
-    // Upload to Bunny Storage if configured
+    // Upload to Bunny Storage
     let pdfUrl = "";
     if (bunnyStorageKey) {
       const uploadUrl = `https://storage.bunnycdn.com/${bunnyStorageZone}/${filename}`;
+      
+      // Convert to appropriate body type
+      const body: BodyInit = typeof fileContent === 'string' 
+        ? fileContent 
+        : fileContent.buffer as ArrayBuffer;
       
       const uploadResponse = await fetch(uploadUrl, {
         method: "PUT",
         headers: {
           "AccessKey": bunnyStorageKey,
-          "Content-Type": "text/html; charset=utf-8",
+          "Content-Type": contentType,
         },
-        body: htmlContent,
+        body: body,
       });
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
         console.error("Bunny upload failed:", errorText);
-        throw new Error("Failed to upload PDF to storage: " + errorText);
+        throw new Error("Failed to upload PDF to storage");
       }
 
       pdfUrl = `${bunnyCdnUrl}/${filename}`;
       console.log("Generated PDF URL:", pdfUrl);
     } else {
-      console.warn("No BUNNY_API_KEY configured, using inline HTML");
-      // Fallback: return inline HTML for printing
-      pdfUrl = `data:text/html;base64,${btoa(unescape(encodeURIComponent(htmlContent)))}`;
+      console.warn("No BUNNY_API_KEY configured");
+      throw new Error("Storage not configured");
     }
 
     // Update accident report with PDF URL
@@ -169,25 +279,24 @@ serve(async (req) => {
       console.error("Failed to update report with PDF URL:", updateError);
     }
 
-    // Also save to media_files
-    if (bunnyStorageKey && pdfUrl.startsWith("http")) {
-      await supabase.from("media_files").insert({
-        original_name: `accident-report-${report.id}.html`,
-        mime_type: "text/html",
-        size: new TextEncoder().encode(htmlContent).length,
-        cdn_url: pdfUrl,
-        storage_path: filename,
-        entity_type: "accident_report",
-        entity_id: accident_report_id,
-        branch_id: report.branch_id,
-      });
-    }
+    // Save to media_files
+    await supabase.from("media_files").insert({
+      original_name: `accident-report-${report.id}.${usedTemplate ? 'pdf' : 'html'}`,
+      mime_type: usedTemplate ? "application/pdf" : "text/html",
+      size: typeof fileContent === 'string' ? new TextEncoder().encode(fileContent).length : fileContent.length,
+      cdn_url: pdfUrl,
+      storage_path: filename,
+      entity_type: "accident_report",
+      entity_id: accident_report_id,
+      branch_id: report.branch_id,
+    });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         pdf_url: pdfUrl,
-        message: "PDF generated successfully" 
+        used_template: usedTemplate,
+        message: usedTemplate ? "PDF generated from template" : "HTML report generated" 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -200,6 +309,105 @@ serve(async (req) => {
   }
 });
 
+function buildFieldValues(report: AccidentReport, thirdParties: ThirdParty[]): Record<string, string> {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("ar-EG");
+  };
+
+  const policyTypeLabel = report.policies.policy_type_child === "THIRD" ? "طرف ثالث" : "شامل";
+  const companyName = report.insurance_companies?.name_ar || report.insurance_companies?.name || "";
+
+  const values: Record<string, string> = {
+    // Policy & Insurance
+    policy_number: report.policies.policy_number || "",
+    policy_type: policyTypeLabel,
+    policy_start_date: formatDate(report.policies.start_date),
+    policy_end_date: formatDate(report.policies.end_date),
+    company_name: companyName,
+    
+    // Owner (Client) Info
+    owner_name: report.clients.full_name || "",
+    owner_id_number: report.clients.id_number || "",
+    owner_phone: report.clients.phone_number || "",
+    owner_address: report.owner_address || "",
+    
+    // Vehicle Info
+    car_number: report.cars?.car_number || "",
+    car_chassis: "", // Not in current schema
+    car_manufacturer: report.cars?.manufacturer_name || "",
+    car_model: report.cars?.model || "",
+    car_year: report.cars?.year?.toString() || "",
+    car_color: report.cars?.color || "",
+    car_usage: report.vehicle_usage_purpose || "",
+    vehicle_license_expiry: formatDate(report.vehicle_license_expiry),
+    
+    // Accident Details
+    accident_date: formatDate(report.accident_date),
+    accident_time: report.accident_time || "",
+    accident_location: report.accident_location || "",
+    accident_description: report.accident_description || "",
+    vehicle_usage_purpose: report.vehicle_usage_purpose || "",
+    passengers_count: report.passengers_count?.toString() || "",
+    responsible_party: report.responsible_party || "",
+    
+    // Driver Info
+    driver_name: report.driver_name || "",
+    driver_address: report.driver_address || "",
+    driver_id_number: report.driver_id_number || "",
+    driver_phone: report.driver_phone || "",
+    driver_age: report.driver_age?.toString() || "",
+    driver_occupation: report.driver_occupation || "",
+    driver_license_number: report.driver_license_number || "",
+    license_issue_place: report.license_issue_place || "",
+    license_expiry_date: formatDate(report.license_expiry_date),
+    first_license_date: formatDate(report.first_license_date),
+    
+    // Damages
+    own_car_damages: report.own_car_damages || "",
+    was_anyone_injured: report.was_anyone_injured ? "نعم" : "لا",
+    injuries_description: report.injuries_description || "",
+    
+    // Police
+    police_reported: report.police_reported ? "نعم" : "لا",
+    police_station: report.police_station || "",
+    police_report_number: report.police_report_number || "",
+    
+    // Witnesses & Passengers
+    witnesses_info: report.witnesses_info || "",
+    passengers_info: report.passengers_info || "",
+    additional_details: report.additional_details || "",
+    
+    // Report metadata
+    report_date: formatDate(new Date().toISOString()),
+  };
+  
+  // Add third party info
+  if (thirdParties.length > 0) {
+    const tp1 = thirdParties[0];
+    values.third_party_1_name = tp1.full_name || "";
+    values.third_party_1_id = tp1.id_number || "";
+    values.third_party_1_phone = tp1.phone || "";
+    values.third_party_1_car_number = tp1.vehicle_number || "";
+    values.third_party_1_car_type = `${tp1.vehicle_manufacturer || ""} ${tp1.vehicle_model || ""} ${tp1.vehicle_year || ""}`.trim();
+    values.third_party_1_insurance = tp1.insurance_company || "";
+    values.third_party_1_policy = tp1.insurance_policy_number || "";
+    values.third_party_1_damages = tp1.damage_description || "";
+  }
+  
+  if (thirdParties.length > 1) {
+    const tp2 = thirdParties[1];
+    values.third_party_2_name = tp2.full_name || "";
+    values.third_party_2_id = tp2.id_number || "";
+    values.third_party_2_phone = tp2.phone || "";
+    values.third_party_2_car_number = tp2.vehicle_number || "";
+    values.third_party_2_car_type = `${tp2.vehicle_manufacturer || ""} ${tp2.vehicle_model || ""} ${tp2.vehicle_year || ""}`.trim();
+    values.third_party_2_insurance = tp2.insurance_company || "";
+  }
+  
+  return values;
+}
+
 function generateHtmlReport(report: AccidentReport, thirdParties: ThirdParty[]): string {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "-";
@@ -209,6 +417,28 @@ function generateHtmlReport(report: AccidentReport, thirdParties: ThirdParty[]):
   const policyTypeLabel = report.policies.policy_type_child === "THIRD" ? "طرف ثالث" : "شامل";
   const companyName = report.insurance_companies?.name_ar || report.insurance_companies?.name || "-";
 
+  let thirdPartiesHtml = "";
+  if (thirdParties.length > 0) {
+    thirdPartiesHtml = `
+    <div class="section">
+      <h2 class="section-title">بيانات الأطراف الأخرى</h2>
+      ${thirdParties.map((tp, i) => `
+        <div class="third-party-card">
+          <h4>الطرف الثالث ${i + 1}: ${tp.full_name}</h4>
+          <div class="info-grid">
+            <div class="info-item"><label>رقم الهوية</label><span>${tp.id_number || "-"}</span></div>
+            <div class="info-item"><label>الهاتف</label><span>${tp.phone || "-"}</span></div>
+            <div class="info-item"><label>رقم السيارة</label><span>${tp.vehicle_number || "-"}</span></div>
+            <div class="info-item"><label>نوع السيارة</label><span>${tp.vehicle_manufacturer || ""} ${tp.vehicle_model || ""} ${tp.vehicle_year || ""}</span></div>
+            <div class="info-item"><label>شركة التأمين</label><span>${tp.insurance_company || "-"}</span></div>
+            <div class="info-item"><label>رقم الوثيقة</label><span>${tp.insurance_policy_number || "-"}</span></div>
+            <div class="info-item full-width"><label>وصف الأضرار</label><span>${tp.damage_description || "-"}</span></div>
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+  }
+
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -217,183 +447,24 @@ function generateHtmlReport(report: AccidentReport, thirdParties: ThirdParty[]):
   <title>بلاغ حادث - ${report.clients.full_name}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Tajawal', sans-serif;
-      font-size: 13px;
-      line-height: 1.5;
-      color: #1a1a1a;
-      background: #fff;
-      padding: 15mm;
-    }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #2563eb;
-    }
-    
-    .header h1 {
-      font-size: 22px;
-      color: #2563eb;
-      margin-bottom: 8px;
-    }
-    
-    .header .company-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .header p {
-      color: #666;
-      font-size: 12px;
-    }
-    
-    .section {
-      margin-bottom: 20px;
-    }
-    
-    .section-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #2563eb;
-      margin-bottom: 12px;
-      padding-bottom: 4px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-    }
-    
-    .info-grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-    
-    .info-item {
-      background: #f8fafc;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-    }
-    
-    .info-item.full-width {
-      grid-column: span 2;
-    }
-    
-    .info-item.full-width-3 {
-      grid-column: span 3;
-    }
-    
-    .info-item label {
-      display: block;
-      font-size: 11px;
-      color: #64748b;
-      margin-bottom: 3px;
-    }
-    
-    .info-item span {
-      font-weight: 500;
-      color: #1e293b;
-      font-size: 13px;
-    }
-    
-    .description-box {
-      background: #f8fafc;
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      white-space: pre-wrap;
-      min-height: 60px;
-    }
-    
-    .third-party-card {
-      background: #fafafa;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .third-party-card h4 {
-      font-size: 13px;
-      color: #2563eb;
-      margin-bottom: 10px;
-      padding-bottom: 5px;
-      border-bottom: 1px dashed #cbd5e1;
-    }
-    
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 15px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-    
-    .badge-blue {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-    
-    .badge-green {
-      background: #dcfce7;
-      color: #16a34a;
-    }
-    
-    .badge-red {
-      background: #fee2e2;
-      color: #dc2626;
-    }
-    
-    .signatures {
-      margin-top: 40px;
-      display: flex;
-      justify-content: space-around;
-    }
-    
-    .signature-box {
-      text-align: center;
-      width: 28%;
-    }
-    
-    .signature-line {
-      border-top: 1px solid #333;
-      padding-top: 8px;
-      margin-top: 50px;
-      font-size: 12px;
-    }
-    
-    .footer {
-      margin-top: 30px;
-      padding-top: 15px;
-      border-top: 1px solid #e5e7eb;
-      text-align: center;
-      color: #64748b;
-      font-size: 11px;
-    }
-    
-    @media print {
-      body {
-        padding: 10mm;
-        font-size: 12px;
-      }
-      .section {
-        page-break-inside: avoid;
-      }
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Tajawal', sans-serif; font-size: 13px; line-height: 1.5; color: #1a1a1a; background: #fff; padding: 15mm; }
+    .header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #2563eb; }
+    .header h1 { font-size: 22px; color: #2563eb; margin-bottom: 8px; }
+    .header .company-name { font-size: 16px; font-weight: 600; color: #333; }
+    .header p { color: #666; font-size: 12px; }
+    .section { margin-bottom: 20px; }
+    .section-title { font-size: 15px; font-weight: 700; color: #2563eb; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb; }
+    .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .info-item { background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; }
+    .info-item.full-width { grid-column: span 2; }
+    .info-item label { display: block; font-size: 11px; color: #64748b; margin-bottom: 3px; }
+    .info-item span { font-weight: 500; color: #1e293b; font-size: 13px; }
+    .third-party-card { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .third-party-card h4 { font-size: 13px; color: #2563eb; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed #cbd5e1; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 15px; font-size: 11px; font-weight: 500; background: #dbeafe; color: #1d4ed8; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; text-align: center; color: #64748b; font-size: 11px; }
+    @media print { body { padding: 10mm; font-size: 12px; } .section { page-break-inside: avoid; } }
   </style>
 </head>
 <body>
@@ -403,314 +474,67 @@ function generateHtmlReport(report: AccidentReport, thirdParties: ThirdParty[]):
     <p>تاريخ الإنشاء: ${formatDate(new Date().toISOString())}</p>
   </div>
   
-  <!-- Policy & Company Info -->
   <div class="section">
     <h2 class="section-title">بيانات الوثيقة والتأمين</h2>
     <div class="info-grid">
-      <div class="info-item">
-        <label>رقم الوثيقة</label>
-        <span>${report.policies.policy_number || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>نوع الوثيقة</label>
-        <span class="badge badge-blue">${policyTypeLabel}</span>
-      </div>
-      <div class="info-item">
-        <label>شركة التأمين</label>
-        <span>${companyName}</span>
-      </div>
-      <div class="info-item">
-        <label>مدة التأمين</label>
-        <span>من ${formatDate(report.policies.start_date)} إلى ${formatDate(report.policies.end_date)}</span>
-      </div>
+      <div class="info-item"><label>رقم الوثيقة</label><span>${report.policies.policy_number || "-"}</span></div>
+      <div class="info-item"><label>نوع الوثيقة</label><span class="badge">${policyTypeLabel}</span></div>
+      <div class="info-item"><label>شركة التأمين</label><span>${companyName}</span></div>
+      <div class="info-item"><label>مدة التأمين</label><span>من ${formatDate(report.policies.start_date)} إلى ${formatDate(report.policies.end_date)}</span></div>
     </div>
   </div>
   
-  <!-- Owner (Client) Info -->
   <div class="section">
     <h2 class="section-title">بيانات صاحب السيارة (المؤمن له)</h2>
     <div class="info-grid">
-      <div class="info-item">
-        <label>اسم صاحب السيارة</label>
-        <span>${report.clients.full_name}</span>
-      </div>
-      <div class="info-item">
-        <label>رقم الهوية</label>
-        <span>${report.clients.id_number}</span>
-      </div>
-      <div class="info-item">
-        <label>رقم الهاتف</label>
-        <span>${report.clients.phone_number || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>العنوان</label>
-        <span>${report.owner_address || "-"}</span>
-      </div>
+      <div class="info-item"><label>اسم صاحب السيارة</label><span>${report.clients.full_name}</span></div>
+      <div class="info-item"><label>رقم الهوية</label><span>${report.clients.id_number}</span></div>
+      <div class="info-item"><label>رقم الهاتف</label><span>${report.clients.phone_number || "-"}</span></div>
+      <div class="info-item"><label>العنوان</label><span>${report.owner_address || "-"}</span></div>
     </div>
   </div>
   
-  <!-- Vehicle Info -->
   <div class="section">
     <h2 class="section-title">بيانات المركبة</h2>
-    <div class="info-grid-3">
-      <div class="info-item">
-        <label>رقم المركبة</label>
-        <span>${report.cars?.car_number || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>الصنع / المصنّع</label>
-        <span>${report.cars?.manufacturer_name || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>النوع / الموديل</label>
-        <span>${report.cars?.model || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>سنة الصنع</label>
-        <span>${report.cars?.year || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>اللون</label>
-        <span>${report.cars?.color || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>استعمال السيارة</label>
-        <span>${report.vehicle_usage_purpose || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>تاريخ انتهاء رخصة المركبة</label>
-        <span>${formatDate(report.vehicle_license_expiry)}</span>
-      </div>
+    <div class="info-grid">
+      <div class="info-item"><label>رقم المركبة</label><span>${report.cars?.car_number || "-"}</span></div>
+      <div class="info-item"><label>الصنع / المصنّع</label><span>${report.cars?.manufacturer_name || "-"}</span></div>
+      <div class="info-item"><label>النوع / الموديل</label><span>${report.cars?.model || "-"}</span></div>
+      <div class="info-item"><label>سنة الصنع</label><span>${report.cars?.year || "-"}</span></div>
+      <div class="info-item"><label>اللون</label><span>${report.cars?.color || "-"}</span></div>
+      <div class="info-item"><label>استعمال السيارة</label><span>${report.vehicle_usage_purpose || "-"}</span></div>
     </div>
   </div>
   
-  <!-- Driver Info -->
   <div class="section">
     <h2 class="section-title">بيانات السائق وقت الحادث</h2>
     <div class="info-grid">
-      <div class="info-item">
-        <label>اسم السائق</label>
-        <span>${report.driver_name || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>عنوان السائق</label>
-        <span>${report.driver_address || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>رقم الهوية</label>
-        <span>${report.driver_id_number || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>رقم الهاتف</label>
-        <span>${report.driver_phone || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>عمر السائق</label>
-        <span>${report.driver_age || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>مهنة السائق</label>
-        <span>${report.driver_occupation || "-"}</span>
-      </div>
-    </div>
-    
-    <div style="margin-top: 10px;">
-      <div class="info-grid">
-        <div class="info-item">
-          <label>رقم رخصة السائق</label>
-          <span>${report.driver_license_number || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>مكان صدور الرخصة</label>
-          <span>${report.license_issue_place || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>تاريخ انتهاء الرخصة</label>
-          <span>${formatDate(report.license_expiry_date)}</span>
-        </div>
-        <div class="info-item">
-          <label>تاريخ الحصول الأول على الرخصة</label>
-          <span>${formatDate(report.first_license_date)}</span>
-        </div>
-      </div>
+      <div class="info-item"><label>اسم السائق</label><span>${report.driver_name || "-"}</span></div>
+      <div class="info-item"><label>عنوان السائق</label><span>${report.driver_address || "-"}</span></div>
+      <div class="info-item"><label>رقم الهوية</label><span>${report.driver_id_number || "-"}</span></div>
+      <div class="info-item"><label>رقم الهاتف</label><span>${report.driver_phone || "-"}</span></div>
+      <div class="info-item"><label>العمر</label><span>${report.driver_age || "-"}</span></div>
+      <div class="info-item"><label>المهنة</label><span>${report.driver_occupation || "-"}</span></div>
+      <div class="info-item"><label>رقم الرخصة</label><span>${report.driver_license_number || "-"}</span></div>
+      <div class="info-item"><label>مكان الإصدار</label><span>${report.license_issue_place || "-"}</span></div>
     </div>
   </div>
   
-  <!-- Accident Details -->
   <div class="section">
     <h2 class="section-title">تفاصيل الحادث</h2>
     <div class="info-grid">
-      <div class="info-item">
-        <label>تاريخ الحادث</label>
-        <span>${formatDate(report.accident_date)}</span>
-      </div>
-      <div class="info-item">
-        <label>ساعة الحادث</label>
-        <span>${report.accident_time || "-"}</span>
-      </div>
-      <div class="info-item full-width">
-        <label>مكان الحادث</label>
-        <span>${report.accident_location || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>عدد الركاب بالسيارة</label>
-        <span>${report.passengers_count ?? "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>الغرض من استعمال السيارة</label>
-        <span>${report.vehicle_usage_purpose || "-"}</span>
-      </div>
-    </div>
-    
-    <div style="margin-top: 12px;">
-      <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px;">كيف وقع الحادث (بالتفصيل)</label>
-      <div class="description-box">${report.accident_description || "-"}</div>
-    </div>
-    
-    <div style="margin-top: 12px;">
-      <div class="info-item">
-        <label>من المسؤول عن الحادث (برأيك)</label>
-        <span>${report.responsible_party || "-"}</span>
-      </div>
+      <div class="info-item"><label>تاريخ الحادث</label><span>${formatDate(report.accident_date)}</span></div>
+      <div class="info-item"><label>ساعة الحادث</label><span>${report.accident_time || "-"}</span></div>
+      <div class="info-item full-width"><label>مكان الحادث</label><span>${report.accident_location || "-"}</span></div>
+      <div class="info-item full-width"><label>كيف وقع الحادث</label><span>${report.accident_description || "-"}</span></div>
+      <div class="info-item full-width"><label>الأضرار التي لحقت بسيارتك</label><span>${report.own_car_damages || "-"}</span></div>
     </div>
   </div>
   
-  <!-- Police Report -->
-  <div class="section">
-    <h2 class="section-title">بلاغ الشرطة</h2>
-    <div class="info-grid-3">
-      <div class="info-item">
-        <label>هل حققت الشرطة بالحادث</label>
-        <span class="badge ${report.police_reported ? 'badge-green' : 'badge-red'}">${report.police_reported ? 'نعم' : 'لا'}</span>
-      </div>
-      ${report.police_reported ? `
-      <div class="info-item">
-        <label>مخفر الشرطة</label>
-        <span>${report.police_station || "-"}</span>
-      </div>
-      <div class="info-item">
-        <label>رقم المحضر</label>
-        <span>${report.police_report_number || "-"}</span>
-      </div>
-      ` : ''}
-    </div>
-  </div>
-  
-  <!-- Damages -->
-  <div class="section">
-    <h2 class="section-title">الأضرار</h2>
-    <div style="margin-bottom: 12px;">
-      <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px;">الأضرار التي لحقت بسيارتك من جراء الحادث (بالتفصيل)</label>
-      <div class="description-box">${report.own_car_damages || "-"}</div>
-    </div>
-  </div>
-  
-  <!-- Injuries -->
-  <div class="section">
-    <h2 class="section-title">الإصابات الشخصية</h2>
-    <div class="info-grid">
-      <div class="info-item">
-        <label>هل أصيب أحد من جراء الحادث</label>
-        <span class="badge ${report.was_anyone_injured ? 'badge-red' : 'badge-green'}">${report.was_anyone_injured ? 'نعم' : 'لا'}</span>
-      </div>
-    </div>
-    ${report.was_anyone_injured && report.injuries_description ? `
-    <div style="margin-top: 12px;">
-      <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px;">تفاصيل الإصابات</label>
-      <div class="description-box">${report.injuries_description}</div>
-    </div>
-    ` : ''}
-  </div>
-  
-  <!-- Third Parties -->
-  ${thirdParties.length > 0 ? `
-  <div class="section">
-    <h2 class="section-title">بيانات الطرف الثالث (${thirdParties.length})</h2>
-    ${thirdParties.map((tp, i) => `
-    <div class="third-party-card">
-      <h4>الطرف الثالث #${i + 1}: ${tp.full_name}</h4>
-      <div class="info-grid">
-        <div class="info-item">
-          <label>اسم المالك وعنوانه</label>
-          <span>${tp.full_name}${tp.address ? ' - ' + tp.address : ''}</span>
-        </div>
-        <div class="info-item">
-          <label>رقم الهوية</label>
-          <span>${tp.id_number || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>رقم الهاتف</label>
-          <span>${tp.phone || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>رقم السيارة</label>
-          <span>${tp.vehicle_number || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>نوع السيارة</label>
-          <span>${[tp.vehicle_manufacturer, tp.vehicle_model, tp.vehicle_year].filter(Boolean).join(" ") || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>لون السيارة</label>
-          <span>${tp.vehicle_color || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>شركة التأمين</label>
-          <span>${tp.insurance_company || "-"}</span>
-        </div>
-        <div class="info-item">
-          <label>رقم وثيقة التأمين</label>
-          <span>${tp.insurance_policy_number || "-"}</span>
-        </div>
-      </div>
-      ${tp.damage_description ? `
-      <div style="margin-top: 10px;">
-        <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px;">الأضرار التي لحقت بسيارة الطرف الثالث</label>
-        <div class="description-box">${tp.damage_description}</div>
-      </div>
-      ` : ""}
-    </div>
-    `).join("")}
-  </div>
-  ` : ""}
-  
-  <!-- Witnesses & Passengers -->
-  <div class="section">
-    <h2 class="section-title">الشهود والركاب</h2>
-    <div class="info-grid">
-      <div class="info-item full-width">
-        <label>أسماء الشهود وعناوينهم (اذكر إذا كان الشهود ركاباً أم لا)</label>
-        <span>${report.witnesses_info || "-"}</span>
-      </div>
-      <div class="info-item full-width">
-        <label>أسماء الركاب وعناوينهم</label>
-        <span>${report.passengers_info || "-"}</span>
-      </div>
-    </div>
-    ${report.additional_details ? `
-    <div style="margin-top: 12px;">
-      <label style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px;">تفاصيل إضافية</label>
-      <div class="description-box">${report.additional_details}</div>
-    </div>
-    ` : ''}
-  </div>
-  
-  <!-- Signatures -->
-  <div class="signatures">
-    <div class="signature-box">
-      <div class="signature-line">توقيع المؤمن له / السائق</div>
-    </div>
-    <div class="signature-box">
-      <div class="signature-line">التاريخ</div>
-    </div>
-    <div class="signature-box">
-      <div class="signature-line">ملاحظات الموظف</div>
-    </div>
-  </div>
+  ${thirdPartiesHtml}
   
   <div class="footer">
-    <p>تم إنشاء هذا البلاغ بواسطة نظام AB Insurance CRM</p>
-    <p>Report ID: ${report.id}</p>
+    <p>تم إنشاء هذا التقرير آلياً بواسطة نظام AB Insurance CRM</p>
   </div>
 </body>
 </html>`;

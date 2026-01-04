@@ -259,7 +259,9 @@ export default function BrokerWallet() {
   };
 
   const updatePaymentLine = (id: string, field: string, value: any) => {
-    setPaymentLines(paymentLines.map(p => p.id === id ? { ...p, [field]: value } : p));
+    setPaymentLines((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
   };
 
   const handleSplitPayments = () => {
@@ -947,8 +949,8 @@ export default function BrokerWallet() {
                           </div>
                         )}
 
-                        {/* Receipt Image Upload - سند قبض (for all payment types except customer_cheque) */}
-                        {payment.payment_type !== 'customer_cheque' && !visaPaid && (
+                        {/* Receipt Image Upload - سند قبض / إيصال */}
+                        {!visaPaid && (
                           <div className="mt-3 pt-3 border-t border-border/50">
                             <Label className="text-xs text-muted-foreground mb-2 block">سند قبض / إيصال</Label>
                             <FileUploader
@@ -958,17 +960,17 @@ export default function BrokerWallet() {
                               maxFiles={3}
                               onUploadComplete={(files) => {
                                 if (files.length > 0) {
-                                  updatePaymentLine(payment.id, 'receipt_images', files.map(f => f.cdn_url));
+                                  updatePaymentLine(payment.id, 'receipt_images', files.map((f) => f.cdn_url));
                                 }
                               }}
                             />
                             {payment.receipt_images && payment.receipt_images.length > 0 && (
                               <div className="mt-2 flex gap-2 flex-wrap">
                                 {payment.receipt_images.map((url, idx) => (
-                                  <img 
+                                  <img
                                     key={idx}
-                                    src={url} 
-                                    alt={`سند قبض ${idx + 1}`} 
+                                    src={url}
+                                    alt={`سند قبض ${idx + 1}`}
                                     className="h-16 w-auto rounded border"
                                   />
                                 ))}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, Loader2, RefreshCw, FileImage, FileVideo, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -42,6 +42,9 @@ export function FileUploader({
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const validateFile = (file: File): string | null => {
     const ext = file.name.split('.').pop()?.toLowerCase();
@@ -193,7 +196,7 @@ export function FileUploader({
             ? 'border-primary bg-primary/10 scale-[1.02]' 
             : 'border-border/60 hover:border-primary/60 hover:bg-accent/30'
         )}
-        onClick={() => document.getElementById('file-input')?.click()}
+        onClick={() => inputRef.current?.click()}
       >
         <div className={cn(
           'absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity',
@@ -219,7 +222,8 @@ export function FileUploader({
         </div>
         
         <input
-          id="file-input"
+          id={inputId}
+          ref={inputRef}
           type="file"
           multiple
           accept={accept}

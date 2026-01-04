@@ -87,7 +87,10 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyStorageKey = Deno.env.get("BUNNY_API_KEY");
     const bunnyStorageZone = Deno.env.get("BUNNY_STORAGE_ZONE") || "basheer-ab";
-    const bunnyCdnUrl = Deno.env.get("BUNNY_CDN_URL") || "https://basheer-ab.b-cdn.net";
+    // Always use the correct CDN URL - hardcoded as per project standard
+    const bunnyCdnUrl = "https://basheer-ab.b-cdn.net";
+
+    console.log("Bunny config - Zone:", bunnyStorageZone, "API Key present:", !!bunnyStorageKey);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -143,13 +146,16 @@ serve(async (req) => {
       });
 
       if (!uploadResponse.ok) {
-        console.error("Bunny upload failed:", await uploadResponse.text());
-        throw new Error("Failed to upload PDF to storage");
+        const errorText = await uploadResponse.text();
+        console.error("Bunny upload failed:", errorText);
+        throw new Error("Failed to upload PDF to storage: " + errorText);
       }
 
       pdfUrl = `${bunnyCdnUrl}/${filename}`;
+      console.log("Generated PDF URL:", pdfUrl);
     } else {
-      // Fallback: store as data URL (not recommended for production)
+      console.warn("No BUNNY_API_KEY configured, using inline HTML");
+      // Fallback: return inline HTML for printing
       pdfUrl = `data:text/html;base64,${btoa(unescape(encodeURIComponent(htmlContent)))}`;
     }
 

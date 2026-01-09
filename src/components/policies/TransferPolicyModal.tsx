@@ -340,7 +340,7 @@ export function TransferPolicyModal({
           elzami_cost: originalPolicy.elzami_cost,
           transferred_car_number: currentCar?.car_number || null, // FROM which car
           transferred_from_policy_id: originalPolicy.id, // Link to original
-          group_id: newGroupId || (policiesToTransfer.length === 1 ? null : originalPolicy.group_id),
+          group_id: newGroupId, // New group_id for package transfers, null for single policy transfers
           notes: `تحويل من سيارة ${currentCar?.car_number || "غير محدد"} - ${originalPolicy.notes || ""}`.trim(),
           created_by_admin_id: user?.id,
         };

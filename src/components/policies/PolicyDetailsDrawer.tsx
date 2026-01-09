@@ -119,12 +119,18 @@ interface RelatedPolicy {
   insurance_price: number;
   profit: number | null;
   road_service_id: string | null;
+  accident_fee_service_id: string | null;
   insurance_companies: {
     id: string;
     name: string;
     name_ar: string | null;
   } | null;
   road_services: {
+    id: string;
+    name: string;
+    name_ar: string | null;
+  } | null;
+  accident_fee_services: {
     id: string;
     name: string;
     name_ar: string | null;
@@ -266,7 +272,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       if (policyData.group_id) {
         const { data: relatedData } = await supabase
           .from("policies")
-          .select("id, policy_type_parent, policy_type_child, insurance_price, profit, road_service_id, insurance_companies(id, name, name_ar), road_services(id, name, name_ar)")
+          .select("id, policy_type_parent, policy_type_child, insurance_price, profit, road_service_id, accident_fee_service_id, insurance_companies(id, name, name_ar), road_services(id, name, name_ar), accident_fee_services(id, name, name_ar)")
           .eq("group_id", policyData.group_id)
           .neq("id", policyId)
           .is("deleted_at", null);
@@ -794,8 +800,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                   <td className="py-2 px-3 text-muted-foreground">
                                     {rp.policy_type_parent === 'ROAD_SERVICE' && rp.road_services
                                       ? (rp.road_services.name_ar || rp.road_services.name)
-                                      : rp.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION'
-                                        ? 'إعفاء رسوم حادث'
+                                      : rp.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION' && rp.accident_fee_services
+                                        ? (rp.accident_fee_services.name_ar || rp.accident_fee_services.name)
                                         : '-'}
                                   </td>
                                   <td className="py-2 px-3 text-muted-foreground">

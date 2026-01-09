@@ -434,7 +434,7 @@ export function PolicyPaymentsSection({
   };
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('ar-EG');
-  const formatCurrency = (amount: number) => `₪${amount.toLocaleString('ar-EG')}`;
+  const formatCurrency = (amount: number) => `₪${amount.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
 
   const getImageCount = (payment: Payment) => {
     let count = payment.cheque_image_url ? 1 : 0;

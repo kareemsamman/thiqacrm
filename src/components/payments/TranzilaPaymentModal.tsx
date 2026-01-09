@@ -238,7 +238,7 @@ export function TranzilaPaymentModal({
     onOpenChange(false);
   };
 
-  const formatCurrency = (val: number) => `₪${val.toLocaleString('ar-EG')}`;
+  const formatCurrency = (val: number) => `₪${val.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && handleCancel()}>

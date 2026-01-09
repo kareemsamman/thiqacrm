@@ -264,7 +264,7 @@ export default function DebtTracking() {
     setPaymentModalOpen(true);
   };
 
-  const formatCurrency = (amount: number) => `₪${amount.toLocaleString("he-IL")}`;
+  const formatCurrency = (amount: number) => `₪${amount.toLocaleString("ar-EG", { maximumFractionDigits: 0 })}`;
 
   const getExpiryBadge = (days: number | null) => {
     if (days === null) return null;

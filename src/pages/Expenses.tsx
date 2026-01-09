@@ -192,7 +192,7 @@ export default function Expenses() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `₪${amount.toLocaleString('ar-EG', { minimumFractionDigits: 2 })}`;
+    return `₪${amount.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
   };
 
   const formatDate = (dateStr: string) => {

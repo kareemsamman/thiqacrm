@@ -121,23 +121,36 @@ export default function FinancialReports() {
         totalCashIn += Number(p.amount) || 0;
       });
       
-      // 2. Get company debt from policies (direct companies only)
+      // 1b. Subtract customer refunds from cash in (money given back to customers)
+      const { data: customerRefunds } = await supabase
+        .from('customer_wallet_transactions')
+        .select('amount, transaction_type')
+        .eq('transaction_type', 'refund');
+      
+      let totalRefunds = 0;
+      (customerRefunds || []).forEach(r => {
+        totalRefunds += Number(r.amount) || 0;
+      });
+      
+      // 2. Get company debt from policies (direct companies only, including cancelled with negative)
       const { data: policiesData } = await supabase
         .from('policies')
-        .select('payed_for_company, profit, company_id, insurance_companies!policies_company_id_fkey(broker_id)')
-        .is('deleted_at', null)
-        .eq('cancelled', false);
+        .select('payed_for_company, profit, company_id, cancelled, insurance_companies!policies_company_id_fkey(broker_id)')
+        .is('deleted_at', null);
       
       let companyDebt = 0;
       let totalProfit = 0;
       
       (policiesData || []).forEach(p => {
-        totalProfit += Number(p.profit) || 0;
+        const isCancelled = p.cancelled;
+        const multiplier = isCancelled ? -1 : 1; // Negative for cancelled
+        
+        totalProfit += (Number(p.profit) || 0) * multiplier;
         
         // Only add to company debt if company is not broker-linked
         const companyData = p.insurance_companies as any;
         if (!companyData?.broker_id) {
-          companyDebt += Number(p.payed_for_company) || 0;
+          companyDebt += (Number(p.payed_for_company) || 0) * multiplier;
         }
       });
       
@@ -196,8 +209,8 @@ export default function FinancialReports() {
       const monthExpenses = (monthExpensesData || []).reduce((sum, e) => sum + Number(e.amount), 0);
       
       // Calculate net cash
-      // صافي الخزينة = كل الداخل - المدفوع للشركات - المدفوع للوسطاء - المصاريف
-      const netCash = totalCashIn - totalCompanyPayments - totalBrokerPayments - totalExpenses;
+      // صافي الخزينة = كل الداخل - المرتجعات - المدفوع للشركات - المدفوع للوسطاء - المصاريف
+      const netCash = totalCashIn - totalRefunds - totalCompanyPayments - totalBrokerPayments - totalExpenses;
       
       // Update company debt to reflect what's remaining
       companyDebt = companyDebt - totalCompanyPayments;
@@ -290,7 +303,7 @@ export default function FinancialReports() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `₪${Math.abs(amount).toLocaleString('ar-EG', { minimumFractionDigits: 2 })}`;
+    return `₪${Math.abs(amount).toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
   };
 
   const formatDate = (dateStr: string) => {

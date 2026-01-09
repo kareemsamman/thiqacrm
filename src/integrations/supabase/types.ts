@@ -2153,6 +2153,7 @@ export type Database = {
       }
       policies: {
         Row: {
+          accident_fee_service_id: string | null
           branch_id: string | null
           broker_buy_price: number | null
           broker_direction:
@@ -2195,6 +2196,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accident_fee_service_id?: string | null
           branch_id?: string | null
           broker_buy_price?: number | null
           broker_direction?:
@@ -2237,6 +2239,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accident_fee_service_id?: string | null
           branch_id?: string | null
           broker_buy_price?: number | null
           broker_direction?:
@@ -2279,6 +2282,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policies_accident_fee_service_id_fkey"
+            columns: ["accident_fee_service_id"]
+            isOneToOne: false
+            referencedRelation: "accident_fee_services"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policies_branch_id_fkey"
             columns: ["branch_id"]

@@ -705,6 +705,21 @@ export function PolicyWizard({
             if (!addon.enabled) continue;
 
             const addonTypeParent = (addon.type === 'road_service' ? 'ROAD_SERVICE' : 'ACCIDENT_FEE_EXEMPTION') as PolicyTypeParent;
+            const addonInsurancePrice = parseFloat(addon.insurance_price) || 0;
+            
+            // Calculate profit for addon policies
+            const addonProfitData = await calculatePolicyProfit({
+              policyTypeParent: addonTypeParent,
+              policyTypeChild: null,
+              companyId: addon.company_id || '',
+              carType: (selectedCar?.car_type || newCar.car_type || 'car') as CarType,
+              ageBand: isUnder24 ? 'UNDER_24' as const : 'UP_24' as const,
+              carValue: null,
+              carYear: null,
+              insurancePrice: addonInsurancePrice,
+              roadServiceId: addon.road_service_id || null,
+              accidentFeeServiceId: addon.accident_fee_service_id || null,
+            });
 
             await supabase.from('policies').insert({
               client_id: clientId,
@@ -715,8 +730,12 @@ export function PolicyWizard({
               company_id: addon.company_id || null,
               start_date: policy.start_date,
               end_date: policy.end_date,
-              insurance_price: parseFloat(addon.insurance_price) || 0,
+              insurance_price: addonInsurancePrice,
+              profit: addonProfitData.profit,
+              payed_for_company: addonProfitData.companyPayment,
+              company_cost_snapshot: addonProfitData.companyPayment,
               road_service_id: addon.road_service_id || null,
+              accident_fee_service_id: addon.accident_fee_service_id || null,
               group_id: groupId,
               notes: 'إضافة ضمن باقة',
               branch_id: effectiveBranchId || null,

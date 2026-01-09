@@ -65,6 +65,7 @@ interface Policy {
   id: string;
   policy_type_parent: string;
   insurance_price: number;
+  broker_buy_price: number | null;
   profit: number;
   start_date: string;
   end_date: string;
@@ -129,7 +130,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
       let query = supabase
         .from("policies")
         .select(`
-          id, policy_type_parent, insurance_price, profit, start_date, end_date, broker_direction,
+          id, policy_type_parent, insurance_price, broker_buy_price, profit, start_date, end_date, broker_direction,
           clients!policies_client_id_fkey(full_name),
           cars!policies_car_id_fkey(car_number)
         `)
@@ -181,15 +182,14 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         (p) => p.broker_direction === 'to_broker' || p.broker_direction === null
       );
 
-      // Use PROFIT (not insurance_price) for broker financial obligations
-      // from_broker = broker brought this deal, I owe broker the profit
-      // to_broker = I made this for broker, broker owes me the profit
+      // from_broker = I bought from broker at broker_buy_price, so I owe broker that amount
+      // to_broker = Broker bought from me, broker owes me the insurance_price
       const fromBrokerTotal = fromBrokerPolicies.reduce(
-        (sum, p) => sum + Number(p.profit || 0),
+        (sum, p) => sum + Number(p.broker_buy_price || p.insurance_price || 0),
         0
       );
       const toBrokerTotal = toBrokerPolicies.reduce(
-        (sum, p) => sum + Number(p.profit || 0),
+        (sum, p) => sum + Number(p.insurance_price || 0),
         0
       );
 
@@ -436,8 +436,8 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           </CardContent>
         </Card>
 
-        {/* Stats Cards - 3 cards: policy count, total amount, net balance */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:grid-cols-3">
+        {/* Stats Cards - 2 cards: policy count + net balance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2">
           {/* عدد الوثائق - Policy count */}
           <Card className="print:border print:shadow-none">
             <CardContent className="pt-6">
@@ -447,30 +447,13 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">عدد الوثائق</p>
-                  <p className="text-xl font-bold text-blue-600">{policies.length}</p>
+                  <p className="text-xl font-bold text-blue-600 ltr-nums">{policies.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* المحصل - Total policy amount */}
-          <Card className="print:border print:shadow-none">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30 print:bg-green-100">
-                  <Wallet className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">إجمالي المبالغ</p>
-                  <p className="text-xl font-bold text-green-600">
-                    {formatCurrency(policies.reduce((sum, p) => sum + Number(p.insurance_price), 0))}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* المتبقي - Net Balance (what I owe vs what they owe) */}
+          {/* إجمالي المبالغ - Net Balance (positive = broker owes me, negative = I owe broker) */}
           <Card className={cn(
             "border-2 print:border-2",
             netBalance >= 0 ? "border-green-300 dark:border-green-700 print:border-green-300" : "border-red-300 dark:border-red-700 print:border-red-300"
@@ -487,14 +470,12 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                   )} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    {netBalance >= 0 ? "المتبقي (الوسيط مدين لي)" : "المتبقي (أنا مدين للوسيط)"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">إجمالي المبالغ</p>
                   <p className={cn(
-                    "text-xl font-bold",
+                    "text-xl font-bold ltr-nums",
                     netBalance >= 0 ? "text-green-600" : "text-red-600"
                   )}>
-                    {formatCurrency(Math.abs(netBalance))}
+                    {netBalance < 0 ? "-" : ""}{formatCurrency(Math.abs(netBalance))}
                   </p>
                 </div>
               </div>
@@ -551,7 +532,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                           <TableHead className="print:text-xs">العميل</TableHead>
                           <TableHead className="print:text-xs">السيارة</TableHead>
                           <TableHead className="print:text-xs">النوع</TableHead>
-                          <TableHead className="print:text-xs">السعر</TableHead>
+                          <TableHead className="print:text-xs">سعر الشراء</TableHead>
                           <TableHead className="print:text-xs">الصلاحية</TableHead>
                           <TableHead className="w-[80px] print:hidden">إجراءات</TableHead>
                         </TableRow>
@@ -590,7 +571,9 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                               </Badge>
                             </TableCell>
                             <TableCell className="print:text-xs ltr-nums">
-                              {formatCurrency(policy.insurance_price)}
+                              {formatCurrency(policy.broker_direction === 'from_broker' 
+                                ? (policy.broker_buy_price || policy.insurance_price) 
+                                : policy.insurance_price)}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground print:text-xs">
                               {formatDate(policy.start_date)} - {formatDate(policy.end_date)}
@@ -609,7 +592,10 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                             المجموع
                           </TableCell>
                           <TableCell className="print:text-xs ltr-nums">
-                            {formatCurrency(policies.reduce((sum, p) => sum + Number(p.insurance_price), 0))}
+                            {formatCurrency(policies.reduce((sum, p) => 
+                              sum + Number(p.broker_direction === 'from_broker' 
+                                ? (p.broker_buy_price || p.insurance_price) 
+                                : p.insurance_price), 0))}
                           </TableCell>
                           <TableCell colSpan={2}></TableCell>
                         </TableRow>

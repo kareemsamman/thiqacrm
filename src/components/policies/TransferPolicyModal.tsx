@@ -349,6 +349,7 @@ export function TransferPolicyModal({
           company_id: originalPolicy.company_id,
           policy_type_parent: originalPolicy.policy_type_parent,
           policy_type_child: originalPolicy.policy_type_child,
+          policy_number: originalPolicy.policy_number, // Copy policy number
           start_date: transferDate,
           end_date: originalPolicy.end_date, // Original end date
           insurance_price: adjustedInsurancePrice,
@@ -408,23 +409,48 @@ export function TransferPolicyModal({
           .eq("policy_id", originalPolicy.id);
 
         if (oldPayments && oldPayments.length > 0) {
-          // Copy non-refused payments to new policy
+          // Copy non-refused payments to new policy with mapping to old IDs for images
           const validPayments = oldPayments.filter(p => !p.refused);
-          if (validPayments.length > 0) {
-            const newPaymentsData = validPayments.map(p => ({
-              policy_id: newPolicy.id,
-              amount: p.amount,
-              payment_type: p.payment_type,
-              payment_date: p.payment_date,
-              cheque_number: p.cheque_number,
-              cheque_image_url: p.cheque_image_url,
-              cheque_status: p.cheque_status,
-              notes: `منقول من الوثيقة المحولة - ${p.notes || ""}`.trim(),
-              branch_id: p.branch_id,
-              created_by_admin_id: user?.id,
-            }));
+          
+          for (const oldPayment of validPayments) {
+            // Insert new payment
+            const { data: newPayment, error: paymentError } = await supabase
+              .from("policy_payments")
+              .insert({
+                policy_id: newPolicy.id,
+                amount: oldPayment.amount,
+                payment_type: oldPayment.payment_type,
+                payment_date: oldPayment.payment_date,
+                cheque_number: oldPayment.cheque_number,
+                cheque_image_url: oldPayment.cheque_image_url,
+                cheque_status: oldPayment.cheque_status,
+                notes: `منقول من الوثيقة المحولة - ${oldPayment.notes || ""}`.trim(),
+                branch_id: oldPayment.branch_id,
+                created_by_admin_id: user?.id,
+              })
+              .select("id")
+              .single();
 
-            await supabase.from("policy_payments").insert(newPaymentsData);
+            if (!paymentError && newPayment) {
+              // Copy payment images if any
+              const { data: paymentImages } = await supabase
+                .from("payment_images")
+                .select("*")
+                .eq("payment_id", oldPayment.id);
+
+              if (paymentImages && paymentImages.length > 0) {
+                const newImagesData = paymentImages.map(img => ({
+                  payment_id: newPayment.id,
+                  image_url: img.image_url,
+                  image_type: img.image_type,
+                  sort_order: img.sort_order,
+                }));
+                await supabase.from("payment_images").insert(newImagesData);
+                
+                // Delete old payment images
+                await supabase.from("payment_images").delete().eq("payment_id", oldPayment.id);
+              }
+            }
           }
           
           // DELETE all payments from original policy (they are now on the new policy)

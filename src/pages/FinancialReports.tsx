@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,6 +27,30 @@ import { toast } from "sonner";
 import { useProfitSummary } from "@/hooks/useProfitSummary";
 import { Link } from "react-router-dom";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+
+const CACHE_KEY = "ab_financial_reports_cache";
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Load from localStorage
+const loadCachedData = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        return data;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
+// Save to localStorage
+const saveCachedData = (data: any) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {}
+};
 
 interface CompanyBalance {
   companyId: string;
@@ -95,214 +120,151 @@ const statusBadgeVariant = (status: string): "default" | "secondary" | "destruct
   }
 };
 
+// Fetch function for React Query
+const fetchFinancialData = async () => {
+  const now = new Date();
+  const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+
+  // Run all queries in parallel for speed
+  const [
+    paymentsRes,
+    refundsRes,
+    policiesRes,
+    settlementsRes,
+    brokerSettRes,
+    brokerPoliciesRes,
+    expensesRes,
+    monthExpRes,
+    companiesRes,
+    ledgerRes,
+  ] = await Promise.all([
+    supabase.from('policy_payments').select('amount, refused').neq('refused', true),
+    supabase.from('customer_wallet_transactions').select('amount, transaction_type').eq('transaction_type', 'refund'),
+    supabase.from('policies').select('payed_for_company, profit, company_id, cancelled, insurance_companies!policies_company_id_fkey(broker_id)').is('deleted_at', null),
+    supabase.from('company_settlements').select('total_amount, refused').eq('status', 'completed').neq('refused', true),
+    supabase.from('broker_settlements').select('total_amount, direction, status').eq('status', 'completed'),
+    supabase.from('policies').select('broker_buy_price, insurance_price, broker_direction').is('deleted_at', null).eq('cancelled', false).eq('broker_direction', 'from_broker'),
+    supabase.from('expenses').select('amount'),
+    supabase.from('expenses').select('amount').gte('expense_date', monthStart).lte('expense_date', monthEnd),
+    supabase.from('insurance_companies').select('id, name, name_ar, broker_id').eq('active', true).is('broker_id', null),
+    supabase.from('ab_ledger').select('*').eq('status', 'posted').order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(50),
+  ]);
+
+  // Calculate totals
+  let grossCustomerPayments = 0;
+  (paymentsRes.data || []).forEach((p) => { grossCustomerPayments += Number(p.amount) || 0; });
+
+  let totalRefunds = 0;
+  (refundsRes.data || []).forEach((r) => { totalRefunds += Number(r.amount) || 0; });
+
+  const totalCashIn = grossCustomerPayments - totalRefunds;
+
+  let companyDebt = 0;
+  let totalProfit = 0;
+  (policiesRes.data || []).forEach(p => {
+    const isCancelled = p.cancelled;
+    const multiplier = isCancelled ? -1 : 1;
+    totalProfit += (Number(p.profit) || 0) * multiplier;
+    const companyData = p.insurance_companies as any;
+    if (!companyData?.broker_id) {
+      companyDebt += (Number(p.payed_for_company) || 0) * multiplier;
+    }
+  });
+
+  const totalCompanyPayments = (settlementsRes.data || []).reduce((sum, s) => sum + Number(s.total_amount), 0);
+
+  let totalBrokerPayments = 0;
+  (brokerSettRes.data || []).forEach(s => {
+    if (s.direction === 'to_broker') totalBrokerPayments += Number(s.total_amount);
+  });
+
+  let brokerDebt = 0;
+  (brokerPoliciesRes.data || []).forEach(p => {
+    brokerDebt += Number(p.broker_buy_price) || Number(p.insurance_price) || 0;
+  });
+  brokerDebt -= totalBrokerPayments;
+
+  const totalExpenses = (expensesRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
+  const monthExpenses = (monthExpRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
+
+  const netCash = totalCashIn - totalCompanyPayments - totalBrokerPayments - totalExpenses;
+  companyDebt = companyDebt - totalCompanyPayments;
+
+  const abWallet: ABWallet = {
+    totalCashIn,
+    totalCompanyPayments,
+    totalBrokerPayments,
+    totalExpenses,
+    netCash,
+    totalProfit,
+    companyDebt: Math.max(0, companyDebt),
+    brokerDebt: Math.max(0, brokerDebt),
+    monthExpenses,
+  };
+
+  // Fetch company balances in parallel
+  const balancePromises = (companiesRes.data || []).map(async (company) => {
+    const { data: balanceData } = await supabase.rpc('get_company_balance', { p_company_id: company.id });
+    if (balanceData && balanceData.length > 0) {
+      const b = balanceData[0];
+      if (Number(b.total_payable) > 0 || Number(b.outstanding) > 0) {
+        return {
+          companyId: company.id,
+          companyName: company.name,
+          companyNameAr: company.name_ar || company.name,
+          totalPayable: Number(b.total_payable) || 0,
+          totalPaid: Number(b.total_paid) || 0,
+          outstanding: Number(b.outstanding) || 0,
+        };
+      }
+    }
+    return null;
+  });
+
+  const balanceResults = await Promise.all(balancePromises);
+  const companyBalances: CompanyBalance[] = balanceResults.filter(Boolean).sort((a, b) => b!.outstanding - a!.outstanding) as CompanyBalance[];
+
+  const recentEntries: LedgerEntry[] = (ledgerRes.data || []).map(e => ({
+    id: e.id,
+    transactionDate: e.transaction_date,
+    referenceType: e.reference_type,
+    counterpartyType: e.counterparty_type,
+    amount: Number(e.amount),
+    category: e.category,
+    status: e.status,
+    description: e.description || '',
+    policyType: e.policy_type || '',
+  }));
+
+  const result = { abWallet, companyBalances, recentEntries };
+  saveCachedData(result);
+  return result;
+};
+
 export default function FinancialReports() {
   const { summary: profitSummary, loading: profitLoading, refetch: refetchProfit } = useProfitSummary();
-  const [abWallet, setAbWallet] = useState<ABWallet | null>(null);
-  const [companyBalances, setCompanyBalances] = useState<CompanyBalance[]>([]);
-  const [recentEntries, setRecentEntries] = useState<LedgerEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const now = new Date();
-      const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
-      const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
-      
-      // 1. Get total customer payments (actual money received)
-      const { data: customerPayments } = await supabase
-        .from('policy_payments')
-        .select('amount, refused')
-        .neq('refused', true);
-      
-      let grossCustomerPayments = 0;
-      (customerPayments || []).forEach((p) => {
-        grossCustomerPayments += Number(p.amount) || 0;
-      });
-      
-      // 1b. Customer refunds (money given back)
-      const { data: customerRefunds } = await supabase
-        .from('customer_wallet_transactions')
-        .select('amount, transaction_type')
-        .eq('transaction_type', 'refund');
-      
-      let totalRefunds = 0;
-      (customerRefunds || []).forEach((r) => {
-        totalRefunds += Number(r.amount) || 0;
-      });
+  // Load cached data first for instant display
+  const cachedData = loadCachedData();
 
-      // Net collected from customers = payments - refunds
-      const totalCashIn = grossCustomerPayments - totalRefunds;
-      
-      // 2. Get company debt from policies (direct companies only, including cancelled with negative)
-      const { data: policiesData } = await supabase
-        .from('policies')
-        .select('payed_for_company, profit, company_id, cancelled, insurance_companies!policies_company_id_fkey(broker_id)')
-        .is('deleted_at', null);
-      
-      let companyDebt = 0;
-      let totalProfit = 0;
-      
-      (policiesData || []).forEach(p => {
-        const isCancelled = p.cancelled;
-        const multiplier = isCancelled ? -1 : 1; // Negative for cancelled
-        
-        totalProfit += (Number(p.profit) || 0) * multiplier;
-        
-        // Only add to company debt if company is not broker-linked
-        const companyData = p.insurance_companies as any;
-        if (!companyData?.broker_id) {
-          companyDebt += (Number(p.payed_for_company) || 0) * multiplier;
-        }
-      });
-      
-      // 2. Get company settlements (paid to companies)
-      const { data: companySettlements } = await supabase
-        .from('company_settlements')
-        .select('total_amount, refused')
-        .eq('status', 'completed')
-        .neq('refused', true);
-      
-      const totalCompanyPayments = (companySettlements || []).reduce((sum, s) => sum + Number(s.total_amount), 0);
-      
-      // 3. Get broker settlements (paid to/from brokers)
-      const { data: brokerSettlements } = await supabase
-        .from('broker_settlements')
-        .select('total_amount, direction, status')
-        .eq('status', 'completed');
-      
-      let totalBrokerPayments = 0;
-      let brokerPaymentsReceived = 0; // Money received from brokers
-      (brokerSettlements || []).forEach(s => {
-        if (s.direction === 'to_broker') {
-          totalBrokerPayments += Number(s.total_amount);
-        } else if (s.direction === 'from_broker') {
-          brokerPaymentsReceived += Number(s.total_amount);
-        }
-      });
-      
-      // 4. Get broker debt (from policies with broker_direction = 'from_broker')
-      // This is what we owe brokers for policies they created for us
-      const { data: brokerPoliciesFromBroker } = await supabase
-        .from('policies')
-        .select('broker_buy_price, insurance_price, broker_direction')
-        .is('deleted_at', null)
-        .eq('cancelled', false)
-        .eq('broker_direction', 'from_broker');
-      
-      let brokerDebt = 0;
-      (brokerPoliciesFromBroker || []).forEach(p => {
-        brokerDebt += Number(p.broker_buy_price) || Number(p.insurance_price) || 0;
-      });
-      brokerDebt -= totalBrokerPayments; // Subtract what we already paid to brokers
-      
-      // 5. Get expenses
-      const { data: allExpenses } = await supabase
-        .from('expenses')
-        .select('amount');
-      
-      const { data: monthExpensesData } = await supabase
-        .from('expenses')
-        .select('amount')
-        .gte('expense_date', monthStart)
-        .lte('expense_date', monthEnd);
-      
-      const totalExpenses = (allExpenses || []).reduce((sum, e) => sum + Number(e.amount), 0);
-      const monthExpenses = (monthExpensesData || []).reduce((sum, e) => sum + Number(e.amount), 0);
-      
-      // Calculate net cash
-      // صافي الخزينة = صافي المحصّل من الزبائن - المدفوع للشركات - المدفوع للوسطاء - المصاريف
-      const netCash = totalCashIn - totalCompanyPayments - totalBrokerPayments - totalExpenses;
-      
-      // Update company debt to reflect what's remaining
-      companyDebt = companyDebt - totalCompanyPayments;
-      
-      setAbWallet({
-        totalCashIn,
-        totalCompanyPayments,
-        totalBrokerPayments,
-        totalExpenses,
-        netCash,
-        totalProfit,
-        companyDebt: Math.max(0, companyDebt),
-        brokerDebt: Math.max(0, brokerDebt),
-        monthExpenses,
-      });
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['financial-reports'],
+    queryFn: fetchFinancialData,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    initialData: cachedData || undefined,
+  });
 
-      // Fetch company balances - exclude broker-linked companies
-      const { data: companies, error: companiesError } = await supabase
-        .from('insurance_companies')
-        .select('id, name, name_ar, broker_id')
-        .eq('active', true)
-        .is('broker_id', null);
-      
-      if (companiesError) throw companiesError;
-      
-      const balances: CompanyBalance[] = [];
-      for (const company of companies || []) {
-        const { data: balanceData } = await supabase
-          .rpc('get_company_balance', { p_company_id: company.id });
-        
-        if (balanceData && balanceData.length > 0) {
-          const b = balanceData[0];
-          if (Number(b.total_payable) > 0 || Number(b.outstanding) > 0) {
-            balances.push({
-              companyId: company.id,
-              companyName: company.name,
-              companyNameAr: company.name_ar || company.name,
-              totalPayable: Number(b.total_payable) || 0,
-              totalPaid: Number(b.total_paid) || 0,
-              outstanding: Number(b.outstanding) || 0,
-            });
-          }
-        }
-      }
-      setCompanyBalances(balances.sort((a, b) => b.outstanding - a.outstanding));
-
-      // Fetch recent ledger entries
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('ab_ledger')
-        .select('*')
-        .eq('status', 'posted')
-        .order('transaction_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (entriesError) throw entriesError;
-      
-      setRecentEntries((entriesData || []).map(e => ({
-        id: e.id,
-        transactionDate: e.transaction_date,
-        referenceType: e.reference_type,
-        counterpartyType: e.counterparty_type,
-        amount: Number(e.amount),
-        category: e.category,
-        status: e.status,
-        description: e.description || '',
-        policyType: e.policy_type || '',
-      })));
-
-    } catch (error) {
-      console.error('Error fetching financial data:', error);
-      toast.error('حدث خطأ في جلب البيانات المالية');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const abWallet = data?.abWallet || null;
+  const companyBalances = data?.companyBalances || [];
+  const recentEntries = data?.recentEntries || [];
+  const loading = isLoading && !cachedData;
 
   const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await Promise.all([fetchData(), refetchProfit()]);
-      toast.success('تم تحديث البيانات');
-    } finally {
-      setSyncing(false);
-    }
+    await Promise.all([refetch(), refetchProfit()]);
+    toast.success('تم تحديث البيانات');
   };
 
   const formatCurrency = (amount: number) => {
@@ -320,7 +282,7 @@ export default function FinancialReports() {
         title="التقارير المالية" 
         subtitle="محفظة AB الموحدة"
         action={{
-          label: syncing ? "جاري التحديث..." : "تحديث",
+          label: isFetching ? "جاري التحديث..." : "تحديث",
           onClick: handleSync,
         }}
       />

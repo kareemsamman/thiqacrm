@@ -401,31 +401,40 @@ export function TransferPolicyModal({
 
         if (transferError) throw transferError;
 
-        // 4. Copy payments from old policy to new policy (for all policies in package)
+        // 4. MOVE payments from old policy to new policy (copy then delete from old)
         const { data: oldPayments } = await supabase
           .from("policy_payments")
           .select("*")
-          .eq("policy_id", originalPolicy.id)
-          .eq("refused", false);
+          .eq("policy_id", originalPolicy.id);
 
         if (oldPayments && oldPayments.length > 0) {
-          const newPaymentsData = oldPayments.map(p => ({
-            policy_id: newPolicy.id,
-            amount: p.amount,
-            payment_type: p.payment_type,
-            payment_date: p.payment_date,
-            cheque_number: p.cheque_number,
-            cheque_image_url: p.cheque_image_url,
-            cheque_status: p.cheque_status,
-            notes: `منقول من الوثيقة المحولة - ${p.notes || ""}`.trim(),
-            branch_id: p.branch_id,
-            created_by_admin_id: user?.id,
-          }));
+          // Copy non-refused payments to new policy
+          const validPayments = oldPayments.filter(p => !p.refused);
+          if (validPayments.length > 0) {
+            const newPaymentsData = validPayments.map(p => ({
+              policy_id: newPolicy.id,
+              amount: p.amount,
+              payment_type: p.payment_type,
+              payment_date: p.payment_date,
+              cheque_number: p.cheque_number,
+              cheque_image_url: p.cheque_image_url,
+              cheque_status: p.cheque_status,
+              notes: `منقول من الوثيقة المحولة - ${p.notes || ""}`.trim(),
+              branch_id: p.branch_id,
+              created_by_admin_id: user?.id,
+            }));
 
-          await supabase.from("policy_payments").insert(newPaymentsData);
+            await supabase.from("policy_payments").insert(newPaymentsData);
+          }
+          
+          // DELETE all payments from original policy (they are now on the new policy)
+          await supabase
+            .from("policy_payments")
+            .delete()
+            .eq("policy_id", originalPolicy.id);
         }
 
-        // 5. Copy policy files (insurance documents) from old to new policy
+        // 5. MOVE policy files (insurance documents) from old to new policy
         const { data: oldFiles } = await supabase
           .from("media_files")
           .select("*")
@@ -434,6 +443,7 @@ export function TransferPolicyModal({
           .is("deleted_at", null);
 
         if (oldFiles && oldFiles.length > 0) {
+          // Copy files to new policy
           const newFilesData = oldFiles.map(f => ({
             original_name: f.original_name,
             cdn_url: f.cdn_url,
@@ -447,6 +457,13 @@ export function TransferPolicyModal({
           }));
 
           await supabase.from("media_files").insert(newFilesData);
+          
+          // Soft delete files from original policy (mark as deleted)
+          await supabase
+            .from("media_files")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("entity_id", originalPolicy.id)
+            .in("entity_type", ["policy", "policy_insurance"]);
         }
       }
 

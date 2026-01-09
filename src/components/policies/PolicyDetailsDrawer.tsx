@@ -398,14 +398,15 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
     return diff;
   };
 
-  // Payment calculations
-  const totalPaid = payments.filter((p) => !p.refused && p.cheque_status !== 'returned').reduce((sum, p) => sum + p.amount, 0);
-  const remaining = policy ? policy.insurance_price - totalPaid : 0;
-  const percentagePaid = policy ? Math.min(100, Math.round((totalPaid / policy.insurance_price) * 100)) : 0;
-  const paymentStatus = remaining <= 0 ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
+  // Payment calculations - for transferred policies, show 0 paid/remaining (payments moved to new policy)
+  const isTransferred = policy?.transferred === true;
+  const totalPaid = isTransferred ? 0 : payments.filter((p) => !p.refused && p.cheque_status !== 'returned').reduce((sum, p) => sum + p.amount, 0);
+  const remaining = policy ? (isTransferred ? 0 : policy.insurance_price - totalPaid) : 0;
+  const percentagePaid = policy ? (isTransferred ? 100 : Math.min(100, Math.round((totalPaid / policy.insurance_price) * 100))) : 0;
+  const paymentStatus = isTransferred ? "paid" : remaining <= 0 ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
 
   // Returned cheques calculation
-  const returnedCheques = payments.filter((p) => p.payment_type === 'cheque' && (p.refused || p.cheque_status === 'returned'));
+  const returnedCheques = isTransferred ? [] : payments.filter((p) => p.payment_type === 'cheque' && (p.refused || p.cheque_status === 'returned'));
   const returnedChequesTotal = returnedCheques.reduce((sum, p) => sum + p.amount, 0);
   const hasReturnedCheques = returnedCheques.length > 0;
 
@@ -591,19 +592,22 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                   {!isElzami && isAdmin && (
                     <div className={cn(
                       "rounded-xl p-4 text-center border shadow-sm",
-                      policy.cancelled ? "bg-muted" : "bg-success/10 border-success/20"
+                      (policy.cancelled || isTransferred) ? "bg-muted" : "bg-success/10 border-success/20"
                     )}>
                       <p className="text-xs text-muted-foreground mb-1">
                         {hasPackage ? 'ربح هذه الوثيقة' : 'الربح'}
                       </p>
                       <p className={cn(
                         "text-2xl font-bold",
-                        policy.cancelled ? "text-muted-foreground line-through" : "text-success"
+                        (policy.cancelled || isTransferred) ? "text-muted-foreground line-through" : "text-success"
                       )}>
-                        {policy.cancelled ? formatCurrency(0) : formatCurrency(policy.profit)}
+                        {(policy.cancelled || isTransferred) ? formatCurrency(0) : formatCurrency(policy.profit)}
                       </p>
                       {policy.cancelled && (
                         <p className="text-xs text-destructive mt-1">ملغى</p>
+                      )}
+                      {isTransferred && !policy.cancelled && (
+                        <p className="text-xs text-amber-600 mt-1">محوّلة</p>
                       )}
                     </div>
                   )}
@@ -699,6 +703,26 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                     <div className="mt-3 pt-3 border-t border-destructive/20 text-xs text-destructive/70">
                       <p>• الربح: تم إلغاؤه</p>
                       <p>• المستحق للشركة: تم إلغاؤه ({formatCurrency(policy.payed_for_company)}-)</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transferred Info */}
+                {isTransferred && !policy.cancelled && (
+                  <div className="mt-4 bg-amber-500/10 rounded-xl p-4 border border-amber-500/20 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ArrowLeftRight className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-700">وثيقة محوّلة</span>
+                      {policy.transferred_car_number && (
+                        <Badge variant="outline" className="text-xs mr-auto bg-amber-500/10 border-amber-500/30">
+                          إلى: {policy.transferred_car_number}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-2 text-xs text-amber-700/80 space-y-1">
+                      <p>• الدفعات والملفات تم نقلها للوثيقة الجديدة</p>
+                      <p>• المستحق للشركة: ₪0 (محولة)</p>
+                      <p>• الربح: ₪0 (محولة)</p>
                     </div>
                   </div>
                 )}

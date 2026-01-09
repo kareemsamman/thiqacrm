@@ -108,7 +108,7 @@ export default function CompanySettlementDetail() {
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
-  // Filtered data - exclude transferred policies by default (they have 0 values anyway)
+  // Filtered data - include transferred policies but show them with 0 values
   const filteredPolicies = useMemo(() => {
     return policies.filter(policy => {
       if (selectedPolicyType !== 'all' && policy.policy_type_parent !== selectedPolicyType) {
@@ -117,23 +117,24 @@ export default function CompanySettlementDetail() {
       if (!includeCancelled && policy.cancelled) {
         return false;
       }
-      // Transferred policies are excluded from active reporting (their debt moved to new policy)
-      if (policy.transferred) {
-        return false;
-      }
+      // Note: Transferred policies are included but their values show as 0
       return true;
     });
   }, [policies, selectedPolicyType, includeCancelled]);
 
-  // Summary totals
+  // Summary totals - exclude transferred policies from calculations (they have 0 debt/profit)
   const summary = useMemo(() => {
     return filteredPolicies.reduce(
-      (acc, policy) => ({
-        totalPolicies: acc.totalPolicies + 1,
-        totalInsurancePrice: acc.totalInsurancePrice + (Number(policy.insurance_price) || 0),
-        totalCompanyPayment: acc.totalCompanyPayment + (Number(policy.payed_for_company) || 0),
-        totalProfit: acc.totalProfit + (Number(policy.profit) || 0),
-      }),
+      (acc, policy) => {
+        // Skip transferred policies in calculations (their debt/profit moved to new policy)
+        const isTransferred = policy.transferred === true;
+        return {
+          totalPolicies: acc.totalPolicies + 1,
+          totalInsurancePrice: acc.totalInsurancePrice + (Number(policy.insurance_price) || 0),
+          totalCompanyPayment: acc.totalCompanyPayment + (isTransferred ? 0 : (Number(policy.payed_for_company) || 0)),
+          totalProfit: acc.totalProfit + (isTransferred ? 0 : (Number(policy.profit) || 0)),
+        };
+      },
       { totalPolicies: 0, totalInsurancePrice: 0, totalCompanyPayment: 0, totalProfit: 0 }
     );
   }, [filteredPolicies]);
@@ -676,11 +677,19 @@ export default function CompanySettlementDetail() {
                         <TableCell className="font-mono">
                           ₪{Number(policy.insurance_price).toLocaleString('ar-EG')}
                         </TableCell>
-                        <TableCell className="font-mono text-destructive">
-                          ₪{Number(policy.payed_for_company || 0).toLocaleString('ar-EG')}
+                        <TableCell className={cn("font-mono", policy.transferred ? "text-muted-foreground" : "text-destructive")}>
+                          {policy.transferred ? (
+                            <span className="line-through">₪0</span>
+                          ) : (
+                            <>₪{Number(policy.payed_for_company || 0).toLocaleString('ar-EG')}</>
+                          )}
                         </TableCell>
-                        <TableCell className="font-mono text-success">
-                          ₪{Number(policy.profit || 0).toLocaleString('ar-EG')}
+                        <TableCell className={cn("font-mono", policy.transferred ? "text-muted-foreground" : "text-success")}>
+                          {policy.transferred ? (
+                            <span className="line-through">₪0</span>
+                          ) : (
+                            <>₪{Number(policy.profit || 0).toLocaleString('ar-EG')}</>
+                          )}
                         </TableCell>
                         <TableCell className="print:hidden">
                           <div className="flex items-center gap-1">

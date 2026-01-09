@@ -283,62 +283,127 @@ export function TransferPolicyModal({
         policiesToTransfer.push(...relatedPolicies.map(p => p.id));
       }
       
-      // 1. Create policy transfer audit record for main policy
-      const { error: transferError } = await supabase
-        .from("policy_transfers")
-        .insert({
-          policy_id: policyId,
-          client_id: clientId,
-          from_car_id: currentCar?.id,
-          to_car_id: selectedCarId,
-          transfer_date: transferDate,
-          note: note || null,
-          adjustment_type: adjustmentType,
-          adjustment_amount: adjustmentType !== "none" ? parseFloat(adjustmentAmount) : null,
-          created_by_admin_id: user?.id,
-          branch_id: branchId,
-        });
+      // Fetch original policy details for all policies being transferred
+      const { data: originalPolicies, error: fetchError } = await supabase
+        .from("policies")
+        .select("*")
+        .in("id", policiesToTransfer);
 
-      if (transferError) throw transferError;
+      if (fetchError) throw fetchError;
+      if (!originalPolicies || originalPolicies.length === 0) {
+        throw new Error("لم يتم العثور على الوثائق");
+      }
 
-      // 2. Create transfer records for related policies if transferring as package
-      if (transferPackage && relatedPolicies.length > 0) {
-        const relatedTransferRecords = relatedPolicies.map(p => ({
-          policy_id: p.id,
-          client_id: clientId,
-          from_car_id: currentCar?.id,
-          to_car_id: selectedCarId,
-          transfer_date: transferDate,
-          note: `تحويل ضمن الحزمة مع الوثيقة ${policyNumber || policyId}`,
-          adjustment_type: "none",
-          adjustment_amount: null,
+      // Generate new group_id if transferring package
+      const newGroupId = transferPackage && policiesToTransfer.length > 1 
+        ? crypto.randomUUID() 
+        : null;
+
+      const newPolicyIds: string[] = [];
+
+      // Process each policy
+      for (const originalPolicy of originalPolicies) {
+        // 1. Mark original policy as transferred and set end_date to transfer date
+        const { error: updateOriginalError } = await supabase
+          .from("policies")
+          .update({
+            transferred: true,
+            end_date: transferDate,
+            transferred_to_car_number: selectedCar?.car_number || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", originalPolicy.id);
+
+        if (updateOriginalError) throw updateOriginalError;
+
+        // 2. Create new policy for the remaining period
+        const newPolicyData = {
+          client_id: originalPolicy.client_id,
+          car_id: selectedCarId,
+          company_id: originalPolicy.company_id,
+          policy_type_parent: originalPolicy.policy_type_parent,
+          policy_type_child: originalPolicy.policy_type_child,
+          start_date: transferDate,
+          end_date: originalPolicy.end_date, // Original end date
+          insurance_price: originalPolicy.insurance_price,
+          is_under_24: originalPolicy.is_under_24,
+          profit: originalPolicy.profit,
+          payed_for_company: originalPolicy.payed_for_company,
+          broker_id: originalPolicy.broker_id,
+          broker_direction: originalPolicy.broker_direction,
+          broker_buy_price: originalPolicy.broker_buy_price,
+          category_id: originalPolicy.category_id,
+          branch_id: originalPolicy.branch_id,
+          road_service_id: originalPolicy.road_service_id,
+          accident_fee_service_id: originalPolicy.accident_fee_service_id,
+          company_cost_snapshot: originalPolicy.company_cost_snapshot,
+          elzami_cost: originalPolicy.elzami_cost,
+          transferred_car_number: currentCar?.car_number || null, // FROM which car
+          transferred_from_policy_id: originalPolicy.id, // Link to original
+          group_id: newGroupId || (policiesToTransfer.length === 1 ? null : originalPolicy.group_id),
+          notes: `تحويل من سيارة ${currentCar?.car_number || "غير محدد"} - ${originalPolicy.notes || ""}`.trim(),
           created_by_admin_id: user?.id,
-          branch_id: branchId,
-        }));
-        
-        const { error: relatedTransferError } = await supabase
+        };
+
+        const { data: newPolicy, error: insertError } = await supabase
+          .from("policies")
+          .insert(newPolicyData)
+          .select("id")
+          .single();
+
+        if (insertError) throw insertError;
+        newPolicyIds.push(newPolicy.id);
+
+        // 3. Create policy transfer audit record
+        const { error: transferError } = await supabase
           .from("policy_transfers")
-          .insert(relatedTransferRecords);
+          .insert({
+            policy_id: originalPolicy.id,
+            new_policy_id: newPolicy.id,
+            client_id: clientId,
+            from_car_id: currentCar?.id,
+            to_car_id: selectedCarId,
+            transfer_date: transferDate,
+            note: note || null,
+            adjustment_type: originalPolicy.id === policyId ? adjustmentType : "none",
+            adjustment_amount: originalPolicy.id === policyId && adjustmentType !== "none" 
+              ? parseFloat(adjustmentAmount) 
+              : null,
+            created_by_admin_id: user?.id,
+            branch_id: branchId,
+          });
 
-        if (relatedTransferError) {
-          console.error("Error creating related transfer records:", relatedTransferError);
+        if (transferError) throw transferError;
+
+        // 4. Copy payments from old policy to new policy (only for main policy)
+        if (originalPolicy.id === policyId) {
+          const { data: oldPayments } = await supabase
+            .from("policy_payments")
+            .select("*")
+            .eq("policy_id", originalPolicy.id)
+            .eq("refused", false);
+
+          if (oldPayments && oldPayments.length > 0) {
+            const newPaymentsData = oldPayments.map(p => ({
+              policy_id: newPolicy.id,
+              amount: p.amount,
+              payment_type: p.payment_type,
+              payment_date: p.payment_date,
+              cheque_number: p.cheque_number,
+              cheque_image_url: p.cheque_image_url,
+              cheque_status: p.cheque_status,
+              notes: `منقول من الوثيقة المحولة - ${p.notes || ""}`.trim(),
+              branch_id: p.branch_id,
+              created_by_admin_id: user?.id,
+            }));
+
+            await supabase.from("policy_payments").insert(newPaymentsData);
+          }
         }
       }
 
-      // 3. Update ALL policies being transferred: MOVE to new car
-      const { error: policiesUpdateError } = await supabase
-        .from("policies")
-        .update({
-          car_id: selectedCarId,
-          transferred_car_number: currentCar?.car_number || null,
-          updated_at: new Date().toISOString(),
-        })
-        .in("id", policiesToTransfer);
-
-      if (policiesUpdateError) throw policiesUpdateError;
-
-      // 4. Create wallet transaction if money adjustment exists
-      if (adjustmentType !== "none" && adjustmentAmount) {
+      // 5. Create wallet transaction if money adjustment exists (on new main policy)
+      if (adjustmentType !== "none" && adjustmentAmount && newPolicyIds.length > 0) {
         const transactionType = adjustmentType === "customer_pays" 
           ? "transfer_adjustment_due" 
           : "transfer_refund_owed";
@@ -347,7 +412,7 @@ export function TransferPolicyModal({
           .from("customer_wallet_transactions")
           .insert({
             client_id: clientId,
-            policy_id: policyId,
+            policy_id: newPolicyIds[0], // Link to new policy
             transaction_type: transactionType,
             amount: parseFloat(adjustmentAmount),
             description: adjustmentType === "customer_pays" 
@@ -361,7 +426,7 @@ export function TransferPolicyModal({
         if (walletError) throw walletError;
       }
 
-      // 5. Send SMS if enabled
+      // 6. Send SMS if enabled
       if (sendSms && clientPhone && smsMessage) {
         try {
           const { error: smsError } = await supabase.functions.invoke("send-sms", {
@@ -369,7 +434,7 @@ export function TransferPolicyModal({
               phone: clientPhone,
               message: smsMessage,
               client_id: clientId,
-              policy_id: policyId,
+              policy_id: newPolicyIds[0] || policyId,
               sms_type: "manual",
               branch_id: branchId,
             },
@@ -391,10 +456,10 @@ export function TransferPolicyModal({
 
       const transferCount = policiesToTransfer.length;
       toast({ 
-        title: "تم", 
+        title: "تم التحويل بنجاح", 
         description: transferCount > 1 
-          ? `تم تحويل ${transferCount} وثائق (الحزمة الكاملة)`
-          : "تم تحويل الوثيقة - الوثيقة القديمة انتهت بتاريخ التحويل"
+          ? `تم تحويل ${transferCount} وثائق - الوثائق القديمة انتهت بتاريخ التحويل ووثائق جديدة تم إنشاؤها للسيارة الجديدة`
+          : "تم تحويل الوثيقة - الوثيقة القديمة انتهت بتاريخ التحويل ووثيقة جديدة تم إنشاؤها للسيارة الجديدة"
       });
       onTransferred();
       onOpenChange(false);

@@ -2193,6 +2193,8 @@ export type Database = {
           start_date: string
           transferred: boolean | null
           transferred_car_number: string | null
+          transferred_from_policy_id: string | null
+          transferred_to_car_number: string | null
           updated_at: string
         }
         Insert: {
@@ -2236,6 +2238,8 @@ export type Database = {
           start_date: string
           transferred?: boolean | null
           transferred_car_number?: string | null
+          transferred_from_policy_id?: string | null
+          transferred_to_car_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -2279,6 +2283,8 @@ export type Database = {
           start_date?: string
           transferred?: boolean | null
           transferred_car_number?: string | null
+          transferred_from_policy_id?: string | null
+          transferred_to_car_number?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2364,6 +2370,20 @@ export type Database = {
             columns: ["road_service_id"]
             isOneToOne: false
             referencedRelation: "road_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_transferred_from_policy_id_fkey"
+            columns: ["transferred_from_policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_transferred_from_policy_id_fkey"
+            columns: ["transferred_from_policy_id"]
+            isOneToOne: false
+            referencedRelation: "v_worker_policies"
             referencedColumns: ["id"]
           },
         ]
@@ -2640,6 +2660,7 @@ export type Database = {
           created_by_admin_id: string | null
           from_car_id: string
           id: string
+          new_policy_id: string | null
           note: string | null
           policy_id: string
           to_car_id: string
@@ -2654,6 +2675,7 @@ export type Database = {
           created_by_admin_id?: string | null
           from_car_id: string
           id?: string
+          new_policy_id?: string | null
           note?: string | null
           policy_id: string
           to_car_id: string
@@ -2668,6 +2690,7 @@ export type Database = {
           created_by_admin_id?: string | null
           from_car_id?: string
           id?: string
+          new_policy_id?: string | null
           note?: string | null
           policy_id?: string
           to_car_id?: string
@@ -2700,6 +2723,20 @@ export type Database = {
             columns: ["from_car_id"]
             isOneToOne: false
             referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_transfers_new_policy_id_fkey"
+            columns: ["new_policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_transfers_new_policy_id_fkey"
+            columns: ["new_policy_id"]
+            isOneToOne: false
+            referencedRelation: "v_worker_policies"
             referencedColumns: ["id"]
           },
           {

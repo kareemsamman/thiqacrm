@@ -402,95 +402,23 @@ export function TransferPolicyModal({
 
         if (transferError) throw transferError;
 
-        // 4. MOVE payments from old policy to new policy (copy then delete from old)
-        const { data: oldPayments } = await supabase
+        // 4. MOVE payments from old policy to new policy (single UPDATE keeps images intact)
+        const { error: movePaymentsError } = await supabase
           .from("policy_payments")
-          .select("*")
+          .update({ policy_id: newPolicy.id })
           .eq("policy_id", originalPolicy.id);
 
-        if (oldPayments && oldPayments.length > 0) {
-          // Copy non-refused payments to new policy with mapping to old IDs for images
-          const validPayments = oldPayments.filter(p => !p.refused);
-          
-          for (const oldPayment of validPayments) {
-            // Insert new payment
-            const { data: newPayment, error: paymentError } = await supabase
-              .from("policy_payments")
-              .insert({
-                policy_id: newPolicy.id,
-                amount: oldPayment.amount,
-                payment_type: oldPayment.payment_type,
-                payment_date: oldPayment.payment_date,
-                cheque_number: oldPayment.cheque_number,
-                cheque_image_url: oldPayment.cheque_image_url,
-                cheque_status: oldPayment.cheque_status,
-                notes: `منقول من الوثيقة المحولة - ${oldPayment.notes || ""}`.trim(),
-                branch_id: oldPayment.branch_id,
-                created_by_admin_id: user?.id,
-              })
-              .select("id")
-              .single();
+        if (movePaymentsError) throw movePaymentsError;
 
-            if (!paymentError && newPayment) {
-              // Copy payment images if any
-              const { data: paymentImages } = await supabase
-                .from("payment_images")
-                .select("*")
-                .eq("payment_id", oldPayment.id);
-
-              if (paymentImages && paymentImages.length > 0) {
-                const newImagesData = paymentImages.map(img => ({
-                  payment_id: newPayment.id,
-                  image_url: img.image_url,
-                  image_type: img.image_type,
-                  sort_order: img.sort_order,
-                }));
-                await supabase.from("payment_images").insert(newImagesData);
-                
-                // Delete old payment images
-                await supabase.from("payment_images").delete().eq("payment_id", oldPayment.id);
-              }
-            }
-          }
-          
-          // DELETE all payments from original policy (they are now on the new policy)
-          await supabase
-            .from("policy_payments")
-            .delete()
-            .eq("policy_id", originalPolicy.id);
-        }
-
-        // 5. MOVE policy files (insurance documents) from old to new policy
-        const { data: oldFiles } = await supabase
+        // 5. MOVE policy files (insurance + CRM) from old to new policy
+        const { error: moveFilesError } = await supabase
           .from("media_files")
-          .select("*")
+          .update({ entity_id: newPolicy.id })
           .eq("entity_id", originalPolicy.id)
-          .in("entity_type", ["policy", "policy_insurance"])
+          .in("entity_type", ["policy", "policy_insurance", "policy_crm"])
           .is("deleted_at", null);
 
-        if (oldFiles && oldFiles.length > 0) {
-          // Copy files to new policy
-          const newFilesData = oldFiles.map(f => ({
-            original_name: f.original_name,
-            cdn_url: f.cdn_url,
-            storage_path: f.storage_path,
-            mime_type: f.mime_type,
-            size: f.size,
-            entity_type: f.entity_type,
-            entity_id: newPolicy.id,
-            branch_id: f.branch_id,
-            uploaded_by: user?.id,
-          }));
-
-          await supabase.from("media_files").insert(newFilesData);
-          
-          // Soft delete files from original policy (mark as deleted)
-          await supabase
-            .from("media_files")
-            .update({ deleted_at: new Date().toISOString() })
-            .eq("entity_id", originalPolicy.id)
-            .in("entity_type", ["policy", "policy_insurance"]);
-        }
+        if (moveFilesError) throw moveFilesError;
       }
 
       // 6. Create wallet transaction only for refunds (customer_pays is already added to insurance_price)

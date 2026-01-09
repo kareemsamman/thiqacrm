@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useMemo } from 'react';
 
 interface RecentClient {
   id: string;
@@ -31,22 +31,28 @@ export function RecentClientProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const setRecentClient = (client: RecentClient | null) => {
+  const setRecentClient = useCallback((client: RecentClient | null) => {
     setRecentClientState(client);
     if (client) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(client));
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
-  };
+  }, []);
 
-  const clearRecentClient = () => {
+  const clearRecentClient = useCallback(() => {
     setRecentClientState(null);
     localStorage.removeItem(STORAGE_KEY);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    recentClient,
+    setRecentClient,
+    clearRecentClient,
+  }), [recentClient, setRecentClient, clearRecentClient]);
 
   return (
-    <RecentClientContext.Provider value={{ recentClient, setRecentClient, clearRecentClient }}>
+    <RecentClientContext.Provider value={value}>
       {children}
     </RecentClientContext.Provider>
   );
@@ -54,8 +60,13 @@ export function RecentClientProvider({ children }: { children: ReactNode }) {
 
 export function useRecentClient() {
   const context = useContext(RecentClientContext);
+  // Return no-op functions if not in provider (for safety)
   if (!context) {
-    throw new Error('useRecentClient must be used within a RecentClientProvider');
+    return {
+      recentClient: null,
+      setRecentClient: () => {},
+      clearRecentClient: () => {},
+    };
   }
   return context;
 }

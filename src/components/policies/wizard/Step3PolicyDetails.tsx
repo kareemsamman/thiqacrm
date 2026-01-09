@@ -663,19 +663,18 @@ export function Step3PolicyDetails({
         </div>
       )}
 
-      {/* ELZAMI Commission Display */}
+      {/* ELZAMI Commission Display - Always shown as cost (red) */}
       {policy.policy_type_parent === 'ELZAMI' && policy.company_id && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">العمولة (الربح)</Label>
-            <span className={`text-lg font-bold ${
-              (companies.find(c => c.id === policy.company_id)?.elzami_commission || 0) >= 0 
-                ? 'text-green-600' 
-                : 'text-red-600'
-            }`}>
+            <Label className="text-sm font-medium text-red-700 dark:text-red-300">العمولة</Label>
+            <span className="text-lg font-bold text-red-600">
               ₪{(companies.find(c => c.id === policy.company_id)?.elzami_commission || 0).toLocaleString()}
             </span>
           </div>
+          <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+            هذا المبلغ سيُخصم من رصيد AB
+          </p>
         </div>
       )}
 

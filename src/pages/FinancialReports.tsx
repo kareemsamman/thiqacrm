@@ -110,19 +110,28 @@ export default function FinancialReports() {
       const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
       const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
       
-      // 1. Get total cash in (all insurance_price from policies)
+      // 1. Get total ACTUAL cash in (only payments received from customers, not policy prices)
+      const { data: customerPayments } = await supabase
+        .from('policy_payments')
+        .select('amount, refused')
+        .neq('refused', true);
+      
+      let totalCashIn = 0;
+      (customerPayments || []).forEach(p => {
+        totalCashIn += Number(p.amount) || 0;
+      });
+      
+      // 2. Get company debt from policies (direct companies only)
       const { data: policiesData } = await supabase
         .from('policies')
-        .select('insurance_price, payed_for_company, profit, company_id, insurance_companies!policies_company_id_fkey(broker_id)')
+        .select('payed_for_company, profit, company_id, insurance_companies!policies_company_id_fkey(broker_id)')
         .is('deleted_at', null)
         .eq('cancelled', false);
       
-      let totalCashIn = 0;
       let companyDebt = 0;
       let totalProfit = 0;
       
       (policiesData || []).forEach(p => {
-        totalCashIn += Number(p.insurance_price) || 0;
         totalProfit += Number(p.profit) || 0;
         
         // Only add to company debt if company is not broker-linked
@@ -148,14 +157,18 @@ export default function FinancialReports() {
         .eq('status', 'completed');
       
       let totalBrokerPayments = 0;
+      let brokerPaymentsReceived = 0; // Money received from brokers
       (brokerSettlements || []).forEach(s => {
         if (s.direction === 'to_broker') {
           totalBrokerPayments += Number(s.total_amount);
+        } else if (s.direction === 'from_broker') {
+          brokerPaymentsReceived += Number(s.total_amount);
         }
       });
       
       // 4. Get broker debt (from policies with broker_direction = 'from_broker')
-      const { data: brokerPolicies } = await supabase
+      // This is what we owe brokers for policies they created for us
+      const { data: brokerPoliciesFromBroker } = await supabase
         .from('policies')
         .select('broker_buy_price, insurance_price, broker_direction')
         .is('deleted_at', null)
@@ -163,10 +176,10 @@ export default function FinancialReports() {
         .eq('broker_direction', 'from_broker');
       
       let brokerDebt = 0;
-      (brokerPolicies || []).forEach(p => {
+      (brokerPoliciesFromBroker || []).forEach(p => {
         brokerDebt += Number(p.broker_buy_price) || Number(p.insurance_price) || 0;
       });
-      brokerDebt -= totalBrokerPayments; // Subtract what we already paid
+      brokerDebt -= totalBrokerPayments; // Subtract what we already paid to brokers
       
       // 5. Get expenses
       const { data: allExpenses } = await supabase
@@ -308,7 +321,7 @@ export default function FinancialReports() {
                   {formatCurrency(abWallet?.netCash || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  (كل الإيرادات - المدفوع للشركات - المدفوع للوسطاء - المصاريف)
+                  (المدفوعات الفعلية من الزبائن - المدفوع للشركات - المدفوع للوسطاء - المصاريف)
                 </p>
               </div>
             )}
@@ -410,7 +423,7 @@ export default function FinancialReports() {
                   <ArrowDownRight className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">إجمالي الإيرادات</p>
+                  <p className="text-xs text-muted-foreground">المحصّل من الزبائن</p>
                   <p className="text-lg font-bold text-success">
                     {formatCurrency(abWallet?.totalCashIn || 0)}
                   </p>

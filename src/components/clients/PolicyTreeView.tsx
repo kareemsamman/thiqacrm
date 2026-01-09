@@ -1023,7 +1023,11 @@ function PolicyCardHeader({
           <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الفترة</p>
-            <p className="font-medium ltr-nums">{formatDate(policy.start_date)} → {formatDate(policy.end_date)}</p>
+            <p className="font-medium text-xs">
+              <span className="ltr-nums">{formatDate(policy.start_date)}</span>
+              <span className="mx-1 text-muted-foreground">←</span>
+              <span className="ltr-nums">{formatDate(policy.end_date)}</span>
+            </p>
           </div>
         </div>
         

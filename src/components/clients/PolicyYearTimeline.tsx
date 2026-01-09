@@ -800,8 +800,10 @@ function PolicyPackageCard({
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">الفترة</p>
-              <p className={cn("font-medium ltr-nums text-xs", !isActive && "text-muted-foreground")}>
-                {formatDate(policy.start_date)} → {formatDate(policy.end_date)}
+              <p className={cn("font-medium text-xs", !isActive && "text-muted-foreground")}>
+                <span className="ltr-nums">{formatDate(policy.start_date)}</span>
+                <span className="mx-1 text-muted-foreground">←</span>
+                <span className="ltr-nums">{formatDate(policy.end_date)}</span>
               </p>
             </div>
           </div>

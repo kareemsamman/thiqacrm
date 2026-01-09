@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, Save, ArrowRight, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { calculatePolicyProfit } from "@/lib/pricingCalculator";
 import { TranzilaPaymentModal } from "@/components/payments/TranzilaPaymentModal";
 import {
@@ -166,6 +167,9 @@ export function PolicyWizard({
   const [tranzilaModalOpen, setTranzilaModalOpen] = useState(false);
   const [activeTranzilaPaymentId, setActiveTranzilaPaymentId] = useState<string | null>(null);
   const [tempPolicyId, setTempPolicyId] = useState<string | null>(null);
+  
+  // Collapse state for minimizing dialog
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Fetch categories and brokers on open
   useEffect(() => {
@@ -899,26 +903,56 @@ export function PolicyWizard({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-5xl w-[95vw] max-h-[95vh] overflow-hidden flex flex-col" dir="rtl">
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              إضافة وثيقة جديدة
-              {selectedCategory && (
-                <span className="text-sm font-normal text-muted-foreground">
-                  ({selectedCategory.name_ar || selectedCategory.name})
-                </span>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent 
+          className={cn(
+            "max-w-5xl w-[95vw] overflow-hidden flex flex-col transition-all duration-300",
+            isCollapsed ? "max-h-[80px]" : "max-h-[95vh]"
+          )} 
+          dir="rtl"
+        >
+          {/* Collapsed view - just a pill to expand */}
+          {isCollapsed ? (
+            <div className="flex items-center justify-center py-2">
+              <Button
+                variant="ghost"
+                onClick={() => setIsCollapsed(false)}
+                className="rounded-full h-12 w-12 p-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+              >
+                <ChevronUp className="h-6 w-6" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <DialogHeader className="flex-shrink-0 pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                    إضافة وثيقة جديدة
+                    {selectedCategory && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ({selectedCategory.name_ar || selectedCategory.name})
+                      </span>
+                    )}
+                  </DialogTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCollapsed(true)}
+                    className="h-8 w-8 p-0 rounded-full"
+                    title="إخفاء"
+                  >
+                    <ChevronDown className="h-5 w-5" />
+                  </Button>
+                </div>
+              </DialogHeader>
 
-          {/* Wizard Stepper */}
-          <div className="flex-shrink-0 py-4">
-            <WizardStepper
-              steps={steps}
-              currentStep={currentStep}
-              onStepClick={handleStepClick}
-            />
-          </div>
+              {/* Wizard Stepper */}
+              <div className="flex-shrink-0 py-4">
+                <WizardStepper
+                  steps={steps}
+                  currentStep={currentStep}
+                  onStepClick={handleStepClick}
+                />
+              </div>
 
           {/* Step Content */}
           <div className="flex-1 overflow-y-auto px-1 min-h-0">
@@ -1083,6 +1117,8 @@ export function PolicyWizard({
               </div>
             </div>
           </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

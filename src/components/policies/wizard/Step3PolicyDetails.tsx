@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, Package, ArrowLeftRight, ImageIcon, FolderOpen, Upload, X } from "lucide-react";
+import { AlertCircle, Package, ArrowLeftRight, ImageIcon, FolderOpen, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PricingCard } from "./PricingCard";
 import { PackageAddonsSection } from "./PackageAddonsSection";
@@ -26,6 +26,9 @@ import type {
   NewCarForm,
 } from "./types";
 import { CAR_POLICY_TYPES } from "./types";
+
+// Company X ID - default for road service and accident fee
+const COMPANY_X_ID = "0014273c-78fc-4945-920c-6c8ce653f64a";
 
 interface Step3Props {
   // Category
@@ -134,6 +137,7 @@ export function Step3PolicyDetails({
   
   const insuranceInputRef = useRef<HTMLInputElement>(null);
   const crmInputRef = useRef<HTMLInputElement>(null);
+  const [loadingPrice, setLoadingPrice] = useState(false);
   
   const getCarType = () => {
     if (createNewCar) return newCar.car_type;
@@ -196,8 +200,137 @@ export function Step3PolicyDetails({
     }
   }, [policy.policy_type_parent, packageMode]);
 
+  // Auto-select Company X for Road Service and Accident Fee policies
+  useEffect(() => {
+    if ((policy.policy_type_parent === 'ROAD_SERVICE' || policy.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION') 
+        && !policy.company_id 
+        && companies.length > 0) {
+      const companyX = companies.find(c => c.id === COMPANY_X_ID);
+      if (companyX) {
+        setPolicy({ ...policy, company_id: COMPANY_X_ID });
+        handleCompanyBrokerAutoSet(companyX);
+      }
+    }
+  }, [policy.policy_type_parent, companies, policy.company_id]);
+
+  // Auto-fetch price for Road Service
+  useEffect(() => {
+    if (policy.policy_type_parent === 'ROAD_SERVICE' 
+        && policy.road_service_id 
+        && policy.company_id) {
+      fetchRoadServicePrice(policy.company_id, policy.road_service_id);
+    }
+  }, [policy.policy_type_parent, policy.road_service_id, policy.company_id, clientLessThan24]);
+
+  // Auto-fetch price for Accident Fee
+  useEffect(() => {
+    if (policy.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION' 
+        && policy.accident_fee_service_id 
+        && policy.company_id) {
+      fetchAccidentFeePrice(policy.company_id, policy.accident_fee_service_id);
+    }
+  }, [policy.policy_type_parent, policy.accident_fee_service_id, policy.company_id]);
+
+  const fetchRoadServicePrice = async (companyId: string, roadServiceId: string) => {
+    setLoadingPrice(true);
+    const carType = getCarType() || 'car';
+    const ageBand = clientLessThan24 ? 'UNDER_24' : 'UP_24';
+    
+    // Try exact age band first, then fallback to ANY
+    let { data } = await supabase
+      .from('company_road_service_prices')
+      .select('selling_price')
+      .eq('company_id', companyId)
+      .eq('road_service_id', roadServiceId)
+      .eq('car_type', carType as 'car' | 'cargo' | 'small' | 'taxi' | 'tjeradown4' | 'tjeraup4')
+      .eq('age_band', ageBand)
+      .maybeSingle();
+    
+    if (!data) {
+      const { data: anyData } = await supabase
+        .from('company_road_service_prices')
+        .select('selling_price')
+        .eq('company_id', companyId)
+        .eq('road_service_id', roadServiceId)
+        .eq('car_type', carType as 'car' | 'cargo' | 'small' | 'taxi' | 'tjeradown4' | 'tjeraup4')
+        .eq('age_band', 'ANY')
+        .maybeSingle();
+      data = anyData;
+    }
+    
+    setLoadingPrice(false);
+    if (data) {
+      setPolicy({ ...policy, insurance_price: data.selling_price.toString() });
+    }
+  };
+
+  const fetchAccidentFeePrice = async (companyId: string, serviceId: string) => {
+    setLoadingPrice(true);
+    const { data } = await supabase
+      .from('company_accident_fee_prices')
+      .select('selling_price')
+      .eq('company_id', companyId)
+      .eq('accident_fee_service_id', serviceId)
+      .maybeSingle();
+    
+    setLoadingPrice(false);
+    if (data) {
+      setPolicy({ ...policy, insurance_price: data.selling_price.toString() });
+    }
+  };
+
   const fetchCompanies = async (policyType: string) => {
     setLoadingCompanies(true);
+    
+    // For ROAD_SERVICE - only fetch companies that have road service pricing configured
+    if (policyType === 'ROAD_SERVICE') {
+      const { data: priceCompanyIds } = await supabase
+        .from('company_road_service_prices')
+        .select('company_id');
+      
+      const uniqueCompanyIds = [...new Set((priceCompanyIds || []).map(p => p.company_id))];
+      
+      if (uniqueCompanyIds.length > 0) {
+        const { data } = await supabase
+          .from('insurance_companies')
+          .select('id, name, name_ar, category_parent, elzami_commission, broker_id')
+          .eq('active', true)
+          .in('id', uniqueCompanyIds)
+          .order('name');
+        
+        setLoadingCompanies(false);
+        if (data) {
+          setCompanies(data as Company[]);
+        }
+        return;
+      }
+    }
+    
+    // For ACCIDENT_FEE_EXEMPTION - only fetch companies that have accident fee pricing
+    if (policyType === 'ACCIDENT_FEE_EXEMPTION') {
+      const { data: priceCompanyIds } = await supabase
+        .from('company_accident_fee_prices')
+        .select('company_id');
+      
+      const uniqueCompanyIds = [...new Set((priceCompanyIds || []).map(p => p.company_id))];
+      
+      if (uniqueCompanyIds.length > 0) {
+        const { data } = await supabase
+          .from('insurance_companies')
+          .select('id, name, name_ar, category_parent, elzami_commission, broker_id')
+          .eq('active', true)
+          .in('id', uniqueCompanyIds)
+          .order('name');
+        
+        setLoadingCompanies(false);
+        if (data) {
+          setCompanies(data as Company[]);
+        }
+        return;
+      }
+    }
+    
+    // Default fetch logic for other policy types
     let query = supabase
       .from('insurance_companies')
       .select('id, name, name_ar, category_parent, elzami_commission, broker_id')

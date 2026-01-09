@@ -392,7 +392,8 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
       name: client.full_name,
       initial: client.full_name.charAt(0),
     });
-  }, [client.id, client.full_name, setRecentClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
 
   useEffect(() => {
     fetchCars();

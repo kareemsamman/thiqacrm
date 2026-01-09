@@ -357,8 +357,7 @@ export default function Brokers() {
                   <TableHead className="text-muted-foreground font-medium">الوسيط</TableHead>
                   <TableHead className="text-muted-foreground font-medium">الهاتف</TableHead>
                   <TableHead className="text-muted-foreground font-medium text-center">الوثائق</TableHead>
-                  <TableHead className="text-muted-foreground font-medium">المحصل</TableHead>
-                  <TableHead className="text-muted-foreground font-medium">لي عليه</TableHead>
+                  <TableHead className="text-muted-foreground font-medium">إجمالي المبالغ</TableHead>
                   <TableHead className="text-muted-foreground font-medium w-[80px]">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -370,13 +369,12 @@ export default function Brokers() {
                       <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                     </TableRow>
                   ))
                 ) : brokers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       لا توجد بيانات
                     </TableCell>
                   </TableRow>
@@ -419,14 +417,12 @@ export default function Brokers() {
                           <span>{broker.policy_count}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-success font-medium">
-                        {formatCurrency(broker.total_collected)}
-                      </TableCell>
                       <TableCell className={cn(
                         "font-medium",
-                        broker.total_remaining > 0 ? "text-green-600" : broker.total_remaining < 0 ? "text-destructive" : "text-muted-foreground"
+                        broker.total_remaining > 0 ? "text-success" : broker.total_remaining < 0 ? "text-destructive" : "text-muted-foreground"
                       )}>
-                        {formatCurrency(broker.total_remaining)}
+                        {broker.total_remaining < 0 && "-"}
+                        {formatCurrency(Math.abs(broker.total_remaining))}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">

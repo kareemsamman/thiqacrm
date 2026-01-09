@@ -45,6 +45,9 @@ interface PolicyRecord {
   profit: number | null;
   cancelled: boolean | null;
   transferred: boolean | null;
+  transferred_car_number: string | null;
+  transferred_to_car_number: string | null;
+  transferred_from_policy_id: string | null;
   group_id: string | null;
   company: { name: string; name_ar: string | null } | null;
   car: { id: string; car_number: string } | null;
@@ -582,6 +585,11 @@ function PolicyPackageCard({
   const isPackage = pkg.addons.length > 0 && pkg.mainPolicy !== null;
   const hasUnpaid = !paymentStatus.isPaid;
 
+  // Check if this policy was created from a transfer (has transferred_car_number = FROM which car)
+  const wasTransferredFrom = policy.transferred_car_number;
+  // Check if this policy was transferred TO another car (has transferred_to_car_number)
+  const wasTransferredTo = policy.transferred_to_car_number;
+
   // Build combined type label for packages
   const getTypeLabel = () => {
     if (isPackage && pkg.mainPolicy) {
@@ -624,13 +632,21 @@ function PolicyPackageCard({
           {isTransferred && (
             <Badge variant="warning" className="gap-1">
               <ArrowRightLeft className="h-3 w-3" />
-              محولة
+              محولة {wasTransferredTo && <span className="font-mono ltr-nums">← {wasTransferredTo}</span>}
             </Badge>
           )}
           {isCancelled && (
             <Badge variant="destructive" className="gap-1">
               <XCircle className="h-3 w-3" />
               ملغاة
+            </Badge>
+          )}
+
+          {/* Transfer FROM indicator - for policies created via transfer */}
+          {wasTransferredFrom && !isTransferred && (
+            <Badge variant="outline" className="gap-1 text-xs bg-blue-500/10 border-blue-500/30 text-blue-600">
+              <ArrowRightLeft className="h-3 w-3" />
+              محول من <span className="font-mono ltr-nums">{wasTransferredFrom}</span>
             </Badge>
           )}
 

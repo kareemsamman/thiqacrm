@@ -230,10 +230,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
   }, [fetchData]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("he-IL", {
-      style: "currency",
-      currency: "ILS",
-    }).format(amount);
+    return `₪${amount.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
   };
 
   const formatDate = (dateStr: string) => {

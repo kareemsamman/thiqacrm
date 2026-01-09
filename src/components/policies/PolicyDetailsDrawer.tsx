@@ -199,6 +199,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const [sendingSignatureSms, setSendingSignatureSms] = useState(false);
   const [relatedPolicies, setRelatedPolicies] = useState<RelatedPolicy[]>([]);
   const [transferHistory, setTransferHistory] = useState<any[]>([]);
+  const [refundAmount, setRefundAmount] = useState<number>(0);
 
   const handleSendSignatureSms = async () => {
     if (!policy || !policy.clients.phone_number) {
@@ -334,6 +335,20 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       } else {
         setPayments([]);
       }
+      
+      // Fetch refund amount for cancelled policies
+      if (policyData.cancelled) {
+        const { data: refundData } = await supabase
+          .from("customer_wallet_transactions")
+          .select("amount")
+          .eq("policy_id", policyId)
+          .eq("transaction_type", "refund")
+          .single();
+        
+        setRefundAmount(refundData?.amount || 0);
+      } else {
+        setRefundAmount(0);
+      }
     } catch (error) {
       console.error("Error fetching policy details:", error);
       toast({ title: "خطأ", description: "فشل في تحميل تفاصيل الوثيقة", variant: "destructive" });
@@ -356,7 +371,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null || amount === undefined) return "₪0";
-    return `₪${amount.toLocaleString("ar-EG")}`;
+    return `₪${amount.toLocaleString("ar-EG", { maximumFractionDigits: 0 })}`;
   };
 
   const getStatus = () => {
@@ -568,11 +583,22 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
 
                   {/* Profit - Only show if not ELZAMI and user is Admin */}
                   {!isElzami && isAdmin && (
-                    <div className="bg-success/10 rounded-xl p-4 text-center border border-success/20 shadow-sm">
+                    <div className={cn(
+                      "rounded-xl p-4 text-center border shadow-sm",
+                      policy.cancelled ? "bg-muted" : "bg-success/10 border-success/20"
+                    )}>
                       <p className="text-xs text-muted-foreground mb-1">
                         {hasPackage ? 'ربح هذه الوثيقة' : 'الربح'}
                       </p>
-                      <p className="text-2xl font-bold text-success">{formatCurrency(policy.profit)}</p>
+                      <p className={cn(
+                        "text-2xl font-bold",
+                        policy.cancelled ? "text-muted-foreground line-through" : "text-success"
+                      )}>
+                        {policy.cancelled ? formatCurrency(0) : formatCurrency(policy.profit)}
+                      </p>
+                      {policy.cancelled && (
+                        <p className="text-xs text-destructive mt-1">ملغى</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -654,6 +680,20 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         {policy.cancellation_note}
                       </p>
                     )}
+                    {/* Refund Amount */}
+                    {refundAmount > 0 && (
+                      <div className="mt-3 pt-3 border-t border-destructive/20">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-destructive/80">مرتجع للعميل</span>
+                          <span className="text-lg font-bold text-destructive">{formatCurrency(refundAmount)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {/* Company Payment Note */}
+                    <div className="mt-3 pt-3 border-t border-destructive/20 text-xs text-destructive/70">
+                      <p>• الربح: تم إلغاؤه</p>
+                      <p>• المستحق للشركة: تم إلغاؤه ({formatCurrency(policy.payed_for_company)}-)</p>
+                    </div>
                   </div>
                 )}
               </div>

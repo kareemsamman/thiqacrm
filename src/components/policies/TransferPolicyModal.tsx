@@ -317,6 +317,16 @@ export function TransferPolicyModal({
 
       // Process each policy
       for (const originalPolicy of originalPolicies) {
+        // First, get total payments on this policy (to ensure new policy price >= payments)
+        const { data: existingPayments } = await supabase
+          .from("policy_payments")
+          .select("amount, refused")
+          .eq("policy_id", originalPolicy.id);
+        
+        const totalPayments = (existingPayments || [])
+          .filter(p => !p.refused)
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+
         // 1. Mark original policy as transferred, zero out financials (debt moves to new policy)
         const { error: updateOriginalError } = await supabase
           .from("policies")
@@ -334,8 +344,8 @@ export function TransferPolicyModal({
         if (updateOriginalError) throw updateOriginalError;
 
         // 2. Create new policy for the remaining period
-        // If customer pays adjustment, add it to insurance_price (only for main policy)
-        let adjustedInsurancePrice = originalPolicy.insurance_price;
+        // Ensure new insurance_price >= total payments (to pass trigger validation when moving payments)
+        let adjustedInsurancePrice = Math.max(originalPolicy.insurance_price, totalPayments);
         let adjustedProfit = originalPolicy.profit;
         if (originalPolicy.id === policyId && adjustmentType === "customer_pays" && adjustmentAmount) {
           const adjustAmt = parseFloat(adjustmentAmount);

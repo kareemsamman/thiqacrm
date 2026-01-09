@@ -1326,11 +1326,16 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
         open={policyWizardOpen}
         onOpenChange={setPolicyWizardOpen}
         preselectedClientId={client.id}
-        onSaved={() => {
+        onSaved={async () => {
           setPolicyWizardOpen(false);
-          fetchPolicies();
-          fetchPaymentSummary();
-          fetchPayments();
+          // Small delay to ensure DB commits are complete
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await Promise.all([
+            fetchPolicies(),
+            fetchPaymentSummary(),
+            fetchPayments(),
+            fetchCars(),
+          ]);
           onRefresh();
         }}
       />
@@ -1383,11 +1388,15 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               year: selectedCar.year || null,
               manufacturer_name: selectedCar.manufacturer_name || null,
             } : null}
-            onTransferred={() => {
+            onTransferred={async () => {
               setTransferOpen(false);
-              fetchPolicies();
-              fetchPaymentSummary();
-              fetchPayments();
+              // Small delay to ensure DB commits are complete
+              await new Promise(resolve => setTimeout(resolve, 100));
+              await Promise.all([
+                fetchPolicies(),
+                fetchPaymentSummary(),
+                fetchPayments(),
+              ]);
               onRefresh();
             }}
           />

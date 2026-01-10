@@ -123,9 +123,14 @@ serve(async (req) => {
       console.error("[send-package-invoice-sms] Error fetching files:", filesError);
     }
 
-    if (!insuranceFiles || insuranceFiles.length === 0) {
+    // Check which policies are missing files
+    const policyIdsWithFiles = new Set(insuranceFiles?.map(f => f.entity_id) || []);
+    const policiesWithoutFiles = policies.filter(p => !policyIdsWithFiles.has(p.id));
+
+    if (!insuranceFiles || insuranceFiles.length === 0 || policiesWithoutFiles.length > 0) {
+      const missingPolicyNumbers = policiesWithoutFiles.map(p => p.policy_number || p.id.slice(0, 8)).join('، ');
       return new Response(
-        JSON.stringify({ error: "يجب رفع ملفات البوليصات أولاً" }),
+        JSON.stringify({ error: `لا يوجد ملفات بوليصة للوثائق التالية: ${missingPolicyNumbers}، يجب رفع الملفات أولاً` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

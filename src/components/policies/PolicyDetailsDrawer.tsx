@@ -441,7 +441,6 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
         <DialogContent
           className="max-w-3xl max-h-[90vh] p-0 overflow-hidden"
           dir="rtl"
-          onInteractOutside={(e) => e.preventDefault()}
         >
           {loading ? (
             <div className="p-8 space-y-4">

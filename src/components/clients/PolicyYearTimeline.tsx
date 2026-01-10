@@ -399,8 +399,20 @@ export function PolicyYearTimeline({
       const { data, error } = await supabase.functions.invoke(functionName, { body });
       
       if (error) {
-        // Try to get the actual error message from the response
-        const errorMsg = error.message || 'فشل في الإرسال';
+        // Try to parse the context for the actual error message
+        let errorMsg = 'فشل في الإرسال';
+        try {
+          // The error context might contain the JSON response
+          if (error.context && typeof error.context === 'object') {
+            const ctx = error.context as any;
+            if (ctx.body) {
+              const parsed = JSON.parse(ctx.body);
+              if (parsed.error) errorMsg = parsed.error;
+            }
+          }
+        } catch {
+          // If parsing fails, use default
+        }
         throw new Error(errorMsg);
       }
       if (data?.error) throw new Error(data.error);

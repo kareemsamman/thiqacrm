@@ -137,8 +137,9 @@ serve(async (req) => {
     }
 
     if (!insuranceFiles || insuranceFiles.length === 0) {
+      const policyNumber = policy.policy_number || policy_id.slice(0, 8);
       return new Response(
-        JSON.stringify({ error: "يجب رفع ملف البوليصة أولاً" }),
+        JSON.stringify({ error: `لا يوجد ملفات بوليصة للوثيقة ${policyNumber}، يجب رفع الملفات أولاً` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -105,14 +105,13 @@ serve(async (req) => {
     if (profileError || !existingProfile) {
       console.log("No profile found for email, creating pending profile:", normalizedEmail);
       
-      // Create pending profile for admin approval
+      // Create pending profile for admin approval (no role column - roles are in separate table)
       const { error: createError } = await supabase
         .from("profiles")
         .insert({
           email: normalizedEmail,
           full_name: normalizedEmail.split("@")[0], // Use email prefix as initial name
           status: "pending",
-          role: "worker", // Default role
         });
 
       if (createError) {

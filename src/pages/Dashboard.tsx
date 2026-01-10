@@ -12,7 +12,7 @@ import { useProfitSummary } from "@/hooks/useProfitSummary";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const { summary: profitSummary, loading: profitLoading, refetch: refetchProfit } = useProfitSummary();
   const [stats, setStats] = useState({
     totalClients: 0,
@@ -109,7 +109,7 @@ export default function Dashboard() {
     <MainLayout onPolicyComplete={handlePolicyComplete}>
       <Header
         title="لوحة التحكم"
-        subtitle="مرحباً بك، مرشد"
+        subtitle={`مرحباً بك، ${profile?.full_name || 'مستخدم'}`}
       />
 
       <div className="p-6 space-y-6">

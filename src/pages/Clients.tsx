@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/table";
 import {
   Search,
-  Download,
   ChevronLeft,
   ChevronRight,
   Phone,
@@ -232,10 +231,6 @@ export default function Clients() {
               filters={filters} 
               onFiltersChange={(f) => { setFilters(f); setCurrentPage(1); }} 
             />
-            <Button variant="outline" size="sm">
-              <Download className="ml-2 h-4 w-4" />
-              تصدير
-            </Button>
           </div>
         </div>
 

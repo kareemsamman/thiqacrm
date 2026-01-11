@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   ImageIcon, Plus, Trash2, Download, X, Loader2, FileText, FolderOpen, 
-  Save, Hash, CheckCircle2, Send, AlertTriangle, Camera
+  Save, Hash, CheckCircle2, Send, AlertTriangle, Printer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
@@ -468,8 +468,8 @@ export function PolicyFilesSection({
         onClick={() => openScanner(fileType)}
         className="gap-1"
       >
-        <Camera className="h-4 w-4" />
-        مسح ضوئي
+        <Printer className="h-4 w-4" />
+        مسح من السكانر
       </Button>
       
       {/* Upload button */}

@@ -264,7 +264,8 @@ export function PackageBuilderSection({
 
   // Count enabled addons to show which ones to display
   const activeAddonCount = addons.filter(a => a.enabled).length;
-  const gridCols = showThirdFullAddon ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-3";
+  // Always use equal columns: 3 cols when main is THIRD_FULL, 4 cols when main is ELZAMI
+  const totalCards = showThirdFullAddon ? 4 : 3;
 
   return (
     <div className="space-y-4">
@@ -278,7 +279,12 @@ export function PackageBuilderSection({
         )}
       </div>
 
-      <div className={cn("grid gap-3", gridCols)}>
+      <div className={cn(
+        "grid gap-3 w-full",
+        totalCards === 4 
+          ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" 
+          : "grid-cols-1 sm:grid-cols-3"
+      )}>
         {/* ELZAMI Addon - Only show when main policy is THIRD_FULL */}
         {showElzamiAddon && (
           <AddonCard

@@ -891,6 +891,12 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                 >
                   <ImageIcon className="h-4 w-4 inline-block ml-1.5" />
                   الملفات
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded-full text-xs mr-1.5",
+                    activeSection === 'files' ? "bg-white/20" : "bg-muted-foreground/20"
+                  )}>
+                    {policyFilesCount}
+                  </span>
                 </button>
               </div>
 

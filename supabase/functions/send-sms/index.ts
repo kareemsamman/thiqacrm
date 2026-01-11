@@ -176,10 +176,12 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
+    // Log full error details server-side for debugging
     console.error("Error in send-sms function:", error);
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    
+    // Return generic error message to client - never expose internal details
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "An error occurred. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

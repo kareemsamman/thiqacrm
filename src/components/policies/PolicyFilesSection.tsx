@@ -282,9 +282,14 @@ export function PolicyFilesSection({
 
     setScanning(fileType);
 
+    // Get saved scanner from localStorage (skip selection dialog if already saved)
+    const savedScanner = localStorage.getItem('preferred_scanner');
+
     const scanRequest = {
       use_asprise_dialog: false,
       show_scanner_ui: false,
+      scanner: savedScanner || 'select', // 'select' shows dialog first time only
+      prompt_scan_more: false, // Don't ask to scan more pages
       twain_cap_setting: {
         ICAP_PIXELTYPE: 'TWPT_RGB',
         ICAP_XRESOLUTION: '200',
@@ -315,6 +320,13 @@ export function PolicyFilesSection({
             }
           }
           return;
+        }
+
+        // Save the used scanner name for next time (skip dialog on future scans)
+        const responseObj = typeof response === 'string' ? JSON.parse(response) : response;
+        const usedScanner = responseObj?.scanner || responseObj?.source;
+        if (usedScanner) {
+          localStorage.setItem('preferred_scanner', usedScanner);
         }
 
         const scannedImages = window.scanner.getScannedImages(response, true, false);

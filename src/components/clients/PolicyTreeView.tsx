@@ -322,16 +322,18 @@ export function PolicyTreeView({
     return groupArray;
   }, [policies]);
 
-  // Track which groups are expanded - active ones are open by default
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
-    const activeGroups = new Set<string>();
-    groupedPolicies.forEach((group, index) => {
-      if (group.isActive) {
-        activeGroups.add(`group-${index}`);
-      }
+  // Track which groups are expanded - active packages collapsed by default, show summary
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // Initialize expanded state when grouped policies change
+  useEffect(() => {
+    // Only set initial state if groups haven't been interacted with
+    setExpandedGroups(prev => {
+      if (prev.size > 0) return prev; // Don't reset if user has toggled
+      // All packages start collapsed to show summary header only
+      return new Set<string>();
     });
-    return activeGroups;
-  });
+  }, [groupedPolicies.length]);
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {
@@ -862,10 +864,28 @@ function PolicyCardHeader({
           <span className="text-xl">{policyTypeIcons[policy.policy_type_parent] || '📄'}</span>
         )}
         
-        {/* Policy Type */}
-        <Badge className={cn("border font-semibold", policyTypeColors[policy.policy_type_parent])}>
-          {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
-        </Badge>
+        {/* For packages: show all policy types in summary */}
+        {isPackage ? (
+          <div className="flex flex-wrap gap-1 items-center">
+            {/* Main policy type */}
+            <Badge className={cn("border text-xs", policyTypeColors[policy.policy_type_parent])}>
+              {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+            </Badge>
+            {/* All addon types - show as chips */}
+            {addons.map((addon) => (
+              <span key={addon.id} className="text-muted-foreground">+</span>
+            ))}
+            {addons.map((addon) => (
+              <Badge key={addon.id} className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
+                {policyTypeLabels[addon.policy_type_parent] || addon.policy_type_parent}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <Badge className={cn("border font-semibold", policyTypeColors[policy.policy_type_parent])}>
+            {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+          </Badge>
+        )}
         
         {/* Transferred Badge */}
         {policy.transferred && (
@@ -886,14 +906,6 @@ function PolicyCardHeader({
           <Badge variant="success" className="gap-1 hidden sm:flex">
             <CheckCircle className="h-3 w-3" />
             مدفوع
-          </Badge>
-        )}
-        
-        {/* Package: Add-ons count */}
-        {isPackage && addons.length > 0 && (
-          <Badge variant="secondary" className="gap-1">
-            <Zap className="h-3 w-3" />
-            {addons.length} إضافات
           </Badge>
         )}
         

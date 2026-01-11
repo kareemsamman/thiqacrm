@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Printer, 
   MessageSquare, 
@@ -15,7 +14,6 @@ import {
   Car, 
   FileText, 
   Phone, 
-  Hash, 
   Calendar,
   Building2,
   Wallet,
@@ -25,9 +23,30 @@ import {
   XCircle,
   ArrowRightLeft,
   Loader2,
+  Image,
+  File,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+interface PolicyFile {
+  id: string;
+  cdn_url: string;
+  original_name: string;
+  mime_type: string;
+}
+
+interface PolicyPayment {
+  id: string;
+  amount: number;
+  payment_type: string;
+  payment_date: string;
+  refused: boolean | null;
+}
 
 interface ClientReportModalProps {
   open: boolean;
@@ -85,13 +104,13 @@ interface ClientReportModalProps {
 const policyTypeLabels: Record<string, string> = {
   ELZAMI: 'إلزامي',
   THIRD_FULL: 'ثالث/شامل',
-  ROAD_SERVICE: 'خدمات الطريق',
-  ACCIDENT_FEE_EXEMPTION: 'إعفاء رسوم حادث',
-  HEALTH: 'تأمين صحي',
-  LIFE: 'تأمين حياة',
-  PROPERTY: 'تأمين ممتلكات',
-  TRAVEL: 'تأمين سفر',
-  BUSINESS: 'تأمين أعمال',
+  ROAD_SERVICE: 'خدمات طريق',
+  ACCIDENT_FEE_EXEMPTION: 'إعفاء رسوم',
+  HEALTH: 'صحي',
+  LIFE: 'حياة',
+  PROPERTY: 'ممتلكات',
+  TRAVEL: 'سفر',
+  BUSINESS: 'أعمال',
   OTHER: 'أخرى',
 };
 
@@ -102,6 +121,13 @@ const carTypeLabels: Record<string, string> = {
   taxi: 'تاكسي',
   tjeradown4: 'تجاري (<4 طن)',
   tjeraup4: 'تجاري (>4 طن)',
+};
+
+const paymentTypeLabels: Record<string, string> = {
+  cash: 'نقدي',
+  cheque: 'شيك',
+  credit_card: 'بطاقة',
+  bank_transfer: 'تحويل',
 };
 
 export function ClientReportModal({
@@ -116,13 +142,14 @@ export function ClientReportModal({
   branchName,
 }: ClientReportModalProps) {
   const [sendingSms, setSendingSms] = useState(false);
+  const [expandedCars, setExpandedCars] = useState<Set<string>>(new Set());
   const printRef = useRef<HTMLDivElement>(null);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('ar-EG', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       calendar: 'gregory',
     });
@@ -143,214 +170,7 @@ export function ClientReportModal({
   };
 
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('يرجى السماح بفتح النوافذ المنبثقة');
-      return;
-    }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8">
-        <title>تقرير العميل - ${client.full_name}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: 'Cairo', sans-serif;
-            padding: 20px;
-            background: white;
-            color: #1a1a1a;
-            direction: rtl;
-          }
-          .report-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid #1e40af;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-          }
-          .company-name {
-            font-size: 24px;
-            font-weight: 700;
-            color: #1e40af;
-          }
-          .company-name-en {
-            font-size: 12px;
-            color: #666;
-            letter-spacing: 2px;
-          }
-          .report-title {
-            font-size: 18px;
-            color: #666;
-          }
-          .report-date {
-            font-size: 12px;
-            color: #999;
-          }
-          .section {
-            margin-bottom: 24px;
-          }
-          .section-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1e40af;
-            background: #e0e7ff;
-            padding: 8px 16px;
-            margin-bottom: 12px;
-            border-radius: 4px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-          }
-          .info-item {
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-          }
-          .info-label {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 4px;
-          }
-          .info-value {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1e293b;
-          }
-          .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-          }
-          .summary-card {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            padding: 16px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #bae6fd;
-          }
-          .summary-card.success { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #86efac; }
-          .summary-card.warning { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fcd34d; }
-          .summary-card.danger { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fca5a5; }
-          .summary-label {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 6px;
-          }
-          .summary-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #1e40af;
-          }
-          .summary-card.success .summary-value { color: #16a34a; }
-          .summary-card.warning .summary-value { color: #d97706; }
-          .summary-card.danger .summary-value { color: #dc2626; }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 8px;
-            font-size: 12px;
-          }
-          th {
-            background: #1e40af;
-            color: white;
-            padding: 10px 8px;
-            text-align: right;
-            font-weight: 600;
-          }
-          td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #e2e8f0;
-            text-align: right;
-          }
-          tr:nth-child(even) {
-            background: #f8fafc;
-          }
-          tr:hover {
-            background: #f1f5f9;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-          }
-          .status-active { background: #dcfce7; color: #16a34a; }
-          .status-expired { background: #f3f4f6; color: #6b7280; }
-          .status-cancelled { background: #fee2e2; color: #dc2626; }
-          .status-transferred { background: #fef3c7; color: #d97706; }
-          .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .signature-area {
-            text-align: center;
-          }
-          .signature-line {
-            border-bottom: 1px solid #1e293b;
-            width: 200px;
-            margin: 40px auto 8px;
-          }
-          .signature-label {
-            font-size: 12px;
-            color: #64748b;
-          }
-          .print-date {
-            font-size: 11px;
-            color: #94a3b8;
-          }
-          .car-plate {
-            display: inline-block;
-            background: #fef08a;
-            border: 2px solid #1e293b;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-family: monospace;
-            font-weight: 700;
-            font-size: 12px;
-          }
-          .ltr {
-            direction: ltr;
-            unicode-bidi: embed;
-          }
-          @media print {
-            body { padding: 0; }
-            .no-print { display: none !important; }
-          }
-        </style>
-      </head>
-      <body>
-        ${printContent.innerHTML}
-      </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    window.print();
   };
 
   const handleSendSms = async () => {
@@ -367,7 +187,6 @@ export function ClientReportModal({
         return;
       }
 
-      // Generate the HTML report and upload to CDN
       const reportResponse = await supabase.functions.invoke('generate-client-report', {
         body: { client_id: client.id },
       });
@@ -377,12 +196,10 @@ export function ClientReportModal({
       const reportUrl = reportResponse.data?.url;
       if (!reportUrl) throw new Error('Failed to generate report URL');
 
-      // Build SMS message with link
       const message = `${client.full_name} عزيزنا/ي\n` +
         `يمكنك مشاهدة تقرير تأميناتك الكامل عبر الرابط:\n${reportUrl}\n\n` +
         `بشير للتأمينات 🚗`;
 
-      // Send SMS with the link
       const smsResponse = await supabase.functions.invoke('send-sms', {
         body: {
           phone: client.phone_number,
@@ -392,7 +209,6 @@ export function ClientReportModal({
 
       if (smsResponse.error) throw smsResponse.error;
 
-      // Log the SMS
       await supabase.from('sms_logs').insert([{
         phone_number: client.phone_number,
         message,
@@ -411,249 +227,272 @@ export function ClientReportModal({
     }
   };
 
+  const totalInsurance = policies.reduce((sum, p) => sum + p.insurance_price, 0);
   const activePolicies = policies.filter(p => {
     const endDate = new Date(p.end_date);
     return !p.cancelled && !p.transferred && endDate >= new Date();
   });
 
-  const totalInsurance = policies.reduce((sum, p) => sum + p.insurance_price, 0);
+  // Group policies by car
+  const policiesByCar = cars.map(car => ({
+    car,
+    policies: policies.filter(p => p.car?.id === car.id),
+  }));
+
+  // Policies without car
+  const policiesNoCar = policies.filter(p => !p.car);
+
+  const toggleCarExpand = (carId: string) => {
+    setExpandedCars(prev => {
+      const next = new Set(prev);
+      if (next.has(carId)) next.delete(carId);
+      else next.add(carId);
+      return next;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              تقرير العميل الشامل
-            </span>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-gradient-to-l from-primary to-primary/80 text-primary-foreground p-4 rounded-t-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg">تقرير العميل الشامل</h2>
+                <p className="text-xs opacity-80">{formatDate(new Date().toISOString())}</p>
+              </div>
+            </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleSendSms} disabled={sendingSms || !client.phone_number}>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={handleSendSms} 
+                disabled={sendingSms || !client.phone_number}
+                className="gap-1.5"
+              >
                 {sendingSms ? (
-                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <MessageSquare className="h-4 w-4 ml-2" />
+                  <MessageSquare className="h-4 w-4" />
                 )}
-                إرسال SMS
+                <span className="hidden sm:inline">SMS</span>
               </Button>
-              <Button size="sm" onClick={handlePrint}>
-                <Printer className="h-4 w-4 ml-2" />
-                طباعة
+              <Button variant="secondary" size="sm" onClick={handlePrint} className="gap-1.5">
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">طباعة</span>
               </Button>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Printable Report Content */}
-        <div ref={printRef} className="mt-4">
-          {/* Header */}
-          <div className="report-header flex justify-between items-center border-b-4 border-primary pb-4 mb-6">
-            <div>
-              <p className="company-name-en text-xs text-muted-foreground tracking-widest mb-1">BASHEER INSURANCE</p>
-              <h1 className="company-name text-2xl font-bold text-primary">بشير للتأمينات</h1>
-            </div>
-            <div className="text-left">
-              <p className="report-title text-lg text-muted-foreground">تقرير العميل</p>
-              <p className="report-date text-sm text-muted-foreground/70">
-                {new Date().toLocaleDateString('ar-EG', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  calendar: 'gregory'
-                })}
-              </p>
             </div>
           </div>
+        </div>
 
-          {/* Client Info Section */}
-          <div className="section mb-6">
-            <h2 className="section-title flex items-center gap-2 text-base font-bold bg-primary/10 text-primary px-4 py-2 rounded-lg mb-4">
-              <User className="h-4 w-4" />
-              بيانات العميل
-            </h2>
-            <div className="info-grid grid grid-cols-3 gap-3">
-              <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                <p className="info-label text-xs text-muted-foreground mb-1">الاسم الكامل</p>
-                <p className="info-value font-semibold">{client.full_name}</p>
+        <div ref={printRef} className="p-4 space-y-4">
+          {/* Client Info Card */}
+          <div className="bg-muted/30 rounded-xl p-4 border">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-6 w-6 text-primary" />
               </div>
-              <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                <p className="info-label text-xs text-muted-foreground mb-1">رقم الهوية</p>
-                <p className="info-value font-semibold font-mono">{client.id_number}</p>
+              <div>
+                <h3 className="font-bold text-lg">{client.full_name}</h3>
+                <p className="text-sm text-muted-foreground ltr-nums">{client.id_number}</p>
               </div>
-              <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                <p className="info-label text-xs text-muted-foreground mb-1">رقم الهاتف</p>
-                <p className="info-value font-semibold ltr-nums">{client.phone_number || '-'}</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+              <div className="bg-background rounded-lg p-2 border">
+                <p className="text-[10px] text-muted-foreground">الهاتف</p>
+                <p className="font-semibold ltr-nums">{client.phone_number || '-'}</p>
               </div>
-              <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                <p className="info-label text-xs text-muted-foreground mb-1">رقم الملف</p>
-                <p className="info-value font-semibold">{client.file_number || '-'}</p>
+              <div className="bg-background rounded-lg p-2 border">
+                <p className="text-[10px] text-muted-foreground">رقم الملف</p>
+                <p className="font-semibold">{client.file_number || '-'}</p>
               </div>
-              <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                <p className="info-label text-xs text-muted-foreground mb-1">تاريخ الانضمام</p>
-                <p className="info-value font-semibold">{formatDate(client.date_joined)}</p>
+              <div className="bg-background rounded-lg p-2 border">
+                <p className="text-[10px] text-muted-foreground">تاريخ الانضمام</p>
+                <p className="font-semibold">{formatDate(client.date_joined)}</p>
               </div>
               {branchName && (
-                <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                  <p className="info-label text-xs text-muted-foreground mb-1">الفرع</p>
-                  <p className="info-value font-semibold">{branchName}</p>
-                </div>
-              )}
-              {broker && (
-                <div className="info-item bg-muted/30 p-3 rounded-lg border">
-                  <p className="info-label text-xs text-muted-foreground mb-1">الوسيط</p>
-                  <p className="info-value font-semibold">{broker.name}</p>
+                <div className="bg-background rounded-lg p-2 border">
+                  <p className="text-[10px] text-muted-foreground">الفرع</p>
+                  <p className="font-semibold">{branchName}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Financial Summary */}
-          <div className="summary-cards grid grid-cols-4 gap-3 mb-6">
-            <div className="summary-card bg-gradient-to-br from-primary/5 to-primary/10 p-4 rounded-xl border border-primary/20 text-center">
-              <p className="summary-label text-xs text-muted-foreground mb-1">إجمالي التأمينات</p>
-              <p className="summary-value text-xl font-bold text-primary">₪{totalInsurance.toLocaleString()}</p>
+          {/* Financial Summary - Compact */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-primary/5 rounded-xl p-3 border border-primary/20 text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">إجمالي التأمينات</p>
+              <p className="text-lg font-bold text-primary ltr-nums">₪{totalInsurance.toLocaleString()}</p>
             </div>
-            <div className="summary-card success bg-gradient-to-br from-success/5 to-success/10 p-4 rounded-xl border border-success/20 text-center">
-              <p className="summary-label text-xs text-muted-foreground mb-1">إجمالي المدفوع</p>
-              <p className="summary-value text-xl font-bold text-success">₪{paymentSummary.total_paid.toLocaleString()}</p>
+            <div className="bg-success/5 rounded-xl p-3 border border-success/20 text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">المدفوع</p>
+              <p className="text-lg font-bold text-success ltr-nums">₪{paymentSummary.total_paid.toLocaleString()}</p>
             </div>
-            <div className={`summary-card p-4 rounded-xl border text-center ${paymentSummary.total_remaining > 0 ? 'danger bg-gradient-to-br from-destructive/5 to-destructive/10 border-destructive/20' : 'success bg-gradient-to-br from-success/5 to-success/10 border-success/20'}`}>
-              <p className="summary-label text-xs text-muted-foreground mb-1">المتبقي</p>
-              <p className={`summary-value text-xl font-bold ${paymentSummary.total_remaining > 0 ? 'text-destructive' : 'text-success'}`}>
+            <div className={cn(
+              "rounded-xl p-3 border text-center",
+              paymentSummary.total_remaining > 0 
+                ? "bg-destructive/5 border-destructive/20" 
+                : "bg-success/5 border-success/20"
+            )}>
+              <p className="text-[10px] text-muted-foreground mb-0.5">المتبقي</p>
+              <p className={cn(
+                "text-lg font-bold ltr-nums",
+                paymentSummary.total_remaining > 0 ? "text-destructive" : "text-success"
+              )}>
                 ₪{paymentSummary.total_remaining.toLocaleString()}
               </p>
             </div>
-            {walletBalance.total_refunds > 0 && (
-              <div className="summary-card warning bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200 text-center">
-                <p className="summary-label text-xs text-muted-foreground mb-1">رصيد للعميل</p>
-                <p className="summary-value text-xl font-bold text-amber-600">₪{walletBalance.total_refunds.toLocaleString()}</p>
-              </div>
-            )}
           </div>
 
-          {/* Cars Section */}
-          <div className="section mb-6">
-            <h2 className="section-title flex items-center gap-2 text-base font-bold bg-primary/10 text-primary px-4 py-2 rounded-lg mb-4">
+          {walletBalance.total_refunds > 0 && (
+            <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Wallet className="h-4 w-4 text-amber-600" />
+                <span className="text-sm text-amber-700">رصيد للعميل:</span>
+                <span className="font-bold text-amber-600 ltr-nums">₪{walletBalance.total_refunds.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Active Policies Count */}
+          <div className="flex items-center justify-center gap-4 py-3 bg-gradient-to-l from-success/10 to-success/5 rounded-xl border border-success/20">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-success">{activePolicies.length}</p>
+              <p className="text-xs text-success/80">وثائق سارية</p>
+            </div>
+            <div className="w-px h-10 bg-success/20" />
+            <div className="text-center">
+              <p className="text-3xl font-bold text-muted-foreground">{cars.length}</p>
+              <p className="text-xs text-muted-foreground">سيارات</p>
+            </div>
+          </div>
+
+          {/* Policies by Car */}
+          <div className="space-y-3">
+            <h3 className="font-bold text-base flex items-center gap-2 text-primary">
               <Car className="h-4 w-4" />
-              السيارات ({cars.length})
-            </h2>
-            {cars.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-primary text-primary-foreground">
-                      <th className="px-4 py-3 text-right font-semibold">رقم السيارة</th>
-                      <th className="px-4 py-3 text-right font-semibold">الشركة المصنعة</th>
-                      <th className="px-4 py-3 text-right font-semibold">الموديل</th>
-                      <th className="px-4 py-3 text-right font-semibold">السنة</th>
-                      <th className="px-4 py-3 text-right font-semibold">اللون</th>
-                      <th className="px-4 py-3 text-right font-semibold">النوع</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cars.map((car, index) => (
-                      <tr key={car.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
-                        <td className="px-4 py-3">
-                          <span className="car-plate inline-block bg-yellow-200 border-2 border-foreground px-2 py-0.5 rounded font-mono font-bold text-xs">
-                            {car.car_number}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{car.manufacturer_name || '-'}</td>
-                        <td className="px-4 py-3">{car.model || '-'}</td>
-                        <td className="px-4 py-3 font-mono">{car.year || '-'}</td>
-                        <td className="px-4 py-3">{car.color || '-'}</td>
-                        <td className="px-4 py-3">{carTypeLabels[car.car_type || ''] || car.car_type || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-6">لا توجد سيارات مسجلة</p>
-            )}
-          </div>
+              السيارات والوثائق
+            </h3>
 
-          {/* Policies Section */}
-          <div className="section mb-6">
-            <h2 className="section-title flex items-center gap-2 text-base font-bold bg-primary/10 text-primary px-4 py-2 rounded-lg mb-4">
-              <FileText className="h-4 w-4" />
-              وثائق التأمين ({policies.length})
-            </h2>
-            {policies.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-primary text-primary-foreground">
-                      <th className="px-3 py-3 text-right font-semibold">نوع التأمين</th>
-                      <th className="px-3 py-3 text-right font-semibold">الشركة</th>
-                      <th className="px-3 py-3 text-right font-semibold">السيارة</th>
-                      <th className="px-3 py-3 text-right font-semibold">من</th>
-                      <th className="px-3 py-3 text-right font-semibold">إلى</th>
-                      <th className="px-3 py-3 text-right font-semibold">السعر</th>
-                      <th className="px-3 py-3 text-right font-semibold">الحالة</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {policies.map((policy, index) => {
-                      const status = getPolicyStatus(policy);
-                      const StatusIcon = status.icon;
-                      return (
-                        <tr key={policy.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
-                          <td className="px-3 py-3 font-medium">
-                            {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
-                          </td>
-                          <td className="px-3 py-3">{policy.company?.name_ar || policy.company?.name || '-'}</td>
-                          <td className="px-3 py-3">
-                            {policy.car?.car_number ? (
-                              <span className="car-plate inline-block bg-yellow-200 border border-foreground px-1.5 py-0.5 rounded font-mono font-bold text-xs">
-                                {policy.car.car_number}
-                              </span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-3 py-3 font-mono text-xs">{formatDateShort(policy.start_date)}</td>
-                          <td className="px-3 py-3 font-mono text-xs">{formatDateShort(policy.end_date)}</td>
-                          <td className="px-3 py-3 font-semibold">₪{policy.insurance_price.toLocaleString()}</td>
-                          <td className="px-3 py-3">
-                            <Badge 
-                              variant="outline" 
-                              className={`gap-1 text-xs ${status.bg} ${status.color} border-0`}
-                            >
+            {policiesByCar.map(({ car, policies: carPolicies }) => {
+              const isExpanded = expandedCars.has(car.id);
+              const carTotalPrice = carPolicies.reduce((s, p) => s + p.insurance_price, 0);
+              const activeCount = carPolicies.filter(p => !p.cancelled && !p.transferred && new Date(p.end_date) >= new Date()).length;
+              
+              return (
+                <div key={car.id} className="border rounded-xl overflow-hidden">
+                  {/* Car Header */}
+                  <div 
+                    className="bg-muted/30 p-3 flex items-center gap-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleCarExpand(car.id)}
+                  >
+                    <div className="bg-yellow-200 border-2 border-foreground rounded px-2 py-0.5">
+                      <span className="font-mono font-bold text-sm">{car.car_number}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {car.manufacturer_name} {car.model} {car.year}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{carPolicies.length} وثائق</span>
+                        {activeCount > 0 && (
+                          <Badge variant="success" className="h-5 text-[10px]">{activeCount} سارية</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-primary ltr-nums">₪{carTotalPrice.toLocaleString()}</p>
+                    </div>
+                    {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+
+                  {/* Policies */}
+                  {isExpanded && carPolicies.length > 0 && (
+                    <div className="divide-y">
+                      {carPolicies.map(policy => {
+                        const status = getPolicyStatus(policy);
+                        const StatusIcon = status.icon;
+                        return (
+                          <div key={policy.id} className="p-3 bg-background">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {policyTypeLabels[policy.policy_type_parent]}
+                                </Badge>
+                                <Badge className={cn("gap-1 text-[10px]", status.bg, status.color, "border-0")}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  {status.label}
+                                </Badge>
+                              </div>
+                              <p className="font-bold text-primary ltr-nums">₪{policy.insurance_price.toLocaleString()}</p>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>{policy.company?.name_ar || policy.company?.name || '-'}</span>
+                              <span className="ltr-nums">{formatDateShort(policy.start_date)} - {formatDateShort(policy.end_date)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {isExpanded && carPolicies.length === 0 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      لا توجد وثائق لهذه السيارة
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Policies without car */}
+            {policiesNoCar.length > 0 && (
+              <div className="border rounded-xl overflow-hidden">
+                <div className="bg-muted/30 p-3">
+                  <p className="font-medium text-sm text-muted-foreground">وثائق أخرى (بدون سيارة)</p>
+                </div>
+                <div className="divide-y">
+                  {policiesNoCar.map(policy => {
+                    const status = getPolicyStatus(policy);
+                    const StatusIcon = status.icon;
+                    return (
+                      <div key={policy.id} className="p-3 bg-background">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {policyTypeLabels[policy.policy_type_parent]}
+                            </Badge>
+                            <Badge className={cn("gap-1 text-[10px]", status.bg, status.color, "border-0")}>
                               <StatusIcon className="h-3 w-3" />
                               {status.label}
                             </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-muted font-bold">
-                      <td colSpan={5} className="px-3 py-3 text-left">الإجمالي</td>
-                      <td className="px-3 py-3">₪{totalInsurance.toLocaleString()}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
+                          </div>
+                          <p className="font-bold text-primary ltr-nums">₪{policy.insurance_price.toLocaleString()}</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{policy.company?.name_ar || policy.company?.name || '-'}</span>
+                          <span className="ltr-nums">{formatDateShort(policy.start_date)} - {formatDateShort(policy.end_date)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-6">لا توجد وثائق تأمين</p>
             )}
           </div>
 
           {/* Footer */}
-          <div className="footer flex justify-between items-end mt-10 pt-6 border-t-2">
-            <div className="signature-area text-center">
-              <div className="signature-line border-b border-foreground w-48 mx-auto mb-2 h-12"></div>
-              <p className="signature-label text-xs text-muted-foreground">توقيع العميل</p>
-            </div>
+          <div className="flex items-center justify-between pt-4 border-t text-xs text-muted-foreground">
             <div className="text-center">
-              <p className="text-sm font-semibold text-primary">بشير للتأمينات</p>
-              <p className="text-xs text-muted-foreground">BASHEER INSURANCE</p>
+              <p className="font-bold text-primary text-sm">بشير للتأمينات</p>
+              <p className="text-[10px]">BASHEER INSURANCE</p>
             </div>
-            <div className="print-date text-xs text-muted-foreground/70">
-              <p>تاريخ الطباعة:</p>
-              <p className="font-mono">{new Date().toLocaleString('ar-EG', { calendar: 'gregory' })}</p>
-            </div>
+            <p className="ltr-nums">{new Date().toLocaleDateString('ar-EG', { calendar: 'gregory' })}</p>
           </div>
         </div>
       </DialogContent>

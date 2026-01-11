@@ -233,8 +233,18 @@ serve(async (req) => {
     console.log(`[send-invoice-sms] AB Invoice uploaded: ${abInvoiceUrl}`);
 
     // Build policy file URLs (all uploaded files - could be multiple)
-    const policyFileUrls = insuranceFiles.map(f => f.cdn_url);
-    const firstPolicyUrl = policyFileUrls[0] || "";
+    // Normalize CDN URLs (replace old b-cdn.net with custom domain)
+    const policyFileUrls = insuranceFiles.map(f => 
+      f.cdn_url.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/')
+    );
+    
+    // PRIORITY: Prefer PDF files over images for the main policy link
+    const pdfFiles = insuranceFiles.filter(f => f.mime_type === 'application/pdf');
+    const imageFiles = insuranceFiles.filter(f => f.mime_type?.startsWith('image/'));
+    
+    // Use PDF first if available, otherwise use first file
+    const primaryFile = pdfFiles[0] || insuranceFiles[0];
+    const primaryPolicyUrl = primaryFile?.cdn_url?.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/') || "";
     
     // Build list of all policy files for SMS (if multiple)
     const allPolicyUrls = policyFileUrls.join('\n');
@@ -246,10 +256,10 @@ serve(async (req) => {
     smsMessage = smsMessage
       .replace(/\{\{client_name\}\}/g, policy.client?.full_name || "عميل")
       .replace(/\{\{policy_number\}\}/g, policy.policy_number || "")
-      .replace(/\{\{policy_url\}\}/g, firstPolicyUrl)
+      .replace(/\{\{policy_url\}\}/g, primaryPolicyUrl)
       .replace(/\{\{all_policy_urls\}\}/g, allPolicyUrls)
       .replace(/\{\{ab_invoice_url\}\}/g, abInvoiceUrl)
-      .replace(/\{\{insurance_invoice_url\}\}/g, firstPolicyUrl); // Legacy placeholder
+      .replace(/\{\{insurance_invoice_url\}\}/g, primaryPolicyUrl); // Legacy placeholder
 
     const escapeXml = (value: string) =>
       value
@@ -392,19 +402,25 @@ function buildAbInvoiceHtml(
     </tr>
   `).join('');
 
-  // Build policy files/documents section
-  const filesHtml = policyFiles.length > 0 ? `
+  // Build policy files/documents section with lightbox popup for images
+  // Normalize CDN URLs
+  const normalizedFiles = policyFiles.map(f => ({
+    ...f,
+    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/')
+  }));
+  
+  const filesHtml = normalizedFiles.length > 0 ? `
     <div class="section" style="margin-top: 25px;">
       <div class="section-title">ملفات البوليصة</div>
       <div class="section-content">
         <div class="files-grid">
-          ${policyFiles.map((file) => {
+          ${normalizedFiles.map((file, index) => {
             const isImage = file.mime_type?.startsWith('image/');
             const isPdf = file.mime_type === 'application/pdf';
             return `
               <div class="file-item">
                 ${isImage ? `
-                  <a href="${file.cdn_url}" target="_blank" class="file-link">
+                  <a href="javascript:void(0)" onclick="openLightbox('${file.cdn_url}')" class="file-link">
                     <img src="${file.cdn_url}" alt="${file.original_name}" class="file-preview-image" />
                   </a>
                 ` : isPdf ? `
@@ -586,6 +602,7 @@ function buildAbInvoiceHtml(
       border: 1px solid #e2e8f0;
       border-radius: 10px;
       transition: all 0.2s;
+      cursor: pointer;
     }
     .file-item:hover {
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -595,6 +612,7 @@ function buildAbInvoiceHtml(
       display: block;
       width: 100%;
       text-align: center;
+      cursor: pointer;
     }
     .file-preview-image {
       max-width: 100%;
@@ -602,6 +620,7 @@ function buildAbInvoiceHtml(
       object-fit: contain;
       border-radius: 6px;
       border: 1px solid #e2e8f0;
+      cursor: pointer;
     }
     .pdf-link {
       display: flex;
@@ -627,6 +646,67 @@ function buildAbInvoiceHtml(
     }
     .file-name:hover { text-decoration: underline; }
     .file-icon { font-size: 36px; }
+    /* Lightbox styles */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-image {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+    }
+    .lightbox-close {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: white;
+      color: #1e3a5f;
+      border: none;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      font-size: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      z-index: 10000;
+    }
+    .lightbox-close:hover { background: #f0f0f0; }
+    .lightbox-download {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8a 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      text-decoration: none;
+      display: inline-block;
+      z-index: 10000;
+    }
+    .lightbox-download:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
@@ -803,6 +883,36 @@ function buildAbInvoiceHtml(
       <p style="margin-top: 5px;">هذه الفاتورة تم إنشاؤها إلكترونياً وهي صالحة بدون توقيع</p>
     </div>
   </div>
+  
+  <!-- Lightbox Modal -->
+  <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">×</button>
+    <img src="" alt="صورة مكبرة" class="lightbox-image" id="lightbox-image" onclick="event.stopPropagation()" />
+    <a href="" target="_blank" download class="lightbox-download" id="lightbox-download" onclick="event.stopPropagation()">⬇️ تحميل الصورة</a>
+  </div>
+  
+  <script>
+    function openLightbox(imageUrl) {
+      const overlay = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-image');
+      const download = document.getElementById('lightbox-download');
+      img.src = imageUrl;
+      download.href = imageUrl;
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeLightbox() {
+      const overlay = document.getElementById('lightbox');
+      overlay.classList.remove('active');
+      document.body.style.overflow = 'auto';
+    }
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  </script>
 </body>
 </html>
   `.trim();

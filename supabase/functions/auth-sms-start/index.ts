@@ -108,16 +108,17 @@ function generatePassword(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Pre-initialize Supabase client at module level to avoid cold start delay
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const { phone }: SmsStartRequest = await req.json();
 
     if (!phone) {
@@ -136,12 +137,31 @@ serve(async (req) => {
       );
     }
 
-    // Check if user exists by phone in profiles table
-    const { data: existingProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, status, phone, full_name")
-      .eq("phone", normalizedPhone)
-      .single();
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    // Parallel fetch: profile, auth settings, and rate limit check - MUCH faster
+    const [profileResult, authSettingsResult, rateLimitResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, status, phone, full_name")
+        .eq("phone", normalizedPhone)
+        .single(),
+      supabase
+        .from("auth_settings")
+        .select("*")
+        .limit(1)
+        .single(),
+      supabase
+        .from("otp_codes")
+        .select("id")
+        .eq("identifier", normalizedPhone)
+        .eq("channel", "sms")
+        .gte("created_at", tenMinutesAgo)
+    ]);
+
+    const { data: existingProfile } = profileResult;
+    const { data: authSettings, error: settingsError } = authSettingsResult;
+    const { data: recentOtps } = rateLimitResult;
 
     // Case 1: Profile exists
     if (existingProfile) {
@@ -172,7 +192,6 @@ serve(async (req) => {
       // Case 2: No profile - create new pending registration
       console.log("No profile found, creating pending registration:", normalizedPhone);
 
-      // Create auth user with phone-based email
       const fakeEmail = `${normalizedPhone}@phone.local`;
       const tempPassword = generatePassword();
 
@@ -187,10 +206,8 @@ serve(async (req) => {
       });
 
       if (authError) {
-        // Check if user already exists (email conflict)
         if (authError.message?.includes('already') || authError.message?.includes('duplicate')) {
           console.log("Auth user already exists for phone:", normalizedPhone);
-          // Profile might have been deleted, try to get auth user
           return new Response(
             JSON.stringify({ 
               success: true, 
@@ -207,7 +224,6 @@ serve(async (req) => {
         );
       }
 
-      // Create/Update pending profile (a trigger may already create a profile row on user creation)
       const { error: profileUpsertError } = await supabase
         .from("profiles")
         .upsert(
@@ -223,7 +239,6 @@ serve(async (req) => {
 
       if (profileUpsertError) {
         console.error("Profile creation error:", profileUpsertError);
-        // Try to clean up auth user
         await supabase.auth.admin.deleteUser(authUser.user.id);
         return new Response(
           JSON.stringify({ success: false, error: "فشل في إنشاء الملف الشخصي" }),
@@ -231,8 +246,8 @@ serve(async (req) => {
         );
       }
 
-      // Log the registration attempt
-      await supabase.from("login_attempts").insert({
+      // Log in background (don't await)
+      supabase.from("login_attempts").insert({
         email: fakeEmail,
         identifier: normalizedPhone,
         method: "sms_registration",
@@ -252,17 +267,7 @@ serve(async (req) => {
       );
     }
 
-    // If we reach here, user is active - send OTP
-
-    // Check rate limiting - max 3 OTPs per phone per 10 minutes
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: recentOtps } = await supabase
-      .from("otp_codes")
-      .select("id")
-      .eq("identifier", normalizedPhone)
-      .eq("channel", "sms")
-      .gte("created_at", tenMinutesAgo);
-
+    // Rate limit check (already fetched in parallel)
     if (recentOtps && recentOtps.length >= 3) {
       return new Response(
         JSON.stringify({ success: false, error: "تم تجاوز الحد الأقصى للمحاولات. حاول لاحقاً." }),
@@ -270,13 +275,7 @@ serve(async (req) => {
       );
     }
 
-    // Get auth settings
-    const { data: authSettings, error: settingsError } = await supabase
-      .from("auth_settings")
-      .select("*")
-      .limit(1)
-      .single();
-
+    // Auth settings check (already fetched in parallel)
     if (settingsError || !authSettings) {
       console.error("Auth settings error:", settingsError);
       return new Response(
@@ -302,7 +301,7 @@ serve(async (req) => {
     // Generate OTP
     const otp = generateOTP();
     const otpHash = await hashOTP(otp);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     // Store OTP
     const { error: insertError } = await supabase
@@ -343,8 +342,8 @@ serve(async (req) => {
       );
     }
 
-    // Log the attempt
-    await supabase.from("login_attempts").insert({
+    // Log in background (don't await)
+    supabase.from("login_attempts").insert({
       email: normalizedPhone,
       identifier: normalizedPhone,
       method: "sms_otp",

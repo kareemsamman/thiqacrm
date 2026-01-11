@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -23,11 +23,16 @@ import {
   XCircle,
   ArrowRightLeft,
   Loader2,
-  Image,
+  Image as ImageIcon,
   File,
   CreditCard,
   ChevronDown,
   ChevronUp,
+  Paperclip,
+  Download,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -130,6 +135,169 @@ const paymentTypeLabels: Record<string, string> = {
   bank_transfer: 'تحويل',
 };
 
+// File gallery popup for mobile
+interface FileGalleryPopupProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  files: PolicyFile[];
+  policyNumber: string | null;
+  policyType: string;
+}
+
+function FileGalleryPopup({ open, onOpenChange, files, policyNumber, policyType }: FileGalleryPopupProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentFile = files[currentIndex];
+
+  const isImage = (mimeType: string) => mimeType?.startsWith('image/');
+  const isPdf = (mimeType: string) => mimeType === 'application/pdf';
+
+  const goNext = () => {
+    if (currentIndex < files.length - 1) setCurrentIndex(currentIndex + 1);
+  };
+
+  const goPrev = () => {
+    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
+  };
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [files]);
+
+  if (!currentFile) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] p-0 overflow-hidden">
+        {/* Header */}
+        <div className="bg-primary text-primary-foreground p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-4 w-4" />
+            <div>
+              <p className="text-sm font-medium">{policyTypeLabels[policyType]}</p>
+              <p className="text-xs opacity-80">{policyNumber || 'ملفات البوليصة'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
+              {currentIndex + 1} / {files.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary-foreground hover:bg-white/20"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* File Preview */}
+        <div className="relative flex-1 min-h-[300px] bg-muted/30 flex items-center justify-center">
+          {isImage(currentFile.mime_type) && (
+            <img 
+              src={currentFile.cdn_url} 
+              alt={currentFile.original_name}
+              className="max-w-full max-h-[50vh] object-contain"
+            />
+          )}
+          {isPdf(currentFile.mime_type) && (
+            <div className="flex flex-col items-center gap-4 p-8">
+              <div className="w-20 h-24 bg-red-100 rounded-lg flex items-center justify-center border-2 border-red-200">
+                <FileText className="h-10 w-10 text-red-500" />
+              </div>
+              <p className="text-sm font-medium text-center">{currentFile.original_name}</p>
+              <p className="text-xs text-muted-foreground">ملف PDF</p>
+            </div>
+          )}
+          {!isImage(currentFile.mime_type) && !isPdf(currentFile.mime_type) && (
+            <div className="flex flex-col items-center gap-4 p-8">
+              <div className="w-20 h-24 bg-muted rounded-lg flex items-center justify-center border">
+                <File className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-center">{currentFile.original_name}</p>
+            </div>
+          )}
+
+          {/* Navigation arrows */}
+          {files.length > 1 && (
+            <>
+              {currentIndex > 0 && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                  onClick={goPrev}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              )}
+              {currentIndex < files.length - 1 && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full shadow-lg"
+                  onClick={goNext}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* File info and download */}
+        <div className="p-3 border-t bg-background">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{currentFile.original_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {isImage(currentFile.mime_type) ? 'صورة' : isPdf(currentFile.mime_type) ? 'PDF' : 'ملف'}
+              </p>
+            </div>
+            <a
+              href={currentFile.cdn_url}
+              download={currentFile.original_name}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+            >
+              <Button size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                تحميل
+              </Button>
+            </a>
+          </div>
+
+          {/* Thumbnail strip */}
+          {files.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              {files.map((file, idx) => (
+                <button
+                  key={file.id}
+                  className={cn(
+                    "shrink-0 w-12 h-12 rounded-lg border-2 overflow-hidden transition-all",
+                    idx === currentIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-60 hover:opacity-100"
+                  )}
+                  onClick={() => setCurrentIndex(idx)}
+                >
+                  {isImage(file.mime_type) ? (
+                    <img src={file.cdn_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ClientReportModal({
   open,
   onOpenChange,
@@ -143,7 +311,68 @@ export function ClientReportModal({
 }: ClientReportModalProps) {
   const [sendingSms, setSendingSms] = useState(false);
   const [expandedCars, setExpandedCars] = useState<Set<string>>(new Set());
+  const [policyFiles, setPolicyFiles] = useState<Record<string, PolicyFile[]>>({});
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [fileGallery, setFileGallery] = useState<{ open: boolean; files: PolicyFile[]; policyNumber: string | null; policyType: string }>({
+    open: false,
+    files: [],
+    policyNumber: null,
+    policyType: '',
+  });
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Fetch policy files when modal opens
+  useEffect(() => {
+    if (open && policies.length > 0) {
+      fetchPolicyFiles();
+    }
+  }, [open, policies]);
+
+  const fetchPolicyFiles = async () => {
+    setLoadingFiles(true);
+    try {
+      const policyIds = policies.map(p => p.id);
+      const { data: files, error } = await supabase
+        .from('media_files')
+        .select('id, cdn_url, original_name, mime_type, entity_id')
+        .eq('entity_type', 'policy')
+        .in('entity_id', policyIds)
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      // Group files by policy ID
+      const grouped: Record<string, PolicyFile[]> = {};
+      files?.forEach(file => {
+        if (file.entity_id) {
+          if (!grouped[file.entity_id]) grouped[file.entity_id] = [];
+          grouped[file.entity_id].push({
+            id: file.id,
+            cdn_url: file.cdn_url,
+            original_name: file.original_name,
+            mime_type: file.mime_type,
+          });
+        }
+      });
+      setPolicyFiles(grouped);
+    } catch (error) {
+      console.error('Error fetching policy files:', error);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const openFileGallery = (policy: { id: string; policy_number: string | null; policy_type_parent: string }) => {
+    const files = policyFiles[policy.id] || [];
+    if (files.length > 0) {
+      setFileGallery({
+        open: true,
+        files,
+        policyNumber: policy.policy_number,
+        policyType: policy.policy_type_parent,
+      });
+    }
+  };
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
@@ -459,10 +688,11 @@ export function ClientReportModal({
                       {carPolicies.map(policy => {
                         const status = getPolicyStatus(policy);
                         const StatusIcon = status.icon;
+                        const files = policyFiles[policy.id] || [];
                         return (
                           <div key={policy.id} className="p-3 bg-background">
                             <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline" className="text-xs">
                                   {policyTypeLabels[policy.policy_type_parent]}
                                 </Badge>
@@ -470,8 +700,20 @@ export function ClientReportModal({
                                   <StatusIcon className="h-3 w-3" />
                                   {status.label}
                                 </Badge>
+                                {files.length > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openFileGallery(policy);
+                                    }}
+                                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full"
+                                  >
+                                    <Paperclip className="h-3 w-3" />
+                                    <span>{files.length} ملفات</span>
+                                  </button>
+                                )}
                               </div>
-                              <p className="font-bold text-primary ltr-nums">₪{policy.insurance_price.toLocaleString()}</p>
+                              <p className="font-bold text-primary ltr-nums shrink-0">₪{policy.insurance_price.toLocaleString()}</p>
                             </div>
                             <div className="flex items-center gap-4 text-xs text-muted-foreground">
                               <span>{policy.company?.name_ar || policy.company?.name || '-'}</span>
@@ -502,10 +744,11 @@ export function ClientReportModal({
                   {policiesNoCar.map(policy => {
                     const status = getPolicyStatus(policy);
                     const StatusIcon = status.icon;
+                    const files = policyFiles[policy.id] || [];
                     return (
                       <div key={policy.id} className="p-3 bg-background">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className="text-xs">
                               {policyTypeLabels[policy.policy_type_parent]}
                             </Badge>
@@ -513,8 +756,20 @@ export function ClientReportModal({
                               <StatusIcon className="h-3 w-3" />
                               {status.label}
                             </Badge>
+                            {files.length > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openFileGallery(policy);
+                                }}
+                                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full"
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                <span>{files.length} ملفات</span>
+                              </button>
+                            )}
                           </div>
-                          <p className="font-bold text-primary ltr-nums">₪{policy.insurance_price.toLocaleString()}</p>
+                          <p className="font-bold text-primary ltr-nums shrink-0">₪{policy.insurance_price.toLocaleString()}</p>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <span>{policy.company?.name_ar || policy.company?.name || '-'}</span>
@@ -538,6 +793,15 @@ export function ClientReportModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* File Gallery Popup for viewing/downloading files */}
+      <FileGalleryPopup
+        open={fileGallery.open}
+        onOpenChange={(open) => setFileGallery(prev => ({ ...prev, open }))}
+        files={fileGallery.files}
+        policyNumber={fileGallery.policyNumber}
+        policyType={fileGallery.policyType}
+      />
     </Dialog>
   );
 }

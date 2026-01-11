@@ -659,6 +659,22 @@ export function Step3PolicyDetails({
         </div>
       )}
 
+      {/* Price Input - RIGHT AFTER Company select, before Package section */}
+      {/* Only show when NOT linked to broker (broker pricing section handles this case below) */}
+      {policy.company_id && !companies.find(c => c.id === policy.company_id)?.broker_id && (
+        <div>
+          <Label>السعر (₪) *</Label>
+          <Input
+            type="number"
+            value={policy.insurance_price}
+            onChange={(e) => setPolicy({ ...policy, insurance_price: e.target.value })}
+            placeholder="أدخل السعر"
+            className={cn("text-lg", errors.insurance_price ? "border-destructive" : "")}
+          />
+          <FieldError error={errors.insurance_price} />
+        </div>
+      )}
+
       {/* Package Mode - For THIRD_FULL and ELZAMI - BEFORE BROKER */}
       {(policy.policy_type_parent === 'THIRD_FULL' || policy.policy_type_parent === 'ELZAMI') && (() => {
         // Check if main policy requirements are met before enabling package addons
@@ -879,21 +895,6 @@ export function Step3PolicyDetails({
           </Card>
         );
       })()}
-
-      {/* Price Input - Only show when NOT linked to broker */}
-      {!companies.find(c => c.id === policy.company_id)?.broker_id && (
-        <div>
-          <Label>السعر (₪) *</Label>
-          <Input
-            type="number"
-            value={policy.insurance_price}
-            onChange={(e) => setPolicy({ ...policy, insurance_price: e.target.value })}
-            placeholder="أدخل السعر"
-            className={cn("text-lg", errors.insurance_price ? "border-destructive" : "")}
-          />
-          <FieldError error={errors.insurance_price} />
-        </div>
-      )}
 
       {/* ELZAMI Commission Display - Always shown as cost (red) */}
       {policy.policy_type_parent === 'ELZAMI' && policy.company_id && (

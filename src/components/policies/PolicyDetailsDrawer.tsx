@@ -252,6 +252,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const [relatedPolicies, setRelatedPolicies] = useState<RelatedPolicy[]>([]);
   const [transferHistory, setTransferHistory] = useState<any[]>([]);
   const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [policyFilesCount, setPolicyFilesCount] = useState<number>(0);
+  const [sendingPolicySms, setSendingPolicySms] = useState(false);
 
   const handleSendSignatureSms = async () => {
     if (!policy || !policy.clients.phone_number) {
@@ -290,8 +292,70 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
     }
   };
 
+  const handleSendPolicySms = async () => {
+    if (!policy || !policy.clients.phone_number) {
+      toast({ title: "خطأ", description: "رقم هاتف العميل مطلوب", variant: "destructive" });
+      return;
+    }
+
+    setSendingPolicySms(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-invoice-sms", {
+        body: { 
+          policy_id: policy.id,
+          phone_number: policy.clients.phone_number,
+          client_name: policy.clients.full_name
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({ 
+        title: "تم الإرسال", 
+        description: "تم إرسال ملفات الوثيقة للعميل بنجاح" 
+      });
+    } catch (error: any) {
+      console.error("Error sending policy SMS:", error);
+      toast({ 
+        title: "خطأ", 
+        description: error.message || "فشل في إرسال الملفات", 
+        variant: "destructive" 
+      });
+    } finally {
+      setSendingPolicySms(false);
+    }
+  };
+
   const fetchPolicyDetails = async () => {
     if (!policyId) return;
+
+    // Check session storage cache first
+    const cacheKey = `policy_cache_${policyId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached);
+        const cacheAge = Date.now() - cachedData.timestamp;
+        // Use cache if less than 30 seconds old
+        if (cacheAge < 30000) {
+          setPolicy(cachedData.policy);
+          setRelatedPolicies(cachedData.relatedPolicies || []);
+          setPayments(cachedData.payments || []);
+          setTransferHistory(cachedData.transferHistory || []);
+          setRefundAmount(cachedData.refundAmount || 0);
+          setCreatorName(cachedData.creatorName || null);
+          setPolicyFilesCount(cachedData.filesCount || 0);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
 
     setLoading(true);
     setCreatorName(null);
@@ -315,16 +379,18 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       setPolicy(policyData as PolicyDetails);
 
       // Fetch related policies if part of a group
+      let relatedData: RelatedPolicy[] = [];
       if (policyData.group_id) {
-        const { data: relatedData } = await supabase
+        const { data: fetchedRelated } = await supabase
           .from("policies")
           .select("id, policy_type_parent, policy_type_child, insurance_price, profit, road_service_id, accident_fee_service_id, insurance_companies(id, name, name_ar), road_services(id, name, name_ar), accident_fee_services(id, name, name_ar)")
           .eq("group_id", policyData.group_id)
           .neq("id", policyId)
           .is("deleted_at", null);
         
-        if (relatedData) {
-          setRelatedPolicies(relatedData as RelatedPolicy[]);
+        if (fetchedRelated) {
+          relatedData = fetchedRelated as RelatedPolicy[];
+          setRelatedPolicies(relatedData);
         }
       } else {
         setRelatedPolicies([]);
@@ -369,6 +435,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       if (paymentsError) throw paymentsError;
       
       // Fetch payment images for all payments
+      let finalPayments: Payment[] = [];
       if (paymentsData && paymentsData.length > 0) {
         const paymentIds = paymentsData.map(p => p.id);
         const { data: imagesData } = await supabase
@@ -378,17 +445,18 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
           .order("sort_order", { ascending: true });
 
         // Attach images to payments
-        const paymentsWithImages = paymentsData.map(payment => ({
+        finalPayments = paymentsData.map(payment => ({
           ...payment,
           images: imagesData?.filter(img => img.payment_id === payment.id) || []
         }));
         
-        setPayments(paymentsWithImages);
+        setPayments(finalPayments);
       } else {
         setPayments([]);
       }
       
       // Fetch refund amount for cancelled policies
+      let refund = 0;
       if (policyData.cancelled) {
         const { data: refundData } = await supabase
           .from("customer_wallet_transactions")
@@ -397,10 +465,35 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
           .eq("transaction_type", "refund")
           .single();
         
-        setRefundAmount(refundData?.amount || 0);
+        refund = refundData?.amount || 0;
+        setRefundAmount(refund);
       } else {
         setRefundAmount(0);
       }
+
+      // Fetch policy files count
+      const { count: filesCount } = await supabase
+        .from("media_files")
+        .select("*", { count: "exact", head: true })
+        .eq("entity_id", policyId)
+        .eq("entity_type", "policy_file")
+        .is("deleted_at", null);
+      
+      setPolicyFilesCount(filesCount || 0);
+
+      // Cache the data in session storage
+      const cacheData = {
+        policy: policyData,
+        relatedPolicies: relatedData || [],
+        payments: finalPayments,
+        transferHistory: transfersData || [],
+        refundAmount: refund,
+        creatorName: creatorName,
+        filesCount: filesCount || 0,
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+
     } catch (error) {
       console.error("Error fetching policy details:", error);
       toast({ title: "خطأ", description: "فشل في تحميل تفاصيل الوثيقة", variant: "destructive" });
@@ -593,7 +686,24 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                     </div>
 
                     {/* Left side - Actions - with spacing from close button */}
-                    <div className="flex gap-2 ml-10">
+                    <div className="flex gap-2 ml-14">
+                      {/* SMS Button - only show if there are files */}
+                      {policyFilesCount > 0 && policy.clients.phone_number && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={handleSendPolicySms}
+                          disabled={sendingPolicySms}
+                          className="gap-1.5 bg-white/20 hover:bg-white/30 text-white border-0"
+                        >
+                          {sendingPolicySms ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )}
+                          SMS
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="secondary"
@@ -980,13 +1090,14 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                             const RpIcon = rpConfig.icon;
                             const serviceName = getServiceName(rp);
                             
-                            // Handle click - navigate to related policy
-                            const handleClick = () => {
+                            // Handle click - navigate to related policy WITHOUT closing
+                            const handleClick = (e: React.MouseEvent) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Clear cache to force refresh
+                              sessionStorage.removeItem(`policy_cache_${rp.id}`);
                               if (onViewRelatedPolicy) {
                                 onViewRelatedPolicy(rp.id);
-                              } else {
-                                // Fallback: close current and re-open with new ID
-                                onOpenChange(false);
                               }
                             };
                             
@@ -995,7 +1106,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                 key={rp.id}
                                 onClick={handleClick}
                                 className={cn(
-                                  "rounded-xl border-2 p-3 cursor-pointer transition-all group",
+                                  "rounded-xl border-2 p-3 cursor-pointer transition-all group min-h-[140px] flex flex-col",
                                   "hover:shadow-lg hover:scale-[1.02] hover:border-primary",
                                   rpConfig.bg, rpConfig.border
                                 )}
@@ -1014,7 +1125,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                 </div>
                                 
                                 {/* Service & Company */}
-                                <div className="space-y-0.5 mb-2">
+                                <div className="space-y-0.5 mb-2 flex-1">
                                   {serviceName && (
                                     <p className="text-xs text-muted-foreground truncate">{serviceName}</p>
                                   )}
@@ -1025,17 +1136,19 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                   )}
                                 </div>
                                 
-                                {/* Price & Profit */}
-                                <div className="flex items-center justify-between pt-2 border-t border-dashed">
-                                  <p className="text-base font-bold text-foreground ltr-nums">{formatCurrency(rp.insurance_price)}</p>
-                                  {isAdmin && rp.policy_type_parent !== 'ELZAMI' && (
-                                    <span className={cn(
-                                      "text-xs font-semibold ltr-nums px-1.5 py-0.5 rounded",
-                                      (rp.profit || 0) < 0 ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
-                                    )}>
-                                      {formatCurrency(rp.profit)}
-                                    </span>
-                                  )}
+                                {/* Price & Profit - stacked vertically */}
+                                <div className="pt-2 border-t border-dashed flex items-center justify-between">
+                                  <div className="flex flex-col">
+                                    <p className="text-base font-bold text-foreground ltr-nums">{formatCurrency(rp.insurance_price)}</p>
+                                    {isAdmin && rp.policy_type_parent !== 'ELZAMI' && (
+                                      <span className={cn(
+                                        "text-xs font-semibold ltr-nums mt-1",
+                                        (rp.profit || 0) < 0 ? "text-red-600" : "text-emerald-600"
+                                      )}>
+                                        ربح: {formatCurrency(rp.profit)}
+                                      </span>
+                                    )}
+                                  </div>
                                   <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 </div>
                               </div>

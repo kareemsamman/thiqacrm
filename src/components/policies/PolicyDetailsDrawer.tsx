@@ -177,31 +177,32 @@ const policyChildLabels: Record<string, string> = {
   FULL: "شامل",
 };
 
+// Use teal/primary-based colors for header to match website theme
 const policyTypeConfig: Record<string, { icon: React.ElementType; gradient: string; bg: string; border: string; text: string }> = {
   ELZAMI: { 
     icon: Shield, 
-    gradient: "from-blue-500 to-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700"
+    gradient: "from-teal-500 to-teal-600",
+    bg: "bg-teal-50",
+    border: "border-teal-200",
+    text: "text-teal-700"
   },
   THIRD_FULL: { 
     icon: Car, 
-    gradient: "from-purple-500 to-purple-600",
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    text: "text-purple-700"
+    gradient: "from-cyan-600 to-teal-600",
+    bg: "bg-cyan-50",
+    border: "border-cyan-200",
+    text: "text-cyan-700"
   },
   ROAD_SERVICE: { 
     icon: Truck, 
-    gradient: "from-orange-500 to-orange-600",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    text: "text-orange-700"
+    gradient: "from-teal-600 to-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700"
   },
   ACCIDENT_FEE_EXEMPTION: { 
     icon: FileCheck, 
-    gradient: "from-emerald-500 to-emerald-600",
+    gradient: "from-emerald-500 to-teal-500",
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     text: "text-emerald-700"
@@ -591,8 +592,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                       </div>
                     </div>
 
-                    {/* Left side - Actions */}
-                    <div className="flex gap-2">
+                    {/* Left side - Actions - with spacing from close button */}
+                    <div className="flex gap-2 ml-10">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -771,50 +772,78 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         )}
                       </div>
 
-                      {/* Profit (Admin only) or Payment Status */}
-                      {!isElzami && isAdmin ? (
-                        <div className={cn(
-                          "rounded-xl p-4 border",
-                          (policy.cancelled || isTransferred) 
-                            ? "bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200" 
-                            : "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"
+                      {/* Remaining Days */}
+                      <div className="rounded-xl p-4 border bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
+                            <Clock className="h-4 w-4 text-slate-600" />
+                          </div>
+                          <span className="text-xs font-medium text-slate-600">المتبقي</span>
+                        </div>
+                        <p className={cn(
+                          "text-2xl font-bold",
+                          remainingDays < 0 ? "text-red-600" :
+                          remainingDays <= 30 ? "text-amber-600" : "text-slate-900"
                         )}>
-                          <div className="flex items-center gap-2 mb-3">
+                          {remainingDays < 0 ? 'منتهية' : `${remainingDays} يوم`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Profit Card - Enhanced styling for admin */}
+                    {!isElzami && isAdmin && (
+                      <div className={cn(
+                        "rounded-xl p-4 border-2",
+                        (policy.cancelled || isTransferred) 
+                          ? "bg-slate-50 border-slate-200" 
+                          : (policy.profit || 0) < 0
+                            ? "bg-gradient-to-l from-red-50 to-red-100 border-red-300"
+                            : "bg-gradient-to-l from-emerald-50 via-teal-50 to-cyan-50 border-teal-300"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
                             <div className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center",
-                              (policy.cancelled || isTransferred) ? "bg-slate-200" : "bg-primary/20"
+                              "w-12 h-12 rounded-xl flex items-center justify-center",
+                              (policy.cancelled || isTransferred) 
+                                ? "bg-slate-200" 
+                                : (policy.profit || 0) < 0
+                                  ? "bg-red-200"
+                                  : "bg-gradient-to-br from-teal-400 to-emerald-500"
                             )}>
-                              <TrendingUp className={cn("h-4 w-4", (policy.cancelled || isTransferred) ? "text-slate-600" : "text-primary")} />
+                              <TrendingUp className={cn(
+                                "h-6 w-6",
+                                (policy.cancelled || isTransferred) ? "text-slate-500" : "text-white"
+                              )} />
                             </div>
-                            <span className={cn("text-xs font-medium", (policy.cancelled || isTransferred) ? "text-slate-600" : "text-primary")}>
-                              الربح
-                            </span>
+                            <div>
+                              <span className={cn(
+                                "text-sm font-medium",
+                                (policy.cancelled || isTransferred) 
+                                  ? "text-slate-500" 
+                                  : (policy.profit || 0) < 0
+                                    ? "text-red-600"
+                                    : "text-teal-700"
+                              )}>
+                                {(policy.profit || 0) < 0 ? 'عمولة (خسارة)' : 'الربح من الوثيقة'}
+                              </span>
+                              {(policy.cancelled || isTransferred) && (
+                                <p className="text-xs text-slate-400">ملغاة/محوّلة</p>
+                              )}
+                            </div>
                           </div>
                           <p className={cn(
-                            "text-2xl font-bold ltr-nums",
-                            (policy.cancelled || isTransferred) ? "text-slate-400 line-through" : "text-primary"
+                            "text-3xl font-bold ltr-nums",
+                            (policy.cancelled || isTransferred) 
+                              ? "text-slate-400 line-through" 
+                              : (policy.profit || 0) < 0
+                                ? "text-red-600"
+                                : "text-teal-700"
                           )}>
                             {(policy.cancelled || isTransferred) ? formatCurrency(0) : formatCurrency(policy.profit)}
                           </p>
                         </div>
-                      ) : (
-                        <div className="rounded-xl p-4 border bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-                              <Clock className="h-4 w-4 text-slate-600" />
-                            </div>
-                            <span className="text-xs font-medium text-slate-600">المتبقي</span>
-                          </div>
-                          <p className={cn(
-                            "text-2xl font-bold",
-                            remainingDays < 0 ? "text-red-600" :
-                            remainingDays <= 30 ? "text-amber-600" : "text-slate-900"
-                          )}>
-                            {remainingDays < 0 ? 'منتهية' : `${remainingDays} يوم`}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Payment Progress */}
                     <div className="bg-muted/30 rounded-xl p-4 border">
@@ -899,98 +928,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                       </div>
                     )}
 
-                    {/* Package / Related Policies */}
-                    {relatedPolicies.length > 0 && (
-                      <Section title="وثائق الباقة الأخرى" icon={Layers}>
-                        <div className="grid grid-cols-2 gap-3">
-                          {relatedPolicies.map((rp) => {
-                            const rpConfig = policyTypeConfig[rp.policy_type_parent] || policyTypeConfig.ELZAMI;
-                            const RpIcon = rpConfig.icon;
-                            const serviceName = getServiceName(rp);
-                            
-                            return (
-                              <div
-                                key={rp.id}
-                                onClick={() => {
-                                  if (onViewRelatedPolicy) {
-                                    onOpenChange(false);
-                                    setTimeout(() => {
-                                      onViewRelatedPolicy(rp.id);
-                                    }, 100);
-                                  }
-                                }}
-                                className={cn(
-                                  "rounded-xl border-2 p-4 cursor-pointer transition-all group",
-                                  "hover:shadow-lg hover:scale-[1.02]",
-                                  rpConfig.bg, rpConfig.border
-                                )}
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex items-start gap-3">
-                                    <div className={cn(
-                                      "w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br",
-                                      rpConfig.gradient
-                                    )}>
-                                      <RpIcon className="h-5 w-5 text-white" />
-                                    </div>
-                                    <div>
-                                      <p className={cn("font-bold", rpConfig.text)}>
-                                        {policyTypeLabels[rp.policy_type_parent]}
-                                      </p>
-                                      {serviceName && (
-                                        <p className="text-xs text-muted-foreground">{serviceName}</p>
-                                      )}
-                                      {rp.insurance_companies && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                          {rp.insurance_companies.name_ar || rp.insurance_companies.name}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="text-left flex items-center gap-2">
-                                    <div>
-                                      <p className="text-lg font-bold text-foreground ltr-nums">{formatCurrency(rp.insurance_price)}</p>
-                                      {isAdmin && rp.policy_type_parent !== 'ELZAMI' && (
-                                        <p className="text-xs text-emerald-600 font-medium ltr-nums">
-                                          ربح: {formatCurrency(rp.profit)}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        {/* Package Total */}
-                        <div className="bg-primary/5 border-2 border-primary/20 rounded-xl p-4 mt-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                                <Layers className="h-5 w-5 text-white" />
-                              </div>
-                              <div>
-                                <p className="font-bold text-primary">مجموع الباقة</p>
-                                <p className="text-xs text-muted-foreground">{relatedPolicies.length + 1} وثائق</p>
-                              </div>
-                            </div>
-                            <div className="text-left">
-                              <p className="text-xl font-bold text-primary ltr-nums">{formatCurrency(packageTotalPrice)}</p>
-                              {isAdmin && (
-                                <p className="text-sm text-emerald-600 font-medium ltr-nums">
-                                  إجمالي الربح: {formatCurrency(packageTotalProfit)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </Section>
-                    )}
-
-                    {/* Insurance Company & Period Row */}
+                    {/* Policy Details - Company & Period (after prices, before package) */}
                     <div className="grid grid-cols-2 gap-4">
                       {/* Insurance Company */}
                       {(policy.insurance_companies || policy.brokers) && (
@@ -1032,6 +970,106 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         </div>
                       </Section>
                     </div>
+
+                    {/* Package / Related Policies - 3 column layout */}
+                    {relatedPolicies.length > 0 && (
+                      <Section title="وثائق الباقة الأخرى" icon={Layers}>
+                        <div className="grid grid-cols-3 gap-3">
+                          {relatedPolicies.map((rp) => {
+                            const rpConfig = policyTypeConfig[rp.policy_type_parent] || policyTypeConfig.ELZAMI;
+                            const RpIcon = rpConfig.icon;
+                            const serviceName = getServiceName(rp);
+                            
+                            // Handle click - navigate to related policy
+                            const handleClick = () => {
+                              if (onViewRelatedPolicy) {
+                                onViewRelatedPolicy(rp.id);
+                              } else {
+                                // Fallback: close current and re-open with new ID
+                                onOpenChange(false);
+                              }
+                            };
+                            
+                            return (
+                              <div
+                                key={rp.id}
+                                onClick={handleClick}
+                                className={cn(
+                                  "rounded-xl border-2 p-3 cursor-pointer transition-all group",
+                                  "hover:shadow-lg hover:scale-[1.02] hover:border-primary",
+                                  rpConfig.bg, rpConfig.border
+                                )}
+                              >
+                                {/* Icon & Type */}
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br shrink-0",
+                                    rpConfig.gradient
+                                  )}>
+                                    <RpIcon className="h-4 w-4 text-white" />
+                                  </div>
+                                  <p className={cn("font-bold text-sm truncate", rpConfig.text)}>
+                                    {policyTypeLabels[rp.policy_type_parent]}
+                                  </p>
+                                </div>
+                                
+                                {/* Service & Company */}
+                                <div className="space-y-0.5 mb-2">
+                                  {serviceName && (
+                                    <p className="text-xs text-muted-foreground truncate">{serviceName}</p>
+                                  )}
+                                  {rp.insurance_companies && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {rp.insurance_companies.name_ar || rp.insurance_companies.name}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                {/* Price & Profit */}
+                                <div className="flex items-center justify-between pt-2 border-t border-dashed">
+                                  <p className="text-base font-bold text-foreground ltr-nums">{formatCurrency(rp.insurance_price)}</p>
+                                  {isAdmin && rp.policy_type_parent !== 'ELZAMI' && (
+                                    <span className={cn(
+                                      "text-xs font-semibold ltr-nums px-1.5 py-0.5 rounded",
+                                      (rp.profit || 0) < 0 ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"
+                                    )}>
+                                      {formatCurrency(rp.profit)}
+                                    </span>
+                                  )}
+                                  <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {/* Package Total */}
+                        <div className="bg-gradient-to-l from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl p-4 mt-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center">
+                                <Layers className="h-5 w-5 text-white" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-teal-700">مجموع الباقة</p>
+                                <p className="text-xs text-muted-foreground">{relatedPolicies.length + 1} وثائق</p>
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xl font-bold text-teal-700 ltr-nums">{formatCurrency(packageTotalPrice)}</p>
+                              {isAdmin && (
+                                <p className={cn(
+                                  "text-sm font-semibold ltr-nums",
+                                  packageTotalProfit < 0 ? "text-red-600" : "text-emerald-600"
+                                )}>
+                                  إجمالي الربح: {formatCurrency(packageTotalProfit)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Section>
+                    )}
 
                     {/* Client & Car Info */}
                     <div className="grid grid-cols-2 gap-4">

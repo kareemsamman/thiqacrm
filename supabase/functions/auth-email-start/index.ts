@@ -73,16 +73,17 @@ async function sendEmailViaSMTP(
   }
 }
 
+// Pre-initialize Supabase client at module level to avoid cold start delay
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const { email }: EmailStartRequest = await req.json();
 
     if (!email || !email.includes("@")) {
@@ -93,21 +94,37 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // Check if user exists in profiles
-    const { data: existingProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, status, email, full_name")
-      .eq("email", normalizedEmail)
-      .single();
+    // Parallel fetch: profile, auth settings, and rate limit check - MUCH faster
+    const [profileResult, authSettingsResult, rateLimitResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, status, email, full_name")
+        .eq("email", normalizedEmail)
+        .single(),
+      supabase
+        .from("auth_settings")
+        .select("*")
+        .limit(1)
+        .single(),
+      supabase
+        .from("otp_codes")
+        .select("id")
+        .eq("identifier", normalizedEmail)
+        .eq("channel", "email")
+        .gte("created_at", tenMinutesAgo)
+    ]);
+
+    const { data: existingProfile, error: profileError } = profileResult;
+    const { data: authSettings, error: settingsError } = authSettingsResult;
+    const { data: recentOtps } = rateLimitResult;
 
     // If no profile found, create a pending one
     if (profileError || !existingProfile) {
       console.log("No profile found for email, creating pending profile:", normalizedEmail);
 
       const requestedName = normalizedEmail.split("@")[0];
-
-      // profiles.id has a FK to the auth users table, so we must create (or find) an auth user first.
       let userId: string | null = null;
 
       const { data: createdUserRes, error: createUserError } = await supabase.auth.admin.createUser({
@@ -118,8 +135,6 @@ serve(async (req) => {
 
       if (createUserError) {
         console.error("Auth user create error:", createUserError);
-
-        // If user already exists, find the user id by listing users (rare path)
         const { data: usersPage, error: listError } = await supabase.auth.admin.listUsers({
           page: 1,
           perPage: 1000,
@@ -138,7 +153,6 @@ serve(async (req) => {
       }
 
       if (!userId) {
-        // Return 200 so the client can show the real message instead of a generic non-2xx error.
         return new Response(
           JSON.stringify({
             success: false,
@@ -171,15 +185,14 @@ serve(async (req) => {
         );
       }
 
-      // Log the login attempt
-      await supabase.from("login_attempts").insert({
+      // Log attempt in background (don't wait)
+      supabase.from("login_attempts").insert({
         email: normalizedEmail,
         identifier: normalizedEmail,
         method: "email_otp",
         success: false,
       });
 
-      // Return 200 so the client can show the message (supabase.functions.invoke treats non-2xx as an exception)
       return new Response(
         JSON.stringify({
           success: false,
@@ -210,19 +223,7 @@ serve(async (req) => {
       );
     }
 
-    // Check rate limiting - max 3 OTPs per email per 10 minutes
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: recentOtps, error: rateLimitError } = await supabase
-      .from("otp_codes")
-      .select("id")
-      .eq("identifier", normalizedEmail)
-      .eq("channel", "email")
-      .gte("created_at", tenMinutesAgo);
-
-    if (rateLimitError) {
-      console.error("Rate limit check error:", rateLimitError);
-    }
-
+    // Rate limit check (already fetched in parallel)
     if (recentOtps && recentOtps.length >= 3) {
       return new Response(
         JSON.stringify({ success: false, error: "تم تجاوز الحد الأقصى للمحاولات. حاول لاحقاً." }),
@@ -230,13 +231,7 @@ serve(async (req) => {
       );
     }
 
-    // Get auth settings
-    const { data: authSettings, error: settingsError } = await supabase
-      .from("auth_settings")
-      .select("*")
-      .limit(1)
-      .single();
-
+    // Auth settings check (already fetched in parallel)
     if (settingsError || !authSettings) {
       console.error("Auth settings error:", settingsError);
       return new Response(
@@ -266,10 +261,10 @@ serve(async (req) => {
       );
     }
 
-    // Generate OTP
+    // Generate OTP and hash in parallel with preparing email content
     const otp = generateOTP();
-    const otpHash = await hashOTP(otp);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+    const [otpHash] = await Promise.all([hashOTP(otp)]);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     // Store OTP
     const { error: insertError } = await supabase
@@ -291,36 +286,8 @@ serve(async (req) => {
 
     // Prepare email content
     const subject = "رمز التحقق - AB Insurance CRM";
-    
-    // Plain text version
-    const textContent = [
-      "رمز التحقق الخاص بك هو: " + otp,
-      "",
-      "هذا الرمز صالح لمدة 5 دقائق فقط.",
-      "",
-      "إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة."
-    ].join("\r\n");
-    
-    // HTML version - simple structure to avoid encoding issues
-    const htmlContent = [
-      '<!DOCTYPE html>',
-      '<html dir="rtl" lang="ar">',
-      '<head><meta charset="UTF-8"></head>',
-      '<body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;">',
-      '<div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;">',
-      '<h1 style="color:#2563eb;margin:0 0 8px 0;">AB Insurance CRM</h1>',
-      '<p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p>',
-      '<p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p>',
-      '<div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">',
-      otp,
-      '</div>',
-      '<p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p>',
-      '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">',
-      '<p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>',
-      '</div>',
-      '</body>',
-      '</html>'
-    ].join('');
+    const textContent = `رمز التحقق الخاص بك هو: ${otp}\r\n\r\nهذا الرمز صالح لمدة 5 دقائق فقط.\r\n\r\nإذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.`;
+    const htmlContent = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;"><div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;"><h1 style="color:#2563eb;margin:0 0 8px 0;">AB Insurance CRM</h1><p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p><p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p><div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">${otp}</div><p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"><p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p></div></body></html>`;
 
     // Send email via SMTP
     const emailResult = await sendEmailViaSMTP(
@@ -343,8 +310,8 @@ serve(async (req) => {
       );
     }
 
-    // Log the attempt
-    await supabase.from("login_attempts").insert({
+    // Log attempt in background (don't await)
+    supabase.from("login_attempts").insert({
       email: normalizedEmail,
       identifier: normalizedEmail,
       method: "email_otp",

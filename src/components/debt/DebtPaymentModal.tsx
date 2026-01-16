@@ -85,7 +85,7 @@ export function DebtPaymentModal({
   const [saving, setSaving] = useState(false);
   const [policies, setPolicies] = useState<PolicyPaymentInfo[]>([]);
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([]);
-  const [tranzilaEnabled, setTranzilaEnabled] = useState(false);
+  const [tranzilaEnabled, setTranzilaEnabled] = useState(true); // Default true, will be confirmed on modal open
   const [tranzilaModalOpen, setTranzilaModalOpen] = useState(false);
   const [activeVisaPaymentIndex, setActiveVisaPaymentIndex] = useState<number | null>(null);
   const [activeTranzilaPolicyId, setActiveTranzilaPolicyId] = useState<string | null>(null);
@@ -669,9 +669,7 @@ export function DebtPaymentModal({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {paymentTypes
-                              .filter(pt => pt.value !== 'visa' || tranzilaEnabled)
-                              .map(pt => (
+                            {paymentTypes.map(pt => (
                                 <SelectItem key={pt.value} value={pt.value}>
                                   <span className="flex items-center gap-2">
                                     <pt.icon className="h-4 w-4" />

@@ -67,8 +67,8 @@ const policyTypeLabels: Record<string, string> = {
 const paymentTypes = [
   { value: 'cash', label: 'نقدي', icon: Banknote },
   { value: 'cheque', label: 'شيك', icon: CreditCard },
+  { value: 'visa', label: 'فيزا', icon: CreditCard },
   { value: 'transfer', label: 'تحويل', icon: Wallet },
-  { value: 'visa', label: 'بطاقة ائتمان', icon: CreditCard },
 ];
 
 export function DebtPaymentModal({
@@ -85,7 +85,6 @@ export function DebtPaymentModal({
   const [saving, setSaving] = useState(false);
   const [policies, setPolicies] = useState<PolicyPaymentInfo[]>([]);
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([]);
-  const [tranzilaEnabled, setTranzilaEnabled] = useState(true); // Default true, will be confirmed on modal open
   const [tranzilaModalOpen, setTranzilaModalOpen] = useState(false);
   const [activeVisaPaymentIndex, setActiveVisaPaymentIndex] = useState<number | null>(null);
   const [activeTranzilaPolicyId, setActiveTranzilaPolicyId] = useState<string | null>(null);
@@ -125,7 +124,6 @@ export function DebtPaymentModal({
   useEffect(() => {
     if (open && clientId) {
       fetchPolicyPaymentInfo();
-      checkTranzilaEnabled();
       // Reset form with one empty payment line
       setPaymentLines([{
         id: crypto.randomUUID(),
@@ -197,28 +195,6 @@ export function DebtPaymentModal({
   };
 
   const getPreviewUrls = (paymentId: string) => previewUrls[paymentId] || [];
-
-  const checkTranzilaEnabled = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_settings')
-        .select('is_enabled')
-        .eq('provider', 'tranzila')
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error checking Tranzila enabled:', error);
-        setTranzilaEnabled(false);
-        return;
-      }
-      
-      console.log('Tranzila enabled check result:', data);
-      setTranzilaEnabled(data?.is_enabled === true);
-    } catch (err) {
-      console.error('Exception checking Tranzila:', err);
-      setTranzilaEnabled(false);
-    }
-  };
 
   const fetchPolicyPaymentInfo = async () => {
     setLoading(true);
@@ -359,11 +335,6 @@ export function DebtPaymentModal({
   const handleVisaPayClick = (index: number) => {
     const payment = paymentLines[index];
     if (!payment || payment.amount <= 0) return;
-    
-    if (!tranzilaEnabled) {
-      toast.error('الدفع بالبطاقة غير مفعل');
-      return;
-    }
 
     // Use first policy for Tranzila
     const firstPolicy = policies.find(p => p.remaining > 0);

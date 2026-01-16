@@ -535,6 +535,7 @@ export function PolicyTreeView({
               isSending={sendingPolicy === addon.id}
               onTransfer={onTransferPolicy}
               onCancel={onCancelPolicy}
+              onSinglePayment={(e) => handleSinglePolicyPayment(e, addon)}
               hasFiles={policyFilesInfo[addon.id] || false}
             />
           ));

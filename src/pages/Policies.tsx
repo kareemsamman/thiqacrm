@@ -601,10 +601,10 @@ export default function Policies() {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <RowActionsMenu
                             onView={() => handleViewDetails(policy.id)}
-                            onDelete={() => {
+                            onDelete={isAdmin ? () => {
                               setDeletingPolicy(policy);
                               setDeleteDialogOpen(true);
-                            }}
+                            } : undefined}
                           />
                         </TableCell>
                       </TableRow>

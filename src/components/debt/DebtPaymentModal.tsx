@@ -322,18 +322,29 @@ export function DebtPaymentModal({
 
     if (policiesWithBalance.length === 0) return splits;
 
-    // For cheques: assign to single policy only (the first one that can fit it or has largest remaining)
+    // For cheques: assign FULL amount to a single policy that can fit it
+    // Cheques are physical documents - cannot be split, must remain intact
     if (paymentType === 'cheque') {
-      // Try to find a policy where cheque amount fits exactly or partially
-      // If no exact fit, assign to policy with largest remaining balance
-      const exactFit = policiesWithBalance.find(p => p.remaining >= amount);
-      const targetPolicy = exactFit || policiesWithBalance[policiesWithBalance.length - 1];
+      // Find a policy where the cheque fits entirely (remaining >= cheque amount)
+      const policyWithSpace = policiesWithBalance.find(p => p.remaining >= amount);
       
-      splits.push({
-        policyId: targetPolicy.policyId,
-        amount: Math.min(amount, targetPolicy.remaining),
-        branchId: targetPolicy.branchId,
-      });
+      if (policyWithSpace) {
+        // Found a policy that can accept the full cheque
+        splits.push({
+          policyId: policyWithSpace.policyId,
+          amount: amount, // Keep FULL cheque amount
+          branchId: policyWithSpace.branchId,
+        });
+      } else {
+        // No single policy can fit the full cheque
+        // Put it on the policy with largest remaining balance (user should be warned separately)
+        const largestPolicy = policiesWithBalance[policiesWithBalance.length - 1];
+        splits.push({
+          policyId: largestPolicy.policyId,
+          amount: amount, // Keep FULL cheque amount - validation will catch overpayment
+          branchId: largestPolicy.branchId,
+        });
+      }
       return splits;
     }
 

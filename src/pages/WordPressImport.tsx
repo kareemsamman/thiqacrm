@@ -1283,11 +1283,14 @@ const WordPressImport = () => {
                     <AlertDialogFooter>
                       <AlertDialogCancel>إلغاء</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={handleClearAll}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleClearAll();
+                        }}
                         disabled={deleteConfirmText !== "DELETE ALL" || clearing}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        {clearing ? "جاري الحذف..." : "حذف"}
+                        {clearing ? <><Loader2 className="h-4 w-4 animate-spin ml-2" />جاري الحذف...</> : "حذف"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

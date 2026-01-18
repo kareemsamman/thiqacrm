@@ -394,18 +394,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Action: Clear all data (except companies and pricing rules)
+    // Action: Clear all data (except companies, pricing rules, users, branches)
     if (action === 'clear') {
       console.log('Clearing all data...');
+      
       // Clear ledger entries first (they reference policies)
       await supabase.from('ab_ledger').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
       // Clear broker settlement items first (they reference policies and settlements)
       await supabase.from('broker_settlement_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      // Clear company and broker settlements
+      
+      // Clear company and broker settlements (wallets)
       await supabase.from('company_settlements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('broker_settlements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
       // Clear customer wallet transactions
       await supabase.from('customer_wallet_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Clear notifications
+      await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
       // Clear policy-related data
       await supabase.from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('policy_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -416,13 +424,24 @@ Deno.serve(async (req) => {
       await supabase.from('accident_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('policy_groups').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('policies').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Clear outside cheques
       await supabase.from('outside_cheques').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Clear cars
       await supabase.from('cars').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Clear clients
       await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Clear brokers
       await supabase.from('brokers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       
-      console.log('All data cleared including wallets and ledger');
-      return new Response(JSON.stringify({ success: true, message: 'All data cleared including broker/company wallets' }), {
+      console.log('All data cleared including wallets, ledger, notifications, and cheques');
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'All data cleared including broker/company wallets, notifications, and cheques' 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

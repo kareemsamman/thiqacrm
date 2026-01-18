@@ -1351,8 +1351,8 @@ const WordPressImport = () => {
           </TabsContent>
 
           <TabsContent value="tools" className="space-y-6">
-            {/* Update Policies Only (re-sync payments) */}
-            <Card className="border-blue-500">
+            {/* Update Policies Only (re-sync payments) - First card in tools */}
+            <Card className="border-2 border-blue-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-600">
                   <RefreshCw className="h-5 w-5" />

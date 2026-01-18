@@ -100,7 +100,8 @@ const WordPressImport = () => {
     policiesUpdated: number; 
     policiesSkipped: number; 
     paymentsDeleted: number; 
-    paymentsInserted: number; 
+    paymentsInserted: number;
+    chequesFixed?: number;
     errors: string[] 
   } | null>(null);
 
@@ -1399,7 +1400,7 @@ const WordPressImport = () => {
 
                 {updatePoliciesStats && (
                   <div className="p-4 border rounded-lg space-y-2 bg-muted">
-                    <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
                         <p className="text-sm text-muted-foreground">وثائق محدثة</p>
                         <p className="text-2xl font-bold text-green-600">{updatePoliciesStats.policiesUpdated}</p>
@@ -1407,6 +1408,10 @@ const WordPressImport = () => {
                       <div>
                         <p className="text-sm text-muted-foreground">مدفوعات جديدة</p>
                         <p className="text-2xl font-bold text-blue-600">{updatePoliciesStats.paymentsInserted}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">شيكات مصححة</p>
+                        <p className="text-2xl font-bold text-purple-600">{updatePoliciesStats.chequesFixed || 0}</p>
                       </div>
                     </div>
                     {updatePoliciesStats.policiesSkipped > 0 && (

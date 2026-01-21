@@ -675,6 +675,30 @@ export function Step3PolicyDetails({
         </div>
       )}
 
+      {/* Dates - Before Package Section to clarify these are for main policy */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Label>تاريخ البداية *</Label>
+          <ArabicDatePicker
+            value={policy.start_date}
+            onChange={(date) => setPolicy({ ...policy, start_date: date })}
+            placeholder="اختر تاريخ البداية"
+            className={errors.start_date ? "border-destructive" : ""}
+          />
+          <FieldError error={errors.start_date} />
+        </div>
+        <div>
+          <Label>تاريخ النهاية *</Label>
+          <ArabicDatePicker
+            value={policy.end_date}
+            onChange={(date) => setPolicy({ ...policy, end_date: date })}
+            placeholder="اختر تاريخ النهاية"
+            className={errors.end_date ? "border-destructive" : ""}
+          />
+          <FieldError error={errors.end_date} />
+        </div>
+      </div>
+
       {/* Package Mode - For THIRD_FULL and ELZAMI - BEFORE BROKER */}
       {(policy.policy_type_parent === 'THIRD_FULL' || policy.policy_type_parent === 'ELZAMI') && (() => {
         // Check if main policy requirements are met before enabling package addons
@@ -814,30 +838,6 @@ export function Step3PolicyDetails({
           </Card>
         );
       })()}
-
-      {/* Dates */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label>تاريخ البداية *</Label>
-          <ArabicDatePicker
-            value={policy.start_date}
-            onChange={(date) => setPolicy({ ...policy, start_date: date })}
-            placeholder="اختر تاريخ البداية"
-            className={errors.start_date ? "border-destructive" : ""}
-          />
-          <FieldError error={errors.start_date} />
-        </div>
-        <div>
-          <Label>تاريخ النهاية *</Label>
-          <ArabicDatePicker
-            value={policy.end_date}
-            onChange={(date) => setPolicy({ ...policy, end_date: date })}
-            placeholder="اختر تاريخ النهاية"
-            className={errors.end_date ? "border-destructive" : ""}
-          />
-          <FieldError error={errors.end_date} />
-        </div>
-      </div>
 
       {/* Broker Buy Price - Show when company is linked to a broker */}
       {(() => {

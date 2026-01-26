@@ -61,12 +61,14 @@ export function Step4Payments({
     if (files.length === 0) return;
     
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        toast({ title: "خطأ", description: "يرجى اختيار صور فقط", variant: "destructive" });
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+      if (!isImage && !isPdf) {
+        toast({ title: "خطأ", description: "يرجى اختيار صور أو ملفات PDF فقط", variant: "destructive" });
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
-        toast({ title: "خطأ", description: "حجم الصورة يجب أن يكون أقل من 10MB", variant: "destructive" });
+        toast({ title: "خطأ", description: "حجم الملف يجب أن يكون أقل من 10MB", variant: "destructive" });
         return false;
       }
       return true;
@@ -413,13 +415,13 @@ export function Step4Payments({
                     </div>
                   </div>
                   
-                  {/* Image Upload Section for Cheque/Transfer */}
-                  {(payment.payment_type === 'cheque' || payment.payment_type === 'transfer') && !visaPaid && (
+                  {/* Image Upload Section for Cash/Cheque/Transfer */}
+                  {(payment.payment_type === 'cash' || payment.payment_type === 'cheque' || payment.payment_type === 'transfer') && !visaPaid && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
                           <Label className="text-xs text-muted-foreground mb-2 block">
-                            {payment.payment_type === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : 'صور إيصال التحويل'}
+                            {payment.payment_type === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : payment.payment_type === 'transfer' ? 'صور إيصال التحويل' : 'صور إيصال الدفع'}
                           </Label>
                           <div className="flex flex-wrap gap-2">
                             {/* Preview existing images */}
@@ -443,7 +445,7 @@ export function Step4Payments({
                             <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
                               <input 
                                 type="file" 
-                                accept="image/*" 
+                                accept="image/*,application/pdf" 
                                 multiple 
                                 onChange={(e) => handleImageSelect(payment.id, e)} 
                                 className="hidden" 
@@ -455,7 +457,7 @@ export function Step4Payments({
                           {payment.pendingImages && payment.pendingImages.length > 0 && (
                             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                               <ImageIcon className="h-3 w-3" />
-                              {payment.pendingImages.length} صور سيتم رفعها عند الحفظ
+                              {payment.pendingImages.length} ملفات سيتم رفعها عند الحفظ
                             </p>
                           )}
                         </div>

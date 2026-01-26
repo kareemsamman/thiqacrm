@@ -126,12 +126,14 @@ export function PackagePaymentModal({
     if (files.length === 0) return;
     
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        uiToast({ title: "خطأ", description: "يرجى اختيار صور فقط", variant: "destructive" });
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+      if (!isImage && !isPdf) {
+        uiToast({ title: "خطأ", description: "يرجى اختيار صور أو ملفات PDF فقط", variant: "destructive" });
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
-        uiToast({ title: "خطأ", description: "حجم الصورة يجب أن يكون أقل من 10MB", variant: "destructive" });
+        uiToast({ title: "خطأ", description: "حجم الملف يجب أن يكون أقل من 10MB", variant: "destructive" });
         return false;
       }
       return true;
@@ -624,12 +626,12 @@ export function PackagePaymentModal({
                       </Button>
                     )}
 
-                    {/* Image Upload for cheque/transfer */}
-                    {(payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && !payment.tranzilaPaid && (
+                    {/* Image Upload for cash/cheque/transfer */}
+                    {(payment.paymentType === 'cash' || payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && !payment.tranzilaPaid && (
                       <div className="space-y-2">
                         <Label className="text-xs flex items-center gap-1">
                           <ImageIcon className="h-3 w-3" />
-                          صورة {payment.paymentType === 'cheque' ? 'الشيك' : 'الحوالة'}
+                          {payment.paymentType === 'cheque' ? 'صورة الشيك' : payment.paymentType === 'transfer' ? 'صورة الحوالة' : 'صورة الإيصال'}
                         </Label>
                         <div className="flex items-center gap-2 flex-wrap">
                           {getPreviewUrls(payment.id).map((url, imgIndex) => (
@@ -652,7 +654,7 @@ export function PackagePaymentModal({
                             <Upload className="h-5 w-5 text-muted-foreground" />
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/*,application/pdf"
                               multiple
                               className="hidden"
                               onChange={(e) => handleImageSelect(payment.id, e)}

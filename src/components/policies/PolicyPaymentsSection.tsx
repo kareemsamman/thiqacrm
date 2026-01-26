@@ -254,12 +254,14 @@ export function PolicyPaymentsSection({
     if (files.length === 0) return;
     
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        toast({ title: "خطأ", description: "يرجى اختيار صور فقط", variant: "destructive" });
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+      if (!isImage && !isPdf) {
+        toast({ title: "خطأ", description: "يرجى اختيار صور أو ملفات PDF فقط", variant: "destructive" });
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
-        toast({ title: "خطأ", description: "حجم الصورة يجب أن يكون أقل من 10MB", variant: "destructive" });
+        toast({ title: "خطأ", description: "حجم الملف يجب أن يكون أقل من 10MB", variant: "destructive" });
         return false;
       }
       return true;
@@ -885,11 +887,11 @@ export function PolicyPaymentsSection({
                     </div>
                   )}
 
-                  {/* Image Upload for Cheque/Transfer */}
-                  {(payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
+                  {/* Image Upload for Cash/Cheque/Transfer */}
+                  {(payment.paymentType === 'cash' || payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
                     <div className="pt-3 border-t border-border/50">
                       <Label className="text-xs text-muted-foreground mb-2 block">
-                        {payment.paymentType === 'cheque' ? 'صور الشيك' : 'صور إيصال التحويل'}
+                        {payment.paymentType === 'cheque' ? 'صور الشيك' : payment.paymentType === 'transfer' ? 'صور إيصال التحويل' : 'صور إيصال الدفع'}
                       </Label>
                       <div className="flex flex-wrap gap-2">
                         {getPreviewUrls(payment.id).map((url, imgIndex) => (
@@ -904,14 +906,14 @@ export function PolicyPaymentsSection({
                             </button>
                           </div>
                         ))}
-                        <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            multiple 
-                            onChange={(e) => handleImageSelect(payment.id, e)} 
-                            className="hidden" 
-                          />
+                      <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf" 
+                          multiple 
+                          onChange={(e) => handleImageSelect(payment.id, e)} 
+                          className="hidden" 
+                        />
                           <Upload className="h-4 w-4 text-muted-foreground" />
                           <span className="text-[10px] text-muted-foreground mt-0.5">إضافة</span>
                         </label>

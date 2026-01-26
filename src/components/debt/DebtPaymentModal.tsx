@@ -141,12 +141,14 @@ export function DebtPaymentModal({
     if (files.length === 0) return;
     
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        uiToast({ title: "خطأ", description: "يرجى اختيار صور فقط", variant: "destructive" });
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+      if (!isImage && !isPdf) {
+        uiToast({ title: "خطأ", description: "يرجى اختيار صور أو ملفات PDF فقط", variant: "destructive" });
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
-        uiToast({ title: "خطأ", description: "حجم الصورة يجب أن يكون أقل من 10MB", variant: "destructive" });
+        uiToast({ title: "خطأ", description: "حجم الملف يجب أن يكون أقل من 10MB", variant: "destructive" });
         return false;
       }
       return true;
@@ -475,8 +477,8 @@ export function DebtPaymentModal({
             
             if (error) throw error;
 
-            // Upload images for cheque/transfer payments
-            if ((paymentLine.paymentType === 'cheque' || paymentLine.paymentType === 'transfer') && 
+            // Upload images for cash/cheque/transfer payments
+            if ((paymentLine.paymentType === 'cash' || paymentLine.paymentType === 'cheque' || paymentLine.paymentType === 'transfer') && 
                 paymentLine.pendingImages && paymentLine.pendingImages.length > 0 && 
                 insertedPayments && insertedPayments.length > 0) {
               
@@ -740,12 +742,12 @@ export function DebtPaymentModal({
                       </div>
                     )}
 
-                    {/* Image Upload Section for Cheque/Transfer */}
-                    {(payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
+                    {/* Image Upload Section for Cash/Cheque/Transfer */}
+                    {(payment.paymentType === 'cash' || payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
                       <div className="pt-3 border-t border-border/50">
                         <div className="flex-1">
                           <Label className="text-xs text-muted-foreground mb-2 block">
-                            {payment.paymentType === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : 'صور إيصال التحويل'}
+                            {payment.paymentType === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : payment.paymentType === 'transfer' ? 'صور إيصال التحويل' : 'صور إيصال الدفع'}
                           </Label>
                           <div className="flex flex-wrap gap-2">
                             {/* Preview existing images */}
@@ -769,7 +771,7 @@ export function DebtPaymentModal({
                             <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
                               <input 
                                 type="file" 
-                                accept="image/*" 
+                                accept="image/*,application/pdf" 
                                 multiple 
                                 onChange={(e) => handleImageSelect(payment.id, e)} 
                                 className="hidden" 
@@ -781,7 +783,7 @@ export function DebtPaymentModal({
                           {payment.pendingImages && payment.pendingImages.length > 0 && (
                             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                               <ImageIcon className="h-3 w-3" />
-                              {payment.pendingImages.length} صور سيتم رفعها عند الحفظ
+                              {payment.pendingImages.length} ملفات سيتم رفعها عند الحفظ
                             </p>
                           )}
                         </div>

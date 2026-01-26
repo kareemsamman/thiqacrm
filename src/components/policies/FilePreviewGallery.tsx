@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Download, ChevronLeft, ChevronRight, FileText, ZoomIn, ZoomOut } from "lucide-react";
+import { PdfJsViewer } from "./PdfJsViewer";
 
 interface MediaFile {
   id: string;
@@ -25,8 +26,6 @@ const isPdf = (mimeType: string) => mimeType === 'application/pdf';
 
 export function FilePreviewGallery({ file, allFiles, onClose, onNavigate }: FilePreviewGalleryProps) {
   const [zoom, setZoom] = useState(1);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
   
   // Get viewable files (images and PDFs only)
   const viewableFiles = useMemo(() => 
@@ -182,10 +181,9 @@ export function FilePreviewGallery({ file, allFiles, onClose, onNavigate }: File
           )}
           
           {fileIsPdf && (
-            <iframe
-              src={file.cdn_url}
-              className="w-full h-full rounded-lg border-0 bg-white"
-              title={file.original_name}
+            <PdfJsViewer 
+              url={file.cdn_url} 
+              className="w-full h-full"
             />
           )}
         </div>

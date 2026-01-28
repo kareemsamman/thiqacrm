@@ -54,6 +54,7 @@ import { PolicyYearTimeline } from '@/components/clients/PolicyYearTimeline';
 import { ClientReportModal } from '@/components/clients/ClientReportModal';
 import { CarFilterChips } from '@/components/clients/CarFilterChips';
 import { ExpiryBadge } from '@/components/shared/ExpiryBadge';
+import { ClickablePhone } from '@/components/shared/ClickablePhone';
 import { DebtIndicator } from '@/components/shared/DebtIndicator';
 import { DebtPaymentModal } from '@/components/debt/DebtPaymentModal';
 import { cn } from '@/lib/utils';
@@ -665,16 +666,10 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                     {client.id_number}
                   </span>
                   {client.phone_number && (
-                    <span className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5" />
-                      <bdi>{client.phone_number}</bdi>
-                    </span>
+                    <ClickablePhone phone={client.phone_number} />
                   )}
                   {client.phone_number_2 && (
-                    <span className="flex items-center gap-1.5 text-muted-foreground/70">
-                      <Phone className="h-3.5 w-3.5" />
-                      <bdi>{client.phone_number_2}</bdi>
-                    </span>
+                    <ClickablePhone phone={client.phone_number_2} className="text-muted-foreground/70" />
                   )}
                   {client.file_number && (
                     <span className="flex items-center gap-1.5">

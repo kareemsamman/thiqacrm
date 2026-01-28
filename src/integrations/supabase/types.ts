@@ -3602,27 +3602,29 @@ export type Database = {
         Args: {
           p_company_id?: string
           p_created_by?: string
-          p_from_date?: string
-          p_limit?: number
-          p_offset?: number
+          p_end_date: string
+          p_page?: number
+          p_page_size?: number
           p_policy_type?: string
           p_search?: string
-          p_to_date?: string
+          p_start_date: string
         }
         Returns: {
           branch_name: string
+          car_id: string
           car_number: string
           client_file_number: string
           client_id: string
           client_name: string
           client_phone: string
+          company_id: string
           company_name: string
           company_name_ar: string
           created_at: string
-          created_by_id: string
+          created_by_admin_id: string
           created_by_name: string
-          created_by_phone: string
           end_date: string
+          group_key: string
           id: string
           insurance_price: number
           is_package: boolean
@@ -3630,12 +3632,14 @@ export type Database = {
           package_policy_ids: string[]
           package_types: string[]
           payment_status: string
+          policy_number: string
           policy_type_child: string
           policy_type_parent: string
+          profit: number
           remaining: number
           start_date: string
+          total_count: number
           total_paid: number
-          total_rows: number
         }[]
       }
       report_debt_policies_for_clients: {
@@ -3658,27 +3662,31 @@ export type Database = {
       }
       report_renewals: {
         Args: {
+          p_company_id?: string
           p_created_by?: string
-          p_days_remaining?: number
-          p_end_month?: string
-          p_limit?: number
-          p_offset?: number
+          p_end_date: string
+          p_page?: number
+          p_page_size?: number
           p_policy_type?: string
           p_search?: string
+          p_start_date: string
         }
         Returns: {
+          car_id: string
           car_number: string
           client_file_number: string
           client_id: string
           client_name: string
           client_phone: string
+          company_id: string
           company_name: string
           company_name_ar: string
-          created_by_id: string
+          created_at: string
+          created_by_admin_id: string
           created_by_name: string
           days_remaining: number
           end_date: string
-          group_id: string
+          group_key: string
           id: string
           insurance_price: number
           is_package: boolean
@@ -3686,12 +3694,15 @@ export type Database = {
           package_count: number
           package_policy_ids: string[]
           package_types: string[]
+          policy_number: string
           policy_type_child: string
           policy_type_parent: string
+          profit: number
           reminder_sent_at: string
           renewal_notes: string
           renewal_status: string
-          total_rows: number
+          start_date: string
+          total_count: number
         }[]
       }
       report_renewals_service: {

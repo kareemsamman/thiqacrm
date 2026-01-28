@@ -97,63 +97,73 @@ interface PolicyPaymentActivity {
   created_at: string;
 }
 
+// Matches new report_created_policies return type
 interface CreatedPolicy {
   id: string;
-  created_at: string;
-  created_by_id: string | null;
-  created_by_name: string | null;
-  created_by_phone: string | null;
-  branch_name: string | null;
-  client_id: string;
-  client_name: string;
-  client_file_number: string | null;
-  client_phone: string | null;
-  car_number: string | null;
-  policy_type_parent: string;
-  policy_type_child: string | null;
-  company_name: string | null;
-  company_name_ar: string | null;
-  start_date: string;
-  end_date: string;
-  insurance_price: number;
-  total_paid: number;
-  remaining: number;
-  payment_status: string;
-  total_rows: number;
-  // Package support
+  group_key: string;
   is_package: boolean;
   package_types: string[] | null;
   package_policy_ids: string[] | null;
   package_count: number;
-}
-
-interface RenewalPolicy {
-  id: string;
-  end_date: string;
-  days_remaining: number;
   client_id: string;
   client_name: string;
   client_file_number: string | null;
   client_phone: string | null;
+  car_id: string | null;
   car_number: string | null;
-  policy_type_parent: string;
-  policy_type_child: string | null;
+  company_id: string | null;
   company_name: string | null;
   company_name_ar: string | null;
+  policy_type_parent: string;
+  policy_type_child: string | null;
+  policy_number: string | null;
+  start_date: string;
+  end_date: string;
   insurance_price: number;
+  profit: number;
+  total_paid: number;
+  remaining: number;
+  payment_status: string;
+  created_at: string;
+  created_by_admin_id: string | null;
+  created_by_name: string | null;
+  branch_name: string | null;
+  total_count: number;
+}
+
+// Matches new report_renewals return type
+interface RenewalPolicy {
+  id: string;
+  group_key: string;
+  is_package: boolean;
+  package_types: string[] | null;
+  package_policy_ids: string[] | null;
+  package_count: number;
+  client_id: string;
+  client_name: string;
+  client_file_number: string | null;
+  client_phone: string | null;
+  car_id: string | null;
+  car_number: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  company_name_ar: string | null;
+  policy_type_parent: string;
+  policy_type_child: string | null;
+  policy_number: string | null;
+  start_date: string;
+  end_date: string;
+  days_remaining: number;
+  insurance_price: number;
+  profit: number;
+  created_at: string;
+  created_by_admin_id: string | null;
+  created_by_name: string | null;
   renewal_status: string;
   renewal_notes: string | null;
   last_contacted_at: string | null;
   reminder_sent_at: string | null;
-  created_by_id: string | null;
-  created_by_name: string | null;
-  group_id?: string | null;
-  total_rows: number;
-  // Package support
-  is_package: boolean;
-  package_types: string[] | null;
-  package_policy_ids: string[] | null;
-  package_count: number;
+  total_count: number;
 }
 
 interface RenewalSummary {
@@ -274,25 +284,31 @@ export default function PolicyReports() {
     setCreatedLoading(true);
     try {
       const { fromDate, toDate } = getDateRange();
+      if (!fromDate || !toDate) {
+        setCreatedPolicies([]);
+        setCreatedTotalRows(0);
+        setCreatedLoading(false);
+        return;
+      }
       
       // Workers can filter by created_by but see all policies in their branch (RLS handles access)
       // Admins can filter by specific user or see all
       const effectiveCreatedBy = createdByFilter !== 'all' ? createdByFilter : null;
       
       const { data, error } = await supabase.rpc('report_created_policies', {
-        p_from_date: fromDate,
-        p_to_date: toDate,
+        p_start_date: fromDate,
+        p_end_date: toDate,
         p_created_by: effectiveCreatedBy,
         p_policy_type: createdPolicyTypeFilter !== 'all' ? createdPolicyTypeFilter : null,
         p_company_id: createdCompanyFilter !== 'all' ? createdCompanyFilter : null,
         p_search: createdSearch || null,
-        p_limit: PAGE_SIZE,
-        p_offset: createdPage * PAGE_SIZE
+        p_page_size: PAGE_SIZE,
+        p_page: createdPage + 1 // 1-indexed
       });
 
       if (error) throw error;
-      setCreatedPolicies(data || []);
-      setCreatedTotalRows(data?.[0]?.total_rows || 0);
+      setCreatedPolicies((data as CreatedPolicy[]) || []);
+      setCreatedTotalRows((data as CreatedPolicy[])?.[0]?.total_count || 0);
     } catch (error) {
       console.error('Error fetching created policies:', error);
       toast.error('فشل في تحميل البيانات');
@@ -301,31 +317,53 @@ export default function PolicyReports() {
     }
   };
 
-  // Fetch renewals
+  // Fetch renewals - compute date range from month/days filter
+  const getRenewalDateRange = () => {
+    if (renewalsDaysFilter === 'month' && renewalsMonth) {
+      // Full month
+      const [year, month] = renewalsMonth.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0);
+      return {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      };
+    } else {
+      // Next N days from today
+      const today = new Date();
+      const daysAhead = parseInt(renewalsDaysFilter) || 30;
+      const endDate = new Date(today);
+      endDate.setDate(today.getDate() + daysAhead);
+      return {
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      };
+    }
+  };
+
   const fetchRenewals = async () => {
     setRenewalsLoading(true);
     try {
-      const monthDate = renewalsMonth ? `${renewalsMonth}-01` : null;
-      const daysRemaining = renewalsDaysFilter !== 'month' ? parseInt(renewalsDaysFilter) : null;
+      const { startDate, endDate } = getRenewalDateRange();
       
       const [renewalsRes, summaryRes] = await Promise.all([
         supabase.rpc('report_renewals', {
-          p_end_month: monthDate,
-          p_days_remaining: daysRemaining,
+          p_start_date: startDate,
+          p_end_date: endDate,
           p_policy_type: renewalsPolicyTypeFilter !== 'all' ? renewalsPolicyTypeFilter : null,
           p_created_by: renewalsCreatedByFilter !== 'all' ? renewalsCreatedByFilter : null,
           p_search: renewalsSearch || null,
-          p_limit: PAGE_SIZE,
-          p_offset: renewalsPage * PAGE_SIZE
+          p_page_size: PAGE_SIZE,
+          p_page: renewalsPage + 1 // 1-indexed
         }),
         supabase.rpc('report_renewals_summary', {
-          p_end_month: monthDate
+          p_end_month: renewalsMonth ? `${renewalsMonth}-01` : null
         })
       ]);
 
       if (renewalsRes.error) throw renewalsRes.error;
-      setRenewals(renewalsRes.data || []);
-      setRenewalsTotalRows(renewalsRes.data?.[0]?.total_rows || 0);
+      setRenewals((renewalsRes.data as RenewalPolicy[]) || []);
+      setRenewalsTotalRows((renewalsRes.data as RenewalPolicy[])?.[0]?.total_count || 0);
       
       if (summaryRes.data && summaryRes.data.length > 0) {
         setRenewalsSummary(summaryRes.data[0]);
@@ -488,21 +526,10 @@ export default function PolicyReports() {
 
     setSendingSingleSms(policy.id);
     try {
-      // Fetch package policies if exists
-      let packageTypes: string[] = [policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent];
-      
-      if (policy.group_id) {
-        const { data: groupPolicies } = await supabase
-          .from('policies')
-          .select('policy_type_parent')
-          .eq('group_id', policy.group_id)
-          .is('deleted_at', null)
-          .eq('cancelled', false);
-        
-        if (groupPolicies && groupPolicies.length > 1) {
-          packageTypes = [...new Set(groupPolicies.map(p => policyTypeLabels[p.policy_type_parent] || p.policy_type_parent))];
-        }
-      }
+      // Use package_types if available, otherwise single type
+      let packageTypes: string[] = policy.is_package && policy.package_types
+        ? policy.package_types.map(t => policyTypeLabels[t] || t)
+        : [policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent];
 
       const typesText = packageTypes.join(' و ');
       const endDate = formatDate(policy.end_date);
@@ -718,9 +745,6 @@ export default function PolicyReports() {
                                 <p className="font-medium text-sm">{policy.created_by_name || '-'}</p>
                                 {policy.branch_name && (
                                   <p className="text-xs text-muted-foreground">{policy.branch_name}</p>
-                                )}
-                                {policy.created_by_phone && (
-                                  <p dir="ltr" className="text-xs text-muted-foreground text-right">{policy.created_by_phone}</p>
                                 )}
                               </div>
                             </TableCell>

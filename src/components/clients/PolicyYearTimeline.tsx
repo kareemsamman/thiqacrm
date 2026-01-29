@@ -53,6 +53,7 @@ interface PolicyRecord {
   car: { id: string; car_number: string } | null;
   creator: { full_name: string | null; email: string } | null;
   branch_id?: string | null;
+  created_at?: string;
 }
 
 interface PolicyYearTimelineProps {
@@ -137,6 +138,14 @@ const isCurrentYear = (startDate: string): boolean => {
   const policyYear = new Date(startDate).getFullYear();
   const currentYear = new Date().getFullYear();
   return policyYear === currentYear || policyYear === currentYear - 1;
+};
+
+// Check if policy was created within the last 24 hours
+const isNewPolicy = (createdAt: string): boolean => {
+  const created = new Date(createdAt);
+  const now = new Date();
+  const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+  return hoursDiff < 24;
 };
 
 interface PaymentInfo {
@@ -729,6 +738,14 @@ function PolicyPackageCard({
             <Badge variant="outline" className="gap-1 text-xs bg-orange-500/10 border-orange-500/30 text-orange-600">
               <AlertTriangle className="h-3 w-3" />
               {accidentCount} حادث
+            </Badge>
+          )}
+
+          {/* New Policy Badge - shows for policies created within last 24 hours */}
+          {policy.created_at && isNewPolicy(policy.created_at) && (
+            <Badge variant="outline" className="gap-1 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
+              <Zap className="h-3 w-3" />
+              جديدة
             </Badge>
           )}
 

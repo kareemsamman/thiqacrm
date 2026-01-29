@@ -1,154 +1,144 @@
 
-# خطة إصلاح تعديل/حذف الدفعات وإعادة التوجيه للعميل
+# خطة إصلاح عرض المدفوع للدين وتوحيد الأرقام بالإنجليزية
 
-## المشاكل المُكتشفة
+## المشكلة 1: "المدفوع للدين" يظهر ₪100 بينما صفحة العميل تظهر ₪5,100
 
-### المشكلة 1: زر "تعديل" في سجل الدفعات يفتح الوثيقة بدلاً من نموذج تعديل الدفعة
+### تحليل البيانات
 
-**السبب الحالي** (سطور 618-624 في `ClientDetails.tsx`):
-```typescript
-const handleEditPayment = (payment: PaymentRecord) => {
-  if (payment.policy_id) {
-    setSelectedPolicyId(payment.policy_id);
-    setPolicyDetailsOpen(true);  // ← يفتح drawer الوثيقة!
-  }
-};
-```
+| الوثيقة | النوع | المدفوع |
+|---------|-------|---------|
+| ELZAMI × 5 | إلزامي | ₪5,000 |
+| THIRD_FULL (3d626df1) | ثالث/شامل | ₪100 |
+| **المجموع الكلي** | | **₪5,100** |
+| **المدفوع للدين (بدون إلزامي)** | | **₪100** |
 
-**الحل**: إنشاء Dialog جديد لتعديل الدفعة مباشرة من صفحة العميل (مشابه لـ PolicyPaymentsSection edit dialog)
+**المنطق التجاري صحيح**: الإلزامي يُدفع مباشرة للشركة ولا يُعتبر ديناً على العميل.
 
-### المشكلة 2: زر "حذف" الدفعة لا يعمل
+### الحل
 
-**التحليل**: الكود موجود (سطور 594-616) وDialog الحذف موجود (سطور 1819-1839)، لكن يبدو أن هناك مشكلة في الربط. نحتاج للتحقق وإصلاح.
+رغم وجود tooltip توضيحي، العرض لا يزال محيراً. نحتاج لتحسين التوضيح:
 
-### المشكلة 3: إنشاء وثيقة جديدة لا يعود لصفحة العميل الصحيحة
+1. إضافة صف منفصل يوضح "دفعات الإلزامي" (مستثناة)
+2. عرض التفصيل بشكل أوضح في الواجهة
 
-**السبب الحالي** (سطور 1059-1072 في `PolicyWizard.tsx`):
-```typescript
-setTimeout(() => {
-  if (newlyCreatedClientId) {
-    window.location.href = `/clients?open=${newlyCreatedClientId}`;
-  } else if (selectedClient?.id) {
-    window.location.reload();  // ← يعيد تحميل الصفحة لكن لا يضمن فتح العميل
-  } else {
-    onSaved?.();
-  }
-}, 150);
-```
-
-**المشكلة**: عند وجود `selectedClient` يحدث `reload()` فقط، لكن صفحة `/clients` لا تعرف أي عميل تفتحه.
-
-**الحل**: استخدام `window.location.href` مع parameter `open` للعميل المحدد.
+**تغييرات على `DebtPaymentModal.tsx`**:
+- إضافة عرض منفصل لـ "دفعات الإلزامي: ₪5,000 (تذهب للشركة مباشرة)"
+- تحسين النص التوضيحي
 
 ---
 
-## التغييرات المطلوبة
+## المشكلة 2: الأرقام تظهر بالعربية (٠١٢٣...) بدلاً من الإنجليزية (0123...)
 
-### الجزء 1: إضافة نموذج تعديل الدفعة المباشر
+### السبب
 
-| الملف | التغيير |
-|-------|---------|
-| `src/components/clients/ClientDetails.tsx` | إضافة Dialog تعديل دفعة مع جميع الحقول |
+استخدام `toLocaleString('ar-EG')` يحوّل الأرقام للنظام العربي-المصري.
 
-**التفاصيل**:
-1. إضافة state جديدة:
-   - `editPaymentDialogOpen`
-   - `editingPayment` (الدفعة المُختارة)
-   - `editPaymentForm` (بيانات النموذج)
-   - `savingPaymentEdit`
+### الحل
 
-2. إنشاء نموذج تعديل يشمل:
-   - المبلغ
-   - طريقة الدفع (نقدي، شيك، تحويل)
-   - تاريخ الدفع
-   - رقم الشيك (إذا كان شيك)
-   - عرض الملفات الحالية مع إمكانية الفتح
-   - حالة "راجع/مرفوض"
+تغيير **كل** استخدامات `'ar-EG'` إلى `'en-US'` في:
 
-3. تعديل `handleEditPayment` لفتح Dialog التعديل بدلاً من drawer الوثيقة
-
-### الجزء 2: إصلاح حذف الدفعات
-
-| الملف | التغيير |
-|-------|---------|
-| `src/components/clients/ClientDetails.tsx` | التأكد من ربط Dialog الحذف بشكل صحيح |
-
-**التحقق**:
-- الكود موجود ويبدو صحيحًا
-- قد تكون المشكلة في RLS أو في عدم إظهار خيار الحذف للدفعات المقفولة
-- سنضيف رسالة خطأ أوضح
-
-### الجزء 3: إصلاح إعادة التوجيه بعد إنشاء وثيقة
-
-| الملف | التغيير |
-|-------|---------|
-| `src/components/policies/PolicyWizard.tsx` | تعديل منطق التوجيه بعد الحفظ |
-
-**التغيير المطلوب**:
-```typescript
-setTimeout(() => {
-  if (newlyCreatedClientId) {
-    window.location.href = `/clients?open=${newlyCreatedClientId}`;
-  } else if (selectedClient?.id) {
-    // ← الإصلاح: التوجيه للعميل المحدد بدلاً من reload فقط
-    window.location.href = `/clients?open=${selectedClient.id}`;
-  } else {
-    onSaved?.();
-  }
-}, 150);
-```
-
----
-
-## ملخص الملفات المتأثرة
-
-| الملف | نوع التغيير |
+| الفئة | عدد الملفات |
 |-------|-------------|
-| `src/components/clients/ClientDetails.tsx` | تعديل (إضافة Dialog تعديل الدفعة + إصلاح الحذف) |
-| `src/components/policies/PolicyWizard.tsx` | تعديل (إصلاح إعادة التوجيه) |
+| صفحات (pages) | ~15 ملف |
+| مكونات (components) | ~27 ملف |
+| Edge Functions | ~2 ملف |
+
+### الملفات المتأثرة
+
+**الصفحات:**
+- `DebtTracking.tsx`
+- `Clients.tsx`
+- `Cars.tsx`
+- `Companies.tsx`
+- `CompanySettlement.tsx`
+- `CompanySettlementDetail.tsx`
+- `CompanyWallet.tsx`
+- `BrokerWallet.tsx`
+- `Brokers.tsx`
+- `Cheques.tsx`
+- `Expenses.tsx`
+- `FinancialReports.tsx`
+- `PolicyReports.tsx`
+- `ElzamiCostsReport.tsx`
+- `Notifications.tsx`
+
+**المكونات:**
+- `debt/DebtPaymentModal.tsx`
+- `clients/ClientDetails.tsx`
+- `clients/ClientReportModal.tsx`
+- `clients/PaymentEditDialog.tsx`
+- `clients/PackagePaymentModal.tsx`
+- `clients/SinglePolicyPaymentModal.tsx`
+- `brokers/BrokerDetails.tsx`
+- `brokers/BrokerPaymentModal.tsx`
+- `policies/PolicyDetailsDrawer.tsx`
+- `policies/PolicyPaymentsSection.tsx`
+- `policies/PolicyWizard.tsx`
+- `policies/CancelPolicyModal.tsx`
+- `policies/TransferPolicyModal.tsx`
+- `companies/RoadServicePricingDrawer.tsx`
+- `companies/AccidentFeePricingDrawer.tsx`
+- `companies/PricingRulesDrawer.tsx`
+- `payments/TranzilaPaymentModal.tsx`
+- `shared/CustomerChequeSelector.tsx`
+- `shared/DebtIndicator.tsx`
+- `dashboard/StatCard.tsx`
+- `dashboard/ExpiringPolicies.tsx`
+- `notifications/PaymentDetailsPanel.tsx`
+
+**Edge Functions:**
+- `send-invoice-sms/index.ts`
+- `send-signature-sms/index.ts`
+- `generate-invoice-pdf/index.ts`
+- `generate-client-report/index.ts`
 
 ---
 
-## تفاصيل نموذج تعديل الدفعة
+## تفاصيل التنفيذ
 
+### الخطوة 1: إنشاء دالة مساعدة موحدة
+
+إضافة دالتين في `src/lib/utils.ts`:
+
+```typescript
+/**
+ * Format currency with Western numerals
+ */
+export function formatCurrency(amount: number): string {
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}₪${Math.abs(amount).toLocaleString('en-US', { 
+    maximumFractionDigits: 0 
+  })}`;
+}
+
+/**
+ * Format date with Western numerals (Arabic month names)
+ */
+export function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  ✕                                    تعديل الدفعة           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  المبلغ (₪)                                                  │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  1000                                               │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  طريقة الدفع                                                 │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  نقدي                                         ▼    │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  تاريخ الدفع                                                 │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  📅  29/01/2026                                     │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  إضافة صور إيصال الدفع                                       │
-│  ┌──────────┐                                               │
-│  │    📤    │  (منطقة رفع الصور)                            │
-│  └──────────┘                                               │
-│                                                             │
-│  ☐ راجع (مرفوض)                                              │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                           [ إلغاء ]  [ حفظ ]                │
-└─────────────────────────────────────────────────────────────┘
-```
+
+### الخطوة 2: تحديث جميع الملفات
+
+استبدال كل استخدامات:
+- `toLocaleString('ar-EG')` → `toLocaleString('en-US')`
+- `toLocaleDateString('ar-EG')` → `toLocaleDateString('en-GB')` أو استخدام `formatDate`
+
+### الخطوة 3: تحسين عرض الدين في DebtPaymentModal
+
+إضافة معلومة توضيحية عن دفعات الإلزامي المستثناة.
 
 ---
 
 ## النتائج المتوقعة
 
-- ✅ زر "تعديل" في سجل الدفعات يفتح نموذج تعديل مباشر
-- ✅ إمكانية تعديل المبلغ والتاريخ وطريقة الدفع وحالة الرفض
-- ✅ زر "حذف" يعمل بشكل صحيح مع رسالة تأكيد
-- ✅ بعد إنشاء وثيقة من صفحة عميل معين، يعود للعميل نفسه
-- ✅ عرض الملفات المرفقة بالدفعة مع إمكانية فتحها
+- ✅ جميع الأرقام في النظام بالأرقام الإنجليزية (0-9)
+- ✅ التواريخ بالأرقام الإنجليزية
+- ✅ توضيح أفضل لسبب اختلاف "المدفوع" بين صفحة العميل ونافذة الدين
+- ✅ تناسق في العرض عبر كافة أجزاء النظام

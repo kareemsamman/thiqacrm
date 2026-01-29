@@ -335,31 +335,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const fetchPolicyDetails = async () => {
     if (!policyId) return;
 
-    // Check session storage cache first
-    const cacheKey = `policy_cache_${policyId}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const cachedData = JSON.parse(cached);
-        const cacheAge = Date.now() - cachedData.timestamp;
-        // Use cache if less than 30 seconds old
-        if (cacheAge < 30000) {
-          setPolicy(cachedData.policy);
-          setRelatedPolicies(cachedData.relatedPolicies || []);
-          setPayments(cachedData.payments || []);
-          setTransferHistory(cachedData.transferHistory || []);
-          setRefundAmount(cachedData.refundAmount || 0);
-          setCreatorName(cachedData.creatorName || null);
-          setPolicyFilesCount(cachedData.filesCount || 0);
-          setPackageTotalPaid(cachedData.packageTotalPaid || 0);
-          setLoading(false);
-          return;
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    }
-
+    // Always fetch fresh data from database - no caching
     setLoading(true);
     setCreatorName(null);
     try {
@@ -512,20 +488,6 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       
       totalFilesCount = filesCount || 0;
       setPolicyFilesCount(totalFilesCount);
-
-      // Cache the data in session storage
-      const cacheData = {
-        policy: policyData,
-        relatedPolicies: relatedData || [],
-        payments: finalPayments,
-        transferHistory: transfersData || [],
-        refundAmount: refund,
-        creatorName: creatorName,
-        filesCount: totalFilesCount,
-        packageTotalPaid: pkgTotalPaid,
-        timestamp: Date.now(),
-      };
-      sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
 
     } catch (error) {
       console.error("Error fetching policy details:", error);

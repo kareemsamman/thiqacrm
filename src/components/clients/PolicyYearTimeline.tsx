@@ -22,6 +22,7 @@ import {
   Zap,
   AlertTriangle,
   Trash2,
+  Users,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -184,6 +185,7 @@ export function PolicyYearTimeline({
   const { isSuperAdmin } = useAuth();
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({});
   const [accidentInfo, setAccidentInfo] = useState<Record<string, number>>({});
+  const [childrenInfo, setChildrenInfo] = useState<Record<string, number>>({});
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [packagePaymentOpen, setPackagePaymentOpen] = useState(false);
   const [selectedPackagePolicyIds, setSelectedPackagePolicyIds] = useState<string[]>([]);
@@ -258,6 +260,36 @@ export function PolicyYearTimeline({
     };
 
     fetchAccidentInfo();
+  }, [policies]);
+
+  // Fetch children/additional drivers count per policy
+  useEffect(() => {
+    const fetchChildrenInfo = async () => {
+      if (policies.length === 0) {
+        setChildrenInfo({});
+        return;
+      }
+
+      const policyIds = policies.map(p => p.id);
+      
+      try {
+        const { data } = await supabase
+          .from('policy_children')
+          .select('policy_id')
+          .in('policy_id', policyIds);
+
+        const counts: Record<string, number> = {};
+        (data || []).forEach(row => {
+          counts[row.policy_id] = (counts[row.policy_id] || 0) + 1;
+        });
+
+        setChildrenInfo(counts);
+      } catch (error) {
+        console.error('Error fetching children info:', error);
+      }
+    };
+
+    fetchChildrenInfo();
   }, [policies]);
 
   // Group policies by year, then by package
@@ -594,12 +626,14 @@ export function PolicyYearTimeline({
               <div className="mt-2 space-y-2 pr-4">
                 {yearGroup.packages.map((pkg, pkgIndex) => {
                   const accidentCount = pkg.allPolicyIds.reduce((sum, id) => sum + (accidentInfo[id] || 0), 0);
+                  const childrenCount = pkg.allPolicyIds.reduce((sum, id) => sum + (childrenInfo[id] || 0), 0);
                   return (
                     <PolicyPackageCard
                       key={pkgIndex}
                       pkg={pkg}
                       paymentStatus={getPackagePaymentStatus(pkg)}
                       accidentCount={accidentCount}
+                      childrenCount={childrenCount}
                       onPolicyClick={onPolicyClick}
                       onPaymentClick={(e) => handlePackagePayment(e, pkg.allPolicyIds, pkg.mainPolicy?.branch_id || pkg.addons[0]?.branch_id || null)}
                       onSendInvoice={(e) => handleSendInvoice(e, pkg.allPolicyIds)}
@@ -638,6 +672,7 @@ function PolicyPackageCard({
   pkg,
   paymentStatus,
   accidentCount = 0,
+  childrenCount = 0,
   onPolicyClick,
   onPaymentClick,
   onSendInvoice,
@@ -652,6 +687,7 @@ function PolicyPackageCard({
   pkg: PolicyPackage;
   paymentStatus: { totalPaid: number; remaining: number; isPaid: boolean };
   accidentCount?: number;
+  childrenCount?: number;
   onPolicyClick: (id: string) => void;
   onPaymentClick: (e: React.MouseEvent) => void;
   onSendInvoice: (e: React.MouseEvent) => void;
@@ -775,6 +811,14 @@ function PolicyPackageCard({
             <Badge variant="outline" className="gap-1 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
               <Zap className="h-3 w-3" />
               جديدة
+            </Badge>
+          )}
+
+          {/* Additional Drivers indicator */}
+          {childrenCount > 0 && (
+            <Badge variant="outline" className="gap-1 text-xs bg-indigo-500/10 border-indigo-500/30 text-indigo-600">
+              <Users className="h-3 w-3" />
+              {childrenCount} سائق إضافي
             </Badge>
           )}
 

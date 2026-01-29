@@ -868,10 +868,19 @@ export function PolicyWizard({
       // Save new children and link selected children to policy
       const clientIdForChildren = selectedClient?.id || newlyCreatedClientId;
       if (clientIdForChildren) {
+        // Validate for duplicate IDs among new children BEFORE inserting
+        const newChildIdNumbers = newChildren.map(c => c.id_number.trim()).filter(Boolean);
+        const duplicateIdNumbers = newChildIdNumbers.filter((id, idx) => newChildIdNumbers.indexOf(id) !== idx);
+        if (duplicateIdNumbers.length > 0) {
+          throw new Error(`رقم الهوية مكرر: ${duplicateIdNumbers[0]}`);
+        }
+
         // Insert new children into client_children
         const insertedChildIds: string[] = [];
         if (newChildren.length > 0) {
           for (const child of newChildren) {
+            if (!child.full_name.trim() || !child.id_number.trim()) continue;
+            
             const { data: newChild, error: childError } = await supabase
               .from('client_children')
               .insert({
@@ -886,10 +895,16 @@ export function PolicyWizard({
               .select('id')
               .single();
 
-            if (!childError && newChild) {
+            if (childError) {
+              // Handle duplicate key error
+              if (childError.code === '23505') {
+                throw new Error(`رقم الهوية "${child.id_number}" موجود مسبقاً لهذا العميل`);
+              }
+              throw new Error(`فشل إضافة السائق "${child.full_name}": ${childError.message}`);
+            }
+            
+            if (newChild) {
               insertedChildIds.push(newChild.id);
-            } else {
-              console.error('Failed to insert child:', childError);
             }
           }
         }
@@ -907,6 +922,7 @@ export function PolicyWizard({
 
           if (deleteError) {
             console.error('Failed to clear existing policy_children:', deleteError);
+            // Don't throw - this is non-critical, proceed with insert
           }
         }
 
@@ -922,7 +938,8 @@ export function PolicyWizard({
             .insert(policyChildrenInserts);
 
           if (linkError) {
-            console.error('Failed to link children to policy:', linkError);
+            // Show specific RLS or constraint errors
+            throw new Error(`فشل ربط السائقين بالوثيقة: ${linkError.message}`);
           }
         }
       }

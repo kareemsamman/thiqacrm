@@ -150,7 +150,7 @@ export function ClientChildrenManager({
         return (
           <div
             key={child.id}
-            className="p-4 rounded-lg border bg-muted/30 space-y-3"
+            className="p-4 rounded-lg border bg-muted/30 space-y-4"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">
@@ -167,9 +167,10 @@ export function ClientChildrenManager({
               </Button>
             </div>
             
-            <div className={cn("grid gap-3", compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4")}>
+            {/* Responsive grid: 1 col mobile, 2 col tablet, 4 col desktop */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {/* Full Name */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">
                   الاسم الكامل <span className="text-destructive">*</span>
                 </Label>
@@ -177,7 +178,7 @@ export function ClientChildrenManager({
                   value={child.full_name}
                   onChange={(e) => handleUpdateChild(index, 'full_name', e.target.value)}
                   placeholder="الاسم"
-                  className={cn("h-9", childErrors.full_name && "border-destructive")}
+                  className={cn(childErrors.full_name && "border-destructive")}
                 />
                 {childErrors.full_name && (
                   <p className="text-xs text-destructive">{childErrors.full_name}</p>
@@ -185,7 +186,7 @@ export function ClientChildrenManager({
               </div>
               
               {/* ID Number */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">
                   رقم الهوية <span className="text-destructive">*</span>
                 </Label>
@@ -194,7 +195,7 @@ export function ClientChildrenManager({
                   onChange={(e) => handleUpdateChild(index, 'id_number', digitsOnly(e.target.value).slice(0, 9))}
                   placeholder="9 أرقام"
                   maxLength={9}
-                  className={cn("h-9 ltr-input", childErrors.id_number && "border-destructive")}
+                  className={cn("ltr-input", childErrors.id_number && "border-destructive")}
                 />
                 {childErrors.id_number && (
                   <p className="text-xs text-destructive">{childErrors.id_number}</p>
@@ -202,13 +203,13 @@ export function ClientChildrenManager({
               </div>
               
               {/* Relation */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs">الصلة</Label>
                 <Select
                   value={child.relation}
                   onValueChange={(v) => handleUpdateChild(index, 'relation', v)}
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -221,9 +222,23 @@ export function ClientChildrenManager({
                 </Select>
               </div>
               
-              {/* Birth Date */}
-              {!compact && (
-                <div className="space-y-1">
+              {/* Phone */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">الهاتف</Label>
+                <Input
+                  value={child.phone}
+                  onChange={(e) => handleUpdateChild(index, 'phone', digitsOnly(e.target.value).slice(0, 10))}
+                  placeholder="10 أرقام"
+                  maxLength={10}
+                  className="ltr-input"
+                />
+              </div>
+            </div>
+            
+            {/* Birth Date - full width row on mobile, inline on desktop */}
+            {!compact && (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
                   <Label className="text-xs">تاريخ الميلاد</Label>
                   <ArabicDatePicker
                     value={child.birth_date}
@@ -232,22 +247,8 @@ export function ClientChildrenManager({
                     isBirthDate
                   />
                 </div>
-              )}
-              
-              {/* Phone */}
-              {!compact && (
-                <div className="space-y-1">
-                  <Label className="text-xs">الهاتف</Label>
-                  <Input
-                    value={child.phone}
-                    onChange={(e) => handleUpdateChild(index, 'phone', digitsOnly(e.target.value).slice(0, 10))}
-                    placeholder="10 أرقام"
-                    maxLength={10}
-                    className="h-9 ltr-input"
-                  />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         );
       })}

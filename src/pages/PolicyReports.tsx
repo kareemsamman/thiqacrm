@@ -1036,18 +1036,18 @@ export default function PolicyReports() {
                   />
                 </div>
 
-                <div className="flex gap-2 mr-auto">
-                  <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
-                    {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Download className="h-4 w-4 ml-2" />}
-                    تصدير PDF
-                  </Button>
-                  {isAdmin && (
-                    <Button onClick={handleSendReminders} disabled={sendingReminders}>
-                      {sendingReminders ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Send className="h-4 w-4 ml-2" />}
-                      إرسال تذكيرات SMS
+                {isAdmin && (
+                  <div className="flex gap-2 mr-auto">
+                    <Button variant="outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
+                      {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Download className="h-4 w-4 ml-2" />}
+                      تصدير PDF
                     </Button>
-                  )}
-                </div>
+                    <Button onClick={handleSendReminders} disabled={sendingReminders || renewalClients.length === 0}>
+                      {sendingReminders ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Send className="h-4 w-4 ml-2" />}
+                      إرسال تذكيرات SMS {renewalClients.length > 0 && `(${renewalsTotalRows})`}
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
 

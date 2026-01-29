@@ -41,6 +41,7 @@ import {
   Palette,
   DollarSign,
   Layers,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PolicyEditDrawer } from "./PolicyEditDrawer";
@@ -261,6 +262,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const [policyFilesCount, setPolicyFilesCount] = useState<number>(0);
   const [sendingPolicySms, setSendingPolicySms] = useState(false);
   const [packageTotalPaid, setPackageTotalPaid] = useState<number>(0);
+  const [policyChildren, setPolicyChildren] = useState<{ id: string; child: { id: string; full_name: string; id_number: string; relation: string | null; phone: string | null } | null }[]>([]);
   const [packagePayments, setPackagePayments] = useState<Payment[]>([]);
 
   const handleSendSignatureSms = async () => {
@@ -513,6 +515,19 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       
       totalFilesCount = filesCount || 0;
       setPolicyFilesCount(totalFilesCount);
+
+      // Fetch policy children (additional drivers linked to this policy)
+      const { data: childrenData } = await supabase
+        .from("policy_children")
+        .select(`
+          id,
+          child:client_children(
+            id, full_name, id_number, relation, phone
+          )
+        `)
+        .eq("policy_id", policyId);
+      
+      setPolicyChildren(childrenData || []);
 
     } catch (error) {
       console.error("Error fetching policy details:", error);
@@ -1260,6 +1275,30 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         )}
                       </Section>
                     </div>
+
+                    {/* Additional Drivers / Children */}
+                    {policyChildren.length > 0 && (
+                      <Section title="السائقين الإضافيين" icon={Users}>
+                        <div className="space-y-2">
+                          {policyChildren.map((pc) => (
+                            pc.child && (
+                              <div key={pc.id} className="p-3 bg-muted/50 rounded-lg border flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium">{pc.child.full_name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    <bdi className="font-mono">{pc.child.id_number}</bdi>
+                                    {pc.child.relation && ` • ${pc.child.relation}`}
+                                  </p>
+                                </div>
+                                {pc.child.phone && (
+                                  <span className="text-sm text-muted-foreground font-mono"><bdi>{pc.child.phone}</bdi></span>
+                                )}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      </Section>
+                    )}
 
                     {/* Pricing Details - Admin only */}
                     {isAdmin && !isElzami && (

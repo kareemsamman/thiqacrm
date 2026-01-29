@@ -137,6 +137,8 @@ serve(async (req) => {
     // Fetch policy files
     const policyIds = (policies || []).map((p: any) => p.id);
     let policyFiles: MediaFile[] = [];
+    let policyChildren: Record<string, { full_name: string; id_number: string; relation: string | null }[]> = {};
+    
     if (policyIds.length > 0) {
       const { data: files } = await supabase
         .from("media_files")
@@ -145,6 +147,30 @@ serve(async (req) => {
         .in("entity_id", policyIds)
         .is("deleted_at", null);
       policyFiles = files || [];
+
+      // Fetch policy children (additional drivers) for all policies
+      const { data: childrenData } = await supabase
+        .from("policy_children")
+        .select(`
+          policy_id,
+          child:client_children(full_name, id_number, relation)
+        `)
+        .in("policy_id", policyIds);
+
+      // Group children by policy_id
+      for (const pc of (childrenData || [])) {
+        const child = Array.isArray(pc.child) ? pc.child[0] : pc.child;
+        if (child) {
+          if (!policyChildren[pc.policy_id]) {
+            policyChildren[pc.policy_id] = [];
+          }
+          policyChildren[pc.policy_id].push({
+            full_name: child.full_name,
+            id_number: child.id_number,
+            relation: child.relation
+          });
+        }
+      }
     }
 
     // Calculate payment summary
@@ -197,6 +223,7 @@ serve(async (req) => {
       cars || [],
       policies || [],
       policyFiles,
+      policyChildren,
       { totalPaid, totalRemaining, totalInsurance },
       walletBalance,
       branchName
@@ -285,6 +312,7 @@ function generateReportHtml(
   cars: CarData[],
   policies: PolicyData[],
   policyFiles: MediaFile[],
+  policyChildren: Record<string, { full_name: string; id_number: string; relation: string | null }[]>,
   paymentSummary: { totalPaid: number; totalRemaining: number; totalInsurance: number },
   walletBalance: number,
   branchName: string | null
@@ -316,9 +344,13 @@ function generateReportHtml(
   // Helper to get files for a policy
   const getFilesForPolicy = (policyId: string) => policyFiles.filter(f => f.entity_id === policyId);
 
+  // Helper to get children for a policy
+  const getChildrenForPolicy = (policyId: string) => policyChildren[policyId] || [];
+
   const renderPolicyCard = (policy: PolicyData) => {
     const status = getPolicyStatus(policy);
     const files = getFilesForPolicy(policy.id);
+    const children = getChildrenForPolicy(policy.id);
     const companyName = getCompanyName(policy);
     
     // Files section at the end with proper display
@@ -340,6 +372,22 @@ function generateReportHtml(
         </div>
       </div>
     ` : '';
+
+    // Children section (additional drivers)
+    const childrenHtml = children.length > 0 ? `
+      <div class="policy-children-section">
+        <div class="children-label">👥 السائقين الإضافيين (${children.length})</div>
+        <div class="children-list">
+          ${children.map(c => `
+            <div class="child-item">
+              <span class="child-name">${c.full_name}</span>
+              <span class="child-id">${c.id_number}</span>
+              ${c.relation ? `<span class="child-relation">${c.relation}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
     
     return `
       <div class="policy-card">
@@ -354,6 +402,7 @@ function generateReportHtml(
         <div class="policy-footer">
           <span class="price">₪${policy.insurance_price.toLocaleString()}</span>
         </div>
+        ${childrenHtml}
         ${filesHtml}
       </div>
     `;
@@ -644,6 +693,44 @@ function generateReportHtml(
     }
     .file-icon { font-size: 14px; }
     .file-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    /* Children/Additional Drivers Section */
+    .policy-children-section {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #fcd34d;
+      background: #fefce8;
+      margin: 8px -12px -12px -12px;
+      padding: 8px 12px 12px 12px;
+      border-radius: 0 0 10px 10px;
+    }
+    .children-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 6px;
+    }
+    .children-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .child-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #78350f;
+    }
+    .child-name { font-weight: 600; }
+    .child-id { font-family: monospace; font-size: 10px; color: #a16207; }
+    .child-relation { 
+      font-size: 10px; 
+      background: #fef3c7; 
+      padding: 2px 6px; 
+      border-radius: 4px; 
+      color: #92400e;
+    }
     
     /* Footer */
     .footer {

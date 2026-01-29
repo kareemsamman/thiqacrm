@@ -3,14 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const SUPER_ADMIN_EMAIL = 'morshed500@gmail.com';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -59,38 +59,91 @@ serve(async (req) => {
 
     console.log(`Super admin ${user.email} is deleting policies: ${policyIds.join(', ')}`);
 
-    // For packages, get all related policies by group_id
-    const allPolicyIds: string[] = [...policyIds];
-    
-    for (const policyId of policyIds) {
-      const { data: policy } = await supabase
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+
+    // For packages, expand the deletion set to include all policies with the same group_id
+    let allPolicyIds: string[] = uniq([...policyIds]);
+
+    const { data: seedPolicies, error: seedError } = await supabase
+      .from('policies')
+      .select('id, group_id')
+      .in('id', policyIds);
+
+    if (seedError) {
+      console.error('Error fetching seed policies:', seedError);
+      return new Response(JSON.stringify({
+        error: 'Failed to resolve package policies',
+        details: seedError.message,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const groupIds = uniq((seedPolicies || []).map(p => p.group_id).filter(Boolean) as string[]);
+    if (groupIds.length > 0) {
+      const { data: groupPolicies, error: groupError } = await supabase
         .from('policies')
-        .select('group_id')
-        .eq('id', policyId)
-        .single();
-      
-      if (policy?.group_id) {
-        const { data: groupPolicies } = await supabase
-          .from('policies')
-          .select('id')
-          .eq('group_id', policy.group_id);
-        
-        if (groupPolicies) {
-          for (const gp of groupPolicies) {
-            if (!allPolicyIds.includes(gp.id)) {
-              allPolicyIds.push(gp.id);
-            }
-          }
-        }
+        .select('id')
+        .in('group_id', groupIds);
+
+      if (groupError) {
+        console.error('Error fetching group policies:', groupError);
+        return new Response(JSON.stringify({
+          error: 'Failed to resolve package policies',
+          details: groupError.message,
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
+
+      allPolicyIds = uniq([...allPolicyIds, ...(groupPolicies || []).map(p => p.id)]);
     }
 
     console.log(`Total policies to delete (including package members): ${allPolicyIds.length}`);
 
     // Delete related data in correct order to avoid FK constraints
-    // Use raw SQL via RPC to bypass RLS and triggers for locked payments
 
-    // 1. Delete ledger entries
+    // 1) IMPORTANT: Unlock system-generated payments (ELZAMI) so they can be deleted.
+    // The DB trigger blocks DELETE when OLD.locked=true.
+    const { error: unlockError } = await supabase
+      .from('policy_payments')
+      .update({ locked: false })
+      .in('policy_id', allPolicyIds)
+      .eq('locked', true);
+
+    if (unlockError) {
+      console.error('Error unlocking payments:', unlockError);
+      return new Response(JSON.stringify({
+        error: 'Failed to unlock system payments',
+        details: unlockError.message,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2) Delete policy payments
+    const { error: paymentsError } = await supabase
+      .from('policy_payments')
+      .delete()
+      .in('policy_id', allPolicyIds);
+
+    if (paymentsError) {
+      console.error('Error deleting policy payments:', paymentsError);
+      return new Response(JSON.stringify({
+        error: 'Failed to delete policy payments',
+        details: paymentsError.message,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Deleted policy payments');
+
+    // 3. Delete ledger entries
     const { error: ledgerError } = await supabase
       .from('ab_ledger')
       .delete()
@@ -102,32 +155,7 @@ serve(async (req) => {
       console.log('Deleted ledger entries');
     }
 
-    // 2. Delete policy payments - bypass trigger using service role direct delete
-    // First unlock any locked payments by setting is_locked = false
-    const { error: unlockError } = await supabase
-      .from('policy_payments')
-      .update({ is_locked: false })
-      .in('policy_id', allPolicyIds);
-    
-    if (unlockError) {
-      console.error('Error unlocking payments:', unlockError);
-    } else {
-      console.log('Unlocked payments');
-    }
-
-    // Now delete the payments
-    const { error: paymentsError } = await supabase
-      .from('policy_payments')
-      .delete()
-      .in('policy_id', allPolicyIds);
-    
-    if (paymentsError) {
-      console.error('Error deleting policy payments:', paymentsError);
-    } else {
-      console.log('Deleted policy payments');
-    }
-
-    // 3. Delete customer wallet transactions related to these policies
+    // 4. Delete customer wallet transactions related to these policies
     const { error: walletError } = await supabase
       .from('customer_wallet_transactions')
       .delete()
@@ -139,7 +167,7 @@ serve(async (req) => {
       console.log('Deleted wallet transactions');
     }
 
-    // 4. Delete customer signatures
+    // 5. Delete customer signatures
     const { error: signaturesError } = await supabase
       .from('customer_signatures')
       .delete()
@@ -151,7 +179,7 @@ serve(async (req) => {
       console.log('Deleted signatures');
     }
 
-    // 5. Delete media files (soft delete)
+    // 6. Delete media files (soft delete)
     const { error: mediaError } = await supabase
       .from('media_files')
       .update({ deleted_at: new Date().toISOString() })
@@ -164,7 +192,7 @@ serve(async (req) => {
       console.log('Soft-deleted media files');
     }
 
-    // 6. Delete accident reports and third parties
+    // 7. Delete accident reports and third parties
     const { data: accidentReports } = await supabase
       .from('accident_reports')
       .select('id')
@@ -196,7 +224,7 @@ serve(async (req) => {
       }
     }
 
-    // 7. Delete broker settlement items that reference these policies
+    // 8. Delete broker settlement items that reference these policies
     const { error: brokerSettlementItemsError } = await supabase
       .from('broker_settlement_items')
       .delete()
@@ -208,7 +236,7 @@ serve(async (req) => {
       console.log('Deleted broker settlement items');
     }
 
-    // 8. Finally, delete the policies themselves
+    // 9. Finally, delete the policies themselves
     const { error: policiesError } = await supabase
       .from('policies')
       .delete()

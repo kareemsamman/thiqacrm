@@ -533,7 +533,18 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'فشل في حذف الوثيقة');
+        // Supabase returns a generic message for non-2xx; try to extract the real error from context
+        let msg = response.error.message || 'فشل في حذف الوثيقة';
+        try {
+          const ctx: any = (response.error as any).context;
+          if (ctx?.body) {
+            const parsed = JSON.parse(ctx.body);
+            msg = parsed?.details || parsed?.error || msg;
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(msg);
       }
 
       const result = response.data;

@@ -1,120 +1,138 @@
 
+# خطة إصلاح مشاكل عرض الوثائق والتابعين
 
-# إضافة زر المسح الضوئي (Scanner) لرافعات الملفات في إنشاء الوثيقة
+## المشاكل المحددة
 
-## الوضع الحالي
-في الخطوة 3 من معالج إنشاء الوثيقة (Step3PolicyDetails.tsx)، يوجد رافعان للملفات:
-- **ملفات التأمين**: فواتير وإيصالات ترسل للعميل
-- **ملفات النظام**: هوية، رخصة، صور سيارة - ملفات داخلية
+### 1. الوثيقة الجديدة لا تظهر فوراً (تظهر "وثيقة 3" بدلاً من "وثيقة 4")
+**السبب**: على الرغم من أن `onSaved` في `PolicyWizard.tsx` يستدعي `fetchPolicies()` و `fetchPaymentSummary()` بعد تأخير 150ms، إلا أن العداد في الواجهة يعتمد على state `policies` والتي قد لا تُحدّث بشكل صحيح.
 
-حالياً كلاهما يحتوي على زر "رفع ملف" فقط، بينما في تفاصيل الوثيقة (PolicyDetailsDrawer) يوجد زر "مسح" إضافي.
+**التحليل**:
+- الكود في `ClientDetails.tsx` (سطور 1428-1439) يستدعي `Promise.all([fetchPolicies(), fetchPaymentSummary(), fetchPayments(), fetchCars()])` بعد تأخير 100ms
+- المشكلة المحتملة: التأخير غير كافٍ أو أن الحالة لا تُحدّث بسبب closure قديم
 
-## الحل
-إضافة زر "مسح" بجانب زر "رفع ملف" في كلا الرافعين، مع استخدام نفس منطق المسح الموجود في `PolicyFilesSection`.
+### 2. معلومات التابعين (الأولاد المسموح لهم بالقيادة) لا تظهر في البطاقات
+**السبب**: 
+- `PolicyYearTimeline.tsx` لا يجلب معلومات `policy_children` من قاعدة البيانات
+- البطاقات لا تعرض مؤشر للتابعين
+- الواجهة `PolicyRecord` لا تتضمن عدد التابعين
 
 ---
 
 ## التغييرات المطلوبة
 
-### الملف: `src/components/policies/wizard/Step3PolicyDetails.tsx`
+### الجزء 1: إصلاح التحديث الفوري للوثائق
 
-| التغيير | التفاصيل |
-|---------|----------|
-| إضافة import للأيقونة | `Printer` من lucide-react |
-| إضافة state للمسح | `scanning` لتتبع أي رافع يجري المسح |
-| إضافة دالة المسح | `handleDirectScan` تشبه الموجودة في PolicyFilesSection |
-| إضافة دالة تحويل | `base64ToBlob` لتحويل الصور الممسوحة |
-| تعديل واجهة الرافعين | إضافة زر "مسح" بجانب "رفع ملف" |
+| الملف | التغيير |
+|------|---------|
+| `src/components/policies/PolicyWizard.tsx` | زيادة التأخير من 150ms إلى 300ms لضمان اكتمال عمليات الكتابة في قاعدة البيانات |
+| `src/components/clients/ClientDetails.tsx` | استدعاء مباشر (بدون `setTimeout` في `Promise.all`) + إضافة `key` للـ `PolicyYearTimeline` لإجبار إعادة العرض |
+
+### الجزء 2: إضافة عرض التابعين في البطاقات
+
+| الملف | التغيير |
+|------|---------|
+| `src/components/clients/PolicyYearTimeline.tsx` | 1. جلب `policy_children` لكل الوثائق<br>2. إضافة state لتخزين عدد الأولاد لكل وثيقة<br>3. عرض badge "👨‍👦 X سائق" في البطاقات |
 
 ---
 
 ## التفاصيل التقنية
 
-### 1. إضافة State للمسح
+### 1. تعديل PolicyWizard.tsx
 ```typescript
-const [scanning, setScanning] = useState<'insurance' | 'crm' | null>(null);
+// سطر 1067-1069 - زيادة التأخير
+setTimeout(() => {
+  onSaved?.();
+}, 300); // زيادة من 150 إلى 300
 ```
 
-### 2. دالة تحويل Base64 إلى Blob
+### 2. تعديل ClientDetails.tsx
 ```typescript
-const base64ToBlob = (base64: string): Blob => {
-  const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: 'image/jpeg' });
-};
+// سطر 1428-1439 - إضافة key ديناميكي للـ Timeline
+const [policiesRefreshKey, setPoliciesRefreshKey] = useState(0);
+
+// في onSaved:
+onSaved={async () => {
+  setPolicyWizardOpen(false);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await Promise.all([
+    fetchPolicies(),
+    fetchPaymentSummary(),
+    fetchPayments(),
+    fetchCars(),
+  ]);
+  setPoliciesRefreshKey(prev => prev + 1); // إجبار إعادة العرض
+  onRefresh();
+}}
+
+// في JSX:
+<PolicyYearTimeline 
+  key={policiesRefreshKey}
+  policies={filteredPolicies}
+  ...
+/>
 ```
 
-### 3. دالة المسح المباشر
+### 3. تعديل PolicyYearTimeline.tsx
+
+**إضافة state لعدد التابعين:**
 ```typescript
-const handleDirectScan = async (fileType: 'insurance' | 'crm') => {
-  if (!window.scanner) {
-    toast.error('مكتبة السكانر غير محملة');
-    return;
-  }
+const [childrenInfo, setChildrenInfo] = useState<Record<string, number>>({});
 
-  setScanning(fileType);
-  const savedScanner = localStorage.getItem('preferred_scanner');
+// Fetch children count per policy
+useEffect(() => {
+  const fetchChildrenInfo = async () => {
+    if (policies.length === 0) {
+      setChildrenInfo({});
+      return;
+    }
 
-  const scanRequest = {
-    use_asprise_dialog: false,
-    show_scanner_ui: false,
-    source_name: savedScanner || 'select',
-    scanner_name: savedScanner || 'select',
-    prompt_scan_more: false,
-    twain_cap_setting: {
-      ICAP_PIXELTYPE: 'TWPT_RGB',
-      ICAP_XRESOLUTION: '200',
-      ICAP_YRESOLUTION: '200',
-    },
-    output_settings: [{
-      type: 'return-base64',
-      format: 'jpg',
-      jpeg_quality: 85,
-    }],
+    const policyIds = policies.map(p => p.id);
+    
+    try {
+      const { data } = await supabase
+        .from('policy_children')
+        .select('policy_id')
+        .in('policy_id', policyIds);
+
+      const counts: Record<string, number> = {};
+      (data || []).forEach(row => {
+        counts[row.policy_id] = (counts[row.policy_id] || 0) + 1;
+      });
+
+      setChildrenInfo(counts);
+    } catch (error) {
+      console.error('Error fetching children info:', error);
+    }
   };
 
-  window.scanner.scan(
-    (successful, mesg, response) => {
-      // معالجة النتيجة وإضافة الملفات للقائمة
-    },
-    scanRequest
-  );
-};
+  fetchChildrenInfo();
+}, [policies]);
 ```
 
-### 4. تعديل واجهة رافع ملفات التأمين
-```jsx
-<div className="flex items-center gap-1.5">
-  {/* زر المسح */}
-  <Button
-    type="button"
-    size="sm"
-    variant="outline"
-    className="gap-1.5"
-    onClick={() => handleDirectScan('insurance')}
-    disabled={scanning === 'insurance'}
-  >
-    <Printer className="h-4 w-4" />
-    مسح
-  </Button>
-  
-  {/* زر الرفع - كما هو */}
-  <div className="relative">
-    <input ... />
-    <Button type="button" size="sm" variant="outline" className="gap-1.5">
-      <Upload className="h-4 w-4" />
-      رفع ملف
-    </Button>
-  </div>
-</div>
+**تمرير عدد التابعين للبطاقة:**
+```typescript
+// في سطر 598
+const childrenCount = pkg.allPolicyIds.reduce((sum, id) => sum + (childrenInfo[id] || 0), 0);
+
+<PolicyPackageCard
+  ...
+  childrenCount={childrenCount}
+/>
 ```
 
-### 5. نفس التعديل لرافع ملفات النظام
+**عرض badge التابعين في البطاقة:**
+```typescript
+// في PolicyPackageCard - إضافة prop
+childrenCount?: number;
+
+// في JSX بعد badge "جديدة":
+{childrenCount > 0 && (
+  <Badge variant="outline" className="gap-1 bg-indigo-500/10 text-indigo-700 border-indigo-500/30">
+    <Users className="h-3 w-3" />
+    {childrenCount} سائق إضافي
+  </Badge>
+)}
+```
 
 ---
 
@@ -122,13 +140,14 @@ const handleDirectScan = async (fileType: 'insurance' | 'crm') => {
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `src/components/policies/wizard/Step3PolicyDetails.tsx` | تعديل |
+| `src/components/policies/PolicyWizard.tsx` | تعديل (زيادة التأخير) |
+| `src/components/clients/ClientDetails.tsx` | تعديل (إضافة refresh key) |
+| `src/components/clients/PolicyYearTimeline.tsx` | تعديل (جلب وعرض التابعين) |
 
 ## النتائج المتوقعة
 
-- ✅ زر "مسح" يظهر بجانب "رفع ملف" في كلا الرافعين
-- ✅ الضغط على "مسح" يفتح السكانر مباشرة (بدون نافذة منبثقة)
-- ✅ الصور الممسوحة تُضاف تلقائياً للقائمة المناسبة
-- ✅ يتم حفظ السكانر المفضل للمرات القادمة
-- ✅ نفس السلوك الموجود في تفاصيل الوثيقة
-
+- ✅ الوثيقة الجديدة تظهر فوراً بعد الإنشاء (العداد يتحدث من 3 إلى 4)
+- ✅ badge "سائق إضافي" يظهر على البطاقات التي تحتوي على تابعين
+- ✅ التابعين يظهرون في تفاصيل الوثيقة (موجود مسبقاً)
+- ✅ التابعين يظهرون في تقرير العميل الشامل (موجود مسبقاً)
+- ✅ التابعين يُرسلون مع الفواتير للعميل (موجود مسبقاً في edge function)

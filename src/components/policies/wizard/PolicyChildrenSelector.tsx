@@ -76,22 +76,43 @@ export function PolicyChildrenSelector({
       childErrors.id_number = "رقم الهوية مطلوب";
     } else if (!isValidIsraeliId(child.id_number)) {
       childErrors.id_number = "رقم هوية غير صالح";
-    }
-    
-    // Check for duplicate ID
-    const duplicateInNew = newChildren.filter(
-      c => c.id !== child.id && c.id_number === child.id_number
-    ).length > 0;
-    
-    const duplicateInExisting = existingChildren.some(
-      c => c.id_number === child.id_number
-    );
-    
-    if (duplicateInNew || duplicateInExisting) {
-      childErrors.id_number = "رقم الهوية مكرر";
+    } else {
+      // Check for duplicate ID within other new children
+      const duplicateInNew = newChildren.filter(
+        c => c.id !== child.id && c.id_number.trim() === child.id_number.trim()
+      ).length > 0;
+      
+      // Check for duplicate ID within existing children
+      const duplicateInExisting = existingChildren.some(
+        c => c.id_number === child.id_number.trim()
+      );
+      
+      if (duplicateInNew) {
+        childErrors.id_number = "رقم الهوية مكرر في القائمة";
+      } else if (duplicateInExisting) {
+        childErrors.id_number = "رقم الهوية موجود مسبقاً للعميل";
+      }
     }
     
     return childErrors;
+  };
+
+  // Check if there are any validation errors that should block saving
+  const hasValidationErrors = (): boolean => {
+    for (const child of newChildren) {
+      if (!child.full_name.trim() || !child.id_number.trim()) return true;
+      if (!isValidIsraeliId(child.id_number)) return true;
+      
+      // Check duplicates
+      const duplicateInNew = newChildren.filter(
+        c => c.id !== child.id && c.id_number.trim() === child.id_number.trim()
+      ).length > 0;
+      const duplicateInExisting = existingChildren.some(
+        c => c.id_number === child.id_number.trim()
+      );
+      if (duplicateInNew || duplicateInExisting) return true;
+    }
+    return false;
   };
 
   const handleAddChild = () => {

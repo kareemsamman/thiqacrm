@@ -374,7 +374,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent side="left" className="w-full sm:max-w-xl lg:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{isEditing ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</SheetTitle>
         </SheetHeader>

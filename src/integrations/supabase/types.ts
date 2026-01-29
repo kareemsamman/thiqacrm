@@ -2644,6 +2644,7 @@ export type Database = {
           branch_id: string | null
           card_expiry: string | null
           card_last_four: string | null
+          cheque_date: string | null
           cheque_image_url: string | null
           cheque_number: string | null
           cheque_status: string | null
@@ -2674,6 +2675,7 @@ export type Database = {
           branch_id?: string | null
           card_expiry?: string | null
           card_last_four?: string | null
+          cheque_date?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
           cheque_status?: string | null
@@ -2704,6 +2706,7 @@ export type Database = {
           branch_id?: string | null
           card_expiry?: string | null
           card_last_four?: string | null
+          cheque_date?: string | null
           cheque_image_url?: string | null
           cheque_number?: string | null
           cheque_status?: string | null

@@ -516,7 +516,11 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
       totalFilesCount = filesCount || 0;
       setPolicyFilesCount(totalFilesCount);
 
-      // Fetch policy children (additional drivers linked to this policy)
+      // Fetch policy children (additional drivers) from ALL policies in the package
+      const policyIdsForChildren = policyData.group_id 
+        ? [policyId, ...relatedData.map(rp => rp.id)]
+        : [policyId];
+      
       const { data: childrenData } = await supabase
         .from("policy_children")
         .select(`
@@ -525,7 +529,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
             id, full_name, id_number, relation, phone
           )
         `)
-        .eq("policy_id", policyId);
+        .in("policy_id", policyIdsForChildren);
       
       setPolicyChildren(childrenData || []);
 

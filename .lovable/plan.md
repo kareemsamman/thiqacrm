@@ -1,101 +1,109 @@
 
-# خطة إصلاح عرض المدفوع وتوحيد الأرقام/التواريخ
+# خطة عرض السائقين الإضافيين في الموقع الصحيح
 
-## المشكلة الرئيسية
+## المشكلة
 
-في نافذة `DebtPaymentModal`، بطاقة "المدفوع للدين" تُظهر ₪100 بينما صفحة العميل تُظهر ₪5,100.
+في نافذة تفاصيل الوثيقة (`PolicyDetailsDrawer`)، قسم "السائقين الإضافيين" يظهر **بعد** قسم بيانات السيارة، بينما المطلوب أن يظهر **بعد** قسم بيانات العميل مباشرة.
 
-**السبب**: `DebtPaymentModal` يجلب فقط الوثائق بدون ELZAMI، بينما `ClientDetails` يحسب جميع الدفعات.
+## التحليل
 
-## الحل المختار
+الترتيب الحالي (خاطئ):
+```
+┌─────────────────────────────────────────────────────────────┐
+│  بيانات العميل          │           بيانات السيارة         │
+│  (الاسم، الهوية...)     │     (رقم السيارة، الموديل...)     │
+└─────────────────────────────────────────────────────────────┘
 
-تحويل عرض المدفوع ليطابق صفحة العميل:
-- بطاقة "المدفوع" الرئيسية = إجمالي المدفوع (مع الإلزامي) = ₪5,100
-- سطر صغير أسفلها يوضح "منها للدين: ₪100"
+                  ↓ (هنا يظهر السائقين الإضافيين حالياً)
+                  
+┌─────────────────────────────────────────────────────────────┐
+│                  👥 السائقين الإضافيين                        │
+│  أحمد محمد • 123456789 • سائق إضافي                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+الترتيب المطلوب (صحيح):
+```
+┌─────────────────────────────────────────────────────────────┐
+│  بيانات العميل          │           بيانات السيارة         │
+│  (الاسم، الهوية...)     │     (رقم السيارة، الموديل...)     │
+└─────────────────────────────────────────────────────────────┘
+
+                  ↓ (مباشرة بعد بيانات العميل)
+                  
+┌─────────────────────────────────────────────────────────────┐
+│  👥 السائقين الإضافيين                                        │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ أحمد محمد                                             │  │
+│  │ 123456789 • سائق إضافي              📞 0501234567    │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## التغييرات المطلوبة
 
-### 1. تعديل `DebtPaymentModal.tsx`
+### الملف: `src/components/policies/PolicyDetailsDrawer.tsx`
 
 | التغيير | التفاصيل |
 |---------|----------|
-| جلب دفعات الإلزامي | إضافة query ثانٍ لجلب دفعات وثائق ELZAMI للعميل |
-| تعديل بطاقة المدفوع | عرض إجمالي المدفوع (مع الإلزامي) كرقم رئيسي |
-| إضافة سطر توضيحي | سطر صغير "منها للدين: ₪X" |
+| نقل قسم السائقين الإضافيين | من السطر 1279-1301 إلى مباشرة بعد السطر 1277 (بعد إغلاق grid العميل/السيارة) |
 
-**الكود الحالي (سطور 569-605)**:
+**الكود الحالي** (سطور 1277-1302):
 ```tsx
-<div className="bg-green-500/10 rounded-lg p-3 text-center">
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center justify-center gap-1">
-          <p className="text-xs text-muted-foreground">المدفوع للدين</p>
-          <HelpCircle className="h-3 w-3 text-muted-foreground" />
-        </div>
-      </TooltipTrigger>
-      ...
-    </Tooltip>
-  </TooltipProvider>
-  <p className="text-lg font-bold text-green-600">
-    ₪{(totalPaid + paidVisaTotal).toLocaleString()}
-  </p>
-</div>
+                    </div>  {/* End of grid grid-cols-2 (client & car) */}
+
+                    {/* Additional Drivers / Children */}
+                    {policyChildren.length > 0 && (
+                      ...
+                    )}
+```
+
+**لا تغيير في الكود نفسه**، فقط تأكيد أن الترتيب صحيح. إذا كان الترتيب غير صحيح فعلياً، سأقوم بنقل الكود.
+
+بعد مراجعة الكود:
+- السطر 1277: إغلاق `</div>` لـ grid العميل والسيارة
+- السطر 1279: بداية قسم السائقين الإضافيين
+
+**هذا الترتيب صحيح!** القسم يأتي مباشرة بعد العميل والسيارة.
+
+## التحقق من المشكلة الفعلية
+
+المشكلة قد تكون:
+1. **البيانات غير موجودة**: لا توجد سجلات في `policy_children` لهذه الوثيقة
+2. **رابط خاطئ**: السائقين مربوطين بوثيقة أخرى في الباقة
+
+### الحل: جلب السائقين الإضافيين لكل وثائق الباقة
+
+عند فتح باقة تأمين، يجب جلب السائقين الإضافيين من **جميع** وثائق الباقة وليس فقط الوثيقة الحالية.
+
+**الكود الحالي** (سطور 519-530):
+```tsx
+const { data: childrenData } = await supabase
+  .from("policy_children")
+  .select(`...`)
+  .eq("policy_id", policyId);  // ← يجلب فقط من الوثيقة الحالية
 ```
 
 **الكود الجديد**:
 ```tsx
-<div className="bg-green-500/10 rounded-lg p-3 text-center">
-  <p className="text-xs text-muted-foreground">المدفوع</p>
-  <p className="text-lg font-bold text-green-600">
-    ₪{(allPaymentsTotal + paidVisaTotal).toLocaleString('en-US')}
-  </p>
-  <p className="text-[10px] text-muted-foreground mt-1">
-    منها للدين: ₪{(totalPaid + paidVisaTotal).toLocaleString('en-US')}
-  </p>
-</div>
+// Fetch policy children from ALL policies in the package (if package)
+const policyIdsForChildren = policyData.group_id 
+  ? [policyId, ...relatedData.map(rp => rp.id)]
+  : [policyId];
+
+const { data: childrenData } = await supabase
+  .from("policy_children")
+  .select(`...`)
+  .in("policy_id", policyIdsForChildren);  // ← يجلب من كل وثائق الباقة
 ```
 
-### 2. تحديث التواريخ في كل الملفات
-
-**التنسيق المطلوب**: DD/MM/YYYY بالأرقام الإنجليزية (0-9)، مع الوقت عند الحاجة.
+## ملخص التغييرات
 
 | الملف | التغيير |
 |-------|---------|
-| `BrokerDetails.tsx` | `ar-EG` → `en-GB` |
-| `PackageComponentsTable.tsx` | `ar-EG` → `en-GB` |
-| `CancelPolicyModal.tsx` | `ar-EG` → `en-US` للأرقام |
-| `AccidentFeePricingDrawer.tsx` | `ar-EG` → `en-US` |
-| `AccidentReports.tsx` | `ar-EG` → `en-GB` |
-| `CompanySettlementDetail.tsx` | إصلاح باقي الأرقام |
-| `Companies.tsx` | `ar-EG` → `en-US` |
+| `PolicyDetailsDrawer.tsx` | تعديل query جلب السائقين الإضافيين ليشمل كل وثائق الباقة |
 
-### 3. تحديث Edge Functions
+## النتيجة المتوقعة
 
-| الملف | التغيير |
-|-------|---------|
-| `send-signature-sms/index.ts` | `ar-EG` → `en-GB` |
-| `generate-settlement-report/index.ts` | تحديث formatNumber و formatDate |
-| `cron-renewal-reminders/index.ts` | `ar-EG` → `en-GB` |
-| `send-invoice-sms/index.ts` | `ar-EG` → `en-GB` |
-| `generate-client-report/index.ts` | `ar-EG` → `en-GB` |
-| `signature-page/index.ts` | `ar-EG` → `en-GB` |
-| `generate-broker-report/index.ts` | `ar-EG` → `en-GB` |
-| `generate-accident-pdf/index.ts` | `ar-EG` → `en-GB` |
-| `send-package-invoice-sms/index.ts` | `ar-EG` → `en-GB` |
-
-## ملخص الملفات المتأثرة
-
-| المجموعة | الملفات |
-|----------|---------|
-| المكون الرئيسي | `DebtPaymentModal.tsx` |
-| مكونات أخرى | 5 ملفات |
-| صفحات | 3 ملفات |
-| Edge Functions | 9 ملفات |
-
-## النتائج المتوقعة
-
-- "المدفوع" في نافذة الديون = ₪5,100 (يطابق صفحة العميل)
-- سطر توضيحي صغير "منها للدين: ₪100"
-- جميع الأرقام في النظام بالإنجليزية (0-9)
-- جميع التواريخ بتنسيق DD/MM/YYYY
+- عند فتح باقة تأمين تحتوي على سائق إضافي، سيظهر قسم "السائقين الإضافيين" مباشرة بعد قسم بيانات العميل والسيارة
+- سيعرض تفاصيل كل سائق: الاسم، رقم الهوية، الصلة، الهاتف

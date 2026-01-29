@@ -1,144 +1,101 @@
 
-# خطة إصلاح عرض المدفوع للدين وتوحيد الأرقام بالإنجليزية
+# خطة إصلاح عرض المدفوع وتوحيد الأرقام/التواريخ
 
-## المشكلة 1: "المدفوع للدين" يظهر ₪100 بينما صفحة العميل تظهر ₪5,100
+## المشكلة الرئيسية
 
-### تحليل البيانات
+في نافذة `DebtPaymentModal`، بطاقة "المدفوع للدين" تُظهر ₪100 بينما صفحة العميل تُظهر ₪5,100.
 
-| الوثيقة | النوع | المدفوع |
-|---------|-------|---------|
-| ELZAMI × 5 | إلزامي | ₪5,000 |
-| THIRD_FULL (3d626df1) | ثالث/شامل | ₪100 |
-| **المجموع الكلي** | | **₪5,100** |
-| **المدفوع للدين (بدون إلزامي)** | | **₪100** |
+**السبب**: `DebtPaymentModal` يجلب فقط الوثائق بدون ELZAMI، بينما `ClientDetails` يحسب جميع الدفعات.
 
-**المنطق التجاري صحيح**: الإلزامي يُدفع مباشرة للشركة ولا يُعتبر ديناً على العميل.
+## الحل المختار
 
-### الحل
+تحويل عرض المدفوع ليطابق صفحة العميل:
+- بطاقة "المدفوع" الرئيسية = إجمالي المدفوع (مع الإلزامي) = ₪5,100
+- سطر صغير أسفلها يوضح "منها للدين: ₪100"
 
-رغم وجود tooltip توضيحي، العرض لا يزال محيراً. نحتاج لتحسين التوضيح:
+## التغييرات المطلوبة
 
-1. إضافة صف منفصل يوضح "دفعات الإلزامي" (مستثناة)
-2. عرض التفصيل بشكل أوضح في الواجهة
+### 1. تعديل `DebtPaymentModal.tsx`
 
-**تغييرات على `DebtPaymentModal.tsx`**:
-- إضافة عرض منفصل لـ "دفعات الإلزامي: ₪5,000 (تذهب للشركة مباشرة)"
-- تحسين النص التوضيحي
+| التغيير | التفاصيل |
+|---------|----------|
+| جلب دفعات الإلزامي | إضافة query ثانٍ لجلب دفعات وثائق ELZAMI للعميل |
+| تعديل بطاقة المدفوع | عرض إجمالي المدفوع (مع الإلزامي) كرقم رئيسي |
+| إضافة سطر توضيحي | سطر صغير "منها للدين: ₪X" |
 
----
-
-## المشكلة 2: الأرقام تظهر بالعربية (٠١٢٣...) بدلاً من الإنجليزية (0123...)
-
-### السبب
-
-استخدام `toLocaleString('ar-EG')` يحوّل الأرقام للنظام العربي-المصري.
-
-### الحل
-
-تغيير **كل** استخدامات `'ar-EG'` إلى `'en-US'` في:
-
-| الفئة | عدد الملفات |
-|-------|-------------|
-| صفحات (pages) | ~15 ملف |
-| مكونات (components) | ~27 ملف |
-| Edge Functions | ~2 ملف |
-
-### الملفات المتأثرة
-
-**الصفحات:**
-- `DebtTracking.tsx`
-- `Clients.tsx`
-- `Cars.tsx`
-- `Companies.tsx`
-- `CompanySettlement.tsx`
-- `CompanySettlementDetail.tsx`
-- `CompanyWallet.tsx`
-- `BrokerWallet.tsx`
-- `Brokers.tsx`
-- `Cheques.tsx`
-- `Expenses.tsx`
-- `FinancialReports.tsx`
-- `PolicyReports.tsx`
-- `ElzamiCostsReport.tsx`
-- `Notifications.tsx`
-
-**المكونات:**
-- `debt/DebtPaymentModal.tsx`
-- `clients/ClientDetails.tsx`
-- `clients/ClientReportModal.tsx`
-- `clients/PaymentEditDialog.tsx`
-- `clients/PackagePaymentModal.tsx`
-- `clients/SinglePolicyPaymentModal.tsx`
-- `brokers/BrokerDetails.tsx`
-- `brokers/BrokerPaymentModal.tsx`
-- `policies/PolicyDetailsDrawer.tsx`
-- `policies/PolicyPaymentsSection.tsx`
-- `policies/PolicyWizard.tsx`
-- `policies/CancelPolicyModal.tsx`
-- `policies/TransferPolicyModal.tsx`
-- `companies/RoadServicePricingDrawer.tsx`
-- `companies/AccidentFeePricingDrawer.tsx`
-- `companies/PricingRulesDrawer.tsx`
-- `payments/TranzilaPaymentModal.tsx`
-- `shared/CustomerChequeSelector.tsx`
-- `shared/DebtIndicator.tsx`
-- `dashboard/StatCard.tsx`
-- `dashboard/ExpiringPolicies.tsx`
-- `notifications/PaymentDetailsPanel.tsx`
-
-**Edge Functions:**
-- `send-invoice-sms/index.ts`
-- `send-signature-sms/index.ts`
-- `generate-invoice-pdf/index.ts`
-- `generate-client-report/index.ts`
-
----
-
-## تفاصيل التنفيذ
-
-### الخطوة 1: إنشاء دالة مساعدة موحدة
-
-إضافة دالتين في `src/lib/utils.ts`:
-
-```typescript
-/**
- * Format currency with Western numerals
- */
-export function formatCurrency(amount: number): string {
-  const sign = amount < 0 ? "-" : "";
-  return `${sign}₪${Math.abs(amount).toLocaleString('en-US', { 
-    maximumFractionDigits: 0 
-  })}`;
-}
-
-/**
- * Format date with Western numerals (Arabic month names)
- */
-export function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-}
+**الكود الحالي (سطور 569-605)**:
+```tsx
+<div className="bg-green-500/10 rounded-lg p-3 text-center">
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center justify-center gap-1">
+          <p className="text-xs text-muted-foreground">المدفوع للدين</p>
+          <HelpCircle className="h-3 w-3 text-muted-foreground" />
+        </div>
+      </TooltipTrigger>
+      ...
+    </Tooltip>
+  </TooltipProvider>
+  <p className="text-lg font-bold text-green-600">
+    ₪{(totalPaid + paidVisaTotal).toLocaleString()}
+  </p>
+</div>
 ```
 
-### الخطوة 2: تحديث جميع الملفات
+**الكود الجديد**:
+```tsx
+<div className="bg-green-500/10 rounded-lg p-3 text-center">
+  <p className="text-xs text-muted-foreground">المدفوع</p>
+  <p className="text-lg font-bold text-green-600">
+    ₪{(allPaymentsTotal + paidVisaTotal).toLocaleString('en-US')}
+  </p>
+  <p className="text-[10px] text-muted-foreground mt-1">
+    منها للدين: ₪{(totalPaid + paidVisaTotal).toLocaleString('en-US')}
+  </p>
+</div>
+```
 
-استبدال كل استخدامات:
-- `toLocaleString('ar-EG')` → `toLocaleString('en-US')`
-- `toLocaleDateString('ar-EG')` → `toLocaleDateString('en-GB')` أو استخدام `formatDate`
+### 2. تحديث التواريخ في كل الملفات
 
-### الخطوة 3: تحسين عرض الدين في DebtPaymentModal
+**التنسيق المطلوب**: DD/MM/YYYY بالأرقام الإنجليزية (0-9)، مع الوقت عند الحاجة.
 
-إضافة معلومة توضيحية عن دفعات الإلزامي المستثناة.
+| الملف | التغيير |
+|-------|---------|
+| `BrokerDetails.tsx` | `ar-EG` → `en-GB` |
+| `PackageComponentsTable.tsx` | `ar-EG` → `en-GB` |
+| `CancelPolicyModal.tsx` | `ar-EG` → `en-US` للأرقام |
+| `AccidentFeePricingDrawer.tsx` | `ar-EG` → `en-US` |
+| `AccidentReports.tsx` | `ar-EG` → `en-GB` |
+| `CompanySettlementDetail.tsx` | إصلاح باقي الأرقام |
+| `Companies.tsx` | `ar-EG` → `en-US` |
 
----
+### 3. تحديث Edge Functions
+
+| الملف | التغيير |
+|-------|---------|
+| `send-signature-sms/index.ts` | `ar-EG` → `en-GB` |
+| `generate-settlement-report/index.ts` | تحديث formatNumber و formatDate |
+| `cron-renewal-reminders/index.ts` | `ar-EG` → `en-GB` |
+| `send-invoice-sms/index.ts` | `ar-EG` → `en-GB` |
+| `generate-client-report/index.ts` | `ar-EG` → `en-GB` |
+| `signature-page/index.ts` | `ar-EG` → `en-GB` |
+| `generate-broker-report/index.ts` | `ar-EG` → `en-GB` |
+| `generate-accident-pdf/index.ts` | `ar-EG` → `en-GB` |
+| `send-package-invoice-sms/index.ts` | `ar-EG` → `en-GB` |
+
+## ملخص الملفات المتأثرة
+
+| المجموعة | الملفات |
+|----------|---------|
+| المكون الرئيسي | `DebtPaymentModal.tsx` |
+| مكونات أخرى | 5 ملفات |
+| صفحات | 3 ملفات |
+| Edge Functions | 9 ملفات |
 
 ## النتائج المتوقعة
 
-- ✅ جميع الأرقام في النظام بالأرقام الإنجليزية (0-9)
-- ✅ التواريخ بالأرقام الإنجليزية
-- ✅ توضيح أفضل لسبب اختلاف "المدفوع" بين صفحة العميل ونافذة الدين
-- ✅ تناسق في العرض عبر كافة أجزاء النظام
+- "المدفوع" في نافذة الديون = ₪5,100 (يطابق صفحة العميل)
+- سطر توضيحي صغير "منها للدين: ₪100"
+- جميع الأرقام في النظام بالإنجليزية (0-9)
+- جميع التواريخ بتنسيق DD/MM/YYYY

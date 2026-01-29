@@ -1427,14 +1427,16 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
         preselectedClientId={client.id}
         onSaved={async () => {
           setPolicyWizardOpen(false);
-          // Small delay to ensure DB commits are complete
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Delay to ensure DB commits are complete before fetching
+          await new Promise(resolve => setTimeout(resolve, 200));
+          // Fetch all data in parallel
           await Promise.all([
             fetchPolicies(),
             fetchPaymentSummary(),
             fetchPayments(),
             fetchCars(),
           ]);
+          // Force state update and refresh
           onRefresh();
         }}
       />

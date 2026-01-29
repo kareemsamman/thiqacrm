@@ -1066,7 +1066,7 @@ export function PolicyWizard({
         // Delay onSaved to ensure DB writes are committed
         setTimeout(() => {
           onSaved?.();
-        }, 150);
+        }, 300);
       }
     } catch (error: unknown) {
       console.error('Save error:', error);

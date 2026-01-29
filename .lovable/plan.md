@@ -1,82 +1,86 @@
 
-# Implementation Plan: Multiple Children / Additional Drivers per Customer
 
-## Overview
-Transform the current single additional driver (under24_driver) field into a multi-child/driver system with proper relational tables, reusable selection in Policy Wizard, and display in Invoices/PDF/SMS.
+# خطة: إزالة التخزين المؤقت من صفحة العميل
 
----
-
-## Phase 1: Database Schema Changes ✅ COMPLETE
-
-### A) New Table: `client_children` ✅
-### B) New Table: `policy_children` ✅
-### C) RLS Policies ✅
-### D) Migration of Existing Data ✅
+## المشكلة
+البيانات لا تتحدث بشكل فوري عند إجراء تغييرات على الوثائق أو الدفعات - هذا بسبب التخزين المؤقت (Cache) في النظام.
 
 ---
 
-## Phase 2: UI Components ✅ COMPLETE
+## آليات التخزين المؤقت الحالية
 
-### A) New Component: `ClientChildrenManager.tsx` ✅
-### B) Update `ClientDrawer.tsx` ✅
-### C) Update `CreateClientForm.tsx` (Policy Wizard) - Legacy fields kept for now
-
----
-
-## Phase 3: Policy Wizard Integration ✅ COMPLETE
-
-### A) Update Wizard State (`usePolicyWizardState.ts`) ✅
-- Added `clientChildren`, `selectedChildIds`, `newChildren` state
-- Added `resetChildren` function
-
-### B) New Component: `PolicyChildrenSelector.tsx` ✅
-
-### C) Save Logic Updates ✅
-- Children saved on policy creation
+| الموقع | نوع الـ Cache | المدة | المفتاح |
+|--------|---------------|-------|---------|
+| PolicyDetailsDrawer | sessionStorage | 30 ثانية | `policy_cache_${policyId}` |
+| FinancialReports | localStorage | 5 دقائق | `financial_reports_cache` |
+| RecentClient | localStorage | دائم | `ab_recent_client` |
+| PolicyWizard | sessionStorage | دائم | Draft key |
 
 ---
 
-## Phase 4: Invoice & PDF Updates ✅ COMPLETE
+## الحل المقترح
 
-### A) Update `generate-invoices` Edge Function ✅
-### B) Update Invoice Template Placeholders ✅
-### C) SMS Templates (available via metadata)
+### الخيار 1: إزالة التخزين المؤقت بالكامل (موصى به)
+سأقوم بإزالة الـ cache من `PolicyDetailsDrawer` ليتم جلب البيانات الحية من قاعدة البيانات دائماً.
 
----
+#### التغييرات:
+1. **`PolicyDetailsDrawer.tsx`**:
+   - إزالة قراءة الـ cache من `sessionStorage` في بداية `fetchPolicyDetails`
+   - إزالة حفظ البيانات في الـ cache بعد الجلب
+   - الإبقاء على عمليات مسح الـ cache للتوافق العكسي
 
-## Phase 5: Types & Exports ✅ COMPLETE
-
-### A) New Types - `src/types/clientChildren.ts` ✅
-
----
-
-## Files Created/Modified
-
-### New Files ✅
-1. `supabase/migrations/[timestamp]_add_client_children_tables.sql` ✅
-2. `src/components/clients/ClientChildrenManager.tsx` ✅
-3. `src/components/policies/wizard/PolicyChildrenSelector.tsx` ✅
-4. `src/types/clientChildren.ts` ✅
-
-### Modified Files ✅
-1. `src/components/clients/ClientDrawer.tsx` ✅
-2. `src/components/policies/wizard/Step1BranchTypeClient.tsx` ✅
-3. `src/components/policies/wizard/usePolicyWizardState.ts` ✅
-4. `src/components/policies/PolicyWizard.tsx` ✅
-5. `src/components/policies/wizard/index.ts` ✅
+### الخيار 2: زر تحديث يدوي
+إضافة زر "تحديث" في صفحة العميل يمسح الـ cache ويجلب البيانات مجدداً.
 
 ---
 
-## Acceptance Criteria Checklist
+## التفاصيل التقنية
 
-- [x] Customer can add/remove multiple children on create/edit
-- [x] Duplicate ID numbers prevented per customer
-- [x] Policy wizard shows customer's children for selection
-- [x] Policy wizard allows adding new children inline
-- [x] Adding child in policy also saves to customer
-- [x] Invoice/PDF shows selected children for that policy
-- [x] SMS templates can include children names (via metadata)
-- [x] RLS/branch isolation enforced
-- [x] Mobile responsive UI
-- [x] RTL layout preserved
-- [x] Policy re-save does NOT duplicate children links (delete+insert)
+### الكود الحالي (سيتم إزالته):
+```typescript
+// في PolicyDetailsDrawer - fetchPolicyDetails
+const cacheKey = `policy_cache_${policyId}`;
+const cached = sessionStorage.getItem(cacheKey);
+if (cached) {
+  // استخدام البيانات المخزنة مؤقتاً
+  const cachedData = JSON.parse(cached);
+  if (Date.now() - cachedData.timestamp < 30000) {
+    setPolicy(cachedData.policy);
+    // ...
+    return;
+  }
+}
+```
+
+### الكود الجديد:
+```typescript
+// إزالة الـ cache والجلب مباشرة من قاعدة البيانات
+// لا يوجد cache - دائماً بيانات حية
+```
+
+---
+
+## الملفات المتأثرة
+
+| الملف | التغيير |
+|-------|---------|
+| `src/components/policies/PolicyDetailsDrawer.tsx` | إزالة منطق الـ cache |
+
+---
+
+## الفوائد
+
+- ✅ البيانات دائماً محدثة وحية
+- ✅ لا مشاكل في التزامن بين الشاشات
+- ✅ حل بسيط بدون تعقيدات
+
+## التكلفة
+
+- ⚠️ زيادة طفيفة في عدد الطلبات لقاعدة البيانات
+- ⚠️ قد يكون هناك تأخير بسيط عند فتح تفاصيل الوثيقة
+
+---
+
+## ملاحظة
+صفحة العميل (`ClientDetails`) لا تستخدم React Query أو cache - هي تجلب البيانات مباشرة. المشكلة الوحيدة هي في `PolicyDetailsDrawer` الذي يستخدم cache لمدة 30 ثانية.
+

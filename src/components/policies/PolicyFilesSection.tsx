@@ -117,7 +117,8 @@ export function PolicyFilesSection({
 
   useEffect(() => {
     fetchFiles();
-  }, [policyId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyId, packagePolicyIds?.join(',')]);
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>, fileType: 'insurance' | 'crm') => {
     const files = event.target.files;

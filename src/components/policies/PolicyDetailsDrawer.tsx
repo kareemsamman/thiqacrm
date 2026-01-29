@@ -120,6 +120,11 @@ interface PolicyDetails {
     name: string;
     name_ar: string | null;
   } | null;
+  accident_fee_services?: {
+    id: string;
+    name: string;
+    name_ar: string | null;
+  } | null;
 }
 
 interface RelatedPolicy {
@@ -350,7 +355,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
           cars(id, car_number, manufacturer_name, year, car_type, car_value, model, color),
           insurance_companies(id, name, name_ar),
           brokers(id, name),
-          road_services(id, name, name_ar)
+          road_services(id, name, name_ar),
+          accident_fee_services(id, name, name_ar)
         `,
         )
         .eq("id", policyId)

@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
-import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split, Upload, X, ImageIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split, Upload, X, ImageIcon, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -571,7 +572,22 @@ export function DebtPaymentModal({
                 <p className="text-lg font-bold">₪{totalPrice.toLocaleString()}</p>
               </div>
               <div className="bg-green-500/10 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">المدفوع</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center justify-center gap-1">
+                        <p className="text-xs text-muted-foreground">المدفوع للدين</p>
+                        <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[200px]">
+                      <p className="text-xs">
+                        هذا المبلغ يشمل الدفعات للوثائق غير الإلزامية فقط. 
+                        دفعات الإلزامي تُدفع مباشرة للشركة ولا تُحتسب هنا.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <p className="text-lg font-bold text-green-600">
                   ₪{(totalPaid + paidVisaTotal).toLocaleString()}
                 </p>

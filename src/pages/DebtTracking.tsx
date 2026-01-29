@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { DebtPaymentModal } from "@/components/debt/DebtPaymentModal";
+import { ClientNotesPopover } from "@/components/clients/ClientNotesPopover";
 
 interface ClientDebt {
   client_id: string;
@@ -439,7 +440,12 @@ export default function DebtTracking() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        {/* Notes Popover */}
+                        <ClientNotesPopover
+                          clientId={client.client_id}
+                          clientName={client.client_name}
+                        />
                         {getExpiryBadge(client.days_until_expiry)}
                         <Badge variant="outline">{client.policies_count} وثيقة</Badge>
                         <div className="text-left min-w-[100px]">

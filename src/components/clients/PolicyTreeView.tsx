@@ -225,75 +225,82 @@ export function PolicyTreeView({
     const groups: Map<string, PolicyGroup> = new Map();
     const standaloneAddons: PolicyRecord[] = [];
     
-    // First pass: identify main policies and create groups
+    // First pass: group all policies by group_id
     policies.forEach(policy => {
       const isMainType = MAIN_POLICY_TYPES.includes(policy.policy_type_parent);
       const isAddonType = ADDON_POLICY_TYPES.includes(policy.policy_type_parent);
       const status = getPolicyStatus(policy);
       
-      if (isMainType) {
-        const groupKey = policy.group_id || `standalone-${policy.id}`;
-        if (!groups.has(groupKey)) {
-          groups.set(groupKey, {
+      // If policy has a group_id, add it to that group
+      if (policy.group_id) {
+        if (!groups.has(policy.group_id)) {
+          groups.set(policy.group_id, {
             groupId: policy.group_id,
+            mainPolicy: null,
+            addons: [],
+            isActive: status.isActive,
+            newestDate: new Date(policy.start_date),
+            priority: status.priority
+          });
+        }
+        
+        const group = groups.get(policy.group_id)!;
+        
+        // Determine if this should be main policy or addon
+        // Priority for main: THIRD_FULL > ELZAMI > others
+        if (isMainType) {
+          if (!group.mainPolicy) {
+            group.mainPolicy = policy;
+          } else {
+            // Compare to decide which is main
+            const currentMainType = group.mainPolicy.policy_type_parent;
+            // THIRD_FULL should be main over ELZAMI
+            if (policy.policy_type_parent === 'THIRD_FULL' && currentMainType !== 'THIRD_FULL') {
+              group.addons.push(group.mainPolicy);
+              group.mainPolicy = policy;
+            } else if (currentMainType === 'THIRD_FULL') {
+              // Current main is THIRD_FULL, add new as addon
+              group.addons.push(policy);
+            } else {
+              // Both are same type or neither is THIRD_FULL, compare by date
+              const existingDate = new Date(group.mainPolicy.start_date);
+              const newDate = new Date(policy.start_date);
+              if (newDate > existingDate) {
+                group.addons.push(group.mainPolicy);
+                group.mainPolicy = policy;
+              } else {
+                group.addons.push(policy);
+              }
+            }
+          }
+        } else {
+          // Add-on type
+          group.addons.push(policy);
+        }
+        
+        // Update group status based on most important policy
+        if (status.priority < group.priority) {
+          group.priority = status.priority;
+          group.isActive = status.isActive;
+        }
+        if (new Date(policy.start_date) > group.newestDate) {
+          group.newestDate = new Date(policy.start_date);
+        }
+      } else {
+        // No group_id - standalone policy
+        if (isMainType) {
+          groups.set(`standalone-${policy.id}`, {
+            groupId: null,
             mainPolicy: policy,
             addons: [],
             isActive: status.isActive,
             newestDate: new Date(policy.start_date),
             priority: status.priority
           });
-        } else {
-          // If there's already a main policy in this group, compare dates
-          const existing = groups.get(groupKey)!;
-          const existingDate = new Date(existing.mainPolicy?.start_date || 0);
-          const newDate = new Date(policy.start_date);
-          if (newDate > existingDate) {
-            // Move old main to be handled as standalone
-            if (existing.mainPolicy) {
-              const oldStatus = getPolicyStatus(existing.mainPolicy);
-              groups.set(`standalone-${existing.mainPolicy.id}`, {
-                groupId: null,
-                mainPolicy: existing.mainPolicy,
-                addons: [],
-                isActive: oldStatus.isActive,
-                newestDate: existingDate,
-                priority: oldStatus.priority
-              });
-            }
-            existing.mainPolicy = policy;
-            existing.isActive = status.isActive;
-            existing.newestDate = newDate;
-            existing.priority = status.priority;
-          } else {
-            // This is an older policy, make it standalone
-            groups.set(`standalone-${policy.id}`, {
-              groupId: null,
-              mainPolicy: policy,
-              addons: [],
-              isActive: status.isActive,
-              newestDate: newDate,
-              priority: status.priority
-            });
-          }
+        } else if (isAddonType) {
+          // Standalone add-on without a group
+          standaloneAddons.push(policy);
         }
-      } else if (isAddonType && policy.group_id) {
-        // This is an add-on with a group
-        if (!groups.has(policy.group_id)) {
-          // Create a placeholder group for the add-on
-          groups.set(policy.group_id, {
-            groupId: policy.group_id,
-            mainPolicy: null,
-            addons: [policy],
-            isActive: status.isActive,
-            newestDate: new Date(policy.start_date),
-            priority: status.priority
-          });
-        } else {
-          groups.get(policy.group_id)!.addons.push(policy);
-        }
-      } else if (isAddonType && !policy.group_id) {
-        // Standalone add-on without a group
-        standaloneAddons.push(policy);
       }
     });
     

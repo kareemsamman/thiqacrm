@@ -11,6 +11,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -41,6 +57,10 @@ import {
   CreditCard,
   BarChart3,
   Building2,
+  Trash2,
+  MoreHorizontal,
+  FileImage,
+  DollarSign,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -93,11 +113,17 @@ interface Broker {
 interface CarRecord {
   id: string;
   car_number: string;
+  client_id: string;
   manufacturer_name: string | null;
   model: string | null;
+  model_number: string | null;
   year: number | null;
   color: string | null;
   car_type: string | null;
+  car_value: number | null;
+  license_type: string | null;
+  license_expiry: string | null;
+  last_license: string | null;
 }
 
 interface PolicyRecord {
@@ -137,8 +163,12 @@ interface PaymentRecord {
   payment_date: string;
   payment_type: string;
   cheque_number: string | null;
+  cheque_image_url: string | null;
+  card_last_four: string | null;
   refused: boolean | null;
   notes: string | null;
+  locked: boolean | null;
+  policy_id: string;
   policy: {
     id: string;
     policy_type_parent: string;
@@ -215,6 +245,18 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
   const [deletePolicyDialogOpen, setDeletePolicyDialogOpen] = useState(false);
   const [deletingPolicy, setDeletingPolicy] = useState(false);
   
+  // Car edit/delete state
+  const [editingCar, setEditingCar] = useState<CarRecord | null>(null);
+  const [deleteCarId, setDeleteCarId] = useState<string | null>(null);
+  const [deleteCarDialogOpen, setDeleteCarDialogOpen] = useState(false);
+  const [deletingCar, setDeletingCar] = useState(false);
+  const [carPolicyCounts, setCarPolicyCounts] = useState<Record<string, number>>({});
+  
+  // Payment delete state
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [deletePaymentDialogOpen, setDeletePaymentDialogOpen] = useState(false);
+  const [deletingPayment, setDeletingPayment] = useState(false);
+  
   // Notes editing
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(client.notes || '');
@@ -254,7 +296,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
     try {
       const { data, error } = await supabase
         .from('cars')
-        .select('id, car_number, manufacturer_name, model, year, color, car_type')
+        .select('id, car_number, client_id, manufacturer_name, model, model_number, year, color, car_type, car_value, license_type, license_expiry, last_license')
         .eq('client_id', client.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -391,7 +433,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
       // Get all payments for these policies
       const { data: paymentsData, error } = await supabase
         .from('policy_payments')
-        .select('id, amount, payment_date, payment_type, cheque_number, refused, notes, policy_id')
+        .select('id, amount, payment_date, payment_type, cheque_number, cheque_image_url, card_last_four, refused, notes, policy_id, locked')
         .in('policy_id', policyIds)
         .order('payment_date', { ascending: false });
 
@@ -431,6 +473,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
         fetchPaymentSummary(),
         fetchPayments(),
         fetchWalletBalance(),
+        fetchCarPolicyCounts(),
       ]);
       setNotesValue(client.notes || '');
       setInitialLoading(false);
@@ -484,8 +527,98 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
 
   const handleCarSaved = () => {
     setCarDrawerOpen(false);
+    setEditingCar(null);
     fetchCars();
+    fetchCarPolicyCounts();
     onRefresh();
+  };
+
+  // Fetch policy count per car
+  const fetchCarPolicyCounts = async () => {
+    try {
+      const { data } = await supabase
+        .from('policies')
+        .select('car_id')
+        .eq('client_id', client.id)
+        .is('deleted_at', null)
+        .eq('cancelled', false);
+      
+      const counts: Record<string, number> = {};
+      (data || []).forEach(p => {
+        if (p.car_id) {
+          counts[p.car_id] = (counts[p.car_id] || 0) + 1;
+        }
+      });
+      setCarPolicyCounts(counts);
+    } catch (error) {
+      console.error('Error fetching car policy counts:', error);
+    }
+  };
+
+  // Delete car handler
+  const handleDeleteCar = async () => {
+    if (!deleteCarId) return;
+    
+    // Check if car has policies
+    if (carPolicyCounts[deleteCarId] > 0) {
+      toast.error('لا يمكن حذف السيارة لوجود وثائق مرتبطة بها');
+      setDeleteCarDialogOpen(false);
+      setDeleteCarId(null);
+      return;
+    }
+    
+    setDeletingCar(true);
+    try {
+      const { error } = await supabase
+        .from('cars')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', deleteCarId);
+      
+      if (error) throw error;
+      toast.success('تم حذف السيارة بنجاح');
+      fetchCars();
+      fetchCarPolicyCounts();
+    } catch (error) {
+      console.error('Error deleting car:', error);
+      toast.error('فشل حذف السيارة');
+    } finally {
+      setDeletingCar(false);
+      setDeleteCarDialogOpen(false);
+      setDeleteCarId(null);
+    }
+  };
+
+  // Delete payment handler
+  const handleDeletePayment = async () => {
+    if (!deletePaymentId) return;
+    
+    setDeletingPayment(true);
+    try {
+      const { error } = await supabase
+        .from('policy_payments')
+        .delete()
+        .eq('id', deletePaymentId);
+      
+      if (error) throw error;
+      toast.success('تم حذف الدفعة بنجاح');
+      fetchPayments();
+      fetchPaymentSummary();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast.error('فشل حذف الدفعة');
+    } finally {
+      setDeletingPayment(false);
+      setDeletePaymentDialogOpen(false);
+      setDeletePaymentId(null);
+    }
+  };
+
+  // Open policy drawer to edit payment
+  const handleEditPayment = (payment: PaymentRecord) => {
+    if (payment.policy_id) {
+      setSelectedPolicyId(payment.policy_id);
+      setPolicyDetailsOpen(true);
+    }
   };
 
   const handleSaveNotes = async () => {
@@ -1226,7 +1359,8 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                       <TableHead className="text-right">نوع التأمين</TableHead>
                       <TableHead className="text-right">رقم الشيك</TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
-                      <TableHead className="text-right">ملاحظات</TableHead>
+                      <TableHead className="text-right">ملفات</TableHead>
+                      <TableHead className="text-right w-[60px]">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1249,12 +1383,19 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                           <TableCell className="font-semibold">₪{payment.amount.toLocaleString()}</TableCell>
                           <TableCell>{formatDate(payment.payment_date)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">
-                              {payment.payment_type === 'cash' ? 'نقدي' :
-                               payment.payment_type === 'cheque' ? 'شيك' :
-                               payment.payment_type === 'visa' ? 'بطاقة' :
-                               payment.payment_type === 'transfer' ? 'تحويل' : payment.payment_type}
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline">
+                                {payment.payment_type === 'cash' ? 'نقدي' :
+                                 payment.payment_type === 'cheque' ? 'شيك' :
+                                 payment.payment_type === 'visa' ? 'بطاقة' :
+                                 payment.payment_type === 'transfer' ? 'تحويل' : payment.payment_type}
+                              </Badge>
+                              {payment.payment_type === 'visa' && payment.card_last_four && (
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  *{payment.card_last_four}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {payment.policy && (
@@ -1271,7 +1412,48 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                               <Badge variant="success">مقبول</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="max-w-[150px] truncate">{payment.notes || '-'}</TableCell>
+                          <TableCell>
+                            {payment.cheque_image_url ? (
+                              <a 
+                                href={payment.cheque_image_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <FileImage className="h-4 w-4" />
+                                <span className="text-xs">عرض</span>
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
+                                  <Edit className="h-4 w-4 ml-2" />
+                                  تعديل
+                                </DropdownMenuItem>
+                                {!payment.locked && (
+                                  <DropdownMenuItem 
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => {
+                                      setDeletePaymentId(payment.id);
+                                      setDeletePaymentDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 ml-2" />
+                                    حذف
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                       ))}
                   </TableBody>
@@ -1313,22 +1495,79 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                       <TableHead className="text-right">الموديل</TableHead>
                       <TableHead className="text-right">السنة</TableHead>
                       <TableHead className="text-right">اللون</TableHead>
+                      <TableHead className="text-right">القيمة</TableHead>
                       <TableHead className="text-right">النوع</TableHead>
+                      <TableHead className="text-right">الوثائق</TableHead>
+                      <TableHead className="text-right w-[60px]">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cars.map((car) => (
-                      <TableRow key={car.id}>
-                        <TableCell className="font-mono font-semibold"><bdi>{car.car_number}</bdi></TableCell>
-                        <TableCell>{car.manufacturer_name || '-'}</TableCell>
-                        <TableCell>{car.model || '-'}</TableCell>
-                        <TableCell>{car.year || '-'}</TableCell>
-                        <TableCell>{car.color || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{carTypeLabels[car.car_type || ''] || car.car_type || 'خصوصي'}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {cars.map((car) => {
+                      const policyCount = carPolicyCounts[car.id] || 0;
+                      const canDelete = policyCount === 0;
+                      
+                      return (
+                        <TableRow key={car.id}>
+                          <TableCell className="font-mono font-semibold"><bdi>{car.car_number}</bdi></TableCell>
+                          <TableCell>{car.manufacturer_name || '-'}</TableCell>
+                          <TableCell>{car.model || '-'}</TableCell>
+                          <TableCell>{car.year || '-'}</TableCell>
+                          <TableCell>{car.color || '-'}</TableCell>
+                          <TableCell>
+                            {car.car_value ? (
+                              <span className="font-semibold text-primary ltr-nums">₪{car.car_value.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{carTypeLabels[car.car_type || ''] || car.car_type || 'خصوصي'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {policyCount > 0 ? (
+                              <Badge variant="secondary">{policyCount} وثيقة</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">لا يوجد</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setEditingCar(car);
+                                  setCarDrawerOpen(true);
+                                }}>
+                                  <Edit className="h-4 w-4 ml-2" />
+                                  تعديل
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className={cn(
+                                    "text-destructive focus:text-destructive",
+                                    !canDelete && "opacity-50 cursor-not-allowed"
+                                  )}
+                                  disabled={!canDelete}
+                                  onClick={() => {
+                                    if (canDelete) {
+                                      setDeleteCarId(car.id);
+                                      setDeleteCarDialogOpen(true);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 ml-2" />
+                                  حذف
+                                  {!canDelete && <span className="text-xs mr-2">(مرتبطة بوثائق)</span>}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </Card>
@@ -1397,11 +1636,15 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
         </Tabs>
       </div>
 
-      {/* Add Car Drawer */}
+      {/* Add/Edit Car Drawer */}
       <CarDrawer
         open={carDrawerOpen}
-        onOpenChange={setCarDrawerOpen}
+        onOpenChange={(open) => {
+          setCarDrawerOpen(open);
+          if (!open) setEditingCar(null);
+        }}
         clientId={client.id}
+        car={editingCar}
         onSaved={handleCarSaved}
       />
 
@@ -1535,6 +1778,50 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
         description={`هل أنت متأكد من حذف ${deletePolicyIds.length > 1 ? `${deletePolicyIds.length} وثائق` : 'هذه الوثيقة'} نهائياً؟ سيتم حذف جميع البيانات المرتبطة (الدفعات، القيود المحاسبية، الملفات). هذا الإجراء لا يمكن التراجع عنه!`}
         loading={deletingPolicy}
       />
+
+      {/* Delete Car Confirmation Dialog */}
+      <AlertDialog open={deleteCarDialogOpen} onOpenChange={setDeleteCarDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف السيارة</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف هذه السيارة؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel onClick={() => setDeleteCarId(null)}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCar}
+              disabled={deletingCar}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingCar ? 'جاري الحذف...' : 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Payment Confirmation Dialog */}
+      <AlertDialog open={deletePaymentDialogOpen} onOpenChange={setDeletePaymentDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الدفعة</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف هذه الدفعة؟ سيتم تحديث الرصيد المتبقي للعميل.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel onClick={() => setDeletePaymentId(null)}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePayment}
+              disabled={deletingPayment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingPayment ? 'جاري الحذف...' : 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

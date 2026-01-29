@@ -44,8 +44,7 @@ import { createEmptyChildForm } from '@/types/clientChildren';
 
 const UNDER24_OPTIONS = [
   { value: 'none', label: 'لا' },
-  { value: 'client', label: 'نعم – العميل نفسه أقل من 24' },
-  { value: 'additional_driver', label: 'نعم – سائق إضافي (ابن/ابنة) أقل من 24' },
+  { value: 'client', label: 'نعم – العميل أقل من 24' },
 ] as const;
 
 const clientSchema = z.object({
@@ -600,7 +599,7 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
                       className="flex flex-col space-y-2"
                     >
                       {UNDER24_OPTIONS.map((option) => (
-                        <div key={option.value} className="flex items-center space-x-2 space-x-reverse">
+                        <div key={option.value} className="flex items-center gap-2">
                           <RadioGroupItem value={option.value} id={option.value} />
                           <label
                             htmlFor={option.value}
@@ -617,49 +616,8 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved, defaultBroke
               )}
             />
 
-            {/* Legacy Additional Driver Fields - shown only when under24_type is additional_driver */}
-            {/* These are kept for backward compatibility but will be migrated to client_children */}
-            {under24Type === 'additional_driver' && !isEditing && (
-              <div className="space-y-4 p-4 rounded-md border bg-muted/30">
-                <FormField
-                  control={form.control}
-                  name="under24_driver_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>اسم السائق الإضافي *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="أدخل اسم السائق" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="under24_driver_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>رقم هوية السائق *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="أدخل رقم هوية السائق"
-                          inputMode="numeric"
-                          maxLength={9}
-                          className="ltr-input"
-                          value={field.value}
-                          onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 9))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
-            {/* Children / Additional Drivers Manager */}
-            {(isEditing || under24Type === 'additional_driver') && (
+            {/* Children / Additional Drivers Manager - Always shown when editing */}
+            {isEditing && (
               <div className="border-t pt-4">
                 <ClientChildrenManager
                   existingChildren={existingChildren}

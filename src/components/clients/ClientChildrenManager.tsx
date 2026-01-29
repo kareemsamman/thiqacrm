@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, AlertCircle, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,14 +10,26 @@ import { cn } from "@/lib/utils";
 import { digitsOnly, isValidIsraeliId } from "@/lib/validation";
 import { ClientChild, NewChildForm, RELATION_OPTIONS, createEmptyChildForm } from "@/types/clientChildren";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ClientChildrenManagerProps {
   existingChildren: ClientChild[];
   newChildren: NewChildForm[];
   onNewChildrenChange: (children: NewChildForm[]) => void;
   onRemoveExisting?: (childId: string) => void;
+  onExistingChildUpdated?: (updatedChild: ClientChild) => void;
   linkedChildIds?: string[]; // IDs of children linked to policies (cannot delete)
   compact?: boolean;
+}
+
+interface EditingChild {
+  id: string;
+  full_name: string;
+  id_number: string;
+  relation: string;
+  phone: string;
+  birth_date: string;
 }
 
 export function ClientChildrenManager({
@@ -25,10 +37,14 @@ export function ClientChildrenManager({
   newChildren,
   onNewChildrenChange,
   onRemoveExisting,
+  onExistingChildUpdated,
   linkedChildIds = [],
   compact = false,
 }: ClientChildrenManagerProps) {
   const [errors, setErrors] = useState<Record<string, Record<string, string>>>({});
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<EditingChild | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const validateChild = (child: NewChildForm, allNewChildren: NewChildForm[]): Record<string, string> => {
     const childErrors: Record<string, string> = {};
@@ -92,6 +108,73 @@ export function ClientChildrenManager({
 
   const isChildLinked = (childId: string) => linkedChildIds.includes(childId);
 
+  // Start editing an existing child
+  const handleStartEdit = (child: ClientChild) => {
+    setEditingChildId(child.id);
+    setEditingData({
+      id: child.id,
+      full_name: child.full_name,
+      id_number: child.id_number,
+      relation: child.relation || 'سائق إضافي',
+      phone: child.phone || '',
+      birth_date: child.birth_date || '',
+    });
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingChildId(null);
+    setEditingData(null);
+  };
+
+  // Save edited child
+  const handleSaveEdit = async () => {
+    if (!editingData) return;
+    
+    // Validate
+    if (!editingData.full_name.trim()) {
+      toast.error('الاسم مطلوب');
+      return;
+    }
+    if (!editingData.id_number.trim() || !isValidIsraeliId(editingData.id_number)) {
+      toast.error('رقم هوية غير صالح');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const { data, error } = await supabase
+        .from('client_children')
+        .update({
+          full_name: editingData.full_name.trim(),
+          id_number: editingData.id_number.trim(),
+          relation: editingData.relation || null,
+          phone: editingData.phone || null,
+          birth_date: editingData.birth_date || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingData.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('تم تحديث بيانات السائق');
+      setEditingChildId(null);
+      setEditingData(null);
+      
+      // Notify parent to update local state
+      if (onExistingChildUpdated && data) {
+        onExistingChildUpdated(data as ClientChild);
+      }
+    } catch (error) {
+      console.error('Error updating child:', error);
+      toast.error('فشل في تحديث البيانات');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -118,35 +201,124 @@ export function ClientChildrenManager({
                 <TableHead className="w-[120px]">رقم الهوية</TableHead>
                 <TableHead className="w-[100px]">الصلة</TableHead>
                 {!compact && <TableHead className="w-[100px]">الهاتف</TableHead>}
-                <TableHead className="w-[60px]"></TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {existingChildren.map((child) => (
                 <TableRow key={child.id}>
-                  <TableCell className="font-medium">{child.full_name}</TableCell>
-                  <TableCell className="font-mono text-sm">{child.id_number}</TableCell>
-                  <TableCell>{child.relation || "-"}</TableCell>
-                  {!compact && <TableCell>{child.phone || "-"}</TableCell>}
-                  <TableCell>
-                    {onRemoveExisting && (
-                      isChildLinked(child.id) ? (
-                        <span className="text-xs text-muted-foreground" title="مرتبط بوثيقة">
-                          <AlertCircle className="h-4 w-4 text-amber-500" />
-                        </span>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => onRemoveExisting(child.id)}
+                  {editingChildId === child.id && editingData ? (
+                    // Edit mode
+                    <>
+                      <TableCell>
+                        <Input
+                          value={editingData.full_name}
+                          onChange={(e) => setEditingData({ ...editingData, full_name: e.target.value })}
+                          placeholder="الاسم"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={editingData.id_number}
+                          onChange={(e) => setEditingData({ ...editingData, id_number: digitsOnly(e.target.value).slice(0, 9) })}
+                          placeholder="رقم الهوية"
+                          maxLength={9}
+                          className="h-8 ltr-input"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={editingData.relation}
+                          onValueChange={(v) => setEditingData({ ...editingData, relation: v })}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )
-                    )}
-                  </TableCell>
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RELATION_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      {!compact && (
+                        <TableCell>
+                          <Input
+                            value={editingData.phone}
+                            onChange={(e) => setEditingData({ ...editingData, phone: digitsOnly(e.target.value).slice(0, 10) })}
+                            placeholder="الهاتف"
+                            maxLength={10}
+                            className="h-8 ltr-input"
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-green-600 hover:text-green-700"
+                            onClick={handleSaveEdit}
+                            disabled={savingEdit}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground"
+                            onClick={handleCancelEdit}
+                            disabled={savingEdit}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  ) : (
+                    // View mode
+                    <>
+                      <TableCell className="font-medium">{child.full_name}</TableCell>
+                      <TableCell className="font-mono text-sm">{child.id_number}</TableCell>
+                      <TableCell>{child.relation || "-"}</TableCell>
+                      {!compact && <TableCell>{child.phone || "-"}</TableCell>}
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleStartEdit(child)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {onRemoveExisting && (
+                            isChildLinked(child.id) ? (
+                              <span className="text-xs text-muted-foreground" title="مرتبط بوثيقة">
+                                <AlertCircle className="h-4 w-4 text-amber-500" />
+                              </span>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => onRemoveExisting(child.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )
+                          )}
+                        </div>
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

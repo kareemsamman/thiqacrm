@@ -36,11 +36,11 @@ Transform the current single additional driver (under24_driver) field into a mul
 
 ---
 
-## Phase 4: Invoice & PDF Updates 🔄 PENDING
+## Phase 4: Invoice & PDF Updates ✅ COMPLETE
 
-### A) Update `generate-invoices` Edge Function
-### B) Update Invoice Template Placeholders
-### C) Update SMS Templates
+### A) Update `generate-invoices` Edge Function ✅
+### B) Update Invoice Template Placeholders ✅
+### C) SMS Templates (available via metadata)
 
 ---
 
@@ -74,8 +74,9 @@ Transform the current single additional driver (under24_driver) field into a mul
 - [x] Policy wizard shows customer's children for selection
 - [x] Policy wizard allows adding new children inline
 - [x] Adding child in policy also saves to customer
-- [ ] Invoice/PDF shows selected children for that policy
-- [ ] SMS templates can include children names
+- [x] Invoice/PDF shows selected children for that policy
+- [x] SMS templates can include children names (via metadata)
 - [x] RLS/branch isolation enforced
 - [x] Mobile responsive UI
 - [x] RTL layout preserved
+- [x] Policy re-save does NOT duplicate children links (delete+insert)

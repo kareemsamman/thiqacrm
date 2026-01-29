@@ -897,6 +897,19 @@ export function PolicyWizard({
         // All child IDs to link to policy (selected existing + newly inserted)
         const allChildIdsToLink = [...selectedChildIds, ...insertedChildIds];
 
+        // REPLACE strategy: Delete existing policy_children for this policy, then insert new set
+        // This prevents duplicates on edit/re-save
+        if (policyIdToUse) {
+          const { error: deleteError } = await supabase
+            .from('policy_children')
+            .delete()
+            .eq('policy_id', policyIdToUse);
+
+          if (deleteError) {
+            console.error('Failed to clear existing policy_children:', deleteError);
+          }
+        }
+
         // Insert into policy_children (link children to policy)
         if (allChildIdsToLink.length > 0) {
           const policyChildrenInserts = allChildIdsToLink.map(childId => ({

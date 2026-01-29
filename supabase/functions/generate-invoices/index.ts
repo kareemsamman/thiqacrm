@@ -104,6 +104,24 @@ serve(async (req: Request) => {
 
     const paymentType = payments?.[0]?.payment_type || 'cash';
 
+    // Fetch policy children (additional drivers/dependents linked to THIS policy)
+    const { data: policyChildren } = await supabase
+      .from('policy_children')
+      .select(`
+        id,
+        child:client_children(
+          id,
+          full_name,
+          id_number,
+          birth_date,
+          phone,
+          relation
+        )
+      `)
+      .eq('policy_id', policy_id);
+
+    console.log(`[generate-invoices] Found ${policyChildren?.length || 0} children for policy`);
+
     // Get active templates
     const { data: templates, error: templatesError } = await supabase
       .from('invoice_templates')
@@ -146,6 +164,15 @@ serve(async (req: Request) => {
         // Generate invoice number
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
+        // Build additional drivers list from policy_children
+        const additionalDrivers = policyChildren?.map(pc => ({
+          name: (pc.child as any)?.full_name || '',
+          id_number: (pc.child as any)?.id_number || '',
+          birth_date: (pc.child as any)?.birth_date ? formatDate((pc.child as any).birth_date, lang) : '',
+          relation: (pc.child as any)?.relation || '',
+          phone: (pc.child as any)?.phone || '',
+        })).filter(d => d.name) || [];
+
         // Prepare metadata snapshot
         const metadata = {
           client_name: policy.client?.full_name || '',
@@ -161,6 +188,9 @@ serve(async (req: Request) => {
           admin_name: policy.created_by?.full_name || '',
           admin_email: policy.created_by?.email || '',
           policy_number: `${policy.policy_type_parent} ${new Date(policy.start_date).getFullYear()} ${policy.car?.car_number || ''}`,
+          // Additional drivers / dependents linked to this policy
+          additional_drivers: additionalDrivers,
+          has_additional_drivers: additionalDrivers.length > 0,
         };
 
         // Replace placeholders in template
@@ -242,9 +272,35 @@ function formatDate(dateStr: string, lang: 'ar' | 'he'): string {
   return date.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'he-IL');
 }
 
+interface AdditionalDriver {
+  name: string;
+  id_number: string;
+  birth_date: string;
+  relation: string;
+  phone: string;
+}
+
+interface InvoiceMetadata {
+  client_name: string;
+  client_id_number: string;
+  client_phone: string;
+  car_number: string;
+  company_name: string;
+  insurance_type: string;
+  start_date: string;
+  end_date: string;
+  total_amount: string;
+  payment_method: string;
+  admin_name: string;
+  admin_email: string;
+  policy_number: string;
+  additional_drivers: AdditionalDriver[];
+  has_additional_drivers: boolean;
+}
+
 function buildInvoiceHtml(
   template: any,
-  metadata: Record<string, string>,
+  metadata: InvoiceMetadata,
   invoiceNumber: string,
   lang: 'ar' | 'he'
 ): string {
@@ -265,6 +321,25 @@ function buildInvoiceHtml(
     result = result.replace(/\{\{admin_name\}\}/g, metadata.admin_name);
     result = result.replace(/\{\{admin_email\}\}/g, metadata.admin_email);
     result = result.replace(/\{\{policy_number\}\}/g, metadata.policy_number);
+    
+    // Build additional drivers section HTML if there are any
+    if (metadata.additional_drivers && metadata.additional_drivers.length > 0) {
+      const driversListHtml = metadata.additional_drivers.map((driver: any) => 
+        `<li style="margin-bottom: 4px;">${driver.name} — ${driver.id_number}${driver.relation ? ` (${driver.relation})` : ''}${driver.birth_date ? ` — ${driver.birth_date}` : ''}</li>`
+      ).join('');
+      
+      const additionalDriversHtml = `
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e5e5;">
+          <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">السائقين الإضافيين / التابعين</h4>
+          <ul style="margin: 0; padding-right: 20px; list-style-type: disc;">${driversListHtml}</ul>
+        </div>
+      `;
+      result = result.replace(/\{\{additional_drivers\}\}/g, additionalDriversHtml);
+    } else {
+      // Remove placeholder if no additional drivers
+      result = result.replace(/\{\{additional_drivers\}\}/g, '');
+    }
+    
     return result;
   };
 

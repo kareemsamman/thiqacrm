@@ -127,6 +127,29 @@ export function PackageBuilderSection({
   const accidentFeeAddon = addons.find(a => a.type === 'accident_fee_exemption') || { type: 'accident_fee_exemption' as const, enabled: false, accident_fee_service_id: '', company_id: '', insurance_price: '' };
 
   const updateAddon = (type: 'elzami' | 'third_full' | 'road_service' | 'accident_fee_exemption', updates: Partial<PackageAddon>) => {
+    // When enabling an addon, auto-fill dates
+    if (updates.enabled === true) {
+      const thirdFullAddon = addons.find(a => a.type === 'third_full');
+      let defaultStart = mainStartDate;
+      let defaultEnd = mainEndDate;
+      
+      // For road_service and accident_fee, prefer third_full dates if available
+      if ((type === 'road_service' || type === 'accident_fee_exemption') && 
+          thirdFullAddon?.enabled && thirdFullAddon.start_date) {
+        defaultStart = thirdFullAddon.start_date;
+        defaultEnd = thirdFullAddon.end_date || calculateEndDate(thirdFullAddon.start_date);
+      }
+      
+      // Add dates to the update
+      if (defaultStart) {
+        updates = {
+          ...updates,
+          start_date: defaultStart,
+          end_date: defaultEnd || calculateEndDate(defaultStart)
+        };
+      }
+    }
+    
     const newAddons = addons.map(addon => 
       addon.type === type ? { ...addon, ...updates } : addon
     );
@@ -163,9 +186,41 @@ export function PackageBuilderSection({
   };
 
   // Filter road services by car type
-  const filteredRoadServices = carType
+  const baseFilteredRoadServices = carType
     ? roadServices.filter(rs => rs.allowed_car_types?.includes(carType))
     : roadServices;
+  
+  // State for company-filtered road services
+  const [availableRoadServices, setAvailableRoadServices] = useState<RoadService[]>(baseFilteredRoadServices);
+  
+  // Filter road services by company pricing - only show services the company sells
+  useEffect(() => {
+    const fetchAvailableServices = async () => {
+      if (!roadServiceAddon.company_id) {
+        setAvailableRoadServices(baseFilteredRoadServices);
+        return;
+      }
+      
+      // Fetch services that have pricing for this company
+      const { data } = await supabase
+        .from('company_road_service_prices')
+        .select('road_service_id')
+        .eq('company_id', roadServiceAddon.company_id);
+      
+      const serviceIds = data?.map(d => d.road_service_id) || [];
+      
+      // Filter by both car type AND company pricing
+      const available = baseFilteredRoadServices.filter(rs => serviceIds.includes(rs.id));
+      setAvailableRoadServices(available);
+      
+      // If current selection is not in the available list, clear it
+      if (roadServiceAddon.road_service_id && !serviceIds.includes(roadServiceAddon.road_service_id)) {
+        updateAddon('road_service', { road_service_id: '', insurance_price: '' });
+      }
+    };
+    
+    fetchAvailableServices();
+  }, [roadServiceAddon.company_id, carType, roadServices]);
 
   // Determine which addons can be shown based on main policy type
   const showElzamiAddon = mainPolicyType === 'THIRD_FULL';
@@ -573,11 +628,17 @@ export function PackageBuilderSection({
                     <SelectValue placeholder="اختر الخدمة" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredRoadServices.map(rs => (
-                      <SelectItem key={rs.id} value={rs.id}>
-                        {rs.name_ar || rs.name}
-                      </SelectItem>
-                    ))}
+                    {availableRoadServices.length === 0 ? (
+                      <div className="p-2 text-center text-sm text-muted-foreground">
+                        لا توجد خدمات متاحة لهذه الشركة
+                      </div>
+                    ) : (
+                      availableRoadServices.map(rs => (
+                        <SelectItem key={rs.id} value={rs.id}>
+                          {rs.name_ar || rs.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.addon_road_service && (

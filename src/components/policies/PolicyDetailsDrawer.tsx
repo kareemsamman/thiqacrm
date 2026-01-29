@@ -997,11 +997,15 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                 "text-sm font-medium",
                                 (policy.cancelled || isTransferred) 
                                   ? "text-slate-500" 
-                                  : (policy.profit || 0) < 0
+                                  : (packageTotalProfit) < 0
                                     ? "text-red-600"
                                     : "text-teal-700"
                               )}>
-                                {(policy.profit || 0) < 0 ? 'عمولة (خسارة)' : 'الربح من الوثيقة'}
+                                {(packageTotalProfit) < 0 
+                                  ? 'عمولة (خسارة)' 
+                                  : hasPackage 
+                                    ? 'إجمالي ربح الباقة' 
+                                    : 'الربح من الوثيقة'}
                               </span>
                               {(policy.cancelled || isTransferred) && (
                                 <p className="text-xs text-slate-400">ملغاة/محوّلة</p>
@@ -1012,11 +1016,11 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                             "text-3xl font-bold ltr-nums",
                             (policy.cancelled || isTransferred) 
                               ? "text-slate-400 line-through" 
-                              : (policy.profit || 0) < 0
+                              : (packageTotalProfit) < 0
                                 ? "text-red-600"
                                 : "text-teal-700"
                           )}>
-                            {(policy.cancelled || isTransferred) ? formatCurrency(0) : formatCurrency(policy.profit)}
+                            {(policy.cancelled || isTransferred) ? formatCurrency(0) : formatCurrency(packageTotalProfit)}
                           </p>
                         </div>
                       </div>

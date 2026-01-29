@@ -1,140 +1,188 @@
 
-# خطة إصلاح مشاكل التحديث الفوري وحساب المتبقي وعرض الوثائق الجديدة
+# خطة إصلاح قفل دفعات الفيزا وتحديث البيانات الفوري
 
 ## المشاكل المكتشفة
 
-### 1. عدم تحديث البيانات فوراً بعد تعديل الدفعات أو إضافة وثيقة
-**السبب**: عند إضافة دفعة أو تعديلها، يتم استدعاء `fetchPaymentSummary()` و `fetchPayments()` فقط، بدون `fetchPolicies()` أو تحديث بيانات الدفع في `PolicyYearTimeline`.
+### 1. تحويل دفعة موجودة إلى فيزا في نافذة التعديل
+**الوضع الحالي**: يمكن للمستخدم تعديل دفعة موجودة (Cash/Cheque/Transfer) وتحويلها إلى "فيزا"، لكن هذا ليس منطقياً لأن دفعات الفيزا يجب أن تمر عبر Tranzila.
 
-**الملفات المتأثرة**:
-- `ClientDetails.tsx` - يحتاج لتمرير callback أشمل
-- `PolicyYearTimeline.tsx` - يحتاج لاستقبال إشارة التحديث
+**الحل**: إخفاء خيار "فيزا" من قائمة أنواع الدفع في نافذة **تعديل** الدفعة فقط (Edit Dialog)، مع إبقائه في نافذة **إضافة** دفعات جديدة.
 
-### 2. المتبقي يُظهر ₪800 بدلاً من ₪1,800
-**تحليل البيانات**:
-- سعر الباقة الكامل = ₪2,800
-- `debtPrice` (بدون إلزامي) = ₪1,800
-- المدفوع (على الإلزامي) = ₪1,000
-- الحساب الحالي: `1,800 - 1,000 = 800` ← **خطأ!**
+### 2. زر "إضافة الدفعات" يعمل حتى مع وجود فيزا غير مدفوعة
+**الوضع الحالي**: عند إضافة سطر دفعة من نوع "فيزا" دون دفعه عبر Tranzila (ادفع الآن)، يظل زر "إضافة الدفعات" فعالاً ويسمح بالحفظ.
 
-**السبب**: المنطق يستخدم `debtPrice` (الذي يستثني الإلزامي) لكنه يحسب كل الدفعات (بما فيها الإلزامي). هذا يعني أن دفعة الإلزامي تُخصم من دين غير الإلزامي.
+**الحل المطلوب**: 
+- قفل زر "إضافة الدفعات" عند وجود أي سطر فيزا **غير مدفوع** (`tranzilaPaid === false`)
+- إظهار رسالة تنبيه للمستخدم أن عليه إتمام الدفع بالبطاقة أولاً
+- السماح بإضافة/حذف أسطر دفعات أخرى
 
-**الحل الصحيح**: حساب المتبقي لكل وثيقة على حدة ثم جمعها، أو استخدام `totalPrice` بدلاً من `debtPrice`.
+### 3. عدم تحديث البيانات فورياً بعد تعديل/إضافة/حذف الدفعات
+**الأماكن المتأثرة**:
+- `PolicyPaymentsSection.tsx` (داخل Drawer الوثيقة)
+- `PolicyDetailsDrawer.tsx` (تحديث الـ drawer نفسه)
+- `ClientDetails.tsx` (الخط الزمني + المحفظة)
+- `Policies.tsx` (صفحة الوثائق العامة)
+- `PolicyYearTimeline.tsx` (الخط الزمني للوثائق)
 
-### 3. الوثائق الجديدة يجب أن تظهر أولاً
-**السبب**: الترتيب الحالي يعتمد على حالة الوثيقة (active → ended → etc) ثم تاريخ البدء، بدون اعتبار لـ `created_at`.
-
-### 4. شارة "جديدة" يجب أن تظهر من الخارج على البطاقة
-**الوضع الحالي**: الشارة موجودة بالفعل (السطور 755-761)، لكن قد لا يتم جلب `created_at` مع البيانات أو لا يتم تمريرها بشكل صحيح.
+**الحل**: تحسين callbacks بعد عمليات الدفع لتشمل تحديث جميع البيانات المرتبطة فوراً بدون الحاجة لـ refresh يدوي.
 
 ---
 
 ## التغييرات المطلوبة
 
-### الملف 1: `src/components/clients/ClientDetails.tsx`
+### الملف 1: `src/components/policies/PolicyPaymentsSection.tsx`
 
 | التغيير | التفاصيل |
 |---------|----------|
-| تحديث شامل | إضافة `fetchPolicies()` إلى callback الدفع |
-| جلب created_at | التأكد من جلب `created_at` في استعلام الوثائق |
+| إخفاء Visa في Edit | فلترة خيار "visa" من قائمة الأنواع في Edit Dialog |
+| قفل زر الإضافة | تعطيل الزر عند وجود فيزا غير مدفوعة |
+| رسالة تنبيه | إظهار تنبيه عند محاولة الحفظ مع فيزا غير مدفوعة |
 
-**تعديل fetchPolicies (السطر 271-295)**:
-```typescript
-const { data, error } = await supabase
-  .from('policies')
-  .select(`
-    id, policy_number, policy_type_parent, policy_type_child, 
-    start_date, end_date, insurance_price, profit, 
-    cancelled, transferred, group_id,
-    transferred_car_number, transferred_to_car_number, 
-    transferred_from_policy_id,
-    created_at, branch_id,  // ← إضافة created_at و branch_id
-    company:insurance_companies(name, name_ar),
-    car:cars(id, car_number),
-    creator:profiles!policies_created_by_admin_id_fkey(full_name, email)
-  `)
+**التغيير 1 - فلترة Visa من Edit Dialog** (حوالي السطر 1053):
+```tsx
+// في Edit Dialog - قائمة أنواع الدفع
+<Select 
+  value={editFormData.payment_type} 
+  onValueChange={v => setEditFormData(f => ({ ...f, payment_type: v }))}
+>
+  <SelectTrigger><SelectValue /></SelectTrigger>
+  <SelectContent>
+    {/* فلترة visa من القائمة في التعديل فقط */}
+    {paymentTypes
+      .filter(type => type.value !== 'visa')
+      .map((type) => (
+        <SelectItem key={type.value} value={type.value}>
+          <span className="flex items-center gap-2">
+            <type.icon className="h-4 w-4" />
+            {type.label}
+          </span>
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
 ```
 
-**تعديل PolicyYearTimeline onPaymentAdded (السطر 1138-1144)**:
-```typescript
-<PolicyYearTimeline 
-  policies={filteredPolicies} 
-  onPolicyClick={handlePolicyClick}
-  onPaymentAdded={() => {
-    fetchPaymentSummary();
-    fetchPayments();
-    fetchPolicies();  // ← إضافة
-    fetchWalletBalance();  // ← إضافة
+**التغيير 2 - حساب وجود فيزا غير مدفوعة** (حوالي السطر 155):
+```tsx
+// إضافة متغير جديد
+const hasUnpaidVisa = paymentLines.some(p => p.paymentType === 'visa' && !p.tranzilaPaid);
+
+// تعديل isValid ليأخذ بالاعتبار الفيزا
+const isValid = paymentLines.length > 0 && 
+  totalPaymentAmount > 0 && 
+  !isOverpaying &&
+  !hasUnpaidVisa && // ← إضافة هذا الشرط
+  paymentLines.every(p => {
+    if (p.paymentType === 'cheque' && !p.chequeNumber?.trim()) return false;
+    return p.amount > 0;
+  });
+```
+
+**التغيير 3 - رسالة تنبيه** (قبل زر الإضافة في DialogFooter):
+```tsx
+{hasUnpaidVisa && (
+  <div className="flex items-center gap-2 text-amber-600 text-sm">
+    <AlertCircle className="h-4 w-4" />
+    <span>يرجى إتمام الدفع بالبطاقة أولاً قبل الحفظ</span>
+  </div>
+)}
+```
+
+### الملف 2: `src/components/clients/SinglePolicyPaymentModal.tsx`
+
+| التغيير | التفاصيل |
+|---------|----------|
+| قفل زر الإضافة | تعطيل الزر عند وجود فيزا غير مدفوعة |
+| رسالة تنبيه | إظهار تنبيه واضح |
+
+**التغيير** (حوالي السطر 104-111):
+```tsx
+const hasUnpaidVisa = paymentLines.some(p => p.paymentType === 'visa' && !p.tranzilaPaid);
+
+const isValid = paymentLines.length > 0 && 
+  totalPaymentAmount > 0 && 
+  !isOverpaying &&
+  !hasUnpaidVisa &&
+  paymentLines.every(p => {
+    if (p.paymentType === 'cheque' && !p.chequeNumber?.trim()) return false;
+    return p.amount > 0;
+  });
+```
+
+### الملف 3: `src/components/clients/PackagePaymentModal.tsx`
+
+| التغيير | التفاصيل |
+|---------|----------|
+| قفل زر الإضافة | نفس المنطق - تعطيل عند فيزا غير مدفوعة |
+
+**التغيير** (حوالي السطر 108-115):
+```tsx
+const hasUnpaidVisa = paymentLines.some(p => p.paymentType === 'visa' && !p.tranzilaPaid);
+
+const isValid = paymentLines.length > 0 && 
+  totalPaymentAmount > 0 && 
+  !isOverpaying &&
+  !hasUnpaidVisa &&
+  paymentLines.every(p => {
+    if (p.paymentType === 'cheque' && !p.chequeNumber?.trim()) return false;
+    return p.amount > 0;
+  });
+```
+
+### الملف 4: `src/components/debt/DebtPaymentModal.tsx`
+
+| التغيير | التفاصيل |
+|---------|----------|
+| قفل زر الإضافة | نفس المنطق |
+
+**التغيير** (حوالي السطر 115-122):
+```tsx
+const hasUnpaidVisa = paymentLines.some(p => p.paymentType === 'visa' && !p.tranzilaPaid);
+
+const isValid = paymentLines.length > 0 && 
+  totalPaymentAmount > 0 && 
+  !isOverpaying &&
+  !hasUnpaidVisa &&
+  paymentLines.every(p => {
+    if (p.paymentType === 'cheque' && !p.chequeNumber?.trim()) return false;
+    return p.amount > 0;
+  });
+```
+
+### الملف 5: `src/components/policies/PolicyDetailsDrawer.tsx`
+
+| التغيير | التفاصيل |
+|---------|----------|
+| تحديث فوري | تأكيد أن `handlePaymentsChange` يُحدث كل البيانات |
+
+**الوضع الحالي** (السطر 615-624): الكود موجود ويعمل بشكل صحيح مع delay 150ms + `fetchPolicyDetails()`. **لا حاجة لتغيير**.
+
+### الملف 6: `src/pages/Policies.tsx`
+
+| التغيير | التفاصيل |
+|---------|----------|
+| تحديث فوري بعد إغلاق Drawer | إزالة setTimeout وتحديث فوري |
+
+**التغيير** (السطر 652-655):
+```tsx
+<PolicyDetailsDrawer
+  open={detailsOpen}
+  onOpenChange={setDetailsOpen}
+  policyId={selectedPolicyId}
+  onUpdated={() => {
+    fetchPolicies(); // مباشرة بدون setTimeout
   }}
-  // ... باقي الـ props
+  // ...
 />
 ```
 
-### الملف 2: `src/components/clients/PolicyYearTimeline.tsx`
+### الملف 7: `src/components/clients/PolicyYearTimeline.tsx`
 
 | التغيير | التفاصيل |
 |---------|----------|
-| إصلاح حساب المتبقي | استخدام `totalPrice` بدلاً من `debtPrice` |
-| ترتيب الأحدث أولاً | إضافة `created_at` إلى معايير الترتيب |
-| تمرير branch_id | التأكد من تمرير branch_id للـ PaymentModal |
+| تحديث فوري | التأكد من استدعاء `refreshPaymentInfo` بعد عمليات الدفع |
 
-**تعديل getPackagePaymentStatus (السطور 493-504)**:
-```typescript
-const getPackagePaymentStatus = (pkg: PolicyPackage) => {
-  // حساب المتبقي لكل وثيقة على حدة ثم الجمع
-  let totalRemaining = 0;
-  let totalPaid = 0;
-  
-  pkg.allPolicyIds.forEach(id => {
-    const policyPaid = paymentInfo[id]?.paid || 0;
-    const policyRemaining = paymentInfo[id]?.remaining || 0;
-    totalPaid += policyPaid;
-    totalRemaining += Math.max(0, policyRemaining);
-  });
-  
-  const isPaid = totalRemaining <= 0 && pkg.totalPrice > 0;
-  return { totalPaid, remaining: totalRemaining, isPaid };
-};
-```
-
-**تعديل ترتيب الباقات (السطور 356-365)**:
-```typescript
-// Sort packages within year: 
-// 1. Newly created (last 24h) first
-// 2. Then by status: active → ended → transferred → cancelled
-// 3. Then by newest start date
-packages.sort((a, b) => {
-  const policyA = a.mainPolicy || a.addons[0];
-  const policyB = b.mainPolicy || b.addons[0];
-  
-  // New policies first (created within last 24 hours)
-  const aIsNew = policyA?.created_at && isNewPolicy(policyA.created_at);
-  const bIsNew = policyB?.created_at && isNewPolicy(policyB.created_at);
-  if (aIsNew && !bIsNew) return -1;
-  if (!aIsNew && bIsNew) return 1;
-  
-  // Then by status priority
-  const priorityA = getStatusPriority(a.status);
-  const priorityB = getStatusPriority(b.status);
-  if (priorityA !== priorityB) return priorityA - priorityB;
-  
-  // Then by newest start date
-  const dateA = policyA?.start_date || '';
-  const dateB = policyB?.start_date || '';
-  return new Date(dateB).getTime() - new Date(dateA).getTime();
-});
-```
-
-### الملف 3: `src/components/clients/PolicyRecord interface`
-
-**تعديل interface في PolicyYearTimeline (السطور 39-59)**:
-```typescript
-interface PolicyRecord {
-  // ... الحقول الموجودة
-  branch_id?: string | null;
-  created_at?: string;  // التأكد من وجود هذا الحقل
-}
-```
+**الوضع الحالي** (السطر 627-630): الكود موجود ويستدعي `refreshPaymentInfo()` بعد `onPaymentAdded()`. **لا حاجة لتغيير**.
 
 ---
 
@@ -142,14 +190,18 @@ interface PolicyRecord {
 
 | الملف | التغييرات |
 |-------|----------|
-| `ClientDetails.tsx` | 1. إضافة `created_at, branch_id` للاستعلام 2. تحديث callback ليشمل كل البيانات |
-| `PolicyYearTimeline.tsx` | 1. إصلاح حساب المتبقي 2. ترتيب الوثائق الجديدة أولاً 3. التأكد من تمرير branch_id |
+| `PolicyPaymentsSection.tsx` | 1. إخفاء Visa من Edit 2. قفل زر الإضافة 3. رسالة تنبيه |
+| `SinglePolicyPaymentModal.tsx` | قفل زر الإضافة عند فيزا غير مدفوعة |
+| `PackagePaymentModal.tsx` | قفل زر الإضافة عند فيزا غير مدفوعة |
+| `DebtPaymentModal.tsx` | قفل زر الإضافة عند فيزا غير مدفوعة |
+| `Policies.tsx` | تحديث فوري بعد إغلاق Drawer |
 
 ---
 
 ## النتائج المتوقعة
 
-1. ✅ تحديث فوري للبيانات بعد إضافة/تعديل الدفعات أو الوثائق
-2. ✅ المتبقي يُظهر ₪1,800 (الحساب الصحيح لكل وثيقة على حدة)
-3. ✅ الوثائق الجديدة (آخر 24 ساعة) تظهر أولاً في القائمة
-4. ✅ شارة "جديدة" تظهر بوضوح على البطاقة من الخارج
+1. ✅ لا يمكن تحويل دفعة موجودة إلى "فيزا" في التعديل
+2. ✅ زر "إضافة الدفعات" مقفل حتى يتم دفع الفيزا عبر Tranzila
+3. ✅ رسالة تنبيه واضحة للمستخدم
+4. ✅ تحديث فوري للبيانات في كل أجزاء النظام بعد تعديل/إضافة/حذف الدفعات
+5. ✅ يمكن للمستخدم إضافة/حذف أسطر دفعات أخرى (غير الفيزا غير المدفوعة)

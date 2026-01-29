@@ -1,105 +1,88 @@
 
-# خطة إصلاح النشاط الأخير ووثائق تنتهي قريباً وإضافة ملخص التجديدات
+# خطة إصلاح حساب المدفوع وإضافة نظام الملاحظات
 
-## المشاكل المحددة
+## المشكلة 1: عدم تطابق "المدفوع" بين صفحة العميل ونافذة تسديد الديون
 
-### 1. النشاط الأخير يعرض دفعات الإلزامي (خطأ تجاري)
-**المشكلة**: عند استلام دفعة من وثيقة إلزامي، يظهر إشعار "دفعة مستلمة ₪X من العميل" رغم أن هذا المبلغ يذهب مباشرة لشركة التأمين وليس للوكيل.
+### تحليل المشكلة
 
-**الحل**: استبعاد دفعات وثائق الإلزامي من قسم "النشاط الأخير" في Dashboard.
+| المكان | ما يعرضه | القيمة لـ Kareem Test |
+|--------|---------|---------------------|
+| صفحة العميل | مجموع كل الدفعات (شامل الإلزامي) | ₪5,100 |
+| نافذة تسديد الدين | مجموع الدفعات لغير الإلزامي فقط | ₪100 |
 
-### 2. ودجت "وثائق تنتهي قريباً" لا تتطابق مع صفحة التقارير
-**المشكلة الحالية**: 
-- الودجت تعرض 6 وثائق فقط بدون تفاصيل كافية
-- عند الضغط على "عرض الكل" تذهب لـ `/debt-tracking` بدلاً من `/reports/policies`
-- لا تعرض معلومات حالة التجديد (تم الاتصال، تم إرسال SMS، إلخ)
+**السبب التقني**: 
+- `DebtPaymentModal.tsx` يستثني وثائق ELZAMI (سطر 216)
+- `ClientDetails.tsx` يحسب كل الدفعات (سطور 362-375)
 
-**الحل**: تحديث الودجت لتتطابق مع صفحة التجديدات وتوجيه "عرض الكل" إلى `/reports/policies`
+**المنطق التجاري صحيح**: دفعات الإلزامي تذهب للشركة مباشرة، لكن العرض محير للمستخدم.
 
-### 3. صفحة تقارير الوثائق تفتقد ملخص إحصائي قبل الجدول
-**المشكلة**: المستخدم يريد رؤية ملخص سريع للأرقام قبل الجدول:
-- عدد التجديدات الإجمالي
-- عدد الذين تم إرسال SMS لهم
-- عدد الذين تم الاتصال بهم
-- إلخ
+### الحل المقترح
 
-**الحل**: الملخص الإحصائي موجود بالفعل (سطور 957-984)! لكنه يُعرض فقط عند وجود `renewalsSummary`. سنتحقق من أنه يظهر دائماً.
+تعديل `DebtPaymentModal.tsx` لعرض المدفوع بشكل أوضح:
+1. عرض "المدفوع للدين" بدلاً من "المدفوع"
+2. إضافة tooltip يوضح أن دفعات الإلزامي مستثناة
 
 ---
 
-## التغييرات المطلوبة
+## المشكلة 2: نظام الملاحظات مع التواريخ
 
-### الجزء 1: استبعاد دفعات الإلزامي من النشاط الأخير
+### المتطلبات
 
-| الملف | التغيير |
-|------|---------|
-| `src/components/dashboard/RecentActivity.tsx` | تعديل query الدفعات لجلب `policy_type_parent` واستبعاد `ELZAMI` |
+الإدارة تحتاج لتتبع المتابعات مع العملاء:
+- تسجيل ملاحظة (مثل: "العميل طلب الاتصال غداً")
+- تاريخ إضافة الملاحظة
+- من أضاف الملاحظة
+- إمكانية إضافة عدة ملاحظات لكل عميل
 
-```typescript
-// التعديل المطلوب - إضافة policy_type_parent للـ select
-const { data: payments } = await supabase
-  .from("policy_payments")
-  .select("id, created_at, amount, policies(cancelled, policy_type_parent, clients(full_name, deleted_at))")
-  .order("created_at", { ascending: false })
-  .match(branchFilter)
-  .limit(10);
+### التغييرات المطلوبة
 
-// ثم في الـ loop:
-for (const pay of payments) {
-  // Skip ELZAMI payments - money goes to company, not agent
-  if ((pay.policies as any)?.policy_type_parent === 'ELZAMI') continue;
-  // ... rest of logic
-}
+#### 1. إنشاء جدول جديد: `client_notes`
+
+```sql
+CREATE TABLE public.client_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  note text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  created_by uuid REFERENCES profiles(id),
+  branch_id uuid REFERENCES branches(id)
+);
+
+-- Indexes
+CREATE INDEX idx_client_notes_client ON client_notes(client_id);
+CREATE INDEX idx_client_notes_created ON client_notes(created_at DESC);
+
+-- RLS
+ALTER TABLE client_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "client_notes_select" ON client_notes
+  FOR SELECT TO authenticated
+  USING (can_access_branch(auth.uid(), branch_id));
+
+CREATE POLICY "client_notes_insert" ON client_notes
+  FOR INSERT TO authenticated
+  WITH CHECK (is_active_user(auth.uid()) AND can_access_branch(auth.uid(), branch_id));
+
+CREATE POLICY "client_notes_delete" ON client_notes
+  FOR DELETE TO authenticated
+  USING (is_admin(auth.uid()) OR created_by = auth.uid());
 ```
 
-### الجزء 2: تحديث ودجت "وثائق تنتهي قريباً"
+#### 2. تعديل `ClientDetails.tsx`
 
-| الملف | التغيير |
-|------|---------|
-| `src/components/dashboard/ExpiringPolicies.tsx` | 1. تغيير الرابط من `/debt-tracking` إلى `/reports/policies?tab=renewals`<br>2. إضافة جلب حالة التجديد لكل وثيقة<br>3. عرض badge الحالة (تم إرسال SMS، إلخ) |
+- إضافة قسم الملاحظات في تبويب "الملاحظات"
+- عرض الملاحظات بشكل timeline مع:
+  - التاريخ والوقت
+  - اسم من أضاف الملاحظة
+  - نص الملاحظة
+- زر إضافة ملاحظة جديدة
+- إمكانية حذف الملاحظة (للمدير أو من أضافها)
 
-**التفاصيل:**
-```typescript
-// إضافة للـ interface
-interface ExpiringPolicy {
-  // ... existing fields
-  renewal_status: string | null;
-}
+#### 3. إضافة ملاحظات في صفحة الديون
 
-// تحديث الـ query
-const { data, error } = await supabase
-  .from("policies")
-  .select(`
-    id, end_date, policy_type_parent, insurance_price,
-    client:clients(full_name),
-    car:cars(car_number),
-    company:insurance_companies(name, name_ar),
-    renewal_tracking:policy_renewal_tracking(renewal_status)
-  `)
-  // ... same filters
-
-// تغيير زر "عرض الكل"
-onClick={() => navigate("/reports/policies?tab=renewals")}
-
-// عرض badge الحالة في كل بطاقة
-{policy.renewal_tracking?.[0]?.renewal_status && (
-  <Badge variant="outline" className={statusColor}>
-    {statusLabel}
-  </Badge>
-)}
-```
-
-### الجزء 3: التأكد من ظهور ملخص الإحصائيات
-
-الملخص موجود بالفعل في `PolicyReports.tsx` سطور 957-984، ويعرض:
-- إجمالي المنتهية
-- لم يتم التواصل  
-- تم إرسال SMS
-- تم الاتصال
-- تم التجديد
-- غير مهتم
-
-**الفحص**: التأكد من أن `report_renewals_summary` database function تُرجع البيانات بشكل صحيح.
+- إضافة أيقونة ملاحظة في كل صف عميل
+- عند الضغط: عرض آخر ملاحظات + إمكانية إضافة ملاحظة جديدة
+- عرض آخر ملاحظة في الصف (اختياري)
 
 ---
 
@@ -107,12 +90,47 @@ onClick={() => navigate("/reports/policies?tab=renewals")}
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `src/components/dashboard/RecentActivity.tsx` | تعديل (استبعاد دفعات ELZAMI) |
-| `src/components/dashboard/ExpiringPolicies.tsx` | تعديل (رابط + حالة التجديد) |
+| `supabase/migrations/new_migration.sql` | إنشاء جدول `client_notes` |
+| `src/integrations/supabase/types.ts` | سيتحدث تلقائياً |
+| `src/components/debt/DebtPaymentModal.tsx` | تحسين عرض "المدفوع" |
+| `src/components/clients/ClientDetails.tsx` | إضافة قسم الملاحظات |
+| `src/pages/DebtTracking.tsx` | إضافة أيقونة الملاحظات |
+
+---
+
+## التفاصيل التقنية
+
+### تصميم واجهة الملاحظات في صفحة العميل
+
+```
+┌─────────────────────────────────────────────────┐
+│  📝 الملاحظات                     [+ إضافة ملاحظة] │
+├─────────────────────────────────────────────────┤
+│  ○ 29/01/2026 10:30 - سارة                       │
+│    العميل طلب الاتصال بعد يومين                   │
+│                                          [🗑️]   │
+├─────────────────────────────────────────────────┤
+│  ○ 28/01/2026 14:15 - أحمد                       │
+│    تم التواصل، قال سيدفع الأسبوع القادم          │
+│                                          [🗑️]   │
+├─────────────────────────────────────────────────┤
+│  ○ 25/01/2026 09:00 - سارة                       │
+│    أول تواصل، لم يرد                              │
+│                                          [🗑️]   │
+└─────────────────────────────────────────────────┘
+```
+
+### تصميم ملاحظات في صفحة الديون
+
+- أيقونة 💬 بجانب كل عميل
+- عند الضغط: popover يعرض آخر 3 ملاحظات + حقل إضافة ملاحظة سريعة
+
+---
 
 ## النتائج المتوقعة
 
-- ✅ دفعات الإلزامي لا تظهر في "النشاط الأخير" (لأن المال يذهب للشركة)
-- ✅ زر "عرض الكل" في ودجت الوثائق المنتهية يوجه لصفحة التقارير
-- ✅ عرض حالة التجديد (تم إرسال SMS، تم الاتصال) في ودجت الوثائق المنتهية
-- ✅ ملخص الإحصائيات يظهر في أعلى صفحة التجديدات (موجود مسبقاً)
+- ✅ توضيح أن "المدفوع" في نافذة الدين يشمل غير الإلزامي فقط
+- ✅ إمكانية تسجيل ملاحظات متعددة لكل عميل
+- ✅ كل ملاحظة تحفظ مع التاريخ واسم الموظف
+- ✅ سهولة إضافة ملاحظة سريعة من صفحة الديون
+- ✅ عرض تاريخ المتابعات في صفحة العميل

@@ -61,6 +61,7 @@ import {
   MoreHorizontal,
   FileImage,
   DollarSign,
+  MessageSquare,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -78,6 +79,7 @@ import { ClickablePhone } from '@/components/shared/ClickablePhone';
 import { DebtIndicator } from '@/components/shared/DebtIndicator';
 import { DeleteConfirmDialog } from '@/components/shared/DeleteConfirmDialog';
 import { DebtPaymentModal } from '@/components/debt/DebtPaymentModal';
+import { ClientNotesSection } from '@/components/clients/ClientNotesSection';
 import { cn } from '@/lib/utils';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useBranches } from '@/hooks/useBranches';
@@ -1050,7 +1052,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               السيارات ({cars.length})
             </TabsTrigger>
             <TabsTrigger value="notes" className="gap-1.5">
-              <Edit className="h-4 w-4" />
+              <MessageSquare className="h-4 w-4" />
               الملاحظات
             </TabsTrigger>
           </TabsList>
@@ -1575,12 +1577,25 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
           </TabsContent>
 
           {/* Notes Tab */}
-          <TabsContent value="notes" className="mt-6">
+          <TabsContent value="notes" className="mt-6 space-y-6">
+            {/* Timestamped Notes Section */}
+            <div>
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                سجل المتابعات والملاحظات
+              </h3>
+              <ClientNotesSection 
+                clientId={client.id} 
+                branchId={client.branch_id} 
+              />
+            </div>
+
+            {/* General Notes Section (legacy) */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                   <Edit className="h-5 w-5 text-primary" />
-                  ملاحظات العميل
+                  ملاحظات عامة
                 </h3>
                 {!editingNotes ? (
                   <Button variant="outline" size="sm" onClick={() => setEditingNotes(true)}>
@@ -1616,17 +1631,17 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                 <Textarea
                   value={notesValue}
                   onChange={(e) => setNotesValue(e.target.value)}
-                  placeholder="أضف ملاحظات عن العميل هنا..."
-                  className="min-h-[200px] resize-none"
+                  placeholder="أضف ملاحظات عامة عن العميل هنا..."
+                  className="min-h-[150px] resize-none"
                   autoFocus
                 />
               ) : (
-                <div className="min-h-[200px] p-4 bg-muted/30 rounded-lg">
+                <div className="min-h-[100px] p-4 bg-muted/30 rounded-lg">
                   {client.notes ? (
                     <p className="whitespace-pre-wrap">{client.notes}</p>
                   ) : (
-                    <p className="text-muted-foreground text-center py-12">
-                      لا توجد ملاحظات. اضغط "تعديل" لإضافة ملاحظات.
+                    <p className="text-muted-foreground text-center py-8">
+                      لا توجد ملاحظات عامة. اضغط "تعديل" لإضافة ملاحظات.
                     </p>
                   )}
                 </div>

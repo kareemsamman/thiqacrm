@@ -280,8 +280,30 @@ export function PolicyYearTimeline({
 
       // Create packages from grouped policies
       groupedByGroupId.forEach((groupPolicies) => {
-        const mainPolicy = groupPolicies.find(p => MAIN_POLICY_TYPES.includes(p.policy_type_parent)) || null;
-        const addons = groupPolicies.filter(p => ADDON_POLICY_TYPES.includes(p.policy_type_parent));
+        // Find main policies - prioritize THIRD_FULL over ELZAMI
+        const mainPolicies = groupPolicies.filter(p => MAIN_POLICY_TYPES.includes(p.policy_type_parent));
+        let mainPolicy: PolicyRecord | null = null;
+        const members: PolicyRecord[] = [];
+        
+        if (mainPolicies.length > 0) {
+          // Prioritize THIRD_FULL as main, then ELZAMI, then others
+          mainPolicy = mainPolicies.find(p => p.policy_type_parent === 'THIRD_FULL') 
+            || mainPolicies.find(p => p.policy_type_parent === 'ELZAMI')
+            || mainPolicies[0];
+          
+          // Other main policies become "members" (like addons but they're main types)
+          mainPolicies.forEach(p => {
+            if (p.id !== mainPolicy!.id) {
+              members.push(p);
+            }
+          });
+        }
+        
+        // Real addons (ROAD_SERVICE, ACCIDENT_FEE_EXEMPTION)
+        const realAddons = groupPolicies.filter(p => ADDON_POLICY_TYPES.includes(p.policy_type_parent));
+        
+        // Combine members + real addons
+        const addons = [...members, ...realAddons];
         const allIds = groupPolicies.map(p => p.id);
         
         // Package status is determined by main policy, or first addon
@@ -666,16 +688,28 @@ function PolicyPackageCard({
             </Badge>
           )}
 
-          {/* Policy Type */}
-          <Badge className={cn("border text-xs font-semibold", policyTypeColors[policy.policy_type_parent])}>
-            {getTypeLabel()}
-          </Badge>
-
-          {/* Package indicator */}
-          {isPackage && (
-            <Badge variant="outline" className="gap-1 text-xs bg-primary/5 border-primary/20 text-primary">
-              <Zap className="h-3 w-3" />
-              باقة
+          {/* Policy Type - show as separate badges for packages */}
+          {isPackage && pkg.mainPolicy ? (
+            <div className="flex flex-wrap items-center gap-1">
+              <Badge className={cn("border text-xs font-semibold", policyTypeColors[pkg.mainPolicy.policy_type_parent])}>
+                {policyTypeLabels[pkg.mainPolicy.policy_type_parent] || pkg.mainPolicy.policy_type_parent}
+              </Badge>
+              {pkg.addons.map((addon, idx) => (
+                <span key={addon.id} className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-xs">+</span>
+                  <Badge className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
+                    {policyTypeLabels[addon.policy_type_parent] || addon.policy_type_parent}
+                  </Badge>
+                </span>
+              ))}
+              <Badge variant="outline" className="gap-1 text-xs bg-primary/5 border-primary/20 text-primary mr-1">
+                <Zap className="h-3 w-3" />
+                باقة
+              </Badge>
+            </div>
+          ) : (
+            <Badge className={cn("border text-xs font-semibold", policyTypeColors[policy.policy_type_parent])}>
+              {getTypeLabel()}
             </Badge>
           )}
 

@@ -287,7 +287,7 @@ const WordPressImport = () => {
           policy_id: policy.id,
           payment_type: 'cash' as const,
           amount: policy.insurance_price || 0,
-          date: policy.start_date || new Date().toISOString().split('T')[0],
+          payment_date: policy.start_date || new Date().toISOString().split('T')[0],
           refused: false,
           source: 'system' as const,
           locked: true,

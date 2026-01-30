@@ -1,189 +1,292 @@
 
-# خطة: تحسين UX اختيار السيارات وإصلاح مشكلة WhatsApp
 
-## المشاكل المحددة
+# خطة: نظام المهام اليومية الاحترافي
 
-| # | المشكلة | الوصف |
-|---|---------|-------|
-| 1 | UX السيارات ضعيف | الـ Badges الحالية صغيرة وغير واضحة، تحتاج لتصميم أكبر مع Checkboxes |
-| 2 | WhatsApp محظور | لا يزال الرابط يُحظر في بعض الحالات |
+## نظرة عامة
+
+نظام مهام متكامل يتيح للعاملين والمديرين إنشاء مهام لأنفسهم ولغيرهم مع تنبيهات فورية عند حلول موعد المهمة.
 
 ---
 
-## التغييرات المطلوبة
+## المتطلبات الوظيفية
 
-### 1) تحسين واجهة اختيار السيارات
+| الميزة | الوصف |
+|--------|-------|
+| إنشاء مهام | المدير يمكنه إنشاء مهام لنفسه وللموظفين، الموظف يمكنه إنشاء مهام لنفسه ولغيره |
+| تحديد الموعد | تاريخ + وقت محدد للمهمة |
+| عرض المهام | عرض مهام اليوم، الأمس، الغد، أي تاريخ |
+| التنبيهات | popup تلقائي عند حلول موعد المهمة |
+| الإنجاز | تعليم المهام كمنجزة |
+| التنقل | إضافة الصفحة في القائمة الجانبية |
 
-**الملف:** `src/components/debt/DebtPaymentModal.tsx`
+---
 
-**الوضع الحالي (السطور 668-691):**
-```tsx
-{uniqueCars.length > 1 && (
-  <div className="flex flex-wrap items-center gap-2">
-    <Label className="text-sm whitespace-nowrap">السيارات:</Label>
-    <div className="flex flex-wrap gap-1">
-      <Badge ...>الكل</Badge>
-      {uniqueCars.map(car => (
-        <Badge ...>{car}</Badge>
-      ))}
-    </div>
-  </div>
-)}
-```
+## هيكل قاعدة البيانات
 
-**التصميم الجديد:**
-- صندوق منفصل واضح بخلفية مميزة
-- استخدام Checkbox بدلاً من Badge chips
-- حجم أكبر وأوضح
-- عرض رقم السيارة بخط أكبر
-- إضافة إجمالي المبلغ لكل سيارة
+### جدول: `tasks`
 
-```tsx
-{uniqueCars.length > 0 && (
-  <Card className="border-2 border-dashed">
-    <CardHeader className="p-3 pb-0">
-      <Label className="text-base font-semibold flex items-center gap-2">
-        <Car className="h-4 w-4" />
-        اختر السيارة للدفع
-      </Label>
-    </CardHeader>
-    <CardContent className="p-3 pt-2">
-      <div className="space-y-2">
-        {/* خيار كل السيارات */}
-        <div 
-          onClick={() => setSelectedCars([])}
-          className={cn(
-            "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-            selectedCars.length === 0 
-              ? "border-primary bg-primary/5" 
-              : "border-muted hover:border-primary/50"
-          )}
-        >
-          <Checkbox checked={selectedCars.length === 0} />
-          <div className="flex-1">
-            <p className="font-medium">كل السيارات</p>
-            <p className="text-sm text-muted-foreground">
-              {uniqueCars.length} سيارات - إجمالي ₪{totalRemaining}
-            </p>
-          </div>
-        </div>
-        
-        {/* قائمة السيارات */}
-        {uniqueCars.map(car => {
-          const carPolicies = policies.filter(p => p.carNumber === car);
-          const carTotal = carPolicies.reduce((sum, p) => sum + p.remaining, 0);
-          const isSelected = selectedCars.includes(car);
-          
-          return (
-            <div 
-              key={car}
-              onClick={() => toggleCar(car)}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-                isSelected 
-                  ? "border-primary bg-primary/5" 
-                  : "border-muted hover:border-primary/50"
-              )}
-            >
-              <Checkbox checked={isSelected} />
-              <div className="flex-1">
-                <p className="font-bold text-lg font-mono">{car}</p>
-                <p className="text-sm text-muted-foreground">
-                  {carPolicies.length} وثائق - ₪{carTotal.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </CardContent>
-  </Card>
-)}
-```
-
-### 2) إصلاح مشكلة WhatsApp
-
-**التحليل:**
-- الكود الحالي يستخدم `document.createElement('a')` وهو صحيح
-- لكن المشكلة قد تكون بسبب:
-  1. تشغيل داخل iframe في Lovable preview
-  2. حماية sandbox في بعض المتصفحات
-  3. الرابط يُحظر على مستوى iframe permissions
-
-**الحل:** إضافة fallback مع `window.top.location` أو عرض الرابط للنسخ
-
-**الملف:** `src/pages/DebtTracking.tsx`
-
-```tsx
-const openWhatsAppReminder = (client: ClientDebt) => {
-  if (!client.phone_number) return;
+```sql
+CREATE TABLE public.tasks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
   
-  // تحويل الرقم لصيغة دولية
-  let phone = client.phone_number.replace(/[\s\-\(\)]/g, '');
-  if (phone.startsWith('0')) {
-    phone = '972' + phone.slice(1);
-  } else if (!phone.startsWith('972') && !phone.startsWith('+972')) {
-    phone = '972' + phone;
-  }
-  phone = phone.replace('+', '');
+  -- الأشخاص
+  created_by uuid NOT NULL REFERENCES profiles(id),
+  assigned_to uuid NOT NULL REFERENCES profiles(id),
   
-  const message = `مرحباً ${client.client_name}، لديك مبلغ متبقي ${client.total_owed.toLocaleString()} شيكل. يرجى التواصل معنا لتسوية المبلغ.`;
-  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  -- التوقيت
+  due_date date NOT NULL,
+  due_time time NOT NULL,
   
-  // محاولة أولى: استخدام window.open مباشرة
-  const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  -- الحالة
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled')),
+  completed_at timestamp with time zone,
+  completed_by uuid REFERENCES profiles(id),
   
-  // محاولة ثانية: إذا فشل window.open
-  if (!newWindow || newWindow.closed) {
-    // محاولة باستخدام top window (للخروج من iframe)
-    try {
-      if (window.top && window.top !== window) {
-        window.top.location.href = whatsappUrl;
-        return;
-      }
-    } catch (e) {
-      // تجاهل خطأ cross-origin
-    }
-    
-    // Fallback: نسخ الرابط للحافظة
-    navigator.clipboard.writeText(whatsappUrl).then(() => {
-      toast({
-        title: "تم نسخ الرابط",
-        description: "تعذر فتح WhatsApp تلقائياً. تم نسخ الرابط للحافظة.",
-      });
-    }).catch(() => {
-      // آخر محاولة: عرض الرابط في نافذة
-      toast({
-        title: "افتح WhatsApp يدوياً",
-        description: "انسخ الرابط: " + whatsappUrl.substring(0, 50) + "...",
-      });
-    });
-  }
-};
+  -- التنبيه
+  reminder_shown boolean DEFAULT false,
+  
+  -- الفرع
+  branch_id uuid REFERENCES branches(id),
+  
+  -- التتبع
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- RLS
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+
+-- سياسات الوصول: المستخدم يرى المهام المسندة إليه أو التي أنشأها
+CREATE POLICY "Users can view their tasks"
+  ON public.tasks FOR SELECT
+  USING (
+    is_active_user(auth.uid()) AND 
+    (assigned_to = auth.uid() OR created_by = auth.uid() OR has_role(auth.uid(), 'admin'))
+  );
+
+CREATE POLICY "Users can create tasks"
+  ON public.tasks FOR INSERT
+  WITH CHECK (is_active_user(auth.uid()));
+
+CREATE POLICY "Users can update their assigned tasks"
+  ON public.tasks FOR UPDATE
+  USING (
+    is_active_user(auth.uid()) AND 
+    (assigned_to = auth.uid() OR created_by = auth.uid() OR has_role(auth.uid(), 'admin'))
+  );
+
+CREATE POLICY "Task creators can delete"
+  ON public.tasks FOR DELETE
+  USING (
+    is_active_user(auth.uid()) AND 
+    (created_by = auth.uid() OR has_role(auth.uid(), 'admin'))
+  );
+
+-- Index للأداء
+CREATE INDEX idx_tasks_assigned_to ON public.tasks(assigned_to);
+CREATE INDEX idx_tasks_due_date ON public.tasks(due_date);
+CREATE INDEX idx_tasks_status ON public.tasks(status);
+
+-- تفعيل Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
 ```
 
 ---
 
-## ملخص الملفات المعدلة
+## هيكل الملفات الجديدة
 
-| الملف | التغيير |
-|-------|---------|
-| `src/components/debt/DebtPaymentModal.tsx` | تحسين UX اختيار السيارات بـ Checkboxes وتصميم أكبر |
-| `src/pages/DebtTracking.tsx` | إضافة fallback logic لـ WhatsApp مع نسخ الرابط |
+```text
+src/
+├── pages/
+│   └── Tasks.tsx                    # صفحة المهام الرئيسية
+├── components/tasks/
+│   ├── TaskDrawer.tsx               # إنشاء/تعديل مهمة
+│   ├── TaskCard.tsx                 # بطاقة عرض المهمة
+│   ├── TaskPopupReminder.tsx        # popup التنبيه الفوري
+│   ├── TaskFilters.tsx              # فلاتر التاريخ
+│   └── UserSelect.tsx               # اختيار المستخدم المسند إليه
+├── hooks/
+│   └── useTasks.tsx                 # Hook لإدارة المهام
+└── components/layout/
+    └── SidebarTaskBadge.tsx         # Badge عدد المهام المعلقة
+```
 
 ---
 
-## النتيجة المتوقعة
+## التفاصيل التقنية
 
-### السيارات
-- صناديق كبيرة واضحة لكل سيارة
-- Checkbox لاختيار متعدد
-- عرض عدد الوثائق والمبلغ لكل سيارة
-- خيار "كل السيارات" واضح في الأعلى
-- تأثيرات hover وانتقالات سلسة
+### 1) Hook المهام (`src/hooks/useTasks.tsx`)
 
-### WhatsApp
-- محاولة فتح نافذة جديدة أولاً
-- fallback للخروج من iframe
-- نسخ الرابط للحافظة كحل أخير
-- رسالة toast توضيحية عند الفشل
+```typescript
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  created_by: string;
+  assigned_to: string;
+  due_date: string;
+  due_time: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  reminder_shown: boolean;
+  created_at: string;
+  // Joined data
+  creator_name?: string;
+  assignee_name?: string;
+}
+
+// الوظائف:
+- fetchTasks(date?: Date) - جلب المهام لتاريخ معين
+- createTask(task) - إنشاء مهمة جديدة
+- updateTask(id, updates) - تحديث مهمة
+- completeTask(id) - إنجاز مهمة
+- deleteTask(id) - حذف مهمة
+- markReminderShown(id) - تعليم التنبيه كمعروض
+```
+
+### 2) صفحة المهام (`src/pages/Tasks.tsx`)
+
+**الميزات:**
+- تبويبات: مهامي | أنشأتها | الكل (للمدير)
+- تنقل بين التواريخ (أمس، اليوم، غداً، اختيار تاريخ)
+- عرض المهام في بطاقات أو جدول
+- إحصائيات: معلقة، منجزة، متأخرة
+- فلتر حسب الحالة
+
+**التصميم:**
+```text
+┌─────────────────────────────────────────────────────────┐
+│  المهام اليومية                        [+ مهمة جديدة] │
+├─────────────────────────────────────────────────────────┤
+│  [مهامي] [أنشأتها] [الكل]                              │
+├─────────────────────────────────────────────────────────┤
+│  [◀ أمس] [📅 اليوم: 30/01/2026] [غداً ▶]              │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
+│  │ 🕐 معلقة   │ │ ✅ منجزة  │ │ ⚠️ متأخرة │       │
+│  │    5       │ │    12      │ │    2        │       │
+│  └─────────────┘ └─────────────┘ └─────────────┘       │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ 🔔 09:00  مراجعة وثيقة العميل أحمد            │   │
+│  │          من: أدمن  →  إلى: موظف 1              │   │
+│  │                              [✓ إنجاز] [⋮]    │   │
+│  └─────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ 🔔 11:30  الاتصال بشركة التأمين               │   │
+│  │          أنشأتها لنفسك                          │   │
+│  │                              [✓ إنجاز] [⋮]    │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 3) Drawer إنشاء المهمة (`src/components/tasks/TaskDrawer.tsx`)
+
+**الحقول:**
+- عنوان المهمة (مطلوب)
+- الوصف/التفاصيل (اختياري)
+- مسندة إلى: Select من قائمة المستخدمين النشطين
+- التاريخ: DatePicker
+- الوقت: Select أو Input للوقت
+
+### 4) Popup التنبيه (`src/components/tasks/TaskPopupReminder.tsx`)
+
+**آلية العمل:**
+- Hook يفحص كل 30 ثانية إذا هناك مهام حان وقتها
+- إذا وجد مهمة `due_date + due_time <= now` و `status = pending` و `reminder_shown = false`
+- يعرض Dialog مع:
+  - عنوان المهمة
+  - الوصف
+  - من أنشأها
+  - أزرار: [إنجاز الآن] [تذكيري لاحقاً] [فتح المهام]
+- صوت تنبيه
+- يحدث `reminder_shown = true` لتجنب التكرار
+
+**الكود:**
+```typescript
+// في MainLayout.tsx أو App.tsx
+<TaskPopupReminder />
+
+// المكون يستخدم interval للفحص الدوري
+useEffect(() => {
+  const interval = setInterval(checkDueTasks, 30000);
+  return () => clearInterval(interval);
+}, []);
+```
+
+### 5) Badge في الشريط الجانبي (`src/components/layout/SidebarTaskBadge.tsx`)
+
+- يعرض عدد المهام المعلقة لليوم
+- لون مختلف (بنفسجي/cyan) للتمييز
+
+### 6) تعديل Sidebar
+
+```tsx
+// إضافة في getNavigation:
+{ name: "المهام", href: "/tasks", icon: ListTodo },
+
+// مع Badge:
+{isTasks && <SidebarTaskBadge collapsed={collapsed} />}
+```
+
+### 7) تعديل App.tsx
+
+```tsx
+<Route path="/tasks" element={
+  <ProtectedRoute>
+    <Tasks />
+  </ProtectedRoute>
+} />
+```
+
+---
+
+## Realtime Updates
+
+```typescript
+// في useTasks.tsx
+useEffect(() => {
+  const channel = supabase
+    .channel('tasks-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'tasks',
+      filter: `assigned_to=eq.${user.id}`,
+    }, () => {
+      refetch();
+    })
+    .subscribe();
+  
+  return () => supabase.removeChannel(channel);
+}, [user]);
+```
+
+---
+
+## ملخص الملفات
+
+| الملف | النوع | الوصف |
+|-------|-------|-------|
+| Migration SQL | جديد | إنشاء جدول tasks مع RLS |
+| `src/pages/Tasks.tsx` | جديد | صفحة المهام الرئيسية |
+| `src/hooks/useTasks.tsx` | جديد | Hook لإدارة المهام |
+| `src/components/tasks/TaskDrawer.tsx` | جديد | Drawer إنشاء/تعديل مهمة |
+| `src/components/tasks/TaskCard.tsx` | جديد | بطاقة عرض المهمة |
+| `src/components/tasks/TaskPopupReminder.tsx` | جديد | Popup التنبيه الفوري |
+| `src/components/layout/SidebarTaskBadge.tsx` | جديد | Badge عدد المهام |
+| `src/components/layout/Sidebar.tsx` | تعديل | إضافة رابط المهام |
+| `src/App.tsx` | تعديل | إضافة Route |
+| `src/components/layout/MainLayout.tsx` | تعديل | إضافة TaskPopupReminder |
+
+---
+
+## ميزات إضافية مستقبلية
+
+- تكرار المهام (يومي/أسبوعي)
+- أولوية المهمة (عاجل/عادي/منخفض)
+- ربط المهمة بعميل أو وثيقة
+- تعليقات على المهام
+- إرسال SMS للموظف عند إسناد مهمة
+

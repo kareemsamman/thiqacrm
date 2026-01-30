@@ -37,22 +37,39 @@ export function PolicySuccessDialog({
   const handlePrintInvoice = async () => {
     setPrintingInvoice(true);
     try {
-      // Use the appropriate invoice endpoint based on package type
-      const functionName = isPackage ? 'send-package-invoice-sms' : 'send-invoice-sms';
+      let data, error;
       
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: isPackage 
-          ? { group_id: policyId, skip_sms: true }
-          : { policyId, phoneNumber: clientPhone, skip_sms: true }
-      });
+      if (isPackage) {
+        // For package: first get all policy IDs in the group
+        const { data: groupPolicies, error: fetchError } = await supabase
+          .from('policies')
+          .select('id')
+          .eq('group_id', policyId);
+        
+        if (fetchError) throw fetchError;
+        
+        const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+        
+        const result = await supabase.functions.invoke('send-package-invoice-sms', {
+          body: { policy_ids: policyIds, skip_sms: true }
+        });
+        data = result.data;
+        error = result.error;
+      } else {
+        // Single policy
+        const result = await supabase.functions.invoke('send-invoice-sms', {
+          body: { policy_id: policyId, skip_sms: true }
+        });
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
 
       // Open the invoice URL in a new tab
-      if (data?.invoice_url) {
-        window.open(data.invoice_url, '_blank');
-      } else if (data?.invoiceUrl) {
-        window.open(data.invoiceUrl, '_blank');
+      const invoiceUrl = data?.package_invoice_url || data?.ab_invoice_url || data?.invoice_url;
+      if (invoiceUrl) {
+        window.open(invoiceUrl, '_blank');
       } else {
         toast.error("لم يتم العثور على رابط الفاتورة");
       }
@@ -72,13 +89,29 @@ export function PolicySuccessDialog({
 
     setSendingSms(true);
     try {
-      const functionName = isPackage ? 'send-package-invoice-sms' : 'send-invoice-sms';
+      let error;
       
-      const { error } = await supabase.functions.invoke(functionName, {
-        body: isPackage 
-          ? { group_id: policyId, force_resend: true }
-          : { policyId, phoneNumber: clientPhone, force_resend: true }
-      });
+      if (isPackage) {
+        // For package: first get all policy IDs in the group
+        const { data: groupPolicies, error: fetchError } = await supabase
+          .from('policies')
+          .select('id')
+          .eq('group_id', policyId);
+        
+        if (fetchError) throw fetchError;
+        
+        const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+        
+        const result = await supabase.functions.invoke('send-package-invoice-sms', {
+          body: { policy_ids: policyIds }
+        });
+        error = result.error;
+      } else {
+        const result = await supabase.functions.invoke('send-invoice-sms', {
+          body: { policy_id: policyId, force_resend: true }
+        });
+        error = result.error;
+      }
 
       if (error) throw error;
 

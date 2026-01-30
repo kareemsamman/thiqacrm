@@ -63,6 +63,7 @@ import {
   DollarSign,
   MessageSquare,
   Loader2,
+  Receipt,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -282,6 +283,9 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
   
   // Comprehensive invoice state
   const [generatingComprehensiveInvoice, setGeneratingComprehensiveInvoice] = useState(false);
+  
+  // Individual payment receipt state
+  const [generatingReceipt, setGeneratingReceipt] = useState<string | null>(null);
 
   const fetchBroker = async () => {
     if (!client.broker_id) {
@@ -730,6 +734,28 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
       toast.error("فشل في توليد الفاتورة الشاملة");
     } finally {
       setGeneratingComprehensiveInvoice(false);
+    }
+  };
+
+  const handleGeneratePaymentReceipt = async (paymentId: string) => {
+    setGeneratingReceipt(paymentId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-payment-receipt', {
+        body: { payment_id: paymentId }
+      });
+
+      if (error) throw error;
+
+      if (data?.receipt_url) {
+        window.open(data.receipt_url, '_blank');
+      } else {
+        toast.error("لم يتم العثور على رابط الإيصال");
+      }
+    } catch (error) {
+      console.error('Generate receipt error:', error);
+      toast.error("فشل في توليد الإيصال");
+    } finally {
+      setGeneratingReceipt(null);
     }
   };
 
@@ -1482,6 +1508,17 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => handleGeneratePaymentReceipt(payment.id)}
+                                  disabled={generatingReceipt === payment.id}
+                                >
+                                  {generatingReceipt === payment.id ? (
+                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                  ) : (
+                                    <Receipt className="h-4 w-4 ml-2" />
+                                  )}
+                                  إيصال
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
                                   <Edit className="h-4 w-4 ml-2" />
                                   تعديل

@@ -29,17 +29,20 @@ import {
   Shield,
   Megaphone,
   AlertTriangle,
+  ListTodo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarNotificationBadge } from "./SidebarNotificationBadge";
 import { SidebarDebtBadge } from "./SidebarDebtBadge";
+import { SidebarTaskBadge } from "./SidebarTaskBadge";
 
 // Navigation items - some are admin-only
 const getNavigation = (isAdmin: boolean) => {
   const baseNav = [
     { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
+    { name: "المهام", href: "/tasks", icon: ListTodo },
     { name: "العملاء", href: "/clients", icon: Users },
     { name: "السيارات", href: "/cars", icon: Car },
     { name: "الوثائق", href: "/policies", icon: FileText },
@@ -144,6 +147,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
           const isActiveRoute = location.pathname === item.href;
           const isNotifications = item.href === '/notifications';
           const isDebtTracking = item.href === '/debt-tracking';
+          const isTasks = item.href === '/tasks';
           return (
             <NavLink
               key={item.name}
@@ -161,6 +165,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               {!collapsed && <span>{item.name}</span>}
               {isNotifications && <SidebarNotificationBadge collapsed={collapsed} />}
               {isDebtTracking && <SidebarDebtBadge collapsed={collapsed} />}
+              {isTasks && <SidebarTaskBadge collapsed={collapsed} />}
             </NavLink>
           );
         })}

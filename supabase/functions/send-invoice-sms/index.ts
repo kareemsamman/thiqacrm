@@ -47,6 +47,11 @@ function normalizePhoneForWhatsapp(phone: string): string {
   return digits;
 }
 
+interface PhoneLink {
+  phone: string;
+  href: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

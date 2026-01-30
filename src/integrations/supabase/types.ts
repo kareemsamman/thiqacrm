@@ -3255,6 +3255,7 @@ export type Database = {
           cancellation_sms_template: string | null
           company_email: string | null
           company_location: string | null
+          company_phone_links: Json | null
           company_phones: string[] | null
           company_whatsapp: string | null
           created_at: string
@@ -3289,6 +3290,7 @@ export type Database = {
           cancellation_sms_template?: string | null
           company_email?: string | null
           company_location?: string | null
+          company_phone_links?: Json | null
           company_phones?: string[] | null
           company_whatsapp?: string | null
           created_at?: string
@@ -3323,6 +3325,7 @@ export type Database = {
           cancellation_sms_template?: string | null
           company_email?: string | null
           company_location?: string | null
+          company_phone_links?: Json | null
           company_phones?: string[] | null
           company_whatsapp?: string | null
           created_at?: string

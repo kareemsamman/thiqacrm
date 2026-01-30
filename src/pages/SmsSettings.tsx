@@ -35,10 +35,14 @@ interface SmsSettings {
   license_expiry_sms_template?: string | null;
 }
 
+interface PhoneLink {
+  phone: string;
+  href: string;
+}
+
 interface CompanySettings {
   company_email: string;
-  company_phones: string[];
-  company_whatsapp: string;
+  company_phone_links: PhoneLink[];
   company_location: string;
 }
 
@@ -87,11 +91,11 @@ export default function SmsSettings() {
   
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
     company_email: "",
-    company_phones: [],
-    company_whatsapp: "",
+    company_phone_links: [],
     company_location: "",
   });
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
+  const [newPhoneHref, setNewPhoneHref] = useState("");
 
   useEffect(() => {
     fetchSettings();
@@ -130,8 +134,7 @@ export default function SmsSettings() {
         // Load company settings
         setCompanySettings({
           company_email: data.company_email || "",
-          company_phones: data.company_phones || [],
-          company_whatsapp: data.company_whatsapp || "",
+          company_phone_links: Array.isArray(data.company_phone_links) ? (data.company_phone_links as unknown as PhoneLink[]) : [],
           company_location: data.company_location || "",
         });
 
@@ -177,8 +180,7 @@ export default function SmsSettings() {
             license_expiry_sms_enabled: settings.license_expiry_sms_enabled ?? false,
             license_expiry_sms_template: settings.license_expiry_sms_template ?? null,
             company_email: companySettings.company_email || null,
-            company_phones: companySettings.company_phones.length > 0 ? companySettings.company_phones : null,
-            company_whatsapp: companySettings.company_whatsapp || null,
+            company_phone_links: companySettings.company_phone_links.length > 0 ? JSON.parse(JSON.stringify(companySettings.company_phone_links)) : null,
             company_location: companySettings.company_location || null,
           })
           .eq("id", settings.id);
@@ -205,8 +207,7 @@ export default function SmsSettings() {
             license_expiry_sms_enabled: settings.license_expiry_sms_enabled ?? false,
             license_expiry_sms_template: settings.license_expiry_sms_template ?? null,
             company_email: companySettings.company_email || null,
-            company_phones: companySettings.company_phones.length > 0 ? companySettings.company_phones : null,
-            company_whatsapp: companySettings.company_whatsapp || null,
+            company_phone_links: companySettings.company_phone_links.length > 0 ? JSON.parse(JSON.stringify(companySettings.company_phone_links)) : null,
             company_location: companySettings.company_location || null,
           })
           .select()
@@ -703,49 +704,72 @@ export default function SmsSettings() {
                   />
                 </div>
 
-                {/* Phone Numbers */}
-                <div className="space-y-2">
-                  <Label>أرقام الهواتف</Label>
-                  <div className="space-y-2">
-                    {companySettings.company_phones.map((phone, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Input
-                          value={phone}
-                          onChange={(e) => {
-                            const newPhones = [...companySettings.company_phones];
-                            newPhones[index] = e.target.value;
-                            setCompanySettings((prev) => ({ ...prev, company_phones: newPhones }));
-                          }}
-                          className="ltr-input"
-                        />
+                {/* Phone Numbers with Custom Links */}
+                <div className="space-y-3">
+                  <Label>أرقام الهواتف (مع روابط مخصصة)</Label>
+                  <div className="space-y-3">
+                    {companySettings.company_phone_links.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/20">
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            value={item.phone}
+                            onChange={(e) => {
+                              const newLinks = [...companySettings.company_phone_links];
+                              newLinks[index] = { ...newLinks[index], phone: e.target.value };
+                              setCompanySettings((prev) => ({ ...prev, company_phone_links: newLinks }));
+                            }}
+                            placeholder="رقم الهاتف (مثل: 026307377)"
+                            className="ltr-input"
+                          />
+                          <Input
+                            value={item.href}
+                            onChange={(e) => {
+                              const newLinks = [...companySettings.company_phone_links];
+                              newLinks[index] = { ...newLinks[index], href: e.target.value };
+                              setCompanySettings((prev) => ({ ...prev, company_phone_links: newLinks }));
+                            }}
+                            placeholder="الرابط (مثل: tel:026307377 أو https://wa.me/972...)"
+                            className="ltr-input text-xs"
+                          />
+                        </div>
                         <Button
                           variant="destructive"
                           size="icon"
                           onClick={() => {
-                            const newPhones = companySettings.company_phones.filter((_, i) => i !== index);
-                            setCompanySettings((prev) => ({ ...prev, company_phones: newPhones }));
+                            const newLinks = companySettings.company_phone_links.filter((_, i) => i !== index);
+                            setCompanySettings((prev) => ({ ...prev, company_phone_links: newLinks }));
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={newPhoneNumber}
-                        onChange={(e) => setNewPhoneNumber(e.target.value)}
-                        placeholder="أضف رقم جديد..."
-                        className="ltr-input"
-                      />
+                    <div className="flex items-start gap-2 p-3 border rounded-lg border-dashed">
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          value={newPhoneNumber}
+                          onChange={(e) => setNewPhoneNumber(e.target.value)}
+                          placeholder="رقم الهاتف الجديد..."
+                          className="ltr-input"
+                        />
+                        <Input
+                          value={newPhoneHref}
+                          onChange={(e) => setNewPhoneHref(e.target.value)}
+                          placeholder="الرابط (tel: أو https://wa.me/...)"
+                          className="ltr-input text-xs"
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         onClick={() => {
                           if (newPhoneNumber.trim()) {
+                            const href = newPhoneHref.trim() || `tel:${newPhoneNumber.replace(/[^0-9+]/g, '')}`;
                             setCompanySettings((prev) => ({
                               ...prev,
-                              company_phones: [...prev.company_phones, newPhoneNumber.trim()],
+                              company_phone_links: [...prev.company_phone_links, { phone: newPhoneNumber.trim(), href }],
                             }));
                             setNewPhoneNumber("");
+                            setNewPhoneHref("");
                           }
                         }}
                       >
@@ -755,24 +779,7 @@ export default function SmsSettings() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    يمكنك إضافة أكثر من رقم هاتف
-                  </p>
-                </div>
-
-                {/* WhatsApp */}
-                <div className="space-y-2">
-                  <Label htmlFor="company_whatsapp">رقم الواتساب</Label>
-                  <Input
-                    id="company_whatsapp"
-                    placeholder="0521234567"
-                    value={companySettings.company_whatsapp}
-                    onChange={(e) =>
-                      setCompanySettings((prev) => ({ ...prev, company_whatsapp: e.target.value }))
-                    }
-                    className="ltr-input"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    الرقم الذي سيظهر كرابط واتساب في الفواتير
+                    كل رقم يمكن أن يكون له رابط مختلف: <code className="bg-muted px-1 rounded">tel:</code> للاتصال أو <code className="bg-muted px-1 rounded">https://wa.me/972...</code> للواتساب
                   </p>
                 </div>
 
@@ -790,7 +797,7 @@ export default function SmsSettings() {
                 </div>
 
                 {/* Preview */}
-                {(companySettings.company_email || companySettings.company_phones.length > 0 || companySettings.company_whatsapp || companySettings.company_location) && (
+                {(companySettings.company_email || companySettings.company_phone_links.length > 0 || companySettings.company_location) && (
                   <div className="space-y-2">
                     <Label>معاينة كيف ستظهر البيانات</Label>
                     <div className="border rounded-lg p-4 bg-muted/30 text-center">
@@ -802,16 +809,17 @@ export default function SmsSettings() {
                             <span className="text-primary">{companySettings.company_email}</span>
                           </div>
                         )}
-                        {companySettings.company_phones.length > 0 && (
+                        {companySettings.company_phone_links.length > 0 && (
                           <div className="flex items-center gap-2">
                             <span>📞</span>
-                            <span>{companySettings.company_phones.join(' | ')}</span>
-                          </div>
-                        )}
-                        {companySettings.company_whatsapp && (
-                          <div className="flex items-center gap-2">
-                            <span>💬</span>
-                            <span className="text-primary">واتساب</span>
+                            <div className="flex items-center gap-1">
+                              {companySettings.company_phone_links.map((item, idx) => (
+                                <span key={idx}>
+                                  <a href={item.href} className="text-primary underline">{item.phone}</a>
+                                  {idx < companySettings.company_phone_links.length - 1 && ' | '}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
                         {companySettings.company_location && (

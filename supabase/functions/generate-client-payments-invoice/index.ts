@@ -49,11 +49,16 @@ function normalizePhoneForWhatsapp(phone: string): string {
   return digits;
 }
 
+interface PhoneLink {
+  phone: string;
+  href: string;
+}
+
 function buildComprehensiveInvoiceHtml(
   client: any,
   payments: any[],
   totals: { totalInsurance: number; totalPaid: number; totalRemaining: number },
-  companySettings: { company_email?: string; company_phones?: string[]; company_whatsapp?: string; company_location?: string }
+  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string }
 ): string {
   // Build single unified payments table with car number
   const paymentRows = payments.map(payment => {
@@ -93,9 +98,10 @@ function buildComprehensiveInvoiceHtml(
     `;
   }).join('');
 
-  // Build contact info section
-  const whatsappNormalized = normalizePhoneForWhatsapp(companySettings.company_whatsapp || '');
-  const phonesDisplay = companySettings.company_phones?.join(' | ') || '';
+  // Build phone links section
+  const phoneLinksHtml = (companySettings.company_phone_links || []).map(
+    (link: PhoneLink) => `<a href="${link.href}">${link.phone}</a>`
+  ).join(' | ');
 
   return `
 <!DOCTYPE html>
@@ -414,18 +420,10 @@ function buildComprehensiveInvoiceHtml(
           <a href="mailto:${companySettings.company_email}">${companySettings.company_email}</a>
         </div>
         ` : ''}
-        ${companySettings.company_phones && companySettings.company_phones.length > 0 ? `
+        ${companySettings.company_phone_links && companySettings.company_phone_links.length > 0 ? `
         <div class="contact-row">
           <span>📞</span>
-          ${companySettings.company_phones.map((phone: string) => 
-            `<a href="tel:${phone.replace(/[^0-9+]/g, '')}">${phone}</a>`
-          ).join(' | ')}
-        </div>
-        ` : ''}
-        ${companySettings.company_whatsapp ? `
-        <div class="contact-row">
-          <span>💬</span>
-          <a href="https://wa.me/${whatsappNormalized}">${companySettings.company_whatsapp}</a>
+          ${phoneLinksHtml}
         </div>
         ` : ''}
         ${companySettings.company_location ? `
@@ -505,14 +503,13 @@ serve(async (req) => {
     // Fetch company settings for contact info
     const { data: smsSettings } = await supabase
       .from("sms_settings")
-      .select("company_email, company_phones, company_whatsapp, company_location")
+      .select("company_email, company_phone_links, company_location")
       .limit(1)
       .maybeSingle();
 
     const companySettings = {
       company_email: smsSettings?.company_email || '',
-      company_phones: smsSettings?.company_phones || [],
-      company_whatsapp: smsSettings?.company_whatsapp || '',
+      company_phone_links: (smsSettings?.company_phone_links as any[]) || [],
       company_location: smsSettings?.company_location || '',
     };
 

@@ -255,10 +255,9 @@ export default function DebtTracking() {
     setPaymentModalOpen(true);
   };
 
-  const openWhatsAppReminder = (client: ClientDebt) => {
-    if (!client.phone_number) return;
+  const getWhatsAppUrl = (client: ClientDebt): string | null => {
+    if (!client.phone_number) return null;
     
-    // تحويل الرقم لصيغة دولية (إزالة 0 وإضافة 972)
     let phone = client.phone_number.replace(/[\s\-\(\)]/g, '');
     if (phone.startsWith('0')) {
       phone = '972' + phone.slice(1);
@@ -267,42 +266,8 @@ export default function DebtTracking() {
     }
     phone = phone.replace('+', '');
     
-    // رسالة افتراضية
     const message = `مرحباً ${client.client_name}، لديك مبلغ متبقي ${client.total_owed.toLocaleString()} شيكل. يرجى التواصل معنا لتسوية المبلغ.`;
-    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    
-    // محاولة أولى: استخدام window.open مباشرة
-    const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    
-    // محاولة ثانية: إذا فشل window.open (popup blocked)
-    if (!newWindow || newWindow.closed) {
-      // محاولة باستخدام top window (للخروج من iframe)
-      try {
-        if (window.top && window.top !== window) {
-          window.top.location.href = whatsappUrl;
-          return;
-        }
-      } catch (e) {
-        // تجاهل خطأ cross-origin
-      }
-      
-      // Fallback: نسخ الرابط للحافظة
-      navigator.clipboard.writeText(whatsappUrl).then(() => {
-        toast({
-          title: "تم نسخ الرابط",
-          description: "تعذر فتح WhatsApp تلقائياً. تم نسخ الرابط للحافظة، الصقه في المتصفح.",
-        });
-      }).catch(() => {
-        // آخر محاولة: anchor element
-        const link = document.createElement('a');
-        link.href = whatsappUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      });
-    }
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
   const formatCurrency = (amount: number) => `₪${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -522,18 +487,26 @@ export default function DebtTracking() {
                           <Wallet className="h-4 w-4 ml-2" />
                           تسديد المبلغ
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openWhatsAppReminder(client);
-                          }}
-                          disabled={!client.phone_number}
-                          className="text-green-600 border-green-600 hover:bg-green-50"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
+                        {client.phone_number ? (
+                          <a
+                            href={getWhatsAppUrl(client) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium border bg-transparent h-9 rounded-md px-3 text-green-600 border-green-600 hover:bg-green-50 transition-all"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled
+                            className="text-green-600 border-green-600"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

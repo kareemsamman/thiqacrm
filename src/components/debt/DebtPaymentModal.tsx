@@ -601,8 +601,7 @@ export function DebtPaymentModal({
         await sendPaymentConfirmationSms(totalPaymentAmount, firstPaymentId);
       }
       
-      // Navigate to client profile to show last transaction
-      window.location.href = `/clients?open=${clientId}`;
+      // Close modal and refresh debt list
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {

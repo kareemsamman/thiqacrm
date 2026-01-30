@@ -1,191 +1,94 @@
 
+# خطة: إضافة زر واتساب لإرسال تذكير بالديون
 
-# خطة: إضافة زر "إرسال للعميل" + تعديل Footer الفواتير
-
-## المشكلة الحالية
-
-1. **الفواتير HTML** (تقرير شامل + فاتورة مفردة) تحتوي فقط على زر "طباعة الفاتورة" ولا يوجد زر لإرسال الرابط للعميل عبر SMS
-2. **الواتساب** يظهر كرابط `wa.me/` - المستخدم يفضل عرض رقم الهاتف مع `tel:` href أو رابط واتساب
-
-## أين تعديل بيانات الشركة؟
-
-**المسار:** الإعدادات ← إعدادات SMS ← تبويب "بيانات الشركة"
-
-| الحقل | الوصف |
-|-------|-------|
-| البريد الإلكتروني | `company_email` |
-| أرقام الهواتف | `company_phones` (مصفوفة - يمكن إضافة أكثر من رقم) |
-| رقم الواتساب | `company_whatsapp` |
-| العنوان | `company_location` |
-
----
+## المطلوب
+إضافة زر واتساب بجانب زر "تذكير" الموجود في صفحة `/debt-tracking` يقوم بفتح رابط WhatsApp API مع رسالة افتراضية للعميل المحدد.
 
 ## التغييرات المطلوبة
 
-### 1) تعديل Footer في جميع HTML Functions
+### 1) تعديل ملف `src/pages/DebtTracking.tsx`
 
-**الملفات:**
-- `supabase/functions/generate-client-payments-invoice/index.ts` (التقرير الشامل)
-- `supabase/functions/send-invoice-sms/index.ts` (الفاتورة المفردة)
-- `supabase/functions/send-package-invoice-sms/index.ts` (فاتورة الباقة)
-- `supabase/functions/generate-payment-receipt/index.ts` (إيصال الدفعة)
-- `supabase/functions/generate-client-report/index.ts` (تقرير العميل)
+**المكان:** بجانب زر "تذكير" (سطر 467-478)
 
-**التغيير في Footer:**
+**التغييرات:**
+1. إضافة import لأيقونة واتساب من lucide-react (MessageCircle icon بأسلوب واتساب)
+2. إنشاء function لفتح واتساب مع الرسالة الافتراضية
+3. إضافة زر واتساب جديد بجانب زر التذكير
 
-**قبل (الحالي):**
-```html
-<div class="contact-row">
-  <span>📞</span>
-  <span>052-1234567 | 04-6555123</span>
-</div>
-<div class="contact-row">
-  <span>💬</span>
-  <a href="https://wa.me/9721234567">واتساب</a>
-</div>
-```
-
-**بعد (المقترح):**
-```html
-<div class="contact-row">
-  <span>📞</span>
-  ${companyPhones.map(phone => 
-    `<a href="tel:${phone.replace(/[^0-9+]/g, '')}">${phone}</a>`
-  ).join(' | ')}
-</div>
-<div class="contact-row">
-  <span>💬</span>
-  <a href="https://wa.me/${whatsappNormalized}">${companyWhatsapp}</a>
-</div>
-```
-
-**النتيجة:**
-- أرقام الهواتف قابلة للنقر → تفتح تطبيق الاتصال على الموبايل
-- الواتساب يظهر الرقم بدلاً من "واتساب" فقط
-- الرابطان يعملان: `tel:` للاتصال و`wa.me/` للواتساب
-
----
-
-### 2) إضافة زر "إرسال للعميل" في HTML Invoices
-
-**المنطق:**
-- الزر سيستخدم `mailto:` أو share API للموبايل
-- أو نجعله يفتح WhatsApp مع رسالة جاهزة تحتوي على رابط الفاتورة
-
-**التغيير في كل HTML Template:**
-
-```html
-<div class="footer">
-  <p class="thank-you">شكراً لتعاملكم معنا 🙏</p>
-  <div class="contact-info">
-    <!-- ... contact details ... -->
-  </div>
-  
-  <!-- Buttons Container -->
-  <div class="action-buttons no-print">
-    <button class="print-button" onclick="window.print()">🖨️ طباعة الفاتورة</button>
-    <button class="share-button" onclick="shareInvoice()">📲 مشاركة الفاتورة</button>
-  </div>
-</div>
-
-<script>
-function shareInvoice() {
-  const currentUrl = window.location.href;
-  const shareText = 'فاتورة التأمين: ' + currentUrl;
-  
-  // Try native share API (mobile)
-  if (navigator.share) {
-    navigator.share({
-      title: 'فاتورة التأمين',
-      text: 'فاتورة التأمين الخاصة بك',
-      url: currentUrl
-    }).catch(console.error);
-  } else {
-    // Fallback: open WhatsApp with pre-filled message
-    const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(shareText);
-    window.open(whatsappUrl, '_blank');
-  }
-}
-</script>
-```
-
-**CSS للأزرار:**
-```css
-.action-buttons {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 15px;
-}
-
-.share-button {
-  display: inline-block;
-  padding: 12px 25px;
-  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: 'Tajawal', sans-serif;
-}
-
-.share-button:hover { opacity: 0.9; }
-```
-
----
-
-### 3) إضافة زر SMS مباشر للموظفين (في CRM)
-
-**الملف:** `src/components/clients/ClientDetails.tsx`
-
-**التغيير:**
-إضافة زر بجانب "فاتورة شاملة" يرسل الرابط مباشرة للعميل عبر 019sms
+**الكود المقترح:**
 
 ```tsx
-const handleSendComprehensiveInvoice = async () => {
-  setSendingInvoice(true);
-  try {
-    // First generate the invoice
-    const { data, error } = await supabase.functions.invoke('generate-client-payments-invoice', {
-      body: { client_id: client.id, send_sms: true }
-    });
-    
-    if (error) throw error;
-    toast.success("تم إرسال الفاتورة للعميل");
-  } catch (error) {
-    toast.error("فشل في إرسال الفاتورة");
-  } finally {
-    setSendingInvoice(false);
+// Function جديدة
+const openWhatsAppReminder = (client: ClientDebt) => {
+  if (!client.phone_number) return;
+  
+  // تحويل الرقم لصيغة دولية (إزالة 0 وإضافة 972)
+  let phone = client.phone_number.replace(/[\s\-\(\)]/g, '');
+  if (phone.startsWith('0')) {
+    phone = '972' + phone.slice(1);
+  } else if (!phone.startsWith('972') && !phone.startsWith('+972')) {
+    phone = '972' + phone;
   }
+  phone = phone.replace('+', '');
+  
+  // رسالة افتراضية
+  const message = `مرحباً ${client.client_name}، لديك مبلغ متبقي ${client.total_owed.toLocaleString()} شيكل. يرجى التواصل معنا لتسوية المبلغ.`;
+  
+  // فتح واتساب
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
 };
 ```
 
-**تحديث Edge Function:**
-إضافة parameter `send_sms: boolean` للـ `generate-client-payments-invoice` function
-
----
-
-## ملخص الملفات
-
-| الملف | النوع | التغيير |
-|-------|-------|---------|
-| `generate-client-payments-invoice/index.ts` | Backend | Footer محدث + زر مشاركة + دعم SMS |
-| `send-invoice-sms/index.ts` | Backend | Footer محدث + زر مشاركة |
-| `send-package-invoice-sms/index.ts` | Backend | Footer محدث + زر مشاركة |
-| `generate-payment-receipt/index.ts` | Backend | Footer محدث + زر مشاركة |
-| `generate-client-report/index.ts` | Backend | Footer محدث + زر مشاركة |
-| `ClientDetails.tsx` | Frontend | زر "إرسال SMS" للفاتورة الشاملة |
+**الأزرار (تعديل):**
+```tsx
+<Button
+  variant="outline"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    openWhatsAppReminder(client);
+  }}
+  disabled={!client.phone_number}
+  className="text-green-600 border-green-600 hover:bg-green-50"
+>
+  <MessageCircle className="h-4 w-4 ml-2" />
+</Button>
+<Button
+  variant="outline"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    openSmsDialog(client);
+  }}
+  disabled={!client.phone_number}
+>
+  <Send className="h-4 w-4 ml-2" />
+  تذكير
+</Button>
+```
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ كل HTML invoice يحتوي على زر "مشاركة" بجانب زر "طباعة"
-2. ✅ أرقام الهواتف في Footer قابلة للنقر (`tel:` href)
-3. ✅ رابط الواتساب يظهر الرقم + يفتح المحادثة
-4. ✅ الموظف يمكنه إرسال الفاتورة الشاملة للعميل مباشرة من CRM
-5. ✅ تعديل بيانات الشركة من: إعدادات SMS ← بيانات الشركة
+| الزر | الوظيفة |
+|------|---------|
+| 💬 (أخضر) | يفتح واتساب مباشرة مع رسالة جاهزة فيها اسم العميل والمبلغ المتبقي |
+| ✈️ تذكير | يفتح نافذة SMS لإرسال رسالة عبر 019sms (كما هو الآن) |
 
+---
+
+## ملخص الملفات
+
+| الملف | التغيير |
+|-------|---------|
+| `src/pages/DebtTracking.tsx` | إضافة زر واتساب + function لفتح الرابط |
+
+---
+
+## ملاحظات تقنية
+- الأيقونة: `MessageCircle` من lucide-react (أقرب شكل للواتساب)
+- الرابط: `https://wa.me/{phone}?text={message}`
+- الرقم: يتم تحويله لصيغة دولية (972XXXXXXXXX)
+- الرسالة: تحتوي على اسم العميل والمبلغ المستحق

@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface SendPackageInvoiceSmsRequest {
   policy_ids: string[];
+  skip_sms?: boolean;
 }
 
 const POLICY_TYPE_LABELS: Record<string, string> = {
@@ -70,7 +71,7 @@ serve(async (req) => {
       );
     }
 
-    const { policy_ids }: SendPackageInvoiceSmsRequest = await req.json();
+    const { policy_ids, skip_sms }: SendPackageInvoiceSmsRequest = await req.json();
 
     if (!policy_ids || policy_ids.length === 0) {
       return new Response(
@@ -155,18 +156,22 @@ serve(async (req) => {
     
     console.log(`[send-package-invoice-sms] Found ${insuranceFiles?.length || 0} files for ${policies.length} policies`);
 
-    // Get SMS settings
-    const { data: smsSettings, error: smsSettingsError } = await supabase
-      .from("sms_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
+    // Get SMS settings (only needed if not skipping SMS)
+    let smsSettings: any = null;
+    if (!skip_sms) {
+      const { data: smsSettingsData, error: smsSettingsError } = await supabase
+        .from("sms_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
 
-    if (smsSettingsError || !smsSettings || !smsSettings.is_enabled) {
-      return new Response(
-        JSON.stringify({ error: "خدمة الرسائل غير مفعلة" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (smsSettingsError || !smsSettingsData || !smsSettingsData.is_enabled) {
+        return new Response(
+          JSON.stringify({ error: "خدمة الرسائل غير مفعلة" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      smsSettings = smsSettingsData;
     }
 
     if (!bunnyApiKey || !bunnyStorageZone) {
@@ -271,6 +276,25 @@ serve(async (req) => {
         .replace(/>/g, "&gt;")
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&apos;");
+    // Skip SMS sending if requested (for print only)
+    if (skip_sms) {
+      console.log(`[send-package-invoice-sms] Skipping SMS (skip_sms=true)`);
+      
+      const duration = Date.now() - startTime;
+      console.log(`[send-package-invoice-sms] Completed in ${duration}ms (print only)`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "تم توليد الفاتورة",
+          policy_count: policy_ids.length,
+          file_count: policyFileUrls.length,
+          package_invoice_url: packageInvoiceUrl,
+          duration_ms: duration
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Normalize phone
     let cleanPhone = client.phone_number.replace(/[^0-9]/g, "");

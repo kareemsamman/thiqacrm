@@ -9,6 +9,7 @@ const corsHeaders = {
 interface SendInvoiceSmsRequest {
   policy_id: string;
   force_resend?: boolean;
+  skip_sms?: boolean;
 }
 
 // Map policy types to Arabic labels
@@ -73,7 +74,7 @@ serve(async (req) => {
       );
     }
 
-    const { policy_id, force_resend }: SendInvoiceSmsRequest = await req.json();
+    const { policy_id, force_resend, skip_sms }: SendInvoiceSmsRequest = await req.json();
 
     if (!policy_id) {
       return new Response(
@@ -152,26 +153,30 @@ serve(async (req) => {
       );
     }
 
-    // Get SMS settings
-    const { data: smsSettings, error: smsSettingsError } = await supabase
-      .from("sms_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
+    // Get SMS settings (only needed if not skipping SMS)
+    let smsSettings: any = null;
+    if (!skip_sms) {
+      const { data: smsSettingsData, error: smsSettingsError } = await supabase
+        .from("sms_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
 
-    if (smsSettingsError) {
-      console.error("[send-invoice-sms] Error fetching SMS settings:", smsSettingsError);
-      return new Response(
-        JSON.stringify({ error: "فشل في جلب إعدادات الرسائل" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      if (smsSettingsError) {
+        console.error("[send-invoice-sms] Error fetching SMS settings:", smsSettingsError);
+        return new Response(
+          JSON.stringify({ error: "فشل في جلب إعدادات الرسائل" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    if (!smsSettings || !smsSettings.is_enabled) {
-      return new Response(
-        JSON.stringify({ error: "خدمة الرسائل غير مفعلة" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (!smsSettingsData || !smsSettingsData.is_enabled) {
+        return new Response(
+          JSON.stringify({ error: "خدمة الرسائل غير مفعلة" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      smsSettings = smsSettingsData;
     }
 
     // Check Bunny configuration for AB invoice generation
@@ -295,6 +300,25 @@ serve(async (req) => {
     let cleanPhone = policy.client.phone_number.replace(/[^0-9]/g, "");
     if (cleanPhone.startsWith("972")) {
       cleanPhone = "0" + cleanPhone.substring(3);
+    }
+
+    // Skip SMS sending if requested (for print only)
+    if (skip_sms) {
+      console.log(`[send-invoice-sms] Skipping SMS (skip_sms=true)`);
+      
+      const duration = Date.now() - startTime;
+      console.log(`[send-invoice-sms] Completed in ${duration}ms (print only)`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "تم توليد الفاتورة",
+          policy_urls: sortedPolicyUrls,
+          ab_invoice_url: abInvoiceUrl,
+          duration_ms: duration
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Send SMS via 019sms (official XML API)

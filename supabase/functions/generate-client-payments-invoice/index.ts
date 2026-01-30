@@ -40,16 +40,16 @@ function formatDate(dateStr: string): string {
 
 function buildComprehensiveInvoiceHtml(
   client: any,
-  policies: any[],
   payments: any[],
   totals: { totalInsurance: number; totalPaid: number; totalRemaining: number }
 ): string {
-  // Build payments table rows
+  // Build single unified payments table with car number
   const paymentRows = payments.map(payment => {
     const paymentTypeLabel = PAYMENT_TYPE_LABELS[payment.payment_type] || payment.payment_type;
     const policyType = payment.policy?.policy_type_parent 
       ? (POLICY_TYPE_LABELS[payment.policy.policy_type_parent] || payment.policy.policy_type_parent)
       : '-';
+    const carNumber = payment.policy?.car?.car_number || '-';
     
     // Build payment details based on type
     let details = '-';
@@ -74,23 +74,10 @@ function buildComprehensiveInvoiceHtml(
         <td class="amount">₪${(payment.amount || 0).toLocaleString()}</td>
         <td><span class="badge badge-${payment.payment_type}">${paymentTypeLabel}</span></td>
         <td class="details">${details}</td>
+        <td class="car-number">${carNumber}</td>
         <td>${policyType}</td>
         <td>${payment.refused ? '<span class="refused">راجع</span>' : '<span class="approved">مقبول</span>'}</td>
       </tr>
-    `;
-  }).join('');
-
-  // Build policies summary
-  const policiesSummary = policies.map(policy => {
-    const typeLabel = POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent;
-    const carNumber = policy.car?.car_number || '-';
-    return `
-      <div class="policy-item">
-        <span class="policy-type">${typeLabel}</span>
-        <span class="policy-period">${formatDate(policy.start_date)} - ${formatDate(policy.end_date)}</span>
-        <span class="policy-car">${carNumber}</span>
-        <span class="policy-price">₪${(policy.insurance_price || 0).toLocaleString()}</span>
-      </div>
     `;
   }).join('');
 
@@ -232,6 +219,12 @@ function buildComprehensiveInvoiceHtml(
       color: #64748b;
       line-height: 1.6;
     }
+    td.car-number {
+      font-family: monospace;
+      font-weight: 600;
+      direction: ltr;
+      text-align: center;
+    }
     .badge {
       display: inline-block;
       padding: 3px 10px;
@@ -337,15 +330,6 @@ function buildComprehensiveInvoiceHtml(
       </div>
     </div>
 
-    ${policies.length > 0 ? `
-    <div class="section">
-      <div class="section-title">📄 الوثائق</div>
-      <div class="policies-grid">
-        ${policiesSummary}
-      </div>
-    </div>
-    ` : ''}
-
     <div class="section">
       <div class="section-title">💳 سجل الدفعات</div>
       ${payments.length > 0 ? `
@@ -356,12 +340,13 @@ function buildComprehensiveInvoiceHtml(
             <th>المبلغ</th>
             <th>الطريقة</th>
             <th>التفاصيل</th>
-            <th>الوثيقة</th>
+            <th>رقم السيارة</th>
+            <th>نوع التأمين</th>
             <th>الحالة</th>
           </tr>
         </thead>
         <tbody>
-          ${paymentRows}
+          \${paymentRows}
         </tbody>
       </table>
       ` : '<p style="text-align: center; color: #718096; padding: 20px;">لا توجد دفعات مسجلة</p>'}
@@ -511,7 +496,7 @@ serve(async (req) => {
     const totalRemaining = Math.max(0, totalInsurance - totalPaid);
 
     // Generate HTML
-    const invoiceHtml = buildComprehensiveInvoiceHtml(client, policies || [], payments, {
+    const invoiceHtml = buildComprehensiveInvoiceHtml(client, payments, {
       totalInsurance,
       totalPaid,
       totalRemaining,

@@ -1,172 +1,218 @@
 
-# خطة: إضافة السائقين الإضافيين للفاتورة + إنشاء إيصال دفع
+# خطة: نظام الفواتير المتكامل مع popup بعد إنشاء الوثيقة
 
-## المشكلة 1: السائقين الإضافيين غير موجودين في الفاتورة
+## المشاكل الحالية
 
-### السبب
-في `send-package-invoice-sms/index.ts`، لا يتم جلب `policy_children` من قاعدة البيانات، لذلك لا يظهر السائقين الإضافيين في الفاتورة.
+### 1. خطأ في Edge Function (الأولوية العاجلة)
+```
+column policy_payments.bank_reference does not exist
+```
+- **السبب**: `generate-payment-receipt` يحاول جلب عمود `bank_reference` غير موجود في جدول `policy_payments`
+- **الحل**: إزالة `bank_reference` من الـ query
 
-### الحل
-إضافة query لجلب السائقين الإضافيين لكل وثائق الباقة وعرضهم في HTML الفاتورة.
+### 2. لا يوجد popup بعد إنشاء الوثيقة بنجاح
+- حالياً: بعد الحفظ، يتم إغلاق النافذة مباشرة والانتقال لصفحة العميل
+- **المطلوب**: عرض popup يحتوي على:
+  - زر طباعة الفاتورة
+  - زر إرسال SMS للعميل
 
-**التغييرات:**
-1. إضافة جلب `policy_children` لكل الوثائق
-2. تمرير البيانات لدالة `buildPackageInvoiceHtml`
-3. إضافة قسم "السائقين الإضافيين" في HTML
+### 3. سجل الدفعات يفتقد لزر "فاتورة الكل"
+- **المطلوب**: زر لتوليد فاتورة شاملة لجميع الدفعات مع تفاصيل الوثيقة والسيارة
 
 ---
 
-## الميزة 2: إيصال دفع للعميل (Payment Receipt)
+## التغييرات المطلوبة
 
-### المفهوم
-إيصال يُظهر للعميل:
-- ماذا دفع (المبلغ)
-- كيف دفع (نقدي/بطاقة/شيك/تحويل)
-- لأي وثيقة
-- تفاصيل البطاقة (آخر 4 أرقام) إذا كان الدفع بالفيزا
+### المرحلة 1: إصلاح Edge Function (عاجل)
 
-### التصميم
+**الملف**: `supabase/functions/generate-payment-receipt/index.ts`
+
+| السطور | التغيير |
+|--------|---------|
+| 424 | إزالة `bank_reference` من الـ query |
+| 99-107 | إزالة كود عرض `bank_reference` في HTML |
+
+**الكود الحالي** (سطر 424):
+```typescript
+tranzila_approval_code,
+bank_reference,  // ← يجب إزالته
+notes,
+```
+
+**الكود الجديد**:
+```typescript
+tranzila_approval_code,
+notes,
+```
+
+---
+
+### المرحلة 2: إنشاء مكون PolicySuccessDialog
+
+**ملف جديد**: `src/components/policies/PolicySuccessDialog.tsx`
+
+هذا المكون يظهر بعد إنشاء الوثيقة بنجاح:
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│                    إيصال دفع                            │
-│                  AB Insurance                           │
-├─────────────────────────────────────────────────────────┤
-│  رقم الإيصال: PAY-2026-00123                            │
-│  التاريخ: 30/01/2026                                    │
-├─────────────────────────────────────────────────────────┤
-│  العميل: محمد أحمد                                      │
-│  رقم الهوية: 123456789                                  │
-│  رقم السيارة: 12-345-67                                 │
-├─────────────────────────────────────────────────────────┤
-│  المبلغ: ₪500                                           │
-│  طريقة الدفع: بطاقة ائتمان                              │
-│  آخر 4 أرقام: ****5678                                  │
-│  تقسيطات: 3                                             │
-│  رقم التأكيد: 123456                                    │
-├─────────────────────────────────────────────────────────┤
-│  الوثيقة: ثالث/شامل                                     │
-│  رقم الوثيقة: THIRD_FULL-2026-12345                     │
-│  الفترة: 01/01/2026 - 01/01/2027                        │
-├─────────────────────────────────────────────────────────┤
-│              شكراً لتعاملكم معنا                        │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    ✅ تم إنشاء الوثيقة بنجاح                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│     [🖨️ طباعة الفاتورة]     [📱 إرسال SMS للعميل]          │
+│                                                             │
+│     [❌ إغلاق]                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### مكونات الحل
+**المدخلات**:
+- `policyId` - ID الوثيقة المنشأة
+- `clientId` - ID العميل
+- `clientPhone` - رقم هاتف العميل
+- `isPackage` - هل هي باقة؟
+- `onClose` - callback للإغلاق
 
-| المكون | الوصف |
-|--------|-------|
-| Edge Function جديدة | `generate-payment-receipt` - تولّد HTML الإيصال |
-| زر في الواجهة | أيقونة طباعة/تحميل بجانب كل دفعة |
-| عرض الإيصال | نافذة منبثقة أو صفحة جديدة للطباعة |
-
-### البيانات المتاحة للإيصال
-
-من جدول `policy_payments`:
-- `amount` - المبلغ
-- `payment_type` - نوع الدفع
-- `payment_date` - تاريخ الدفع
-- `card_last_four` - آخر 4 أرقام البطاقة ✓
-- `card_expiry` - تاريخ انتهاء البطاقة ✓
-- `installments_count` - عدد التقسيطات ✓
-- `tranzila_approval_code` - رقم التأكيد ✓
-- `cheque_number` - رقم الشيك (للشيكات)
-
-### أماكن ظهور زر الإيصال
-
-| المكان | الملف |
-|--------|-------|
-| Policy Wizard (Step 4) | `Step4Payments.tsx` |
-| Policy Details Drawer | `PolicyPaymentsSection.tsx` |
-| Payment Edit Dialog | `PaymentEditDialog.tsx` |
-| Debt Payment Modal | `DebtPaymentModal.tsx` |
+**الإجراءات**:
+- **طباعة الفاتورة**: فتح رابط الفاتورة في tab جديد (من `send-invoice-sms` أو `send-package-invoice-sms`)
+- **إرسال SMS**: استدعاء `send-invoice-sms` أو `send-package-invoice-sms` حسب نوع الوثيقة
 
 ---
 
-## التنفيذ
+### المرحلة 3: تحديث PolicyWizard
 
-### المرحلة 1: إصلاح السائقين الإضافيين في الفاتورة
+**الملف**: `src/components/policies/PolicyWizard.tsx`
 
-**الملف:** `supabase/functions/send-package-invoice-sms/index.ts`
+| التغيير | التفاصيل |
+|---------|----------|
+| إضافة state | `showSuccessDialog`, `successPolicyId` |
+| تعديل handleSave | بدلاً من الإغلاق المباشر، عرض PolicySuccessDialog |
+| إضافة المكون | في نهاية return، إضافة `<PolicySuccessDialog />` |
 
-```typescript
-// إضافة بعد جلب الوثائق (سطر ~100)
-const { data: policyChildren } = await supabase
-  .from('policy_children')
-  .select(`
-    policy_id,
-    child:client_children(full_name, id_number, relation, phone)
-  `)
-  .in('policy_id', policy_ids);
+**التدفق الجديد**:
+1. حفظ الوثيقة بنجاح
+2. عرض `PolicySuccessDialog` بدلاً من الإغلاق المباشر
+3. المستخدم يختار (طباعة / إرسال SMS / إغلاق)
+4. عند الإغلاق → الانتقال لصفحة العميل كالمعتاد
 
-// تمرير للدالة
-const packageInvoiceHtml = buildPackageInvoiceHtml(
-  policies, 
-  paymentsByPolicy, 
-  totalPrice, 
-  totalPaid, 
-  totalRemaining, 
-  insuranceFiles || [],
-  policyChildren || []  // ← جديد
-);
+---
+
+### المرحلة 4: إضافة زر "فاتورة الكل" في سجل الدفعات
+
+**الملف**: `src/components/clients/ClientDetails.tsx`
+
+إضافة زر بجانب عنوان "سجل الدفعات":
+
+```tsx
+<div className="flex items-center justify-between">
+  <h3 className="font-semibold text-lg">سجل الدفعات</h3>
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={handleGenerateAllPaymentsInvoice}
+    disabled={payments.length === 0}
+  >
+    <FileText className="h-4 w-4 ml-2" />
+    فاتورة شاملة
+  </Button>
+</div>
 ```
 
-**في دالة `buildPackageInvoiceHtml`:**
+**الوظيفة `handleGenerateAllPaymentsInvoice`**:
+- استدعاء Edge Function جديدة `generate-client-payments-invoice`
+- أو استخدام الـ function الموجودة `generate-client-report` مع تعديل
 
-```html
-<!-- إضافة قسم السائقين الإضافيين بعد بيانات العميل -->
-${policyChildren?.length > 0 ? `
-  <div class="section">
-    <div class="section-title">👥 السائقين الإضافيين / التابعين</div>
-    <div class="section-content">
-      ${policyChildren.map(pc => `
-        <div class="info-item">
-          <span class="info-label">${pc.child?.full_name}</span>
-          <span class="info-value">${pc.child?.id_number} - ${pc.child?.relation || ''}</span>
-        </div>
-      `).join('')}
-    </div>
-  </div>
-` : ''}
-```
+---
 
-### المرحلة 2: إنشاء Edge Function للإيصال
+### المرحلة 5: إنشاء Edge Function للفاتورة الشاملة
 
-**ملف جديد:** `supabase/functions/generate-payment-receipt/index.ts`
+**ملف جديد**: `supabase/functions/generate-client-payments-invoice/index.ts`
 
-| المدخلات | `payment_id` |
-|----------|--------------|
-| المخرجات | HTML إيصال جاهز للطباعة |
-| التخزين | رفع لـ Bunny CDN (اختياري) |
+**المدخلات**: `client_id`
 
-### المرحلة 3: إضافة زر الإيصال في الواجهة
-
-**الملفات:**
-- `PolicyPaymentsSection.tsx` - إضافة أيقونة `Receipt` بجانب كل دفعة
-- `PolicyDetailsDrawer.tsx` - نفس الزر
-- `Step4Payments.tsx` - للدفعات الجديدة
+**المخرجات**: HTML فاتورة شاملة تحتوي على:
+- بيانات العميل
+- جميع الوثائق مع تفاصيلها
+- جميع الدفعات مع تفاصيل كل دفعة:
+  - نقدي: المبلغ والتاريخ
+  - شيك: رقم الشيك وتاريخه
+  - بطاقة ائتمان: آخر 4 أرقام، عدد التقسيطات، رقم التأكيد
+  - تحويل: المبلغ والتاريخ
+- الإجماليات (المدفوع، المتبقي)
 
 ---
 
 ## ملخص الملفات
 
-| الملف | التغيير |
-|-------|---------|
-| `send-package-invoice-sms/index.ts` | إضافة جلب وعرض السائقين الإضافيين |
-| `send-invoice-sms/index.ts` | نفس التغيير للوثائق المفردة |
-| `generate-payment-receipt/index.ts` | **ملف جديد** - Edge Function |
-| `PolicyPaymentsSection.tsx` | زر إيصال + modal |
-| `PolicyDetailsDrawer.tsx` | زر إيصال للدفعات |
-| `Step4Payments.tsx` | زر إيصال للدفعات الجديدة (اختياري) |
+| الملف | النوع | التغيير |
+|-------|-------|---------|
+| `generate-payment-receipt/index.ts` | تعديل | إزالة `bank_reference` |
+| `PolicySuccessDialog.tsx` | جديد | مكون popup النجاح |
+| `PolicyWizard.tsx` | تعديل | عرض PolicySuccessDialog بعد الحفظ |
+| `ClientDetails.tsx` | تعديل | إضافة زر "فاتورة شاملة" |
+| `generate-client-payments-invoice/index.ts` | جديد | Edge Function للفاتورة الشاملة |
+| `supabase/config.toml` | تعديل | إضافة الـ function الجديدة |
+
+---
+
+## التفاصيل التقنية
+
+### الفاتورة الشاملة - تفاصيل الدفعات
+
+```html
+<!-- مثال على عرض الدفعات في الفاتورة -->
+<table>
+  <thead>
+    <tr>
+      <th>التاريخ</th>
+      <th>المبلغ</th>
+      <th>الطريقة</th>
+      <th>التفاصيل</th>
+      <th>الوثيقة</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- دفعة نقدي -->
+    <tr>
+      <td>29/01/2026</td>
+      <td>₪1,000</td>
+      <td>نقدي</td>
+      <td>-</td>
+      <td>إلزامي</td>
+    </tr>
+    
+    <!-- دفعة بطاقة ائتمان -->
+    <tr>
+      <td>29/01/2026</td>
+      <td>₪500</td>
+      <td>بطاقة ائتمان</td>
+      <td>
+        ****5678<br>
+        3 تقسيطات<br>
+        رقم التأكيد: 123456
+      </td>
+      <td>ثالث/شامل</td>
+    </tr>
+    
+    <!-- دفعة شيك -->
+    <tr>
+      <td>29/01/2026</td>
+      <td>₪2,000</td>
+      <td>شيك</td>
+      <td>
+        رقم: 12345<br>
+        تاريخ: 15/02/2026
+      </td>
+      <td>ثالث/شامل</td>
+    </tr>
+  </tbody>
+</table>
+```
 
 ---
 
 ## النتائج المتوقعة
 
-- ✅ السائقين الإضافيين يظهرون في فاتورة الباقة
-- ✅ السائقين الإضافيين يظهرون في فاتورة الوثيقة المفردة
-- ✅ إيصال دفع قابل للطباعة لكل دفعة
-- ✅ تفاصيل البطاقة (آخر 4 أرقام، تقسيطات) في الإيصال
-- ✅ تصميم متناسق مع باقي النظام
+- ✅ إصلاح خطأ `bank_reference` في إيصال الدفع
+- ✅ popup بعد إنشاء الوثيقة مع خيارات الطباعة وإرسال SMS
+- ✅ زر "فاتورة شاملة" في سجل دفعات العميل
+- ✅ الفاتورة تعرض جميع تفاصيل الدفعات بما فيها بيانات البطاقة والتقسيطات
 

@@ -1,294 +1,282 @@
 
-
-# خطة: صفحة المطالبات + جلسة إدارية مؤقتة
+# خطة: تتبع جلسات المستخدمين ومدة النشاط
 
 ## نظرة عامة
-1. **صفحة المطالبات (Claims)** - صفحة للمسؤول لتتبع تصليحات السيارات التي يدفعها من حسابه الشخصي
-2. **جلسة مؤقتة للأدمن** - إنهاء الجلسة عند إغلاق المتصفح لجميع الأدمن ما عدا `morshed500@gmail.com`
+إضافة تبويب جديد في صفحة "المستخدمون" لعرض سجل جلسات الموظفين مع بيانات تفصيلية تشمل: عنوان IP، المتصفح، الموقع، ومدة الجلسة (ساعات ودقائق).
 
 ---
 
-## الجزء الأول: صفحة المطالبات
+## الجزء الأول: إنشاء جدول جلسات المستخدمين
 
-### 1) جدول قاعدة البيانات
-
-**جدول جديد:** `repair_claims`
+**جدول جديد:** `user_sessions`
 
 | العمود | النوع | الوصف |
 |--------|------|-------|
 | id | uuid | المفتاح الأساسي |
-| claim_number | text | رقم الملف (تسلسلي تلقائي) |
-| garage_name | text | اسم الكراج (مطلوب) |
-| insurance_company_id | uuid | FK لشركة التأمين |
-| insurance_file_number | text | رقم ملف التأمين |
-| accident_date | date | تاريخ الحادث |
-| car_type | text | نوع السيارة (external أو insured) |
-| external_car_number | text | رقم السيارة الخارجية |
-| external_car_model | text | موديل السيارة الخارجية |
-| client_id | uuid | FK للعميل المؤمن (إختياري) |
-| policy_id | uuid | FK للبوليصة (إختياري) |
-| status | text | الحالة: open, in_progress, completed |
-| repairs_description | text | وصف التصليحات (عند الإغلاق) |
-| total_amount | decimal | المبلغ الإجمالي |
-| expense_id | uuid | FK للمصروف المرتبط |
-| notes | text | ملاحظات |
-| created_at | timestamp | تاريخ الإنشاء |
-| created_by | uuid | المستخدم المنشئ |
+| user_id | uuid | FK للمستخدم |
+| started_at | timestamp | وقت بدء الجلسة |
+| ended_at | timestamp | وقت انتهاء الجلسة (nullable) |
+| ip_address | text | عنوان IP |
+| user_agent | text | معلومات المتصفح الكاملة |
+| browser_name | text | اسم المتصفح (Chrome, Firefox, Safari...) |
+| browser_version | text | إصدار المتصفح |
+| os_name | text | نظام التشغيل |
+| device_type | text | نوع الجهاز (desktop, mobile, tablet) |
+| country | text | البلد (من IP) |
+| city | text | المدينة (من IP) |
+| is_active | boolean | هل الجلسة نشطة حالياً |
 
 ```sql
-CREATE TABLE public.repair_claims (
+CREATE TABLE public.user_sessions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  claim_number text UNIQUE,
-  garage_name text NOT NULL,
-  insurance_company_id uuid REFERENCES insurance_companies(id),
-  insurance_file_number text,
-  accident_date date,
-  car_type text DEFAULT 'external' CHECK (car_type IN ('external', 'insured')),
-  external_car_number text,
-  external_car_model text,
-  client_id uuid REFERENCES clients(id),
-  policy_id uuid REFERENCES policies(id),
-  status text DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'completed')),
-  repairs_description text,
-  total_amount decimal(10,2),
-  expense_id uuid REFERENCES expenses(id),
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  started_at timestamp with time zone DEFAULT now() NOT NULL,
+  ended_at timestamp with time zone,
+  duration_minutes integer GENERATED ALWAYS AS (
+    CASE WHEN ended_at IS NOT NULL 
+    THEN EXTRACT(EPOCH FROM (ended_at - started_at)) / 60
+    ELSE NULL END
+  ) STORED,
+  ip_address text,
+  user_agent text,
+  browser_name text,
+  browser_version text,
+  os_name text,
+  device_type text,
+  country text,
+  city text,
+  is_active boolean DEFAULT true
 );
 
 -- Enable RLS - Admin only
-ALTER TABLE public.repair_claims ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins can manage repair claims"
-  ON public.repair_claims FOR ALL
+CREATE POLICY "Admins can view user sessions"
+  ON public.user_sessions FOR ALL
   TO authenticated
   USING (public.has_role(auth.uid(), 'admin') OR auth.jwt() ->> 'email' = 'morshed500@gmail.com');
 
--- Trigger for auto claim number
-CREATE OR REPLACE FUNCTION generate_claim_number()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.claim_number := 'CLM-' || LPAD(nextval('claim_number_seq')::text, 6, '0');
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE SEQUENCE claim_number_seq START 1;
-CREATE TRIGGER set_claim_number BEFORE INSERT ON repair_claims
-  FOR EACH ROW EXECUTE FUNCTION generate_claim_number();
-```
-
-**جدول الملاحظات/التتبع:** `repair_claim_notes`
-
-```sql
-CREATE TABLE public.repair_claim_notes (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  claim_id uuid REFERENCES repair_claims(id) ON DELETE CASCADE,
-  note text NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
-);
-
-ALTER TABLE public.repair_claim_notes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can manage claim notes"
-  ON public.repair_claim_notes FOR ALL
-  TO authenticated
-  USING (public.has_role(auth.uid(), 'admin') OR auth.jwt() ->> 'email' = 'morshed500@gmail.com');
-```
-
-**جدول التذكيرات:** `repair_claim_reminders`
-
-```sql
-CREATE TABLE public.repair_claim_reminders (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  claim_id uuid REFERENCES repair_claims(id) ON DELETE CASCADE,
-  reminder_date date NOT NULL,
-  reminder_time time DEFAULT '09:00',
-  reminder_type text CHECK (reminder_type IN ('garage', 'insured', 'other')),
-  message text,
-  is_done boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
-);
-
-ALTER TABLE public.repair_claim_reminders ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can manage claim reminders"
-  ON public.repair_claim_reminders FOR ALL
-  TO authenticated
-  USING (public.has_role(auth.uid(), 'admin') OR auth.jwt() ->> 'email' = 'morshed500@gmail.com');
-```
-
-### 2) صفحة المطالبات
-
-**ملف جديد:** `src/pages/RepairClaims.tsx`
-
-**المميزات:**
-- قائمة بطاقات للمطالبات المفتوحة
-- فلترة حسب الحالة (مفتوح، قيد التنفيذ، مكتمل)
-- بحث بالاسم أو رقم الملف
-- Badge للحالة (ألوان مختلفة)
-- **Admin Route Only**
-
-**تصميم البطاقة:**
-```text
-┌──────────────────────────────────────────┐
-│ CLM-000001              🟢 مفتوح        │
-│ ─────────────────────────────────────── │
-│ 🏪 كراج: أبو سليم                       │
-│ 🏢 شركة: مجموعة AIG                     │
-│ 📁 ملف: 12345                           │
-│ 📅 تاريخ الحادث: 15/01/2026             │
-│ 🚗 سيارة: 12-345-67 (شامل - كريم)       │
-│                                          │
-│ ⏰ 2 تذكيرات   📝 3 ملاحظات              │
-│                                          │
-│ [فتح] [إضافة ملاحظة] [تذكير] [⋮]        │
-└──────────────────────────────────────────┘
-```
-
-### 3) Drawer إنشاء/تعديل المطالبة
-
-**ملف جديد:** `src/components/claims/RepairClaimDrawer.tsx`
-
-**الحقول:**
-| الحقل | النوع | مطلوب |
-|-------|------|-------|
-| اسم الكراج | Input + Autocomplete من business_contacts | ✅ |
-| شركة التأمين | Select من insurance_companies | ❌ |
-| رقم ملف التأمين | Input | ❌ |
-| تاريخ الحادث | DatePicker | ❌ |
-| نوع السيارة | Radio: خارجية / مؤمن | ✅ |
-
-**إذا سيارة خارجية:**
-- رقم السيارة
-- موديل السيارة
-
-**إذا سيارة مؤمن:**
-- بحث واختيار العميل
-- اختيار البوليصة (ثالث أو خدمات طريق فقط - لا إلزامي)
-
-### 4) صفحة تفاصيل المطالبة
-
-**ملف جديد:** `src/pages/RepairClaimDetail.tsx`
-
-**المحتويات:**
-- معلومات المطالبة الأساسية
-- Timeline للملاحظات (مثل client_notes)
-- قائمة التذكيرات مع إمكانية إضافة جديد
-- زر "إغلاق الملف" - يفتح Dialog لإدخال:
-  - وصف التصليحات
-  - المبلغ الإجمالي
-  - يتم إنشاء expense تلقائياً في المصاريف
-
-### 5) تحديث App.tsx و Sidebar
-
-```tsx
-// App.tsx
-<Route path="/admin/claims" element={
-  <AdminRoute>
-    <RepairClaims />
-  </AdminRoute>
-} />
-<Route path="/admin/claims/:claimId" element={
-  <AdminRoute>
-    <RepairClaimDetail />
-  </AdminRoute>
-} />
-
-// Sidebar.tsx - في قسم الإدارة
-{ name: "المطالبات", href: "/admin/claims", icon: FileWarning },
+-- Indexes
+CREATE INDEX idx_user_sessions_user ON public.user_sessions(user_id);
+CREATE INDEX idx_user_sessions_started ON public.user_sessions(started_at DESC);
 ```
 
 ---
 
-## الجزء الثاني: جلسة مؤقتة للأدمن
+## الجزء الثاني: تحديث Edge Functions لجمع البيانات
 
-### المتطلبات:
-- جميع الأدمن (ما عدا `morshed500@gmail.com`) → جلسة مؤقتة (تنتهي عند إغلاق المتصفح)
-- Super admin + Workers → جلسة دائمة (localStorage)
+### 1) تحديث `auth-email-start` و `auth-sms-start`
+إضافة جمع IP وUser-Agent من الـ request headers:
 
-### التنفيذ:
+```typescript
+// Get IP and User-Agent from request
+const ip_address = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+  || req.headers.get("cf-connecting-ip") 
+  || req.headers.get("x-real-ip")
+  || null;
+const user_agent = req.headers.get("user-agent") || null;
 
-**1) تعديل Supabase Client (غير مسموح - ملف تلقائي)**
+// Update login_attempts insert
+supabase.from("login_attempts").insert({
+  email: normalizedEmail,
+  identifier: normalizedEmail,
+  method: "email_otp",
+  success: false,
+  ip_address,
+  user_agent,
+});
+```
 
-لا يمكن تعديل `src/integrations/supabase/client.ts` لأنه ملف تلقائي.
+### 2) تحديث `auth-email-verify` و `auth-sms-verify`
+عند نجاح تسجيل الدخول، إنشاء جلسة جديدة:
 
-**2) الحل البديل: مراقبة visibility + beforeunload**
+```typescript
+// Parse user agent for browser/OS info
+function parseUserAgent(ua: string) {
+  const browsers = [
+    { name: 'Chrome', pattern: /Chrome\/(\d+)/ },
+    { name: 'Firefox', pattern: /Firefox\/(\d+)/ },
+    { name: 'Safari', pattern: /Safari\/(\d+)/ },
+    { name: 'Edge', pattern: /Edg\/(\d+)/ },
+  ];
+  // ... parsing logic
+}
 
-**ملف جديد:** `src/hooks/useAdminSessionGuard.tsx`
+// On successful login, create session
+await supabase.from("user_sessions").insert({
+  user_id: userId,
+  ip_address,
+  user_agent,
+  browser_name,
+  browser_version,
+  os_name,
+  device_type,
+  // country/city can be fetched from IP geolocation API
+});
+```
 
-```tsx
-import { useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
-import { supabase } from '@/integrations/supabase/client';
+---
 
-const SUPER_ADMIN_EMAIL = 'morshed500@gmail.com';
+## الجزء الثالث: تتبع انتهاء الجلسة (Frontend)
 
-export function useAdminSessionGuard() {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+### 1) إنشاء Hook جديد: `src/hooks/useSessionTracker.tsx`
 
-  const shouldEnforceSessionTimeout = useCallback(() => {
-    // Only enforce for admins who are NOT super admin
-    return user && isAdmin && !isSuperAdmin;
-  }, [user, isAdmin, isSuperAdmin]);
+يستخدم `beforeunload` و `visibilitychange` لتتبع إغلاق الصفحة:
+
+```typescript
+export function useSessionTracker() {
+  const { user } = useAuth();
+  const sessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!shouldEnforceSessionTimeout()) return;
+    if (!user) return;
 
-    // Clear session on page unload (browser close/tab close)
-    const handleBeforeUnload = () => {
-      // Set a flag in sessionStorage to detect browser restart
-      sessionStorage.setItem('admin_session_active', 'true');
+    // Start session on mount
+    const startSession = async () => {
+      const { data } = await supabase
+        .from('user_sessions')
+        .insert({
+          user_id: user.id,
+          ip_address: await getClientIP(),
+          user_agent: navigator.userAgent,
+          browser_name: getBrowserName(),
+          // ... other fields
+        })
+        .select('id')
+        .single();
+      
+      if (data) sessionIdRef.current = data.id;
     };
 
-    // Check on page load if this is a new browser session
-    const checkSessionOnLoad = async () => {
-      const wasActive = sessionStorage.getItem('admin_session_active');
-      if (!wasActive && user) {
-        // This is a new browser session - force logout
-        await supabase.auth.signOut();
-        window.location.href = '/login';
+    // End session on unmount/close
+    const endSession = () => {
+      if (sessionIdRef.current) {
+        navigator.sendBeacon(
+          `${SUPABASE_URL}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`,
+          JSON.stringify({ 
+            ended_at: new Date().toISOString(),
+            is_active: false 
+          })
+        );
       }
     };
 
-    // Set flag immediately
-    sessionStorage.setItem('admin_session_active', 'true');
+    startSession();
+    window.addEventListener('beforeunload', endSession);
     
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      endSession();
+      window.removeEventListener('beforeunload', endSession);
     };
-  }, [shouldEnforceSessionTimeout, user]);
+  }, [user]);
 }
 ```
 
-**3) استخدام الـ Hook في AuthProvider**
+### 2) إضافة الـ Hook في `App.tsx`
 
 ```tsx
-// في useAuth.tsx - إضافة في useEffect الرئيسي
-useEffect(() => {
-  // للأدمن (غير السوبر أدمن): التحقق من الجلسة
-  const wasActive = sessionStorage.getItem('admin_session_active');
-  const isNonSuperAdmin = user?.email !== 'morshed500@gmail.com' && isAdmin;
-  
-  if (isNonSuperAdmin && !wasActive && user) {
-    // جلسة جديدة بعد إغلاق المتصفح - تسجيل الخروج
-    supabase.auth.signOut();
-    return;
-  }
-  
-  if (isNonSuperAdmin) {
-    sessionStorage.setItem('admin_session_active', 'true');
-  }
-}, [user, isAdmin]);
+function AppContent() {
+  useSessionTracker(); // Track user sessions
+  return <Routes>...</Routes>;
+}
 ```
 
-**ملاحظة مهمة:** هذا الحل يستخدم `sessionStorage` الذي يتم مسحه تلقائياً عند إغلاق المتصفح، بينما `localStorage` (المستخدم للجلسة العادية) يبقى.
+---
+
+## الجزء الرابع: تحديث صفحة AdminUsers
+
+### 1) إضافة تبويب "سجل الجلسات"
+
+```tsx
+<TabsList className="grid w-full max-w-lg grid-cols-4">
+  <TabsTrigger value="pending">معلق</TabsTrigger>
+  <TabsTrigger value="active">نشط</TabsTrigger>
+  <TabsTrigger value="blocked">محظور</TabsTrigger>
+  <TabsTrigger value="sessions">سجل الجلسات</TabsTrigger>
+</TabsList>
+```
+
+### 2) فلاتر التاريخ
+
+```tsx
+<div className="flex gap-4 items-center">
+  <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+    <SelectTrigger className="w-40">
+      <SelectValue placeholder="الفترة" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="today">اليوم</SelectItem>
+      <SelectItem value="week">هذا الأسبوع</SelectItem>
+      <SelectItem value="month">هذا الشهر</SelectItem>
+      <SelectItem value="year">هذه السنة</SelectItem>
+      <SelectItem value="custom">تاريخ مخصص</SelectItem>
+    </SelectContent>
+  </Select>
+  
+  {filterPeriod === 'custom' && (
+    <>
+      <Input type="date" value={startDate} onChange={...} />
+      <Input type="date" value={endDate} onChange={...} />
+    </>
+  )}
+</div>
+```
+
+### 3) جدول سجل الجلسات
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ المستخدم      │ الوقت         │ المدة      │ المتصفح  │ IP          │ الموقع  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ أحمد محمد     │ 14:30 2026/01/30 │ 2س 45د   │ Chrome  │ 192.168.1.1 │ تل أبيب │
+│ رغدة          │ 10:15 2026/01/30 │ 4س 10د   │ Safari  │ 10.0.0.5    │ حيفا    │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4) عرض المدة بشكل مقروء
+
+```typescript
+const formatDuration = (minutes: number | null) => {
+  if (!minutes) return 'نشط حالياً';
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hours > 0) {
+    return `${hours}س ${mins}د`;
+  }
+  return `${mins}د`;
+};
+```
+
+---
+
+## الجزء الخامس: تحديث login_attempts بالبيانات
+
+### تحديث Edge Functions لجمع IP
+
+```typescript
+// في auth-email-start, auth-sms-start, auth-email-verify, auth-sms-verify
+const getClientInfo = (req: Request) => {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("cf-connecting-ip")
+    || req.headers.get("x-real-ip")
+    || 'unknown';
+  
+  const userAgent = req.headers.get("user-agent") || '';
+  
+  return { ip, userAgent };
+};
+
+// استخدام في الإدخال
+const { ip, userAgent } = getClientInfo(req);
+
+supabase.from("login_attempts").insert({
+  email: normalizedEmail,
+  ip_address: ip,
+  user_agent: userAgent,
+  method: "email_otp",
+  success: false,
+});
+```
 
 ---
 
@@ -296,45 +284,39 @@ useEffect(() => {
 
 | الملف | الإجراء |
 |-------|---------|
-| Database Migration | إنشاء 3 جداول: repair_claims, repair_claim_notes, repair_claim_reminders |
-| `src/pages/RepairClaims.tsx` | إنشاء جديد |
-| `src/pages/RepairClaimDetail.tsx` | إنشاء جديد |
-| `src/components/claims/RepairClaimDrawer.tsx` | إنشاء جديد |
-| `src/components/claims/ClaimNoteTimeline.tsx` | إنشاء جديد |
-| `src/components/claims/ClaimReminderList.tsx` | إنشاء جديد |
-| `src/components/claims/CloseClaimDialog.tsx` | إنشاء جديد |
-| `src/hooks/useAdminSessionGuard.tsx` | إنشاء جديد |
-| `src/hooks/useAuth.tsx` | تعديل لإضافة session guard |
-| `src/App.tsx` | إضافة Routes |
-| `src/components/layout/Sidebar.tsx` | إضافة رابط |
+| Database Migration | إنشاء جدول `user_sessions` |
+| `supabase/functions/auth-email-start/index.ts` | إضافة جمع IP و User-Agent |
+| `supabase/functions/auth-sms-start/index.ts` | إضافة جمع IP و User-Agent |
+| `supabase/functions/auth-email-verify/index.ts` | إنشاء جلسة عند النجاح |
+| `supabase/functions/auth-sms-verify/index.ts` | إنشاء جلسة عند النجاح |
+| `src/hooks/useSessionTracker.tsx` | إنشاء جديد - تتبع الجلسات |
+| `src/App.tsx` | إضافة useSessionTracker |
+| `src/pages/AdminUsers.tsx` | إضافة تبويب سجل الجلسات مع الفلاتر |
 
 ---
 
-## سير العمل المتوقع
+## الميزات النهائية
 
-### إنشاء مطالبة:
-1. المسؤول يضغط "إضافة مطالبة"
-2. يختار الكراج (من جهات الاتصال أو يكتب جديد)
-3. يختار شركة التأمين ويدخل رقم الملف
-4. يختار نوع السيارة:
-   - خارجية: يدخل بيانات السيارة
-   - مؤمن: يبحث عن العميل ويختار البوليصة (ثالث/خدمات طريق)
-5. يحفظ المطالبة
+1. **تسجيل IP والمتصفح** - تلقائي عند كل محاولة دخول
+2. **تتبع مدة الجلسة** - من لحظة الدخول حتى إغلاق المتصفح
+3. **فلترة بالتاريخ** - يوم، أسبوع، شهر، سنة، أو تاريخ مخصص
+4. **عرض المتصفح والجهاز** - Chrome, Firefox, Safari + نوع الجهاز
+5. **عرض الموقع** - البلد والمدينة (من IP geolocation)
+6. **إحصائيات** - إجمالي ساعات العمل لكل موظف
 
-### متابعة الملف:
-1. يفتح المطالبة
-2. يضيف ملاحظات (Timeline)
-3. يضيف تذكيرات (للكراج أو للمؤمن)
-4. التذكيرات تظهر في popup مثل المهام
+---
 
-### إغلاق الملف:
-1. المسؤول يضغط "إغلاق الملف"
-2. يدخل وصف التصليحات والمبلغ
-3. النظام ينشئ مصروف جديد تلقائياً في جدول expenses
-4. الحالة تتغير إلى "مكتمل"
+## ملاحظات تقنية
 
-### جلسة الأدمن:
-- عند إغلاق المتصفح: الجلسة تنتهي
-- عند فتح المتصفح مجدداً: يُطلب تسجيل دخول جديد
-- Super admin (`morshed500@gmail.com`): لا يتأثر
+### جمع IP في Edge Functions:
+- `x-forwarded-for`: العنوان الأصلي خلف proxy
+- `cf-connecting-ip`: من Cloudflare
+- `x-real-ip`: من nginx/load balancer
 
+### تتبع إغلاق المتصفح:
+- `navigator.sendBeacon()` - يضمن إرسال الطلب حتى عند الإغلاق
+- `beforeunload` event - يُطلق عند إغلاق التبويب
+
+### Geolocation من IP:
+- يمكن استخدام خدمة مجانية مثل `ip-api.com`
+- أو تخزين قاعدة بيانات GeoIP محلياً

@@ -16,7 +16,7 @@ import { format, differenceInDays } from "date-fns";
 import { 
   DollarSign, Search, AlertTriangle, Clock, Send, 
   Phone, Eye, Filter, Users, TrendingDown, Calendar,
-  MessageSquare, RefreshCw, ChevronDown, ChevronUp, Wallet
+  MessageSquare, RefreshCw, ChevronDown, ChevronUp, Wallet, MessageCircle
 } from "lucide-react";
 import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { DebtPaymentModal } from "@/components/debt/DebtPaymentModal";
@@ -255,6 +255,26 @@ export default function DebtTracking() {
     setPaymentModalOpen(true);
   };
 
+  const openWhatsAppReminder = (client: ClientDebt) => {
+    if (!client.phone_number) return;
+    
+    // تحويل الرقم لصيغة دولية (إزالة 0 وإضافة 972)
+    let phone = client.phone_number.replace(/[\s\-\(\)]/g, '');
+    if (phone.startsWith('0')) {
+      phone = '972' + phone.slice(1);
+    } else if (!phone.startsWith('972') && !phone.startsWith('+972')) {
+      phone = '972' + phone;
+    }
+    phone = phone.replace('+', '');
+    
+    // رسالة افتراضية
+    const message = `مرحباً ${client.client_name}، لديك مبلغ متبقي ${client.total_owed.toLocaleString()} شيكل. يرجى التواصل معنا لتسوية المبلغ.`;
+    
+    // فتح واتساب
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const formatCurrency = (amount: number) => `₪${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
   const getExpiryBadge = (days: number | null) => {
@@ -463,6 +483,18 @@ export default function DebtTracking() {
                         >
                           <Wallet className="h-4 w-4 ml-2" />
                           تسديد المبلغ
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openWhatsAppReminder(client);
+                          }}
+                          disabled={!client.phone_number}
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                        >
+                          <MessageCircle className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"

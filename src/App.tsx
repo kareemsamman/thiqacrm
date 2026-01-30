@@ -50,6 +50,7 @@ import AccidentReportForm from "./pages/AccidentReportForm";
 import AccidentTemplateMapper from "./pages/AccidentTemplateMapper";
 import Expenses from "./pages/Expenses";
 import AnnouncementSettings from "./pages/AnnouncementSettings";
+import Tasks from "./pages/Tasks";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +76,11 @@ const App = () => (
               <Route path="/" element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
+                <ProtectedRoute>
+                  <Tasks />
                 </ProtectedRoute>
               } />
               <Route path="/clients" element={

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomToolbar } from "./BottomToolbar";
 import { AnnouncementPopup } from "./AnnouncementPopup";
+import { TaskPopupReminder } from "@/components/tasks/TaskPopupReminder";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -26,6 +27,9 @@ export function MainLayout({ children, onPolicyComplete }: MainLayoutProps) {
 
       {/* Announcement popup */}
       <AnnouncementPopup />
+
+      {/* Task reminder popup */}
+      <TaskPopupReminder />
     </div>
   );
 }

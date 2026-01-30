@@ -1,322 +1,254 @@
 
-# خطة: تتبع جلسات المستخدمين ومدة النشاط
+# خطة: إصلاح تتبع الجلسات + تحسين القائمة الجانبية
 
 ## نظرة عامة
-إضافة تبويب جديد في صفحة "المستخدمون" لعرض سجل جلسات الموظفين مع بيانات تفصيلية تشمل: عنوان IP، المتصفح، الموقع، ومدة الجلسة (ساعات ودقائق).
+هناك مشكلتان رئيسيتان:
+1. **الجلسات لا تظهر** - الاستعلام يستخدم foreign key خاطئ
+2. **القائمة الجانبية غير منظمة** - تحتاج إعادة ترتيب مع مجموعات واضحة
 
 ---
 
-## الجزء الأول: إنشاء جدول جلسات المستخدمين
+## الجزء الأول: إصلاح تتبع الجلسات
 
-**جدول جديد:** `user_sessions`
+### المشكلة الحالية:
+البيانات **موجودة** في قاعدة البيانات (3 جلسات مسجلة)، لكن الاستعلام فاشل لأنه يستخدم:
+```typescript
+profile:profiles!user_sessions_user_id_fkey(full_name, email)
+```
+هذا خاطئ لأن `user_sessions.user_id` يشير إلى `auth.users(id)` وليس `profiles(id)`.
 
-| العمود | النوع | الوصف |
-|--------|------|-------|
-| id | uuid | المفتاح الأساسي |
-| user_id | uuid | FK للمستخدم |
-| started_at | timestamp | وقت بدء الجلسة |
-| ended_at | timestamp | وقت انتهاء الجلسة (nullable) |
-| ip_address | text | عنوان IP |
-| user_agent | text | معلومات المتصفح الكاملة |
-| browser_name | text | اسم المتصفح (Chrome, Firefox, Safari...) |
-| browser_version | text | إصدار المتصفح |
-| os_name | text | نظام التشغيل |
-| device_type | text | نوع الجهاز (desktop, mobile, tablet) |
-| country | text | البلد (من IP) |
-| city | text | المدينة (من IP) |
-| is_active | boolean | هل الجلسة نشطة حالياً |
+### الإصلاحات المطلوبة:
 
+**1) تعديل `UserSessionsTab.tsx`:**
+تغيير الاستعلام ليستخدم العلاقة الصحيحة:
+```typescript
+const { data, error } = await supabase
+  .from('user_sessions')
+  .select(`
+    *,
+    profile:profiles(full_name, email)
+  `)
+  .gte('started_at', start.toISOString())
+  .lte('started_at', end.toISOString())
+  .order('started_at', { ascending: false })
+  .limit(100);
+```
+
+**2) إضافة foreign key في قاعدة البيانات (اختياري):**
 ```sql
-CREATE TABLE public.user_sessions (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  started_at timestamp with time zone DEFAULT now() NOT NULL,
-  ended_at timestamp with time zone,
-  duration_minutes integer GENERATED ALWAYS AS (
-    CASE WHEN ended_at IS NOT NULL 
-    THEN EXTRACT(EPOCH FROM (ended_at - started_at)) / 60
-    ELSE NULL END
-  ) STORED,
-  ip_address text,
-  user_agent text,
-  browser_name text,
-  browser_version text,
-  os_name text,
-  device_type text,
-  country text,
-  city text,
-  is_active boolean DEFAULT true
-);
+-- Create FK from user_sessions to profiles
+ALTER TABLE public.user_sessions 
+ADD CONSTRAINT user_sessions_user_id_profiles_fkey 
+FOREIGN KEY (user_id) REFERENCES public.profiles(id);
+```
 
--- Enable RLS - Admin only
-ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can view user sessions"
-  ON public.user_sessions FOR ALL
-  TO authenticated
-  USING (public.has_role(auth.uid(), 'admin') OR auth.jwt() ->> 'email' = 'morshed500@gmail.com');
-
--- Indexes
-CREATE INDEX idx_user_sessions_user ON public.user_sessions(user_id);
-CREATE INDEX idx_user_sessions_started ON public.user_sessions(started_at DESC);
+**3) ملء IP Address:**
+حالياً IP فارغ لأن الـ frontend لا يمكنه الحصول على IP الحقيقي. الحل: استخدام خدمة API:
+```typescript
+// في useSessionTracker.tsx
+const getClientIP = async () => {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch {
+    return null;
+  }
+};
 ```
 
 ---
 
-## الجزء الثاني: تحديث Edge Functions لجمع البيانات
+## الجزء الثاني: تحسين القائمة الجانبية
 
-### 1) تحديث `auth-email-start` و `auth-sms-start`
-إضافة جمع IP وUser-Agent من الـ request headers:
-
-```typescript
-// Get IP and User-Agent from request
-const ip_address = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
-  || req.headers.get("cf-connecting-ip") 
-  || req.headers.get("x-real-ip")
-  || null;
-const user_agent = req.headers.get("user-agent") || null;
-
-// Update login_attempts insert
-supabase.from("login_attempts").insert({
-  email: normalizedEmail,
-  identifier: normalizedEmail,
-  method: "email_otp",
-  success: false,
-  ip_address,
-  user_agent,
-});
-```
-
-### 2) تحديث `auth-email-verify` و `auth-sms-verify`
-عند نجاح تسجيل الدخول، إنشاء جلسة جديدة:
-
-```typescript
-// Parse user agent for browser/OS info
-function parseUserAgent(ua: string) {
-  const browsers = [
-    { name: 'Chrome', pattern: /Chrome\/(\d+)/ },
-    { name: 'Firefox', pattern: /Firefox\/(\d+)/ },
-    { name: 'Safari', pattern: /Safari\/(\d+)/ },
-    { name: 'Edge', pattern: /Edg\/(\d+)/ },
-  ];
-  // ... parsing logic
-}
-
-// On successful login, create session
-await supabase.from("user_sessions").insert({
-  user_id: userId,
-  ip_address,
-  user_agent,
-  browser_name,
-  browser_version,
-  os_name,
-  device_type,
-  // country/city can be fetched from IP geolocation API
-});
-```
-
----
-
-## الجزء الثالث: تتبع انتهاء الجلسة (Frontend)
-
-### 1) إنشاء Hook جديد: `src/hooks/useSessionTracker.tsx`
-
-يستخدم `beforeunload` و `visibilitychange` لتتبع إغلاق الصفحة:
-
-```typescript
-export function useSessionTracker() {
-  const { user } = useAuth();
-  const sessionIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Start session on mount
-    const startSession = async () => {
-      const { data } = await supabase
-        .from('user_sessions')
-        .insert({
-          user_id: user.id,
-          ip_address: await getClientIP(),
-          user_agent: navigator.userAgent,
-          browser_name: getBrowserName(),
-          // ... other fields
-        })
-        .select('id')
-        .single();
-      
-      if (data) sessionIdRef.current = data.id;
-    };
-
-    // End session on unmount/close
-    const endSession = () => {
-      if (sessionIdRef.current) {
-        navigator.sendBeacon(
-          `${SUPABASE_URL}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`,
-          JSON.stringify({ 
-            ended_at: new Date().toISOString(),
-            is_active: false 
-          })
-        );
-      }
-    };
-
-    startSession();
-    window.addEventListener('beforeunload', endSession);
-    
-    return () => {
-      endSession();
-      window.removeEventListener('beforeunload', endSession);
-    };
-  }, [user]);
-}
-```
-
-### 2) إضافة الـ Hook في `App.tsx`
-
-```tsx
-function AppContent() {
-  useSessionTracker(); // Track user sessions
-  return <Routes>...</Routes>;
-}
-```
-
----
-
-## الجزء الرابع: تحديث صفحة AdminUsers
-
-### 1) إضافة تبويب "سجل الجلسات"
-
-```tsx
-<TabsList className="grid w-full max-w-lg grid-cols-4">
-  <TabsTrigger value="pending">معلق</TabsTrigger>
-  <TabsTrigger value="active">نشط</TabsTrigger>
-  <TabsTrigger value="blocked">محظور</TabsTrigger>
-  <TabsTrigger value="sessions">سجل الجلسات</TabsTrigger>
-</TabsList>
-```
-
-### 2) فلاتر التاريخ
-
-```tsx
-<div className="flex gap-4 items-center">
-  <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-    <SelectTrigger className="w-40">
-      <SelectValue placeholder="الفترة" />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value="today">اليوم</SelectItem>
-      <SelectItem value="week">هذا الأسبوع</SelectItem>
-      <SelectItem value="month">هذا الشهر</SelectItem>
-      <SelectItem value="year">هذه السنة</SelectItem>
-      <SelectItem value="custom">تاريخ مخصص</SelectItem>
-    </SelectContent>
-  </Select>
-  
-  {filterPeriod === 'custom' && (
-    <>
-      <Input type="date" value={startDate} onChange={...} />
-      <Input type="date" value={endDate} onChange={...} />
-    </>
-  )}
-</div>
-```
-
-### 3) جدول سجل الجلسات
+### الهيكل الجديد المقترح:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ المستخدم      │ الوقت         │ المدة      │ المتصفح  │ IP          │ الموقع  │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ أحمد محمد     │ 14:30 2026/01/30 │ 2س 45د   │ Chrome  │ 192.168.1.1 │ تل أبيب │
-│ رغدة          │ 10:15 2026/01/30 │ 4س 10د   │ Safari  │ 10.0.0.5    │ حيفا    │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  AB تأمين                           │
+├─────────────────────────────────────┤
+│ ▼ الرئيسية                          │
+│    • لوحة التحكم                    │
+│    • المهام                         │
+│    • التنبيهات                      │
+├─────────────────────────────────────┤
+│ ▼ إدارة العملاء                     │
+│    • العملاء                        │
+│    • السيارات                       │
+│    • الوثائق                        │
+│    • جهات الاتصال                   │
+├─────────────────────────────────────┤
+│ ▼ المالية                     (أدمن)│
+│    • الشيكات                        │
+│    • متابعة الديون                  │
+│    • شركات التأمين            (أدمن)│
+│    • الوسطاء                  (أدمن)│
+│    • المصاريف                 (أدمن)│
+├─────────────────────────────────────┤
+│ ▼ التقارير                          │
+│    • تقارير الوثائق                 │
+│    • تقرير الشركات            (أدمن)│
+│    • التقارير المالية         (أدمن)│
+├─────────────────────────────────────┤
+│ ▼ بلاغات وحوادث                     │
+│    • بلاغات الحوادث                 │
+│    • المطالبات               (أدمن)│
+├─────────────────────────────────────┤
+│ ▼ أخرى                              │
+│    • الوسائط                        │
+├─────────────────────────────────────┤
+│ ▼ الإعدادات                   (أدمن)│
+│    • المستخدمون                     │
+│    • SMS تسويقية                    │
+│    • أنواع التأمين                  │
+│    • خدمات الطريق                   │
+│    • إعفاء رسوم الحادث              │
+│    • قوالب الفواتير                 │
+│    • توقيعات العملاء                │
+│    • إعدادات الدفع                  │
+│    • إعدادات SMS                    │
+│    • إعدادات المصادقة               │
+│    • سجل الرسائل                    │
+│    • استيراد WordPress              │
+│    • إعلانات النظام     (سوبر أدمن)│
+└─────────────────────────────────────┘
 ```
 
-### 4) عرض المدة بشكل مقروء
+### التنفيذ:
+
+**1) تعديل `Sidebar.tsx`:**
+
+إنشاء هيكل مجموعات قابل للطي:
 
 ```typescript
-const formatDuration = (minutes: number | null) => {
-  if (!minutes) return 'نشط حالياً';
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  if (hours > 0) {
-    return `${hours}س ${mins}د`;
-  }
-  return `${mins}د`;
-};
+interface NavGroup {
+  name: string;
+  items: NavItem[];
+  adminOnly?: boolean;
+  defaultOpen?: boolean;
+}
+
+const navigationGroups: NavGroup[] = [
+  {
+    name: "الرئيسية",
+    defaultOpen: true,
+    items: [
+      { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
+      { name: "المهام", href: "/tasks", icon: ListTodo },
+      { name: "التنبيهات", href: "/notifications", icon: Bell },
+    ]
+  },
+  {
+    name: "إدارة العملاء",
+    items: [
+      { name: "العملاء", href: "/clients", icon: Users },
+      { name: "السيارات", href: "/cars", icon: Car },
+      { name: "الوثائق", href: "/policies", icon: FileText },
+      { name: "جهات الاتصال", href: "/contacts", icon: Contact },
+    ]
+  },
+  {
+    name: "المالية",
+    items: [
+      { name: "الشيكات", href: "/cheques", icon: CreditCard },
+      { name: "متابعة الديون", href: "/debt-tracking", icon: DollarSign },
+      { name: "شركات التأمين", href: "/companies", icon: Building2, adminOnly: true },
+      { name: "الوسطاء", href: "/brokers", icon: Wallet, adminOnly: true },
+      { name: "المصاريف", href: "/expenses", icon: DollarSign, adminOnly: true },
+    ]
+  },
+  {
+    name: "التقارير",
+    items: [
+      { name: "تقارير الوثائق", href: "/reports/policies", icon: BarChart3 },
+      { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true },
+      { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true },
+    ]
+  },
+  {
+    name: "بلاغات وحوادث",
+    items: [
+      { name: "بلاغات الحوادث", href: "/accidents", icon: AlertTriangle },
+      { name: "المطالبات", href: "/admin/claims", icon: FileWarning, adminOnly: true },
+    ]
+  },
+  {
+    name: "أخرى",
+    items: [
+      { name: "الوسائط", href: "/media", icon: Image },
+    ]
+  },
+  {
+    name: "الإعدادات",
+    adminOnly: true,
+    items: [
+      { name: "المستخدمون", href: "/admin/users", icon: UserCog },
+      { name: "SMS تسويقية", href: "/admin/marketing-sms", icon: Megaphone },
+      { name: "أنواع التأمين", href: "/admin/insurance-categories", icon: FileText },
+      { name: "خدمات الطريق", href: "/admin/road-services", icon: Truck },
+      { name: "إعفاء رسوم الحادث", href: "/admin/accident-fee-services", icon: Shield },
+      { name: "قوالب الفواتير", href: "/admin/invoice-templates", icon: FileText },
+      { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
+      { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
+      { name: "إعدادات SMS", href: "/admin/sms-settings", icon: MessageSquare },
+      { name: "إعدادات المصادقة", href: "/admin/auth-settings", icon: Settings },
+      { name: "سجل الرسائل", href: "/sms-history", icon: History },
+      { name: "استيراد WordPress", href: "/admin/wordpress-import", icon: Upload },
+    ]
+  },
+];
+```
+
+**2) استخدام Collapsible للمجموعات:**
+
+```tsx
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+
+// لكل مجموعة
+<Collapsible defaultOpen={group.defaultOpen || isGroupActive}>
+  <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50 rounded-lg">
+    <span>{group.name}</span>
+    <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+  </CollapsibleTrigger>
+  <CollapsibleContent>
+    {group.items.map(item => (
+      // روابط التنقل
+    ))}
+  </CollapsibleContent>
+</Collapsible>
+```
+
+**3) إخفاء العناصر حسب الصلاحيات:**
+
+```tsx
+// فلترة المجموعات والعناصر
+const filteredGroups = navigationGroups
+  .filter(group => !group.adminOnly || isAdmin)
+  .map(group => ({
+    ...group,
+    items: group.items.filter(item => !item.adminOnly || isAdmin)
+  }))
+  .filter(group => group.items.length > 0);
 ```
 
 ---
 
-## الجزء الخامس: تحديث login_attempts بالبيانات
+## ملخص الملفات المطلوب تعديلها
 
-### تحديث Edge Functions لجمع IP
-
-```typescript
-// في auth-email-start, auth-sms-start, auth-email-verify, auth-sms-verify
-const getClientInfo = (req: Request) => {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || req.headers.get("cf-connecting-ip")
-    || req.headers.get("x-real-ip")
-    || 'unknown';
-  
-  const userAgent = req.headers.get("user-agent") || '';
-  
-  return { ip, userAgent };
-};
-
-// استخدام في الإدخال
-const { ip, userAgent } = getClientInfo(req);
-
-supabase.from("login_attempts").insert({
-  email: normalizedEmail,
-  ip_address: ip,
-  user_agent: userAgent,
-  method: "email_otp",
-  success: false,
-});
-```
-
----
-
-## ملخص الملفات
-
-| الملف | الإجراء |
+| الملف | التعديل |
 |-------|---------|
-| Database Migration | إنشاء جدول `user_sessions` |
-| `supabase/functions/auth-email-start/index.ts` | إضافة جمع IP و User-Agent |
-| `supabase/functions/auth-sms-start/index.ts` | إضافة جمع IP و User-Agent |
-| `supabase/functions/auth-email-verify/index.ts` | إنشاء جلسة عند النجاح |
-| `supabase/functions/auth-sms-verify/index.ts` | إنشاء جلسة عند النجاح |
-| `src/hooks/useSessionTracker.tsx` | إنشاء جديد - تتبع الجلسات |
-| `src/App.tsx` | إضافة useSessionTracker |
-| `src/pages/AdminUsers.tsx` | إضافة تبويب سجل الجلسات مع الفلاتر |
+| `src/components/admin/UserSessionsTab.tsx` | إصلاح استعلام الـ profiles |
+| `src/hooks/useSessionTracker.tsx` | إضافة جلب IP من API |
+| `src/components/layout/Sidebar.tsx` | إعادة هيكلة مع مجموعات قابلة للطي |
+| Database Migration | إضافة FK من user_sessions إلى profiles |
 
 ---
 
-## الميزات النهائية
+## النتيجة المتوقعة
 
-1. **تسجيل IP والمتصفح** - تلقائي عند كل محاولة دخول
-2. **تتبع مدة الجلسة** - من لحظة الدخول حتى إغلاق المتصفح
-3. **فلترة بالتاريخ** - يوم، أسبوع، شهر، سنة، أو تاريخ مخصص
-4. **عرض المتصفح والجهاز** - Chrome, Firefox, Safari + نوع الجهاز
-5. **عرض الموقع** - البلد والمدينة (من IP geolocation)
-6. **إحصائيات** - إجمالي ساعات العمل لكل موظف
+1. **الجلسات ستظهر** - مع اسم المستخدم والبيانات الكاملة
+2. **IP سيُملأ** - من خدمة خارجية
+3. **قائمة منظمة** - مجموعات واضحة مع إمكانية الطي
+4. **صلاحيات محترمة** - العامل يرى فقط ما يحتاجه
 
----
-
-## ملاحظات تقنية
-
-### جمع IP في Edge Functions:
-- `x-forwarded-for`: العنوان الأصلي خلف proxy
-- `cf-connecting-ip`: من Cloudflare
-- `x-real-ip`: من nginx/load balancer
-
-### تتبع إغلاق المتصفح:
-- `navigator.sendBeacon()` - يضمن إرسال الطلب حتى عند الإغلاق
-- `beforeunload` event - يُطلق عند إغلاق التبويب
-
-### Geolocation من IP:
-- يمكن استخدام خدمة مجانية مثل `ip-api.com`
-- أو تخزين قاعدة بيانات GeoIP محلياً

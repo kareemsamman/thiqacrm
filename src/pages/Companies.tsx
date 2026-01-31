@@ -310,7 +310,8 @@ export default function Companies() {
                             إعفاء الحادث
                           </Button>
                         )}
-                        {company.category_parent?.includes('THIRD_FULL') && (
+                        {(company.category_parent?.includes('THIRD_FULL') || 
+                          company.category_parent?.includes('ROAD_SERVICE')) && (
                           <Button
                             variant="outline"
                             size="sm"

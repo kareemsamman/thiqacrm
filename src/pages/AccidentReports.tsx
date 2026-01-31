@@ -33,8 +33,10 @@ import {
   ChevronRight,
   Eye,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
+import { AccidentReportWizard } from "@/components/accident-reports/AccidentReportWizard";
 
 interface AccidentReport {
   id: string;
@@ -102,6 +104,7 @@ export default function AccidentReports() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
     const { data } = await supabase
@@ -224,6 +227,10 @@ export default function AccidentReports() {
               إدارة ومتابعة بلاغات الحوادث المرتبطة بالوثائق
             </p>
           </div>
+          <Button onClick={() => setWizardOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" />
+            بلاغ جديد
+          </Button>
         </div>
 
         {/* Filters */}
@@ -411,6 +418,11 @@ export default function AccidentReports() {
           title="حذف بلاغ الحادث"
           description="هل أنت متأكد من حذف هذا البلاغ؟ سيتم حذف جميع البيانات المرتبطة به."
           loading={deleting}
+        />
+
+        <AccidentReportWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
         />
       </div>
     </MainLayout>

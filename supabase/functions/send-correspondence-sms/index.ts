@@ -79,25 +79,30 @@ Deno.serve(async (req) => {
     if (!letterUrl) {
       console.log('Generating HTML first...');
       
-      // Call the generate function internally (same logic)
-      const { data: companyInfo } = await supabase
-        .from('company_info')
-        .select('*')
+      // Fetch from sms_settings with invoice_templates join
+      const { data: smsSettings } = await supabase
+        .from('sms_settings')
+        .select(`
+          company_phone_links,
+          company_location,
+          invoice_templates:default_signature_template_id (logo_url)
+        `)
+        .limit(1)
         .single();
 
       let phoneLinks: { phone: string; label?: string }[] = [];
-      if (companyInfo?.company_phone_links) {
+      if (smsSettings?.company_phone_links) {
         try {
-          phoneLinks = typeof companyInfo.company_phone_links === 'string'
-            ? JSON.parse(companyInfo.company_phone_links)
-            : companyInfo.company_phone_links;
+          phoneLinks = typeof smsSettings.company_phone_links === 'string'
+            ? JSON.parse(smsSettings.company_phone_links)
+            : smsSettings.company_phone_links;
         } catch {
           phoneLinks = [];
         }
       }
 
-      const companyName = companyInfo?.company_name || 'مكتب بشير للتأمين';
-      const logoUrl = companyInfo?.company_logo_url || '';
+      const companyName = 'مكتب بشير للتأمين';
+      const logoUrl = (smsSettings?.invoice_templates as any)?.logo_url || '';
       const phonesHtml = phoneLinks.map(p => `<span>${p.label ? `${p.label}: ` : ''}${p.phone}</span>`).join(' | ');
 
       const html = `<!DOCTYPE html>
@@ -136,7 +141,7 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-      const bunnyStorageKey = Deno.env.get('BUNNY_STORAGE_KEY');
+      const bunnyStorageKey = Deno.env.get('BUNNY_API_KEY');
       const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || 'ab-storage';
       const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
 
@@ -203,13 +208,7 @@ Deno.serve(async (req) => {
       phone = '0' + phone;
     }
 
-    // Fetch company info for message
-    const { data: companyInfo } = await supabase
-      .from('company_info')
-      .select('company_name')
-      .single();
-
-    const companyName = companyInfo?.company_name || 'مكتب بشير للتأمين';
+    const companyName = 'مكتب بشير للتأمين';
 
     // Build SMS message
     const message = `رسالة من ${companyName}:

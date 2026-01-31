@@ -22,10 +22,15 @@ export function LetterPreview({ recipientName, bodyHtml, className }: LetterPrev
   useEffect(() => {
     async function fetchCompanyInfo() {
       try {
-        // Use 'any' cast since company_info table may not be in generated types
-        const { data, error } = await (supabase as any)
-          .from('company_info')
-          .select('company_name, company_logo_url, company_phone_links')
+        // Fetch from sms_settings with join on invoice_templates for logo
+        const { data, error } = await supabase
+          .from('sms_settings')
+          .select(`
+            company_phone_links,
+            company_location,
+            invoice_templates:default_signature_template_id (logo_url)
+          `)
+          .limit(1)
           .single();
         
         if (error) throw error;
@@ -40,13 +45,20 @@ export function LetterPreview({ recipientName, bodyHtml, className }: LetterPrev
           }
         }
         
+        // Get logo from invoice_templates join
+        const logoUrl = (data?.invoice_templates as any)?.logo_url || undefined;
+        
         setCompanyInfo({
-          company_name: data?.company_name || undefined,
-          company_logo_url: data?.company_logo_url || undefined,
+          company_name: 'مكتب بشير للتأمين',
+          company_logo_url: logoUrl,
           company_phone_links: phoneLinks as CompanyInfo['company_phone_links'],
         });
       } catch (error) {
         console.error('Error fetching company info:', error);
+        // Set defaults on error
+        setCompanyInfo({
+          company_name: 'مكتب بشير للتأمين',
+        });
       } finally {
         setLoading(false);
       }

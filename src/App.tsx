@@ -55,6 +55,7 @@ import Tasks from "./pages/Tasks";
 import BusinessContacts from "./pages/BusinessContacts";
 import RepairClaims from "./pages/RepairClaims";
 import RepairClaimDetail from "./pages/RepairClaimDetail";
+import CorrespondenceLetters from "./pages/CorrespondenceLetters";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -284,6 +285,12 @@ const App = () => (
                 <ProtectedRoute>
                   <AnnouncementSettings />
                 </ProtectedRoute>
+              } />
+              {/* Admin correspondence letters */}
+              <Route path="/admin/correspondence" element={
+                <AdminRoute>
+                  <CorrespondenceLetters />
+                </AdminRoute>
               } />
               {/* Admin claims routes */}
               <Route path="/admin/claims" element={

@@ -104,3 +104,9 @@ verify_jwt = true
 
 [functions.save-accident-edits]
 verify_jwt = false
+
+[functions.generate-correspondence-html]
+verify_jwt = true
+
+[functions.send-correspondence-sms]
+verify_jwt = true

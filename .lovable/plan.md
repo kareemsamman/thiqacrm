@@ -1,218 +1,110 @@
 
-# خطة: نظام المراسلات (التوريسات)
+# خطة: إصلاح نظام التوريسات (المعاينة والطباعة والصور)
 
-## الفكرة العامة
+## المشاكل المكتشفة
 
-المدير يريد إنشاء رسائل رسمية (توريسة) لإرسالها للشركات أو الأفراد. كل رسالة تحتوي على:
-- **رأس الصفحة:** شعار AB
-- **المحتوى:** نص HTML مُنسَّق (صور، Bold، قوائم...)
-- **ذيل الصفحة:** معلومات الشركة AB
+### 1) فشل إنشاء الملف (Print Failed)
+**السبب:** الـ Edge Function تبحث عن `BUNNY_STORAGE_KEY` لكن السر المخزن اسمه `BUNNY_API_KEY`
 
-ثم يمكن:
-- إرسال الرسالة عبر SMS (رابط للرسالة)
-- طباعة الرسالة
-- إدارة الرسائل (إضافة/تعديل/حذف/عرض)
+```
+2026-01-31T13:37:45Z ERROR BUNNY_STORAGE_KEY not configured
+```
+
+**الحل:** تغيير اسم المتغير في Edge Functions من `BUNNY_STORAGE_KEY` إلى `BUNNY_API_KEY`
 
 ---
 
-## هيكل البيانات
+### 2) التذييل لا يظهر أرقام الهواتف
+**السبب:** الكود يبحث عن جدول `company_info` غير موجود!
 
-### جدول جديد: `correspondence_letters`
+**البيانات الفعلية موجودة في:**
+- `sms_settings.company_phone_links` ← أرقام الهواتف
+- `sms_settings.company_email` ← البريد الإلكتروني
+- `sms_settings.company_location` ← العنوان
 
-| العمود | النوع | الوصف |
-|--------|------|-------|
-| id | uuid | المعرف الأساسي |
-| title | text | عنوان الرسالة (داخلي) |
-| recipient_name | text | اسم المستلم (شركة/شخص) |
-| recipient_phone | text | رقم هاتف المستلم (اختياري) |
-| body_html | text | محتوى الرسالة (HTML) |
-| generated_url | text | رابط الرسالة على CDN |
-| status | text | الحالة (draft/sent/viewed) |
-| sent_at | timestamptz | تاريخ الإرسال |
-| created_by_admin_id | uuid | من أنشأ الرسالة |
-| branch_id | uuid | الفرع (اختياري) |
-| created_at | timestamptz | تاريخ الإنشاء |
-| updated_at | timestamptz | تاريخ التحديث |
+**الحل:** تعديل `LetterPreview.tsx` و Edge Functions للقراءة من `sms_settings` بدلاً من `company_info`
 
 ---
 
-## المكونات الجديدة
+### 3) الشعار لا يظهر
+**السبب:** لا يوجد `company_logo_url` في قاعدة البيانات
 
-### 1) صفحة الرسائل: `src/pages/CorrespondenceLetters.tsx`
+**مكان الشعار الفعلي:**
+- `invoice_templates.logo_url` (مرتبط عبر `sms_settings.default_signature_template_id`)
 
-**الميزات:**
-- جدول يعرض جميع الرسائل
-- بحث وفلترة بالحالة
-- أزرار: إضافة جديد، عرض، تعديل، حذف، إرسال SMS، طباعة
-
-**هيكل الصفحة:**
-```
-┌─────────────────────────────────────────┐
-│  التوريسات                    [+ جديد]  │
-├─────────────────────────────────────────┤
-│ [بحث...] [كل] [مسودة] [مُرسل]           │
-├─────────────────────────────────────────┤
-│ العنوان    المستلم    الحالة   إجراءات  │
-│ ───────────────────────────────────────  │
-│ رسالة 1   شركة X    مُرسل    👁️✏️🗑️📱  │
-│ رسالة 2   أحمد      مسودة   👁️✏️🗑️📱  │
-└─────────────────────────────────────────┘
-```
-
-### 2) مكون المحرر: `src/components/correspondence/LetterEditor.tsx`
-
-**محرر HTML بسيط مع:**
-- شريط أدوات: Bold, Italic, Underline, قائمة، رابط
-- زر رفع صورة
-- معاينة فورية
-
-**الهيكل:**
-```
-┌─────────────────────────────────────────┐
-│ [B] [I] [U] [📷] [🔗] [☰]              │
-├─────────────────────────────────────────┤
-│                                         │
-│     [منطقة الكتابة - Textarea]         │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-### 3) مكون المعاينة: `src/components/correspondence/LetterPreview.tsx`
-
-**معاينة الرسالة الكاملة مع:**
-- شعار AB في الأعلى
-- المحتوى في الوسط
-- تذييل AB في الأسفل
-
-### 4) Drawer للإنشاء/التعديل: `src/components/correspondence/LetterDrawer.tsx`
-
-**الحقول:**
-- عنوان الرسالة (داخلي)
-- اسم المستلم
-- رقم الهاتف (اختياري)
-- محرر المحتوى
-- معاينة
+**الحل:** جلب الشعار من `invoice_templates` عبر `sms_settings`
 
 ---
 
-## Edge Functions
+## التعديلات المطلوبة
 
-### 1) `generate-correspondence-html/index.ts`
+### 1) ملف `src/components/correspondence/LetterPreview.tsx`
 
-**الوظيفة:** إنشاء ملف HTML على CDN
+**التغييرات:**
+- تغيير القراءة من `company_info` إلى `sms_settings` مع join على `invoice_templates`
+- جلب `company_phone_links` من `sms_settings`
+- جلب `logo_url` من `invoice_templates`
 
-**المدخلات:**
 ```typescript
-{
-  letter_id: string;
-}
+// قبل (خطأ):
+const { data } = await supabase
+  .from('company_info')
+  .select('company_name, company_logo_url, company_phone_links')
+  .single();
+
+// بعد (صحيح):
+const { data } = await supabase
+  .from('sms_settings')
+  .select(`
+    company_phone_links,
+    company_location,
+    invoice_templates:default_signature_template_id (logo_url)
+  `)
+  .limit(1)
+  .single();
 ```
 
-**العمل:**
-1. جلب بيانات الرسالة من قاعدة البيانات
-2. جلب إعدادات الشركة (الشعار، معلومات التذييل)
-3. بناء HTML كامل مع التنسيق
-4. رفع إلى BunnyCDN بمسار ثابت: `correspondence/{letter_id}/letter.html`
-5. تحديث `generated_url` في قاعدة البيانات
-6. Purge CDN cache
+---
 
-**HTML Template:**
-```html
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 40px; }
-    .header { text-align: center; margin-bottom: 40px; }
-    .header img { max-height: 100px; }
-    .content { line-height: 1.8; min-height: 400px; }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <img src="{{LOGO_URL}}" alt="AB Insurance" />
-  </div>
-  <div class="content">
-    {{BODY_HTML}}
-  </div>
-  <div class="footer">
-    <p>{{COMPANY_NAME}}</p>
-    <p>{{PHONE_LINKS}}</p>
-  </div>
-</body>
-</html>
-```
+### 2) ملف `supabase/functions/generate-correspondence-html/index.ts`
 
-### 2) `send-correspondence-sms/index.ts`
+**التغييرات:**
+- تغيير `BUNNY_STORAGE_KEY` إلى `BUNNY_API_KEY`
+- القراءة من `sms_settings` بدلاً من `company_info`
+- جلب الشعار من `invoice_templates`
 
-**الوظيفة:** إرسال رابط الرسالة عبر SMS
-
-**المدخلات:**
 ```typescript
-{
-  letter_id: string;
-  phone_number: string; // يمكن تجاوز الرقم المحفوظ
-}
-```
+// قبل:
+const bunnyStorageKey = Deno.env.get('BUNNY_STORAGE_KEY');
 
-**العمل:**
-1. التحقق من المصادقة
-2. جلب بيانات الرسالة
-3. إذا لم يكن `generated_url` موجود → إنشاء HTML أولاً
-4. إرسال SMS عبر 019sms
-5. تحديث `status` إلى "sent" و `sent_at`
-6. تسجيل في `sms_logs`
+const { data: companyInfo } = await supabase
+  .from('company_info')
+  .select('*')
+  .single();
 
-**رسالة SMS:**
-```
-رسالة من مكتب بشير للتأمين:
-{{RECIPIENT_NAME}}
+// بعد:
+const bunnyStorageKey = Deno.env.get('BUNNY_API_KEY');
 
-للاطلاع على الرسالة:
-{{LETTER_URL}}
-```
+const { data: smsSettings } = await supabase
+  .from('sms_settings')
+  .select(`
+    company_phone_links,
+    company_location,
+    invoice_templates:default_signature_template_id (logo_url)
+  `)
+  .limit(1)
+  .single();
 
----
-
-## التكامل مع الواجهة
-
-### إضافة Route جديد في `App.tsx`
-
-```tsx
-<Route path="/admin/correspondence" element={
-  <AdminRoute>
-    <CorrespondenceLetters />
-  </AdminRoute>
-} />
-```
-
-### إضافة رابط في Sidebar
-
-في مجموعة "الإعدادات" أو "إدارة":
-```tsx
-{
-  href: "/admin/correspondence",
-  label: "التوريسات",
-  icon: Mail
-}
+const logoUrl = smsSettings?.invoice_templates?.logo_url || '';
 ```
 
 ---
 
-## ميزة الطباعة
+### 3) ملف `supabase/functions/send-correspondence-sms/index.ts`
 
-**من صفحة المعاينة:**
-- زر "طباعة" يفتح `window.print()` على الـ HTML المُنشأ
-- أو يفتح الرابط في نافذة جديدة مع إضافة `?print=1` للطباعة التلقائية
-
-**في HTML المُنشأ:**
-```javascript
-if (window.location.search.includes('print=1')) {
-  window.onload = () => window.print();
-}
-```
+**التغييرات:**
+- نفس التعديلات: تغيير مصدر البيانات من `company_info` إلى `sms_settings`
+- تغيير `BUNNY_STORAGE_KEY` إلى `BUNNY_API_KEY` (إن وجد)
 
 ---
 
@@ -220,139 +112,45 @@ if (window.location.search.includes('print=1')) {
 
 | الملف | النوع | الوصف |
 |-------|-------|-------|
-| `src/pages/CorrespondenceLetters.tsx` | جديد | صفحة إدارة الرسائل |
-| `src/components/correspondence/LetterDrawer.tsx` | جديد | Drawer للإنشاء/التعديل |
-| `src/components/correspondence/LetterEditor.tsx` | جديد | محرر HTML بسيط |
-| `src/components/correspondence/LetterPreview.tsx` | جديد | معاينة الرسالة |
-| `supabase/functions/generate-correspondence-html/index.ts` | جديد | إنشاء HTML على CDN |
-| `supabase/functions/send-correspondence-sms/index.ts` | جديد | إرسال SMS |
-| `src/App.tsx` | تعديل | إضافة Route |
-| `src/components/layout/Sidebar.tsx` | تعديل | إضافة رابط |
-| `supabase/config.toml` | تعديل | إضافة Edge Functions |
-| **Migration** | جديد | إنشاء جدول `correspondence_letters` |
+| `src/components/correspondence/LetterPreview.tsx` | تعديل | قراءة من sms_settings + invoice_templates |
+| `supabase/functions/generate-correspondence-html/index.ts` | تعديل | إصلاح اسم السر + مصدر البيانات |
+| `supabase/functions/send-correspondence-sms/index.ts` | تعديل | إصلاح مصدر البيانات |
 
 ---
 
-## تدفق العمل
+## النتيجة المتوقعة
+
+1. **زر الطباعة يعمل:**
+   - يُنشئ ملف HTML على CDN بنجاح
+   - يفتح صفحة الطباعة
+
+2. **المعاينة تعرض:**
+   - شعار الشركة (من صفحة التوقيع)
+   - أرقام الهواتف المحفوظة
+   - اسم الشركة الافتراضي "مكتب بشير للتأمين"
+
+3. **رفع الصور:**
+   - يعمل (كما يظهر في صورتك مع المستلزمات الطبية ✓)
+
+---
+
+## ملاحظة: إضافة اسم الشركة
+
+حالياً لا يوجد حقل `company_name` في قاعدة البيانات. سنستخدم:
+- قيمة افتراضية: "مكتب بشير للتأمين"
+- أو يمكن إضافة عمود `company_name` إلى جدول `sms_settings` لاحقاً
+
+---
+
+## التدفق بعد الإصلاح
 
 ```text
-1. المدير يفتح صفحة "التوريسات"
-2. يضغط "+ جديد"
-3. يملأ البيانات:
-   - العنوان: "خطاب للشركة س"
-   - المستلم: "شركة س للتأمين"
-   - الهاتف: "0501234567"
-   - المحتوى: [يكتب النص + يضيف صور...]
-4. يضغط "حفظ" → الرسالة تُحفظ كمسودة
-5. يضغط "معاينة" → يرى الشكل النهائي مع الشعار والتذييل
-6. يضغط "إرسال SMS" → يُنشئ HTML على CDN ويُرسل الرابط
-7. أو يضغط "طباعة" → يطبع مباشرة
-```
-
----
-
-## تفاصيل تقنية
-
-### محرر HTML البسيط
-
-بدلاً من استخدام مكتبة ثقيلة، سنستخدم `contenteditable` مع أوامر `document.execCommand`:
-
-```tsx
-function LetterEditor({ value, onChange }) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  
-  const execCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    onChange(editorRef.current?.innerHTML || '');
-  };
-  
-  return (
-    <div>
-      <div className="toolbar">
-        <button onClick={() => execCommand('bold')}>B</button>
-        <button onClick={() => execCommand('italic')}>I</button>
-        <button onClick={() => execCommand('underline')}>U</button>
-        <button onClick={() => execCommand('insertUnorderedList')}>☰</button>
-      </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        className="editor"
-        dangerouslySetInnerHTML={{ __html: value }}
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
-      />
-    </div>
-  );
-}
-```
-
-### رفع الصور
-
-استخدام نفس pattern الموجود في `MarketingSms.tsx`:
-
-```tsx
-const handleImageUpload = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('entity_type', 'correspondence');
-  
-  const { data } = await supabase.functions.invoke('upload-media', {
-    body: formData,
-  });
-  
-  // Insert image at cursor
-  document.execCommand('insertImage', false, data.file.cdn_url);
-};
-```
-
----
-
-## الأمان
-
-- **RLS على الجدول:** فقط المديرين يمكنهم الإنشاء/التعديل/الحذف
-- **Edge Functions:** التحقق من صلاحية المستخدم (admin)
-- **Sanitization:** تنظيف HTML قبل الحفظ باستخدام DOMPurify
-- **الرابط العام:** أي شخص لديه الرابط يمكنه عرض الرسالة (مثل الفواتير)
-
----
-
-## Migration SQL
-
-```sql
--- Create correspondence_letters table
-CREATE TABLE correspondence_letters (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  recipient_name TEXT NOT NULL,
-  recipient_phone TEXT,
-  body_html TEXT,
-  generated_url TEXT,
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'viewed')),
-  sent_at TIMESTAMPTZ,
-  created_by_admin_id UUID REFERENCES auth.users(id),
-  branch_id UUID REFERENCES branches(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE correspondence_letters ENABLE ROW LEVEL SECURITY;
-
--- Policy: Only admins can manage
-CREATE POLICY "Admins can manage correspondence" ON correspondence_letters
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_roles
-      WHERE user_id = auth.uid()
-      AND role = 'admin'
-    )
-  );
-
--- Add to realtime (optional)
-ALTER PUBLICATION supabase_realtime ADD TABLE correspondence_letters;
-
--- Index for quick lookups
-CREATE INDEX idx_correspondence_status ON correspondence_letters(status);
-CREATE INDEX idx_correspondence_created_at ON correspondence_letters(created_at DESC);
+1. المستخدم يفتح "التوريسات"
+2. ينشئ رسالة جديدة + يرفع صورة ✓
+3. يضغط "معاينة":
+   - يظهر الشعار من invoice_templates
+   - يظهر التذييل مع الهواتف من sms_settings
+4. يضغط "طباعة":
+   - يُنشأ الملف على CDN (باستخدام BUNNY_API_KEY)
+   - يُفتح للطباعة
 ```

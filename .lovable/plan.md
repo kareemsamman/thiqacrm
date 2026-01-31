@@ -1,115 +1,181 @@
 
-# خطة: إضافة بحث سريع للتنقل بين الصفحات (Command Palette)
+# خطة: حفظ تعديلات بلاغ الحادث (Save Accident Report Edits)
 
-## الهدف
-إضافة مكون بحث سريع (Command Palette) يتيح البحث عن أسماء الصفحات بالعربية مع إكمال تلقائي، ويمكن فتحه من الـ Header.
+## المشكلة
+حالياً زر "حفظ" في صفحة البلاغ (HTML) يُبدّل فقط وضع التحرير on/off ولكن **لا يحفظ التغييرات فعلياً**. عندما يقوم المستخدم بـ:
+1. تعديل مواقع الحقول (drag)
+2. إضافة نصوص جديدة
+3. تعديل محتوى النصوص
+4. الضغط على "حفظ"
+
+التغييرات تُفقد عند إعادة تحميل الصفحة.
 
 ---
 
-## التصميم المقترح
+## الحل المقترح
 
-### تجربة المستخدم:
-1. زر بحث جديد في Header بجانب البحث عن الوثائق
-2. اختصار لوحة مفاتيح: `Ctrl+/` أو `⌘/` لفتحه بسرعة
-3. عند الكتابة → تظهر الصفحات المتطابقة مع الاسم
-4. الضغط على Enter أو النقر → ينتقل للصفحة
-5. يراعي صلاحيات المستخدم (Admin/Worker)
+### نظرة عامة:
+1. إضافة عمود جديد `edited_fields_json` لجدول `accident_reports` لتخزين حالة التعديلات
+2. إنشاء Edge Function جديد `save-accident-edits` لحفظ التعديلات
+3. تعديل HTML المُنشأ ليشمل:
+   - استدعاء API عند الضغط على "حفظ"
+   - تحميل التعديلات المحفوظة عند فتح الصفحة
+4. تحديث `generate-accident-pdf` لدمج التعديلات المحفوظة مع البيانات الأصلية
 
 ---
 
 ## التعديلات المطلوبة
 
-### 1) مكون جديد: `NavigationSearch.tsx`
-**ملف:** `src/components/layout/NavigationSearch.tsx`
+### 1) تحديث قاعدة البيانات
+**إضافة عمود جديد:**
+```sql
+ALTER TABLE accident_reports 
+ADD COLUMN edited_fields_json JSONB DEFAULT NULL;
+```
 
-**الميزات:**
-- يستخدم مكون `Command` من `cmdk` الموجود
-- يستورد قائمة الصفحات من `Sidebar.tsx`
-- يُظهر الصفحات مجمّعة حسب المجموعات
-- فلترة تلقائية أثناء الكتابة
-- أيقونة لكل صفحة
-- عند الاختيار → `navigate()` للصفحة
+**الهيكل المتوقع للـ JSON:**
+```json
+{
+  "fields": [
+    {
+      "id": "driver_name",
+      "page": 0,
+      "x": 150,
+      "y": 280,
+      "text": "أحمد محمد",
+      "fontSize": 18
+    },
+    {
+      "id": "custom-1",
+      "page": 0,
+      "x": 200,
+      "y": 350,
+      "text": "نص مخصص جديد",
+      "fontSize": 16
+    }
+  ],
+  "deletedFields": ["accident_location"],
+  "lastSavedAt": "2026-01-31T10:30:00Z"
+}
+```
+
+### 2) Edge Function جديد: `save-accident-edits`
+**ملف:** `supabase/functions/save-accident-edits/index.ts`
+
+**الوظيفة:**
+- استقبال معرف البلاغ + بيانات الحقول المعدّلة
+- تحديث عمود `edited_fields_json`
+- إعادة إنشاء ملف HTML محدّث على Bunny CDN
 
 **المنطق:**
 ```typescript
-// فلترة حسب الصلاحيات
-const filteredPages = navigationGroups
-  .filter(group => !group.adminOnly || isAdmin)
-  .flatMap(group => group.items)
-  .filter(item => {
-    if (item.superAdminOnly && !isSuperAdmin) return false;
-    if (item.adminOnly && !isAdmin) return false;
-    return true;
+// 1. استخراج جميع الحقول من الـ DOM (مواقع + نصوص)
+// 2. إرسال للـ API
+// 3. حفظ في قاعدة البيانات
+// 4. إعادة رفع HTML محدّث لـ Bunny CDN
+```
+
+### 3) تعديل HTML المُنشأ في `generate-accident-pdf`
+**تعديلات الـ JavaScript:**
+
+**إضافة دالة جمع الحقول:**
+```javascript
+function collectAllFields() {
+  const fields = [];
+  document.querySelectorAll('.overlay-container').forEach((container, pageIndex) => {
+    container.querySelectorAll('.text-overlay').forEach(el => {
+      fields.push({
+        id: el.getAttribute('data-field'),
+        page: pageIndex,
+        x: parseInt(el.style.left) || 0,
+        y: parseInt(el.style.top) || 0,
+        text: el.textContent.replace(/×$/, '').trim(),
+        fontSize: parseInt(el.style.fontSize) || 18
+      });
+    });
   });
-
-// البحث في الاسم
-const results = filteredPages.filter(page =>
-  page.name.includes(searchQuery)
-);
+  return fields;
+}
 ```
 
-### 2) تحديث Header
-**ملف:** `src/components/layout/Header.tsx`
-
-**التعديلات:**
-- إضافة زر بحث الصفحات
-- إضافة state لفتح/إغلاق NavigationSearch
-- إضافة مستمع للاختصار `Ctrl+/`
-
-```tsx
-// زر جديد
-<Button variant="ghost" size="icon" onClick={() => setNavSearchOpen(true)}>
-  <FileSearch className="h-4 w-4" />
-</Button>
-
-// اختصار لوحة المفاتيح
-useEffect(() => {
-  const handler = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === '/') {
-      e.preventDefault();
-      setNavSearchOpen(true);
+**تعديل دالة toggleEditMode:**
+```javascript
+async function toggleEditMode() {
+  if (isEditMode) {
+    // Exiting edit mode - SAVE changes
+    const fields = collectAllFields();
+    const btn = document.getElementById('editBtn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ جاري الحفظ...';
+    
+    try {
+      const response = await fetch(SUPABASE_URL + '/functions/v1/save-accident-edits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({
+          accident_report_id: REPORT_ID,
+          fields: fields
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to save');
+      
+      alert('تم الحفظ بنجاح ✓');
+    } catch (error) {
+      alert('فشل في الحفظ: ' + error.message);
     }
-  };
-  document.addEventListener('keydown', handler);
-  return () => document.removeEventListener('keydown', handler);
-}, []);
+    
+    btn.disabled = false;
+  }
+  
+  isEditMode = !isEditMode;
+  // ... rest of toggle logic
+}
 ```
 
-### 3) تصدير قائمة الصفحات
-**ملف:** `src/components/layout/Sidebar.tsx`
+**تحميل التعديلات المحفوظة:**
+- عند إنشاء HTML، إذا كان `edited_fields_json` موجود → استخدامه بدلاً من البيانات الأصلية
+- يضمن عرض التعديلات السابقة عند إعادة فتح الصفحة
 
-**التعديل:**
-- تصدير `navigationGroups` ليمكن استخدامه في NavigationSearch
-
+### 4) تعديل `generate-accident-pdf` لدمج التعديلات
+**المنطق:**
 ```typescript
-// تغيير من:
-const navigationGroups: NavGroup[] = [...]
-
-// إلى:
-export const navigationGroups: NavGroup[] = [...]
+// بعد جلب البلاغ
+if (report.edited_fields_json) {
+  // استخدام المواقع والنصوص من edited_fields_json
+  // بدلاً من mapping_json الأصلي
+}
 ```
 
 ---
 
-## هيكل المكون الجديد
+## مخطط سير العمل
 
 ```text
-┌─────────────────────────────────────────────┐
-│  🔍 ابحث عن صفحة...                        │
-├─────────────────────────────────────────────┤
-│                                             │
-│  الرئيسية                                   │
-│  ├── 📊 لوحة التحكم                        │
-│  ├── ✅ المهام                             │
-│  └── 🔔 التنبيهات                          │
-│                                             │
-│  إدارة العملاء                              │
-│  ├── 👥 العملاء                            │
-│  ├── 🚗 السيارات                           │
-│  └── 📄 الوثائق                            │
-│                                             │
-│  ...                                        │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    فتح بلاغ الحادث HTML                     │
+│                                                             │
+│  1. تحميل PDF الخلفية                                       │
+│  2. تحميل الحقول من:                                        │
+│     ├── edited_fields_json (إذا موجود) ← التعديلات السابقة │
+│     └── mapping_json (افتراضي) ← البيانات الأصلية           │
+│                                                             │
+│  [تعديل] ← الدخول لوضع التحرير                              │
+│     ├── سحب الحقول                                         │
+│     ├── تعديل النصوص                                       │
+│     └── إضافة/حذف حقول                                     │
+│                                                             │
+│  [حفظ] ← عند الضغط:                                         │
+│     1. جمع جميع الحقول + مواقعها                            │
+│     2. إرسال لـ save-accident-edits                         │
+│     3. حفظ في edited_fields_json                            │
+│     4. تحديث ملف HTML على CDN                               │
+│                                                             │
+│  النتيجة: التعديلات محفوظة ومعروضة عند إعادة الفتح ✓       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -118,25 +184,49 @@ export const navigationGroups: NavGroup[] = [...]
 
 | الملف | النوع | الوصف |
 |-------|-------|-------|
-| `src/components/layout/NavigationSearch.tsx` | جديد | مكون البحث Command Palette |
-| `src/components/layout/Sidebar.tsx` | تعديل | تصدير navigationGroups |
-| `src/components/layout/Header.tsx` | تعديل | إضافة زر + اختصار + دمج المكون |
+| Migration | جديد | إضافة عمود `edited_fields_json` |
+| `supabase/functions/save-accident-edits/index.ts` | جديد | حفظ التعديلات وتحديث HTML |
+| `supabase/functions/generate-accident-pdf/index.ts` | تعديل | دمج التعديلات المحفوظة + تمرير متغيرات للـ JavaScript |
 
 ---
 
 ## التفاصيل التقنية
 
-### اختصار لوحة المفاتيح:
-- `⌘/` على Mac
-- `Ctrl+/` على Windows/Linux
+### متغيرات JavaScript في HTML:
+```javascript
+const SUPABASE_URL = '${supabaseUrl}';
+const SUPABASE_ANON_KEY = '${supabaseAnonKey}';
+const REPORT_ID = '${report.id}';
+```
 
-### الفلترة:
-- البحث يكون في `item.name` باللغة العربية
-- النتائج تُعرض مجمّعة حسب `group.name`
-- يتم استبعاد الصفحات التي لا يملك المستخدم صلاحية الوصول إليها
+### هيكل الـ API:
+```typescript
+// POST /functions/v1/save-accident-edits
+{
+  accident_report_id: string;
+  fields: Array<{
+    id: string;
+    page: number;
+    x: number;
+    y: number;
+    text: string;
+    fontSize: number;
+  }>;
+}
+```
 
-### السلوك:
-- فتح الـ Dialog عند الضغط على الزر أو الاختصار
-- التنقل بين النتائج باستخدام ↑ ↓
-- الانتقال بـ Enter أو النقر
-- الإغلاق بـ Escape أو النقر خارج الـ Dialog
+### الأمان:
+- التحقق من صلاحية المستخدم قبل الحفظ
+- استخدام Service Role Key للتحديث في قاعدة البيانات
+- التحقق من ملكية البلاغ قبل السماح بالتعديل
+
+---
+
+## النتيجة
+
+عند تنفيذ هذه الخطة:
+1. المستخدم يفتح بلاغ الحادث
+2. يضغط "تعديل" ويحرك الحقول أو يضيف نصوص
+3. يضغط "حفظ" ← التعديلات تُرسل للخادم وتُحفظ
+4. عند إعادة فتح البلاغ ← التعديلات تظهر كما حفظها
+5. الطباعة تعكس التعديلات المحفوظة

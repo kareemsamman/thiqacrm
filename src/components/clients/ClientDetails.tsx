@@ -55,7 +55,6 @@ import {
   AlertCircle,
   CheckCircle,
   CreditCard,
-  BarChart3,
   Building2,
   Trash2,
   MoreHorizontal,
@@ -86,7 +85,6 @@ import { ClientNotesSection } from '@/components/clients/ClientNotesSection';
 import { PaymentEditDialog } from '@/components/clients/PaymentEditDialog';
 import { RefundsTab } from '@/components/clients/RefundsTab';
 import { cn } from '@/lib/utils';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -509,38 +507,6 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
     fetchBroker();
   }, [client.broker_id]);
 
-  // Charts data
-  const policyTypeChartData = useMemo(() => {
-    const typeCounts: Record<string, number> = {};
-    policies.forEach(p => {
-      const type = policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
-      typeCounts[type] = (typeCounts[type] || 0) + 1;
-    });
-    return Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
-  }, [policies]);
-
-  const monthlyPaymentsData = useMemo(() => {
-    const monthlyData: Record<string, number> = {};
-    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-    
-    payments.filter(p => !p.refused).forEach(p => {
-      const date = new Date(p.payment_date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = months[date.getMonth()];
-      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + p.amount;
-    });
-
-    // Sort by date and take last 6 months
-    return Object.entries(monthlyData)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
-      .map(([key, amount]) => {
-        const [year, month] = key.split('-');
-        return { name: months[parseInt(month) - 1], amount };
-      });
-  }, [payments]);
-
-  const CHART_COLORS = ['#3b82f6', '#8b5cf6', '#f97316', '#22c55e', '#ef4444', '#06b6d4', '#f59e0b', '#ec4899'];
 
   // Export functionality
   const formatDate = (dateStr: string | null) => {
@@ -1223,63 +1189,6 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               />
             </div>
 
-            {/* Charts Row */}
-            {(policyTypeChartData.length > 0 || monthlyPaymentsData.length > 0) && (
-              <div className="grid md:grid-cols-2 gap-6 mt-6">
-                {/* Policy Breakdown Chart */}
-                {policyTypeChartData.length > 0 && (
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                      توزيع الوثائق حسب النوع
-                    </h3>
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={policyTypeChartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            label={({ name, value }) => `${name}: ${value}`}
-                          >
-                            {policyTypeChartData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-                )}
-
-                {/* Monthly Payments Chart */}
-                {monthlyPaymentsData.length > 0 && (
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                      الدفعات الشهرية
-                    </h3>
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyPaymentsData}>
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip 
-                            formatter={(value: number) => [`₪${value.toLocaleString()}`, 'المبلغ']}
-                          />
-                          <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
           </TabsContent>
 
           {/* Policies Tab */}

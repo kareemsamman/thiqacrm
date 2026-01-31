@@ -46,6 +46,7 @@ interface Client {
   under24_driver_name: string | null;
   under24_driver_id: string | null;
   notes: string | null;
+  accident_notes: string | null;
   image_url: string | null;
   signature_url: string | null;
   created_at: string;
@@ -55,6 +56,7 @@ interface Client {
   broker?: { id: string; name: string } | null;
   branch?: { id: string; name: string; name_ar: string | null } | null;
   created_by?: { full_name: string | null; email: string } | null;
+  accident_count?: number;
 }
 
 export default function Clients() {
@@ -105,7 +107,7 @@ export default function Clients() {
     try {
       let query = supabase
         .from('clients')
-        .select('*, broker:brokers(id, name), branch:branches(id, name, name_ar), created_by:profiles!clients_created_by_admin_id_fkey(full_name, email)', { count: 'exact' })
+        .select('*, broker:brokers(id, name), branch:branches(id, name, name_ar), created_by:profiles!clients_created_by_admin_id_fkey(full_name, email), accident_reports(count)', { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
@@ -134,7 +136,12 @@ export default function Clients() {
       const { data, error, count } = await query;
 
       if (error) throw error;
-      setClients(data || []);
+      // Map accident count from the nested structure
+      const clientsWithAccidentCount = (data || []).map((client: any) => ({
+        ...client,
+        accident_count: client.accident_reports?.[0]?.count || 0,
+      }));
+      setClients(clientsWithAccidentCount);
       setTotalCount(count || 0);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -295,7 +302,12 @@ export default function Clients() {
                             </span>
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">{client.full_name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-foreground">{client.full_name}</p>
+                              {(client.accident_count || 0) > 0 && (
+                                <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" title={`${client.accident_count} بلاغ حادث`} />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </TableCell>

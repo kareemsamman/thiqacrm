@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Plus, User, AlertCircle, CheckCircle } from "lucide-react";
+import { Search, Plus, User, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InsuranceTypeCards } from "./InsuranceTypeCards";
 import { CreateClientForm } from "./CreateClientForm";
 import { PolicyChildrenSelector } from "./PolicyChildrenSelector";
+import { useClientAccidentInfo } from "@/hooks/useClientAccidentInfo";
 import type { InsuranceCategory, Client, Broker, NewClientForm, ValidationErrors } from "./types";
 import type { ClientChild, NewChildForm } from "@/types/clientChildren";
 
@@ -92,7 +93,7 @@ export function Step1BranchTypeClient({
     setLoadingClients(true);
     const { data, error } = await supabase
       .from('clients')
-      .select('id, full_name, id_number, file_number, phone_number, less_than_24, under24_type, under24_driver_name, under24_driver_id, broker_id')
+      .select('id, full_name, id_number, file_number, phone_number, less_than_24, under24_type, under24_driver_name, under24_driver_id, broker_id, accident_notes')
       .is('deleted_at', null)
       .or(`full_name.ilike.%${query}%,id_number.ilike.%${query}%,file_number.ilike.%${query}%,phone_number.ilike.%${query}%`)
       .limit(10);
@@ -168,6 +169,34 @@ export function Step1BranchTypeClient({
     );
   };
 
+  // Accident Warning Component
+  const AccidentWarning = ({ clientId, accidentNotes }: { clientId: string; accidentNotes?: string | null }) => {
+    const { count, hasActiveReports } = useClientAccidentInfo(clientId);
+    
+    if (count === 0) return null;
+    
+    return (
+      <Card className="p-4 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-amber-700 dark:text-amber-400">
+              ⚠️ تحذير: هذا العميل لديه {count} بلاغ حادث
+              {hasActiveReports && <span className="text-xs mr-2">(نشط)</span>}
+            </p>
+            {accidentNotes && (
+              <p className="text-sm text-amber-600 dark:text-amber-500 mt-1 whitespace-pre-wrap">
+                {accidentNotes}
+              </p>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Branch Selection - Admin Only */}
@@ -207,28 +236,33 @@ export function Step1BranchTypeClient({
 
           {/* Selected Client Card */}
           {selectedClient && !createNewClient && (
-            <Card className="p-4 border-primary bg-primary/5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{selectedClient.full_name}</p>
-                      <CheckCircle className="h-4 w-4 text-primary" />
+            <>
+              <Card className="p-4 border-primary bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{selectedClient.id_number}</p>
-                    {selectedClient.phone_number && (
-                      <p className="text-sm text-muted-foreground">{selectedClient.phone_number}</p>
-                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{selectedClient.full_name}</p>
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">{selectedClient.id_number}</p>
+                      {selectedClient.phone_number && (
+                        <p className="text-sm text-muted-foreground">{selectedClient.phone_number}</p>
+                      )}
+                    </div>
                   </div>
+                  <Button variant="ghost" size="sm" onClick={handleRemoveClient}>
+                    تغيير
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleRemoveClient}>
-                  تغيير
-                </Button>
-              </div>
-            </Card>
+              </Card>
+
+              {/* Accident Warning - Show if client has accident notes */}
+              <AccidentWarning clientId={selectedClient.id} accidentNotes={selectedClient.accident_notes} />
+            </>
           )}
 
           {/* Search or Create */}

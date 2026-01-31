@@ -84,6 +84,7 @@ import { DebtPaymentModal } from '@/components/debt/DebtPaymentModal';
 import { ClientNotesSection } from '@/components/clients/ClientNotesSection';
 import { PaymentEditDialog } from '@/components/clients/PaymentEditDialog';
 import { RefundsTab } from '@/components/clients/RefundsTab';
+import { ClientAccidentsTab } from '@/components/clients/ClientAccidentsTab';
 import { cn } from '@/lib/utils';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/hooks/useAuth';
@@ -1121,6 +1122,10 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               <MessageSquare className="h-4 w-4" />
               الملاحظات
             </TabsTrigger>
+            <TabsTrigger value="accidents" className="gap-1.5">
+              <AlertCircle className="h-4 w-4" />
+              البلاغات
+            </TabsTrigger>
             <TabsTrigger value="refunds" className="gap-1.5">
               <Banknote className="h-4 w-4" />
               المرتجعات
@@ -1702,6 +1707,15 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                 </div>
               )}
             </Card>
+          </TabsContent>
+
+          {/* Accidents Tab */}
+          <TabsContent value="accidents" className="mt-6">
+            <ClientAccidentsTab
+              clientId={client.id}
+              accidentNotes={null}
+              onNotesChange={() => {}}
+            />
           </TabsContent>
 
           {/* Refunds Tab */}

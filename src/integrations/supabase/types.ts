@@ -1562,6 +1562,66 @@ export type Database = {
           },
         ]
       }
+      correspondence_letters: {
+        Row: {
+          body_html: string | null
+          branch_id: string | null
+          created_at: string | null
+          created_by_admin_id: string | null
+          generated_url: string | null
+          id: string
+          recipient_name: string
+          recipient_phone: string | null
+          sent_at: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          created_by_admin_id?: string | null
+          generated_url?: string | null
+          id?: string
+          recipient_name: string
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          branch_id?: string | null
+          created_at?: string | null
+          created_by_admin_id?: string | null
+          generated_url?: string | null
+          id?: string
+          recipient_name?: string
+          recipient_phone?: string | null
+          sent_at?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "correspondence_letters_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correspondence_letters_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_signatures: {
         Row: {
           branch_id: string | null

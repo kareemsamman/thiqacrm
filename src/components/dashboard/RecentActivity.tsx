@@ -14,6 +14,7 @@ interface Activity {
   detail: string;
   time: string;
   created_at: string;
+  createdBy?: string;
 }
 
 const typeColors = {
@@ -45,7 +46,11 @@ export function RecentActivity() {
       // Fetch recent policies (last 5) - exclude cancelled/deleted
       const { data: policies } = await supabase
         .from("policies")
-        .select("id, created_at, policy_type_parent, cancelled, clients(full_name, deleted_at)")
+        .select(`
+          id, created_at, policy_type_parent, cancelled,
+          clients(full_name, deleted_at),
+          created_by_profile:profiles!policies_created_by_admin_id_fkey(full_name)
+        `)
         .order("created_at", { ascending: false })
         .match(branchFilter)
         .eq("cancelled", false)
@@ -77,6 +82,7 @@ export function RecentActivity() {
             detail: `${policyLabel} - ${clientName}`,
             time: formatDistanceToNow(new Date(p.created_at), { addSuffix: true, locale: ar }),
             created_at: p.created_at,
+            createdBy: (p.created_by_profile as any)?.full_name || undefined,
           });
         }
       }
@@ -84,10 +90,14 @@ export function RecentActivity() {
       // Fetch recent payments (last 10) - filter out cancelled policies and ELZAMI
       const { data: payments } = await supabase
         .from("policy_payments")
-        .select("id, created_at, amount, policies(cancelled, policy_type_parent, clients(full_name, deleted_at))")
+        .select(`
+          id, created_at, amount,
+          policies(cancelled, policy_type_parent, clients(full_name, deleted_at)),
+          created_by_profile:profiles!policy_payments_created_by_admin_id_fkey(full_name)
+        `)
         .order("created_at", { ascending: false })
         .match(branchFilter)
-        .limit(15); // Fetch more to account for filtered ELZAMI
+        .limit(15);
 
       if (payments) {
         for (const pay of payments) {
@@ -105,6 +115,7 @@ export function RecentActivity() {
             detail: `₪${pay.amount?.toLocaleString()} من ${clientName}`,
             time: formatDistanceToNow(new Date(pay.created_at), { addSuffix: true, locale: ar }),
             created_at: pay.created_at,
+            createdBy: (pay.created_by_profile as any)?.full_name || undefined,
           });
         }
       }
@@ -112,7 +123,10 @@ export function RecentActivity() {
       // Fetch recent clients (last 5)
       const { data: clients } = await supabase
         .from("clients")
-        .select("id, created_at, full_name, file_number")
+        .select(`
+          id, created_at, full_name, file_number,
+          created_by_profile:profiles!clients_created_by_admin_id_fkey(full_name)
+        `)
         .order("created_at", { ascending: false })
         .match(branchFilter)
         .is("deleted_at", null)
@@ -127,6 +141,7 @@ export function RecentActivity() {
             detail: `${c.full_name}${c.file_number ? ` - ملف #${c.file_number}` : ""}`,
             time: formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ar }),
             created_at: c.created_at,
+            createdBy: (c.created_by_profile as any)?.full_name || undefined,
           });
         }
       }
@@ -134,7 +149,11 @@ export function RecentActivity() {
       // Fetch recent cars (last 5)
       const { data: cars } = await supabase
         .from("cars")
-        .select("id, created_at, updated_at, car_number, clients(full_name)")
+        .select(`
+          id, created_at, updated_at, car_number,
+          clients(full_name),
+          created_by_profile:profiles!cars_created_by_admin_id_fkey(full_name)
+        `)
         .order("updated_at", { ascending: false })
         .match(branchFilter)
         .is("deleted_at", null)
@@ -150,6 +169,7 @@ export function RecentActivity() {
             detail: `${car.car_number} - ${(car.clients as any)?.full_name || ""}`,
             time: formatDistanceToNow(new Date(car.updated_at), { addSuffix: true, locale: ar }),
             created_at: car.updated_at,
+            createdBy: (car.created_by_profile as any)?.full_name || undefined,
           });
         }
       }
@@ -205,7 +225,14 @@ export function RecentActivity() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{activity.action}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium text-foreground">{activity.action}</p>
+                  {activity.createdBy && (
+                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      بواسطة {activity.createdBy}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground truncate">{activity.detail}</p>
               </div>
               <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>

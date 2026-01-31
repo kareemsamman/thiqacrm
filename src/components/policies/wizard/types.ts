@@ -23,6 +23,7 @@ export interface Client {
   under24_driver_name?: string | null;
   under24_driver_id?: string | null;
   broker_id: string | null;
+  accident_notes?: string | null;
 }
 
 export interface CarRecord {

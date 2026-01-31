@@ -86,6 +86,8 @@ import { ClientNotesSection } from '@/components/clients/ClientNotesSection';
 import { PaymentEditDialog } from '@/components/clients/PaymentEditDialog';
 import { RefundsTab } from '@/components/clients/RefundsTab';
 import { AccidentReportWizard } from '@/components/accident-reports/AccidentReportWizard';
+import { ClientAccidentsTab } from '@/components/clients/ClientAccidentsTab';
+import { useClientAccidentInfo } from '@/hooks/useClientAccidentInfo';
 import { cn } from '@/lib/utils';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/hooks/useAuth';
@@ -104,6 +106,7 @@ interface Client {
   under24_driver_name: string | null;
   under24_driver_id: string | null;
   notes: string | null;
+  accident_notes: string | null;
   image_url: string | null;
   signature_url: string | null;
   created_at: string;
@@ -228,6 +231,7 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
   const { getBranchName } = useBranches();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { setRecentClient } = useRecentClient();
+  const { count: accidentCount, hasActiveReports } = useClientAccidentInfo(client.id);
   const [cars, setCars] = useState<CarRecord[]>([]);
   const [policies, setPolicies] = useState<PolicyRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -1130,6 +1134,13 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
               <MessageSquare className="h-4 w-4" />
               الملاحظات
             </TabsTrigger>
+            <TabsTrigger value="accidents" className="gap-1.5 relative">
+              <AlertTriangle className="h-4 w-4" />
+              بلاغات الحوادث ({accidentCount})
+              {hasActiveReports && (
+                <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              )}
+            </TabsTrigger>
             <TabsTrigger value="refunds" className="gap-1.5">
               <Banknote className="h-4 w-4" />
               المرتجعات
@@ -1711,6 +1722,15 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                 </div>
               )}
             </Card>
+          </TabsContent>
+
+          {/* Accidents Tab */}
+          <TabsContent value="accidents" className="mt-6">
+            <ClientAccidentsTab
+              clientId={client.id}
+              accidentNotes={client.accident_notes}
+              onAccidentNotesUpdated={onRefresh}
+            />
           </TabsContent>
 
           {/* Refunds Tab */}

@@ -42,6 +42,7 @@ import { SidebarNotificationBadge } from "./SidebarNotificationBadge";
 import { SidebarDebtBadge } from "./SidebarDebtBadge";
 import { SidebarTaskBadge } from "./SidebarTaskBadge";
 import { SidebarClaimsBadge } from "./SidebarClaimsBadge";
+import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarSearch } from "./SidebarSearch";
 
 interface NavItem {
@@ -50,7 +51,7 @@ interface NavItem {
   icon: LucideIcon;
   adminOnly?: boolean;
   superAdminOnly?: boolean;
-  badge?: 'notifications' | 'debt' | 'tasks' | 'claims';
+  badge?: 'notifications' | 'debt' | 'tasks' | 'claims' | 'accidents';
 }
 
 interface NavGroup {
@@ -109,7 +110,7 @@ export const navigationGroups: NavGroup[] = [
     name: "بلاغات وحوادث",
     icon: AlertTriangle,
     items: [
-      { name: "بلاغات الحوادث", href: "/accidents", icon: AlertTriangle },
+      { name: "بلاغات الحوادث", href: "/accidents", icon: AlertTriangle, badge: 'accidents' },
       { name: "المطالبات", href: "/admin/claims", icon: FileWarning, adminOnly: true, badge: 'claims' },
     ],
   },
@@ -216,6 +217,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
     if (item.badge === 'debt') return <SidebarDebtBadge collapsed={collapsed} />;
     if (item.badge === 'tasks') return <SidebarTaskBadge collapsed={collapsed} />;
     if (item.badge === 'claims') return <SidebarClaimsBadge collapsed={collapsed} />;
+    if (item.badge === 'accidents') return <SidebarAccidentsBadge collapsed={collapsed} />;
     return null;
   };
 

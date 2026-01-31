@@ -1,200 +1,181 @@
 
-# خطة: توحيد جميع حقول التاريخ لاستخدام ArabicDatePicker
+# خطة: إظهار اسم الموظف/المدير في النشاط الأخير
 
 ## المشكلة
-بعض الصفحات والمكونات تستخدم `<Input type="date" />` الأصلي (الصورة الأولى - نمط LTR إنجليزي) بينما يجب استخدام `ArabicDatePicker` الموحد (الصورة الثانية - نمط RTL عربي مع أشهر عربية).
+حالياً "النشاط الأخير" يعرض الأحداث بدون إظهار من قام بها. المطلوب إضافة اسم الموظف (Worker) أو المدير (Admin) الذي أنشأ كل نشاط.
 
 ---
 
-## الملفات المطلوب تعديلها (15 ملف)
+## التحليل
 
-### مجموعة 1: صفحات التقارير والفلاتر
-| الملف | الحقول |
-|-------|--------|
-| `src/pages/PolicyReports.tsx` | createdFromDate, createdToDate |
-| `src/pages/ElzamiCostsReport.tsx` | fromDate, toDate |
-| `src/pages/CompanySettlementDetail.tsx` | startDate, endDate |
-| `src/pages/Expenses.tsx` | formData.expense_date |
-| `src/components/admin/UserSessionsTab.tsx` | startDate, endDate |
+### الجداول المتاحة
+جميع الجداول المستخدمة تحتوي على `created_by_admin_id` الذي يرتبط بجدول `profiles`:
 
-### مجموعة 2: مكونات الدفعات
-| الملف | الحقول |
-|-------|--------|
-| `src/components/clients/PackagePaymentModal.tsx` | payment.paymentDate |
-| `src/components/clients/SinglePolicyPaymentModal.tsx` | payment.paymentDate |
-| `src/components/debt/DebtPaymentModal.tsx` | payment.paymentDate |
-| `src/components/policies/PolicyPaymentsSection.tsx` | payment.paymentDate |
-
-### مجموعة 3: مكونات البوليصات والسيارات
-| الملف | الحقول |
-|-------|--------|
-| `src/components/policies/PolicyDrawer.tsx` | start_date, end_date |
-| `src/components/cars/CarDrawer.tsx` | license_expiry, last_license |
-
-### مجموعة 4: مكونات المطالبات والعملاء
-| الملف | الحقول |
-|-------|--------|
-| `src/components/claims/RepairClaimDrawer.tsx` | accident_date |
-| `src/components/clients/RefundsTab.tsx` | refundDate |
-| `src/pages/RepairClaimDetail.tsx` | reminderDate |
-
-### مجموعة 5: نموذج تقرير الحادث
-| الملف | الحقول |
-|-------|--------|
-| `src/pages/AccidentReportForm.tsx` | accidentDate, licenseExpiryDate, firstLicenseDate, vehicleLicenseExpiry |
-
----
-
-## التفاصيل التقنية
-
-### نمط التعديل الموحد
-
-**قبل (Input type="date"):**
-```tsx
-<Input
-  type="date"
-  value={dateValue}
-  onChange={(e) => setDateValue(e.target.value)}
-/>
-```
-
-**بعد (ArabicDatePicker):**
-```tsx
-import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
-
-<ArabicDatePicker
-  value={dateValue}
-  onChange={(date) => setDateValue(date)}
-/>
-```
-
-### حالات خاصة
-
-1. **حقول تاريخ الميلاد** - إضافة `isBirthDate` لتوسيع نطاق السنوات:
-```tsx
-<ArabicDatePicker
-  value={birthDate}
-  onChange={setBirthDate}
-  isBirthDate
-/>
-```
-
-2. **حقول مضغوطة (داخل جداول/قوائم)** - إضافة `compact`:
-```tsx
-<ArabicDatePicker
-  value={payment.paymentDate}
-  onChange={(date) => updatePaymentLine(payment.id, 'paymentDate', date)}
-  compact
-/>
-```
-
-3. **حقول مع حدود (min/max)**:
-```tsx
-<ArabicDatePicker
-  value={endDate}
-  onChange={setEndDate}
-  min={startDate}
-/>
-```
-
-4. **حقول معطلة (disabled)**:
-```tsx
-<ArabicDatePicker
-  value={payment.paymentDate}
-  onChange={(date) => updatePaymentLine(payment.id, 'paymentDate', date)}
-  disabled={payment.tranzilaPaid}
-/>
-```
-
----
-
-## تفاصيل كل ملف
-
-### 1. src/pages/PolicyReports.tsx (سطور 675-688)
-- إضافة import للـ ArabicDatePicker
-- تغيير حقلي `createdFromDate` و `createdToDate`
-
-### 2. src/pages/ElzamiCostsReport.tsx (سطور 142-156)
-- إضافة import
-- تغيير حقلي `fromDate` و `toDate`
-
-### 3. src/pages/CompanySettlementDetail.tsx (سطور 458-479)
-- إضافة import
-- تغيير حقلي `startDate` و `endDate`
-
-### 4. src/pages/Expenses.tsx (سطور 407-411)
-- إضافة import
-- تغيير حقل `formData.expense_date`
-
-### 5. src/components/admin/UserSessionsTab.tsx (سطور 174-186)
-- إضافة import
-- تغيير حقلي `startDate` و `endDate`
-
-### 6. src/components/clients/PackagePaymentModal.tsx (سطور 599-604)
-- إضافة import
-- تغيير حقل `payment.paymentDate` مع `compact`
-
-### 7. src/components/clients/SinglePolicyPaymentModal.tsx (سطور 530-535)
-- إضافة import
-- تغيير حقل `payment.paymentDate` مع `compact`
-
-### 8. src/components/debt/DebtPaymentModal.tsx (سطور 845-850)
-- إضافة import
-- تغيير حقل `payment.paymentDate` مع `compact`
-
-### 9. src/components/policies/PolicyPaymentsSection.tsx (سطور 961-966)
-- إضافة import
-- تغيير حقل `payment.paymentDate` مع `compact`
-
-### 10. src/components/policies/PolicyDrawer.tsx (سطور 369-387)
-- إضافة import
-- تغيير حقلي `start_date` و `end_date`
-- ملاحظة: يستخدم react-hook-form، سيتم التكامل عبر `field.value` و `field.onChange`
-
-### 11. src/components/cars/CarDrawer.tsx (سطور 484-498)
-- إضافة import
-- تغيير حقلي `license_expiry` و `last_license`
-- ملاحظة: يستخدم react-hook-form
-
-### 12. src/components/claims/RepairClaimDrawer.tsx (سطور 403-405)
-- إضافة import
-- تغيير حقل `accident_date`
-- ملاحظة: يستخدم react-hook-form
-
-### 13. src/components/clients/RefundsTab.tsx (سطور 365-370)
-- إضافة import
-- تغيير حقل `refundDate`
-
-### 14. src/pages/RepairClaimDetail.tsx (سطور 579-584)
-- إضافة import
-- تغيير حقل `reminderDate`
-
-### 15. src/pages/AccidentReportForm.tsx (4 حقول)
-- إضافة import
-- تغيير الحقول:
-  - `accidentDate` (سطر 695)
-  - `licenseExpiryDate` (سطر 913)
-  - `firstLicenseDate` (سطر 921)
-  - `vehicleLicenseExpiry` (سطر 929)
-
----
-
-## ملخص التنفيذ
-
-| الخطوة | الوصف |
+| الجدول | الحقل |
 |--------|-------|
-| 1 | إضافة import للـ ArabicDatePicker في كل ملف |
-| 2 | استبدال كل `<Input type="date" />` بـ `<ArabicDatePicker />` |
-| 3 | ضبط الخصائص حسب الحاجة (compact, disabled, isBirthDate, min, max) |
-| 4 | للملفات التي تستخدم react-hook-form: استخدام `field.value` و `field.onChange` |
+| policies | `created_by_admin_id` |
+| policy_payments | `created_by_admin_id` |
+| clients | `created_by_admin_id` |
+| cars | `created_by_admin_id` |
+
+جدول `profiles` يحتوي على:
+- `full_name`: اسم المستخدم الكامل
+- `status`: حالة المستخدم (admin/worker/pending/blocked)
+
+---
+
+## التعديلات المطلوبة
+
+### 1) تحديث Interface
+
+```typescript
+interface Activity {
+  id: string;
+  type: "policy" | "payment" | "client" | "car";
+  action: string;
+  detail: string;
+  time: string;
+  created_at: string;
+  createdBy?: string;  // ← إضافة جديدة
+}
+```
+
+### 2) تحديث استعلامات البيانات
+
+**استعلام الوثائق (policies):**
+```typescript
+const { data: policies } = await supabase
+  .from("policies")
+  .select(`
+    id, created_at, policy_type_parent, cancelled,
+    clients(full_name, deleted_at),
+    created_by_profile:profiles!policies_created_by_admin_id_fkey(full_name)
+  `)
+  .order("created_at", { ascending: false })
+  .match(branchFilter)
+  .eq("cancelled", false)
+  .limit(10);
+```
+
+**استعلام الدفعات (policy_payments):**
+```typescript
+const { data: payments } = await supabase
+  .from("policy_payments")
+  .select(`
+    id, created_at, amount,
+    policies(cancelled, policy_type_parent, clients(full_name, deleted_at)),
+    created_by_profile:profiles!policy_payments_created_by_admin_id_fkey(full_name)
+  `)
+  .order("created_at", { ascending: false })
+  .match(branchFilter)
+  .limit(15);
+```
+
+**استعلام العملاء (clients):**
+```typescript
+const { data: clients } = await supabase
+  .from("clients")
+  .select(`
+    id, created_at, full_name, file_number,
+    created_by_profile:profiles!clients_created_by_admin_id_fkey(full_name)
+  `)
+  .order("created_at", { ascending: false })
+  .match(branchFilter)
+  .is("deleted_at", null)
+  .limit(5);
+```
+
+**استعلام السيارات (cars):**
+```typescript
+const { data: cars } = await supabase
+  .from("cars")
+  .select(`
+    id, created_at, updated_at, car_number,
+    clients(full_name),
+    created_by_profile:profiles!cars_created_by_admin_id_fkey(full_name)
+  `)
+  .order("updated_at", { ascending: false })
+  .match(branchFilter)
+  .is("deleted_at", null)
+  .limit(5);
+```
+
+### 3) تحديث بناء كائنات Activity
+
+```typescript
+// مثال للوثائق
+results.push({
+  id: `policy-${p.id}`,
+  type: "policy",
+  action: "وثيقة جديدة",
+  detail: `${policyLabel} - ${clientName}`,
+  time: formatDistanceToNow(new Date(p.created_at), { addSuffix: true, locale: ar }),
+  created_at: p.created_at,
+  createdBy: (p.created_by_profile as any)?.full_name || undefined,
+});
+```
+
+### 4) تحديث واجهة العرض
+
+```tsx
+{activities.map((activity, index) => {
+  const Icon = typeIcons[activity.type];
+  return (
+    <div
+      key={activity.id}
+      className={cn("flex items-start gap-3 animate-fade-in", `stagger-${index + 1}`)}
+      style={{ animationFillMode: "backwards" }}
+    >
+      <div className={cn("rounded-lg p-2", typeColors[activity.type])}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-foreground">{activity.action}</p>
+          {activity.createdBy && (
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              بواسطة {activity.createdBy}
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground truncate">{activity.detail}</p>
+      </div>
+      <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>
+    </div>
+  );
+})}
+```
 
 ---
 
 ## النتيجة المتوقعة
 
-- جميع حقول التاريخ ستعرض بالشكل العربي الموحد
-- أسماء الأشهر بالعربية (يناير، فبراير، ...)
-- أيام الأسبوع بالعربية (أحد، اثنين، ...)
-- اتجاه RTL صحيح
-- إمكانية الكتابة اليدوية بصيغة DD/MM/YYYY
-- زر "اليوم" للاختيار السريع
+قبل:
+```
+وثيقة جديدة
+شامل طرف ثالث - Kareem Test
+منذ 16 ساعة تقريباً
+```
+
+بعد:
+```
+وثيقة جديدة                    بواسطة أحمد
+شامل طرف ثالث - Kareem Test
+منذ 16 ساعة تقريباً
+```
+
+---
+
+## الملف المطلوب تعديله
+
+| الملف | التعديل |
+|-------|---------|
+| `src/components/dashboard/RecentActivity.tsx` | إضافة جلب `created_by_profile` وعرض اسم المُنشئ |
+
+---
+
+## ملاحظات
+
+- إذا كان `created_by_admin_id` فارغاً (null)، لن يظهر "بواسطة..."
+- الأنشطة القديمة المهاجرة من WordPress قد لا يكون لها `created_by_admin_id`
+- يستخدم نفس الـ cache time (1 دقيقة)

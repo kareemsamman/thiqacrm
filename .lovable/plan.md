@@ -1,186 +1,103 @@
 
-# خطة: إنشاء نظام استلام Leads من WhatsApp Bot
+# خطة: تحسين صفحة Leads مع دعم العمال وإضافة الإجراءات المباشرة
 
-## ملخص المشروع
+## ملخص التغييرات المطلوبة
 
-إنشاء نظام كامل لاستقبال بيانات العملاء المحتملين (Leads) من بوت WhatsApp، يشمل:
-1. جدول قاعدة بيانات لتخزين الـ Leads
-2. Edge Function كـ Webhook API لاستقبال البيانات
-3. صفحة إدارية لعرض وإدارة الـ Leads
+بناءً على طلبك، سأقوم بـ:
+1. **إضافة إمكانية الحذف** مباشرة من الجدول
+2. **إضافة ملاحظات** على كل Lead
+3. **تغيير الحالة** مباشرة من الجدول (بدون فتح الـ Drawer)
+4. **السماح للعمال (Workers)** بالوصول للصفحة
 
 ---
 
-## المكونات المطلوبة
+## التعديلات على قاعدة البيانات
 
-### 1) جدول قاعدة البيانات: `leads`
+### 1) إضافة RLS Policies للعمال
 
+حالياً الـ RLS تسمح فقط للـ Admin:
 ```sql
-CREATE TABLE public.leads (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone TEXT NOT NULL,
-  customer_name TEXT,
-  car_number TEXT,
-  car_manufacturer TEXT,
-  car_model TEXT,
-  car_year TEXT,
-  car_color TEXT,
-  insurance_types TEXT[], -- Array of strings
-  driver_over_24 BOOLEAN DEFAULT true,
-  has_accidents BOOLEAN DEFAULT false,
-  total_price NUMERIC(10,2),
-  status TEXT DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'converted', 'rejected')),
-  notes TEXT,
-  source TEXT DEFAULT 'whatsapp',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Index for status filtering
-CREATE INDEX idx_leads_status ON public.leads(status);
-CREATE INDEX idx_leads_created_at ON public.leads(created_at DESC);
-
--- RLS Policies (Admin only access)
-ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
-
+-- القديم
 CREATE POLICY "Admins can view all leads" ON public.leads
   FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+```
 
-CREATE POLICY "Admins can update leads" ON public.leads
-  FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+سأضيف policies للعمال:
+```sql
+-- السماح للعمال أيضاً بالعرض والتحديث
+CREATE POLICY "Workers can view all leads" ON public.leads
+  FOR SELECT USING (public.has_role(auth.uid(), 'worker'));
 
--- No insert policy needed - webhook uses service role
+CREATE POLICY "Workers can update leads" ON public.leads
+  FOR UPDATE USING (public.has_role(auth.uid(), 'worker'));
+
+-- السماح بالحذف للمستخدمين المصرح لهم
+CREATE POLICY "Admins can delete leads" ON public.leads
+  FOR DELETE USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Workers can delete leads" ON public.leads
+  FOR DELETE USING (public.has_role(auth.uid(), 'worker'));
 ```
 
 ---
 
-### 2) Edge Function: `whatsapp-lead-webhook`
+## التعديلات على الكود
 
-**المسار:** `supabase/functions/whatsapp-lead-webhook/index.ts`
+### 2) تعديل `src/App.tsx`
 
-**الوظيفة:**
-- استقبال JSON من WhatsApp Bot
-- حفظ البيانات في جدول `leads`
-- إرجاع `{ success: true, lead_id: "..." }`
-
+تغيير من `AdminRoute` إلى `ProtectedRoute`:
 ```typescript
-// ملخص الكود
-Deno.serve(async (req) => {
-  // CORS handling
-  
-  // Parse JSON body
-  const body = await req.json();
-  
-  // Validate required fields
-  if (!body.phone) {
-    return error response;
-  }
-  
-  // Insert into leads table
-  const { data, error } = await supabase
-    .from('leads')
-    .insert({
-      phone: body.phone,
-      customer_name: body.customer_name,
-      car_number: body.car_number,
-      car_manufacturer: body.car_manufacturer,
-      car_model: body.car_model,
-      car_year: body.car_year,
-      car_color: body.car_color,
-      insurance_types: body.insurance_types, // Already an array
-      driver_over_24: body.driver_over_24 ?? true,
-      has_accidents: body.has_accidents ?? false,
-      total_price: body.total_price,
-      notes: body.notes,
-    })
-    .select('id')
-    .single();
-  
-  return { success: true, lead_id: data.id };
-});
-```
-
-**إعدادات الـ Config:**
-```toml
-[functions.whatsapp-lead-webhook]
-verify_jwt = false  # Public webhook
-```
-
----
-
-### 3) صفحة الإدارة: `/admin/leads`
-
-**الملف:** `src/pages/Leads.tsx`
-
-**المميزات:**
-- جدول يعرض جميع الـ Leads
-- فلترة حسب الحالة (جديد، تم التواصل، تم التحويل، مرفوض)
-- بحث بالاسم أو رقم الهاتف
-- عرض التفاصيل الكاملة عند النقر
-- تغيير الحالة من القائمة المنسدلة
-- شارات ملونة للحالات
-
-**هيكل الصفحة:**
-```text
-┌─────────────────────────────────────────────────────────┐
-│  العملاء المحتملون (Leads)                              │
-│  طلبات التأمين من WhatsApp                              │
-├─────────────────────────────────────────────────────────┤
-│  [🔍 بحث...] [الحالة ▼] [تحديث 🔄]                      │
-├─────────────────────────────────────────────────────────┤
-│  إحصائيات:                                              │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                    │
-│  │ جديد │ │تواصل │ │تحويل │ │مرفوض │                    │
-│  │  12  │ │   5  │ │   8  │ │   3  │                    │
-│  └──────┘ └──────┘ └──────┘ └──────┘                    │
-├─────────────────────────────────────────────────────────┤
-│ الاسم    │ الهاتف     │ السيارة  │ السعر │ الحالة │ ... │
-│──────────┼────────────┼──────────┼───────┼────────┼─────│
-│ كريم     │ 054490... │ فورد 2009│ ₪2600 │ جديد   │ ⋮   │
-│ محمد     │ 050123... │ טויוטה..│ ₪1800 │ تواصل  │ ⋮   │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-### 4) Drawer للتفاصيل: `LeadDetailsDrawer.tsx`
-
-**الملف:** `src/components/leads/LeadDetailsDrawer.tsx`
-
-يعرض:
-- بيانات العميل (الاسم، الهاتف)
-- بيانات السيارة (رقم، صانع، موديل، سنة، لون)
-- أنواع التأمين المطلوبة
-- السائق فوق 24 / حوادث سابقة
-- السعر المقترح
-- الملاحظات
-- زر تغيير الحالة
-- زر اتصال (Click2Call)
-- زر إنشاء عميل جديد من البيانات
-
----
-
-### 5) تحديث الملفات الموجودة
-
-**`src/App.tsx`** - إضافة Route جديد:
-```typescript
-import Leads from "./pages/Leads";
-// ...
+// قبل
 <Route path="/admin/leads" element={
   <AdminRoute>
     <Leads />
   </AdminRoute>
 } />
+
+// بعد
+<Route path="/leads" element={
+  <ProtectedRoute>
+    <Leads />
+  </ProtectedRoute>
+} />
 ```
 
-**`src/components/layout/Sidebar.tsx`** - إضافة رابط في قائمة الإعدادات:
+### 3) تعديل `src/components/layout/Sidebar.tsx`
+
+نقل الرابط لقسم متاح للجميع:
 ```typescript
-{ name: "Leads (WhatsApp)", href: "/admin/leads", icon: MessageSquare, adminOnly: true },
+{ name: "العملاء المحتملون", href: "/leads", icon: MessageSquare }
 ```
 
-**`supabase/config.toml`** - إضافة الـ function الجديدة:
-```toml
-[functions.whatsapp-lead-webhook]
-verify_jwt = false
+### 4) تعديل `src/pages/Leads.tsx`
+
+**إضافات على الجدول:**
+- عمود جديد للإجراءات (Actions)
+- Select لتغيير الحالة مباشرة في كل صف
+- زر ملاحظات Popover
+- قائمة إجراءات (⋮) تحتوي على: عرض، حذف
+
+```text
+هيكل الجدول المحدث:
+┌────────┬──────────┬─────────┬────────┬────────┬──────────────┬────────┬──────────┐
+│ الاسم  │ الهاتف   │ السيارة │ التأمين│ السعر  │ الحالة [▼]   │ التاريخ│ إجراءات │
+├────────┼──────────┼─────────┼────────┼────────┼──────────────┼────────┼──────────┤
+│ كريم   │ 054...   │ פורד    │ إلزامي│ ₪2600  │ [جديد ▼]     │ 31/01  │ 💬 ⋮    │
+└────────┴──────────┴─────────┴────────┴────────┴──────────────┴────────┴──────────┘
+```
+
+**المكونات الجديدة:**
+1. `StatusDropdown` - Select لتغيير الحالة بالضغط مباشرة
+2. `LeadNotesPopover` - زر ملاحظات مع popover (مشابه لـ ClientNotesPopover)
+3. `RowActionsMenu` - قائمة بـ عرض التفاصيل وحذف
+
+### 5) إنشاء `src/components/leads/LeadNotesPopover.tsx`
+
+مكون جديد لإضافة ملاحظات على Lead:
+```typescript
+// يشبه ClientNotesPopover لكن يعمل على leads.notes
+// عند إضافة ملاحظة يتم تحديث حقل notes في جدول leads
+// مع إمكانية إضافة سجل ملاحظات متعددة (اختياري)
 ```
 
 ---
@@ -189,60 +106,70 @@ verify_jwt = false
 
 | الملف | النوع | الوصف |
 |-------|-------|-------|
-| `leads` table | Migration | جدول قاعدة البيانات + RLS |
-| `supabase/functions/whatsapp-lead-webhook/index.ts` | جديد | Webhook API |
-| `supabase/config.toml` | تعديل | إضافة الـ function |
-| `src/pages/Leads.tsx` | جديد | صفحة الإدارة |
-| `src/components/leads/LeadDetailsDrawer.tsx` | جديد | Drawer التفاصيل |
-| `src/App.tsx` | تعديل | إضافة Route |
-| `src/components/layout/Sidebar.tsx` | تعديل | إضافة رابط |
+| Migration جديدة | SQL | إضافة RLS للعمال + صلاحية الحذف |
+| `src/App.tsx` | تعديل | تغيير Route من Admin إلى Protected + تغيير المسار |
+| `src/components/layout/Sidebar.tsx` | تعديل | نقل الرابط لقسم عام |
+| `src/pages/Leads.tsx` | تعديل | إضافة عمود الإجراءات + Status dropdown + Notes + Delete |
+| `src/components/leads/LeadNotesPopover.tsx` | جديد | مكون ملاحظات مشابه لـ ClientNotesPopover |
+| `src/components/leads/LeadDetailsDrawer.tsx` | تعديل | إضافة قسم الملاحظات + زر الحذف |
 
 ---
 
-## مثال الاستخدام
+## تفاصيل تقنية
 
-**إرسال Lead من WhatsApp Bot:**
-```bash
-POST https://tytilcbuyphlowkolpsk.functions.supabase.co/whatsapp-lead-webhook
+### Status Dropdown في الجدول
 
-{
-  "phone": "972544902728",
-  "customer_name": "كريم",
-  "car_number": "8292765",
-  "car_manufacturer": "פורד",
-  "car_model": "פוקוס",
-  "car_year": "2009",
-  "car_color": "לבן",
-  "insurance_types": ["إلزامي", "طرف ثالث", "خدمات طريق"],
-  "driver_over_24": true,
-  "has_accidents": false,
-  "total_price": 2600,
-  "notes": "Customer requested via WhatsApp"
-}
+```typescript
+// في صف الجدول
+<TableCell onClick={(e) => e.stopPropagation()}>
+  <Select
+    value={lead.status}
+    onValueChange={(value) => handleStatusChange(lead.id, value)}
+  >
+    <SelectTrigger className="w-32 h-8">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="new">جديد</SelectItem>
+      <SelectItem value="contacted">تم التواصل</SelectItem>
+      <SelectItem value="converted">تم التحويل</SelectItem>
+      <SelectItem value="rejected">مرفوض</SelectItem>
+    </SelectContent>
+  </Select>
+</TableCell>
 ```
 
-**الرد:**
-```json
-{
-  "success": true,
-  "lead_id": "abc123-..."
-}
+### زر الحذف
+
+```typescript
+const deleteMutation = useMutation({
+  mutationFn: async (leadId: string) => {
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', leadId);
+    if (error) throw error;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['leads'] });
+    toast({ title: 'تم حذف العميل المحتمل' });
+  }
+});
 ```
 
----
+### Popover الملاحظات
 
-## الأمان
-
-1. **Webhook عام** (verify_jwt = false) للسماح لـ WhatsApp Bot بالإرسال
-2. **RLS على الجدول** - فقط المديرون يمكنهم القراءة والتحديث
-3. **لا توجد صلاحية حذف** - للحفاظ على سجل كامل
-4. **صفحة الإدارة محمية** بـ AdminRoute
+سيكون مشابهاً لـ `ClientNotesPopover` لكن مبسط:
+- عرض الملاحظات الحالية من حقل `notes`
+- إضافة ملاحظة جديدة (يتم إلحاقها بالملاحظات السابقة مع التاريخ والمستخدم)
 
 ---
 
-## ميزات إضافية (اختيارية لاحقاً)
+## النتيجة
 
-1. **إشعار عند Lead جديد** - إضافة trigger لإنشاء notification
-2. **تحويل Lead إلى عميل** - زر لإنشاء client من بيانات Lead
-3. **تقارير Leads** - إحصائيات شهرية ومعدلات التحويل
-4. **Webhook للإشعار** - إرسال SMS للمدير عند lead جديد
+بعد التنفيذ:
+1. **العمال والمديرون** يمكنهم الوصول لصفحة `/leads`
+2. **تغيير الحالة** مباشرة من الجدول بدون فتح drawer
+3. **إضافة ملاحظات** عبر popover في كل صف
+4. **حذف Lead** عبر قائمة الإجراءات (⋮)
+5. **عرض التفاصيل** بالنقر على الصف أو من قائمة الإجراءات

@@ -1,115 +1,119 @@
 
-# خطة: عرض صافي المتبقي بعد خصم المرتجعات
+# خطة: إضافة إمكانية حذف المرتجعات
 
-## المشكلة الحالية
-- كارت "إجمالي المتبقي" يظهر ₪300 (ما يدين به العميل)
-- المرتجع اليدوي ₪300 لا يُخصم من هذا الرقم
-- المستخدم يريد أن يرى أن 300 - 300 = 0
-
-## السبب التقني
-1. دالة `fetchWalletBalance` لا تشمل `manual_refund` في الحساب
-2. كارت "إجمالي المتبقي" لا يأخذ بعين الاعتبار رصيد المحفظة (المرتجعات)
+## المشكلة
+حالياً جدول المرتجعات لا يحتوي على زر حذف. المستخدم يريد حذف المرتجعات اليدوية التي أضافها.
 
 ---
 
 ## التعديلات المطلوبة
 
-### 1) تحديث دالة fetchWalletBalance (سطر 417-419)
-إضافة `manual_refund` لقائمة أنواع المرتجعات:
+### ملف: `src/components/clients/RefundsTab.tsx`
 
+#### 1) إضافة imports جديدة
 ```typescript
-const weOweCustomer = (data || [])
-  .filter(t => 
-    t.transaction_type === 'refund' || 
-    t.transaction_type === 'transfer_refund_owed' ||
-    t.transaction_type === 'manual_refund'  // ← إضافة
-  )
-  .reduce((sum, t) => sum + (t.amount || 0), 0);
+import { Trash2 } from 'lucide-react';
+import { DeleteConfirmDialog } from '@/components/shared/DeleteConfirmDialog';
 ```
 
-### 2) تحديث كارت "إجمالي المتبقي" (سطور 1073-1088)
-تعديل العرض ليظهر:
-- صافي المتبقي = الدين - المرتجعات
-- توضيح تفصيلي في حال وجود مرتجعات
+#### 2) إضافة حالات (states) جديدة
+```typescript
+const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+const [refundToDelete, setRefundToDelete] = useState<RefundRecord | null>(null);
+```
 
-**الكود الجديد:**
+#### 3) إضافة mutation للحذف
+```typescript
+const deleteRefundMutation = useMutation({
+  mutationFn: async (refundId: string) => {
+    const { error } = await supabase
+      .from('customer_wallet_transactions')
+      .delete()
+      .eq('id', refundId);
+
+    if (error) throw error;
+  },
+  onSuccess: () => {
+    toast.success('تم حذف المرتجع بنجاح');
+    queryClient.invalidateQueries({ queryKey: ['client-refunds', clientId] });
+    setDeleteDialogOpen(false);
+    setRefundToDelete(null);
+    onRefundAdded?.(); // لتحديث الرصيد في الصفحة الرئيسية
+  },
+  onError: (error) => {
+    console.error('Error deleting refund:', error);
+    toast.error('حدث خطأ أثناء حذف المرتجع');
+  },
+});
+```
+
+#### 4) إضافة دالة تأكيد الحذف
+```typescript
+const handleDeleteClick = (refund: RefundRecord) => {
+  setRefundToDelete(refund);
+  setDeleteDialogOpen(true);
+};
+
+const confirmDelete = () => {
+  if (refundToDelete) {
+    deleteRefundMutation.mutate(refundToDelete.id);
+  }
+};
+```
+
+#### 5) إضافة عمود "إجراءات" في الجدول
+
+**في TableHeader:**
 ```tsx
-<Card className="p-4 flex items-center gap-4">
-  <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-    <AlertCircle className="h-6 w-6 text-destructive" />
-  </div>
-  <div className="flex-1">
-    <p className="text-xs text-muted-foreground">إجمالي المتبقي</p>
-    {/* صافي المتبقي = الدين - المرتجعات */}
-    <p className={cn("text-xl font-bold", 
-      (paymentSummary.total_remaining - walletBalance.total_refunds) > 0 
-        ? "text-destructive" 
-        : "text-success"
-    )}>
-      ₪{Math.max(0, paymentSummary.total_remaining - walletBalance.total_refunds).toLocaleString()}
-    </p>
-    {/* عرض تفصيلي في حال وجود مرتجعات */}
-    {walletBalance.total_refunds > 0 && (
-      <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
-        <p>المطلوب: ₪{paymentSummary.total_remaining.toLocaleString()}</p>
-        <p className="text-amber-600">المرتجع: -₪{walletBalance.total_refunds.toLocaleString()}</p>
-      </div>
-    )}
-  </div>
-  <DebtIndicator
-    totalOwed={paymentSummary.total_paid + paymentSummary.total_remaining} 
-    totalPaid={paymentSummary.total_paid + walletBalance.total_refunds}  // احتساب المرتجعات كمدفوع
-    showAmount={false}
-  />
-</Card>
+<TableHead className="text-right w-[80px]">إجراءات</TableHead>
 ```
 
-### 3) تحديث شرط زر "دفع" (سطر 1000)
-تغيير الشرط ليظهر الزر فقط إذا كان الصافي > 0:
-
-```typescript
-{(paymentSummary.total_remaining - walletBalance.total_refunds) > 0 && (
-  <Button ...>دفع</Button>
-)}
+**في TableBody (داخل كل صف):**
+```tsx
+<TableCell>
+  {/* السماح بالحذف فقط للمرتجعات اليدوية */}
+  {refund.transaction_type === 'manual_refund' && (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+      onClick={() => handleDeleteClick(refund)}
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  )}
+</TableCell>
 ```
 
-### 4) إزالة كارت "مرتجع للعميل" المنفصل (سطور 1103-1115)
-بما أن المرتجع أصبح مُدمجاً في كارت "إجمالي المتبقي"، يمكن إزالة الكارت المنفصل أو تحويله ليظهر فقط عندما يكون الصافي سالباً (نحن مدينون للعميل).
+#### 6) إضافة مكون تأكيد الحذف
+```tsx
+<DeleteConfirmDialog
+  open={deleteDialogOpen}
+  onOpenChange={setDeleteDialogOpen}
+  onConfirm={confirmDelete}
+  title="حذف المرتجع"
+  description={`هل أنت متأكد من حذف مرتجع بقيمة ₪${refundToDelete?.amount?.toLocaleString()}؟ لا يمكن التراجع عن هذا الإجراء.`}
+  loading={deleteRefundMutation.isPending}
+/>
+```
+
+---
+
+## ملاحظات مهمة
+
+| النوع | قابل للحذف |
+|-------|------------|
+| `manual_refund` (مرتجع يدوي) | نعم |
+| `refund` (إلغاء تأمين) | لا - مرتبط بإلغاء وثيقة |
+| `transfer_refund_owed` (تحويل تأمين) | لا - مرتبط بتحويل وثيقة |
+
+السبب: المرتجعات الناتجة عن إلغاء أو تحويل الوثائق مرتبطة بعمليات أخرى ويجب عدم حذفها يدوياً للحفاظ على سلامة البيانات.
 
 ---
 
 ## النتيجة المتوقعة
 
-**قبل:**
-```
-إجمالي المتبقي: ₪300
-[كارت منفصل] مرتجع للعميل: ₪300
-```
-
-**بعد (عندما الدين = المرتجع):**
-```
-إجمالي المتبقي: ₪0
-  المطلوب: ₪300
-  المرتجع: -₪300
-```
-
-**بعد (عندما الدين > المرتجع):**
-```
-إجمالي المتبقي: ₪200
-  المطلوب: ₪500
-  المرتجع: -₪300
-```
-
-**بعد (عندما المرتجع > الدين - نحن مدينون):**
-```
-إجمالي المتبقي: ₪0
-[كارت منفصل] مرتجع للعميل: ₪100
-```
-
----
-
-## الملف المطلوب تعديله
-
-| الملف | التعديلات |
-|-------|-----------|
-| `src/components/clients/ClientDetails.tsx` | 1) fetchWalletBalance: إضافة manual_refund<br>2) كارت المتبقي: عرض الصافي مع التفصيل<br>3) زر دفع: تحديث الشرط<br>4) كارت المرتجع: إظهار فقط إذا الصافي سالب |
+- عمود جديد "إجراءات" في الجدول
+- زر حذف (أحمر) يظهر فقط للمرتجعات اليدوية
+- نافذة تأكيد قبل الحذف
+- تحديث تلقائي للجدول والرصيد بعد الحذف

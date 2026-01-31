@@ -217,6 +217,7 @@ Deno.serve(async (req) => {
 
     // Upload to BunnyCDN
     const bunnyStorageKey = Deno.env.get('BUNNY_API_KEY');
+    const bunnyAccountKey = Deno.env.get('BUNNY_ACCOUNT_API_KEY'); // For CDN purge
     const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || 'ab-storage';
     const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
 
@@ -253,16 +254,24 @@ Deno.serve(async (req) => {
 
     console.log('Upload successful, purging cache...');
 
-    // Purge CDN cache
-    try {
-      const purgeUrl = `https://api.bunny.net/purge?url=${encodeURIComponent(cdnUrl)}`;
-      await fetch(purgeUrl, {
-        method: 'POST',
-        headers: { 'AccessKey': bunnyStorageKey },
-      });
-      console.log('Cache purged successfully');
-    } catch (purgeError) {
-      console.error('Cache purge failed (non-fatal):', purgeError);
+    // Purge CDN cache - requires Account API Key, not Storage Key
+    if (bunnyAccountKey) {
+      try {
+        const purgeUrl = `https://api.bunny.net/purge?url=${encodeURIComponent(cdnUrl)}`;
+        const purgeResponse = await fetch(purgeUrl, {
+          method: 'POST',
+          headers: { 'AccessKey': bunnyAccountKey },
+        });
+        if (purgeResponse.ok) {
+          console.log('Cache purged successfully');
+        } else {
+          console.warn('CDN purge failed:', await purgeResponse.text());
+        }
+      } catch (purgeError) {
+        console.error('Cache purge failed (non-fatal):', purgeError);
+      }
+    } else {
+      console.warn('BUNNY_ACCOUNT_API_KEY not set - cache purge skipped');
     }
 
     // Update letter with generated URL

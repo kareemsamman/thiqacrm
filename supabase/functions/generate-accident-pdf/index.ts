@@ -106,6 +106,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const bunnyStorageKey = Deno.env.get("BUNNY_API_KEY");
+    const bunnyAccountKey = Deno.env.get("BUNNY_ACCOUNT_API_KEY"); // For CDN purge
     const bunnyStorageZone = Deno.env.get("BUNNY_STORAGE_ZONE") || "basheer-ab";
     const bunnyCdnUrl = "https://cdn.basheer-ab.com";
 
@@ -217,21 +218,26 @@ serve(async (req) => {
       console.log("Generated report URL:", pdfUrl);
 
       // Purge CDN cache to show updated content immediately
-      try {
-        const purgeUrl = `https://api.bunny.net/purge?url=${encodeURIComponent(pdfUrl)}`;
-        const purgeResponse = await fetch(purgeUrl, {
-          method: "POST",
-          headers: {
-            "AccessKey": bunnyStorageKey,
-          },
-        });
-        if (purgeResponse.ok) {
-          console.log("CDN cache purged successfully for:", pdfUrl);
-        } else {
-          console.warn("CDN purge failed:", await purgeResponse.text());
+      // Note: Purge API requires Account API Key, not Storage Key
+      if (bunnyAccountKey) {
+        try {
+          const purgeUrl = `https://api.bunny.net/purge?url=${encodeURIComponent(pdfUrl)}`;
+          const purgeResponse = await fetch(purgeUrl, {
+            method: "POST",
+            headers: {
+              "AccessKey": bunnyAccountKey,
+            },
+          });
+          if (purgeResponse.ok) {
+            console.log("CDN cache purged successfully for:", pdfUrl);
+          } else {
+            console.warn("CDN purge failed:", await purgeResponse.text());
+          }
+        } catch (purgeError) {
+          console.warn("CDN purge error (non-fatal):", purgeError);
         }
-      } catch (purgeError) {
-        console.warn("CDN purge error (non-fatal):", purgeError);
+      } else {
+        console.warn("BUNNY_ACCOUNT_API_KEY not set - cache purge skipped");
       }
     } else {
       console.warn("No BUNNY_API_KEY configured");

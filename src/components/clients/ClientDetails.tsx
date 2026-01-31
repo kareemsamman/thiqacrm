@@ -64,6 +64,7 @@ import {
   Loader2,
   Receipt,
   Send,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -84,6 +85,7 @@ import { DebtPaymentModal } from '@/components/debt/DebtPaymentModal';
 import { ClientNotesSection } from '@/components/clients/ClientNotesSection';
 import { PaymentEditDialog } from '@/components/clients/PaymentEditDialog';
 import { RefundsTab } from '@/components/clients/RefundsTab';
+import { AccidentReportWizard } from '@/components/accident-reports/AccidentReportWizard';
 import { cn } from '@/lib/utils';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/hooks/useAuth';
@@ -287,6 +289,9 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
   
   // Individual payment receipt state
   const [generatingReceipt, setGeneratingReceipt] = useState<string | null>(null);
+  
+  // Accident report wizard state
+  const [accidentWizardOpen, setAccidentWizardOpen] = useState(false);
 
   const fetchBroker = async () => {
     if (!client.broker_id) {
@@ -978,6 +983,10 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
                     دفع
                   </Button>
                 )}
+                <Button variant="outline" onClick={() => setAccidentWizardOpen(true)}>
+                  <AlertTriangle className="h-4 w-4 ml-2" />
+                  بلاغ حادث
+                </Button>
                 <Button variant="outline" onClick={() => setReportModalOpen(true)}>
                   <FileText className="h-4 w-4 ml-2" />
                   تقرير
@@ -1918,6 +1927,19 @@ export function ClientDetails({ client, onBack, onRefresh }: ClientDetailsProps)
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Accident Report Wizard */}
+      <AccidentReportWizard
+        open={accidentWizardOpen}
+        onOpenChange={setAccidentWizardOpen}
+        preselectedClient={{
+          id: client.id,
+          full_name: client.full_name,
+          id_number: client.id_number,
+          file_number: client.file_number,
+          phone_number: client.phone_number,
+        }}
+      />
     </MainLayout>
   );
 }

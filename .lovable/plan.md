@@ -1,132 +1,210 @@
 
-
-# خطة: نقل حقل البحث إلى أعلى الـ Sidebar
+# خطة: نظام إدارة بلاغات الحوادث الشامل
 
 ## الهدف
-نقل حقل بحث الصفحات ليكون **داخل الـ Sidebar** فوق قسم "الرئيسية" مباشرة، بدلاً من كونه Dialog منفصل في الـ Header.
-
----
-
-## التصميم الجديد
-
-```text
-┌─────────────────────────────────┐
-│  [AB تأمين]  [Logo]             │
-├─────────────────────────────────┤
-│  🔍 ابحث عن صفحة...            │  ← حقل البحث هنا
-├─────────────────────────────────┤
-│  ∨ 🏠 الرئيسية                  │
-│     📊 لوحة التحكم              │
-│     ✅ المهام                   │
-│     🔔 التنبيهات                │
-│                                 │
-│  ∨ 👥 إدارة العملاء             │
-│     ...                         │
-└─────────────────────────────────┘
-```
+إنشاء نظام متكامل لإدارة بلاغات الحوادث يشمل:
+1. تبويب جديد "بلاغات الحوادث" في ملف العميل
+2. شارة عدد البلاغات النشطة في القائمة الجانبية
+3. نقطة تحذير حمراء على اسم العميل الذي لديه حوادث
+4. تحذير عند إنشاء وثيقة جديدة لعميل لديه حوادث سابقة
+5. إضافة ملاحظات ومتابعة وتذكيرات لكل بلاغ
 
 ---
 
 ## التعديلات المطلوبة
 
-### 1) مكون جديد: `SidebarSearch.tsx`
-**ملف:** `src/components/layout/SidebarSearch.tsx`
+### 1) قاعدة البيانات - عمود جديد للملاحظات
 
-**الميزات:**
-- حقل Input بتصميم مناسب للـ Sidebar
-- عند الكتابة → تظهر قائمة dropdown بالنتائج
-- فلترة تلقائية حسب الاسم
-- عند الاختيار → انتقال للصفحة
-- يختفي عندما يكون الـ Sidebar مطوي (collapsed)
-- اختصار `Ctrl+/` يُركز على حقل البحث
+إضافة عمود لملاحظات الحوادث على جدول `clients`:
+```sql
+ALTER TABLE clients 
+ADD COLUMN accident_notes TEXT DEFAULT NULL;
+```
 
-**الهيكل:**
-```tsx
-export function SidebarSearch({ collapsed }: { collapsed: boolean }) {
-  const [query, setQuery] = useState("");
-  const [showResults, setShowResults] = useState(false);
-  
-  // فلترة النتائج
-  const results = filteredGroups
-    .flatMap(g => g.items)
-    .filter(item => item.name.includes(query));
-  
-  if (collapsed) return null;
-  
-  return (
-    <div className="px-3 py-2">
-      <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="ابحث عن صفحة..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setShowResults(true)}
-          className="pr-9 text-right"
-        />
-        {showResults && query && results.length > 0 && (
-          <div className="absolute top-full mt-1 w-full bg-popover border rounded-md shadow-lg z-50">
-            {results.map(item => (
-              <button onClick={() => navigate(item.href)}>
-                <item.icon /> {item.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+هذا العمود سيحفظ ملاحظات خاصة بالحوادث (مثل: "هذا المؤمن لديه 5 حوادث، لا نرغب بتأمين هذه المركبة له")
+
+### 2) Hook جديد: `useAccidentReportsCount`
+
+**ملف:** `src/hooks/useAccidentReportsCount.tsx`
+
+حساب عدد البلاغات النشطة (غير المغلقة) للشارة في القائمة الجانبية:
+```typescript
+export function useAccidentReportsCount() {
+  // Query: status != 'closed'
+  // Returns: { count, isLoading }
 }
 ```
 
-### 2) تحديث Sidebar.tsx
-**ملف:** `src/components/layout/Sidebar.tsx`
+### 3) Hook جديد: `useClientAccidentInfo`
 
-**التعديلات:**
-- استيراد `SidebarSearch`
-- إضافته بعد الـ Logo وقبل الـ Navigation
+**ملف:** `src/hooks/useClientAccidentInfo.tsx`
 
-```tsx
-// بعد قسم Logo
-<SidebarSearch collapsed={collapsed} />
-
-// ثم Navigation
-<nav className="flex-1 ...">
+جلب معلومات الحوادث لعميل معين (للاستخدام في ملف العميل ومعالج الوثائق):
+```typescript
+export function useClientAccidentInfo(clientId: string | null) {
+  // Query: accident_reports where client_id = clientId
+  // Returns: { reports, count, hasActiveReports, isLoading }
+}
 ```
 
-### 3) تحديث Header.tsx
-**ملف:** `src/components/layout/Header.tsx`
+### 4) شارة جديدة: `SidebarAccidentsBadge`
 
-**التعديلات:**
-- إزالة زر بحث الصفحات (FileSearch icon)
-- إزالة مكون NavigationSearch
-- إبقاء بحث الوثائق فقط (GlobalPolicySearch)
+**ملف:** `src/components/layout/SidebarAccidentsBadge.tsx`
 
-### 4) حذف أو تحويل NavigationSearch.tsx
-**ملف:** `src/components/layout/NavigationSearch.tsx`
+مماثلة لـ `SidebarClaimsBadge` - تعرض عدد البلاغات النشطة
 
-**الخيارات:**
-- حذف الملف إذا لم نعد نحتاج Dialog
-- أو الإبقاء عليه كـ fallback للأجهزة الصغيرة
+### 5) تحديث Sidebar للشارة
+
+**ملف:** `src/components/layout/Sidebar.tsx`
+
+- إضافة `badge: 'accidents'` لعنصر "بلاغات الحوادث"
+- إضافة شرط عرض الشارة في `renderBadge()`
+
+### 6) مكون جديد: `ClientAccidentsTab`
+
+**ملف:** `src/components/clients/ClientAccidentsTab.tsx`
+
+تبويب كامل في ملف العميل يعرض:
+- جدول بلاغات الحوادث للعميل
+- تغيير حالة البلاغ (مسودة/مُقدَّم/مُغلق)
+- إضافة ملاحظات لكل بلاغ
+- تعيين تذكير (reminder)
+- رابط لفتح البلاغ التفصيلي
+- قسم "ملاحظات الحوادث العامة" للعميل
+
+**الهيكل:**
+```text
+┌───────────────────────────────────────────────────┐
+│  ⚠️ ملاحظات الحوادث العامة                        │
+│  ┌─────────────────────────────────────────────┐  │
+│  │ هذا المؤمن لديه 5 حوادث، لا نرغب بتأمينه    │  │
+│  └─────────────────────────────────────────────┘  │
+├───────────────────────────────────────────────────┤
+│  بلاغات الحوادث (3)                              │
+├───────────────────────────────────────────────────┤
+│ تاريخ     | السيارة | الحالة | ملاحظات | تذكير   │
+│ 15/01/26  | 123-45  | مُقدَّم | ...     | 📅      │
+│ 10/12/25  | 123-45  | مُغلق  | ...     | -       │
+└───────────────────────────────────────────────────┘
+```
+
+### 7) تحديث ClientDetails - إضافة التبويب
+
+**ملف:** `src/components/clients/ClientDetails.tsx`
+
+- استيراد `ClientAccidentsTab`
+- إضافة تبويب جديد "بلاغات الحوادث"
+- عرض شارة تحذير إذا كان لديه بلاغات نشطة
+
+```tsx
+<TabsTrigger value="accidents" className="gap-1.5">
+  <AlertTriangle className="h-4 w-4" />
+  بلاغات الحوادث ({accidentCount})
+  {hasActiveAccidents && (
+    <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+  )}
+</TabsTrigger>
+```
+
+### 8) مؤشر النقطة الحمراء على العملاء
+
+**ملف:** `src/pages/Clients.tsx`
+
+عند جلب العملاء، نضيف استعلام فرعي لعدد الحوادث:
+```typescript
+// Fetch clients with accident counts
+const { data } = await supabase
+  .from('clients')
+  .select(`
+    *,
+    accident_reports(count)
+  `)
+```
+
+ثم نعرض نقطة حمراء بجانب اسم العميل:
+```tsx
+<span className="font-medium">
+  {client.full_name}
+  {client.accident_reports?.[0]?.count > 0 && (
+    <span className="h-2 w-2 rounded-full bg-destructive inline-block mr-1" />
+  )}
+</span>
+```
+
+### 9) تحذير في معالج الوثائق
+
+**ملف:** `src/components/policies/wizard/Step1BranchTypeClient.tsx`
+
+عند اختيار عميل، نتحقق من وجود حوادث سابقة:
+```tsx
+{selectedClient && clientAccidentInfo.count > 0 && (
+  <Card className="border-amber-500 bg-amber-50">
+    <AlertTriangle className="text-amber-600" />
+    <p>تحذير: هذا العميل لديه {clientAccidentInfo.count} بلاغ حادث</p>
+    {selectedClient.accident_notes && (
+      <p className="text-sm">{selectedClient.accident_notes}</p>
+    )}
+  </Card>
+)}
+```
 
 ---
 
-## الملفات المطلوبة
+## ملخص الملفات
 
 | الملف | النوع | الوصف |
 |-------|-------|-------|
-| `src/components/layout/SidebarSearch.tsx` | جديد | مكون البحث داخل الـ Sidebar |
-| `src/components/layout/Sidebar.tsx` | تعديل | إضافة SidebarSearch |
-| `src/components/layout/Header.tsx` | تعديل | إزالة زر البحث عن الصفحات |
+| Migration | جديد | إضافة عمود `accident_notes` لجدول `clients` |
+| `src/hooks/useAccidentReportsCount.tsx` | جديد | Hook لعدد البلاغات النشطة (للشارة) |
+| `src/hooks/useClientAccidentInfo.tsx` | جديد | Hook لمعلومات حوادث عميل معين |
+| `src/components/layout/SidebarAccidentsBadge.tsx` | جديد | شارة عدد البلاغات في القائمة الجانبية |
+| `src/components/clients/ClientAccidentsTab.tsx` | جديد | تبويب بلاغات الحوادث في ملف العميل |
+| `src/components/layout/Sidebar.tsx` | تعديل | إضافة badge للحوادث |
+| `src/components/clients/ClientDetails.tsx` | تعديل | إضافة تبويب الحوادث + مؤشر |
+| `src/pages/Clients.tsx` | تعديل | إضافة النقطة الحمراء للعملاء |
+| `src/components/policies/wizard/Step1BranchTypeClient.tsx` | تعديل | تحذير عند اختيار عميل لديه حوادث |
 
 ---
 
-## السلوك المتوقع
+## تفاصيل تبويب الحوادث في ملف العميل
 
-1. **الـ Sidebar موسّع**: يظهر حقل البحث فوق "الرئيسية"
-2. **الـ Sidebar مطوي**: يختفي حقل البحث (لا يوجد مساحة)
-3. **Mobile**: يظهر في الـ Sheet drawer
-4. **اختصار `Ctrl+/`**: يُركز على حقل البحث (إذا كان مرئي)
-5. **عند الكتابة**: تظهر dropdown بالنتائج المطابقة
-6. **عند الاختيار**: ينتقل للصفحة ويُغلق القائمة
+### الميزات:
+1. **جدول البلاغات:**
+   - تاريخ الحادث
+   - رقم السيارة
+   - شركة التأمين
+   - الحالة (مع إمكانية تغييرها)
+   - ملاحظات (inline editing)
+   - زر التذكير
 
+2. **ملاحظات الحوادث العامة:**
+   - حقل نص لكتابة ملاحظات دائمة عن العميل
+   - تظهر هذه الملاحظات عند إنشاء وثيقة جديدة
+   - مثال: "هذا العميل خطر، 5 حوادث في السنة الماضية"
+
+3. **إجراءات سريعة:**
+   - تغيير الحالة مباشرة من الجدول
+   - إضافة ملاحظة (مع modal صغير)
+   - تعيين تذكير (تاريخ + ملاحظة)
+
+### تغيير الحالة:
+```tsx
+<Select value={report.status} onValueChange={(status) => updateStatus(report.id, status)}>
+  <SelectItem value="draft">مسودة</SelectItem>
+  <SelectItem value="submitted">مُقدَّم</SelectItem>
+  <SelectItem value="closed">مُغلق</SelectItem>
+</Select>
+```
+
+---
+
+## النتيجة النهائية
+
+1. **القائمة الجانبية:** شارة حمراء بعدد البلاغات النشطة
+2. **صفحة العملاء:** نقطة حمراء بجانب اسم كل عميل لديه حوادث
+3. **ملف العميل:** تبويب جديد "بلاغات الحوادث" مع:
+   - عرض كل البلاغات
+   - تغيير الحالة
+   - إضافة ملاحظات
+   - تعيين تذكيرات
+4. **معالج الوثائق:** تحذير واضح عند اختيار عميل لديه حوادث + عرض الملاحظات

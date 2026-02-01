@@ -1,73 +1,103 @@
 
-# خطة: إصلاح حساب المتبقي في شاشة عرض الوثائق
+# خطة: عرض نوع التأمين الفرعي (ثالث/شامل) بشكل صحيح
 
 ## المشكلة
 
-عند عرض الباقة في Timeline، يظهر "متبقي ₪1,200" رغم أن المبلغ مدفوع بالكامل:
+### في صفحة تفاصيل العميل (Timeline):
+- يظهر **"ثالث/شامل"** دائماً بدلاً من عرض النوع الفرعي الفعلي ("ثالث" أو "شامل")
 
-**تفاصيل الباقة:**
-- إلزامي: سعر ₪1,000
-- ثالث: سعر ₪1,200
-- المجموع: ₪2,200
-
-**الدفعات:**
-- ₪1,000 + ₪1,200 = ₪2,200 (كلها مسجلة على وثيقة الإلزامي)
-
-**المشكلة في الكود الحالي:**
-```typescript
-// خطأ: يحسب المتبقي لكل وثيقة على حدة ثم يجمع
-pkg.allPolicyIds.forEach(id => {
-  const policyRemaining = paymentInfo[id]?.remaining || 0;
-  totalRemaining += Math.max(0, policyRemaining); // ← المشكلة هنا!
-});
-```
-
-**الحساب الخاطئ:**
-- إلزامي: مدفوع ₪2,200، سعر ₪1,000 → متبقي = -₪1,200 → يتحول إلى **0** بسبب Math.max
-- ثالث: مدفوع ₪0، سعر ₪1,200 → متبقي = **₪1,200**
-- المجموع: 0 + 1,200 = **₪1,200** ❌
-
-**الحساب الصحيح (كما يفعل الـ Drawer):**
-- إجمالي السعر: ₪2,200
-- إجمالي المدفوع: ₪2,200
-- المتبقي: ₪2,200 - ₪2,200 = **₪0** ✅
+### في جدول مكونات الباقة:
+- يظهر **"ثالث/شامل - شامل"** وهو مكرر وغير ضروري
+- المطلوب: عرض **"شامل"** أو **"ثالث"** فقط
 
 ---
 
-## الحل
+## الحل التقني
 
-### تعديل `getPackagePaymentStatus` في `PolicyYearTimeline.tsx`
+### 1. تعديل `PolicyYearTimeline.tsx`
+
+إضافة دالة مساعدة للحصول على الاسم الصحيح:
 
 ```typescript
-const getPackagePaymentStatus = (pkg: PolicyPackage) => {
-  // Sum total paid across all package policies
-  let totalPaid = 0;
-  
-  pkg.allPolicyIds.forEach(id => {
-    totalPaid += paymentInfo[id]?.paid || 0;
-  });
-  
-  // Calculate remaining as package total - all payments
-  // This is the correct way for packages (same as drawer)
-  const remaining = Math.max(0, pkg.totalPrice - totalPaid);
-  const isPaid = remaining <= 0 && pkg.totalPrice > 0;
-  
-  return { totalPaid, remaining, isPaid };
+// Helper to get proper label (child type if exists, otherwise parent)
+const getDisplayLabel = (policy: PolicyRecord) => {
+  if (policy.policy_type_parent === 'THIRD_FULL' && policy.policy_type_child) {
+    return policy.policy_type_child === 'THIRD' ? 'ثالث' : 'شامل';
+  }
+  return policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent;
+};
+```
+
+**تحديث الشارة الرئيسية (سطر 778-779):**
+```tsx
+<Badge className={cn("border text-xs font-semibold", policyTypeColors[pkg.mainPolicy.policy_type_parent])}>
+  {getDisplayLabel(pkg.mainPolicy)}
+</Badge>
+```
+
+**تحديث شارات الإضافات (سطر 784-785):**
+```tsx
+<Badge className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
+  {getDisplayLabel(addon)}
+</Badge>
+```
+
+---
+
+### 2. تعديل `PackageComponentsTable.tsx`
+
+تعديل دالة `getTypeName` لعرض النوع الفرعي فقط:
+
+**قبل:**
+```typescript
+const getTypeName = (p: PackagePolicy) => {
+  let name = policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
+  if (p.policy_type_child) {
+    name += ` - ${policyChildLabels[p.policy_type_child] || p.policy_type_child}`;
+  }
+  return name;
+};
+```
+
+**بعد:**
+```typescript
+const getTypeName = (p: PackagePolicy) => {
+  // For THIRD_FULL with a child type, show only the child type (ثالث or شامل)
+  if (p.policy_type_parent === 'THIRD_FULL' && p.policy_type_child) {
+    return policyChildLabels[p.policy_type_child] || p.policy_type_child;
+  }
+  // For other types, use the parent label
+  return policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
 };
 ```
 
 ---
 
-## ملخص التغيير
+## ملخص التغييرات
 
 | الملف | التغيير |
 |-------|---------|
-| `src/components/clients/PolicyYearTimeline.tsx` | تصحيح حساب المتبقي ليكون إجمالي الباقة - إجمالي المدفوع |
+| `src/components/clients/PolicyYearTimeline.tsx` | إضافة دالة `getDisplayLabel` واستخدامها في شارات الباقة |
+| `src/components/policies/PackageComponentsTable.tsx` | تعديل `getTypeName` لعرض النوع الفرعي فقط |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ عند دفع كامل مبلغ الباقة، يظهر "مسدد" بدلاً من "متبقي"
-2. ✅ المتبقي يحسب على مستوى الباقة ككل وليس لكل وثيقة منفردة
-3. ✅ تطابق الحساب بين Timeline و Drawer
+### قبل:
+- Timeline: **ثالث/شامل** + إلزامي + خدمات طريق
+- جدول المكونات: **ثالث/شامل - شامل**
+
+### بعد:
+- Timeline: **شامل** + إلزامي + خدمات طريق
+- جدول المكونات: **شامل**
+
+---
+
+## ملاحظة
+
+هذا التغيير سيؤثر أيضاً على:
+- `PolicyTreeView.tsx` (نفس المنطق)
+- أي مكان آخر يستخدم `policyTypeLabels` مع THIRD_FULL
+
+سأتأكد من تحديث جميع الأماكن ذات الصلة.

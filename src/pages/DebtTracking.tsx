@@ -138,8 +138,8 @@ export default function DebtTracking() {
         total_owed: Number(r.total_owed) || 0,
         policies: [],
         policies_count: Number(r.policies_count) || 0,
-        earliest_expiry: r.earliest_expiry ? String(r.earliest_expiry) : null,
-        days_until_expiry: r.days_until_expiry == null || isNaN(Number(r.days_until_expiry)) ? null : Number(r.days_until_expiry),
+        earliest_expiry: r.oldest_end_date ? String(r.oldest_end_date) : null,
+        days_until_expiry: r.days_until_oldest == null || isNaN(Number(r.days_until_oldest)) ? null : Number(r.days_until_oldest),
       }));
 
       const clientIds = baseClients.map((c) => c.client_id);
@@ -690,12 +690,20 @@ export default function DebtTracking() {
       {paymentClient && (
         <DebtPaymentModal
           open={paymentModalOpen}
-          onOpenChange={setPaymentModalOpen}
+          onOpenChange={(isOpen) => {
+            setPaymentModalOpen(isOpen);
+            if (!isOpen) {
+              setPaymentClient(null);
+            }
+          }}
           clientId={paymentClient.client_id}
           clientName={paymentClient.client_name}
           clientPhone={paymentClient.phone_number}
           totalOwed={paymentClient.total_owed}
-          onSuccess={fetchDebtData}
+          onSuccess={() => {
+            setPaymentClient(null);
+            fetchDebtData();
+          }}
         />
       )}
     </MainLayout>

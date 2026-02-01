@@ -4486,14 +4486,16 @@ export type Database = {
               p_search?: string
             }
             Returns: {
+              cars_count: number
               client_id: string
               client_name: string
               client_phone: string
               days_until_oldest: number
-              file_number: string
               oldest_end_date: string
               policies_count: number
               total_owed: number
+              total_paid: number
+              total_remaining: number
               total_rows: number
             }[]
           }
@@ -4511,6 +4513,7 @@ export type Database = {
             Returns: {
               total_clients: number
               total_owed: number
+              total_remaining: number
             }[]
           }
       report_company_settlement: {

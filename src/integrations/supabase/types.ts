@@ -4466,12 +4466,13 @@ export type Database = {
         }
         Returns: {
           client_id: string
+          client_name: string
+          client_phone: string
+          days_until_oldest: number
           file_number: string
-          full_name: string
-          id_number: string
-          phone_number: string
+          oldest_end_date: string
+          policies_count: number
           total_owed: number
-          total_paid: number
           total_rows: number
         }[]
       }
@@ -4480,7 +4481,6 @@ export type Database = {
         Returns: {
           total_clients: number
           total_owed: number
-          total_paid: number
         }[]
       }
       report_company_settlement: {
@@ -4561,19 +4561,19 @@ export type Database = {
       report_debt_policies_for_clients: {
         Args: { p_client_ids: string[] }
         Returns: {
-          car_id: string
           car_number: string
           client_id: string
-          company_name: string
+          days_until_expiry: number
           end_date: string
           group_id: string
           insurance_price: number
+          paid: number
           policy_id: string
+          policy_number: string
           policy_type_child: string
           policy_type_parent: string
           remaining: number
-          start_date: string
-          total_paid: number
+          status: string
         }[]
       }
       report_renewals: {

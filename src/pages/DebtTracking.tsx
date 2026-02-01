@@ -21,6 +21,7 @@ import {
 import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { DebtPaymentModal } from "@/components/debt/DebtPaymentModal";
 import { ClientNotesPopover } from "@/components/clients/ClientNotesPopover";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClientDebt {
   client_id: string;
@@ -67,6 +68,7 @@ const getPolicyTypeLabel = (parent: string | null, child: string | null): string
 
 export default function DebtTracking() {
   const { toast } = useToast();
+  const { profile } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientDebt[]>([]);
@@ -468,6 +470,7 @@ export default function DebtTracking() {
                         <ClientNotesPopover
                           clientId={client.client_id}
                           clientName={client.client_name}
+                          branchId={profile?.branch_id}
                         />
                         {getExpiryBadge(client.days_until_expiry)}
                         <Badge variant="outline">{client.policies_count} وثيقة</Badge>

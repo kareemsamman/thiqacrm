@@ -1,74 +1,66 @@
 
-# خطة: عرض نوع التأمين الفرعي (ثالث/شامل) بشكل صحيح
+# خطة: إضافة عمود اسم الشركة في جدول مكونات الباقة
 
 ## المشكلة
 
-### في صفحة تفاصيل العميل (Timeline):
-- يظهر **"ثالث/شامل"** دائماً بدلاً من عرض النوع الفرعي الفعلي ("ثالث" أو "شامل")
-
-### في جدول مكونات الباقة:
-- يظهر **"ثالث/شامل - شامل"** وهو مكرر وغير ضروري
-- المطلوب: عرض **"شامل"** أو **"ثالث"** فقط
+جدول "مكونات الباقة" لا يعرض اسم شركة التأمين لكل مكون:
+- **حالياً**: نوع التأمين، الفترة، السعر، الربح
+- **المطلوب**: نوع التأمين، **الشركة**، الفترة، السعر، الربح
 
 ---
 
 ## الحل التقني
 
-### 1. تعديل `PolicyYearTimeline.tsx`
+### تعديل `PackageComponentsTable.tsx`
 
-إضافة دالة مساعدة للحصول على الاسم الصحيح:
+#### 1. إضافة عمود "الشركة" في رأس الجدول
 
-```typescript
-// Helper to get proper label (child type if exists, otherwise parent)
-const getDisplayLabel = (policy: PolicyRecord) => {
-  if (policy.policy_type_parent === 'THIRD_FULL' && policy.policy_type_child) {
-    return policy.policy_type_child === 'THIRD' ? 'ثالث' : 'شامل';
-  }
-  return policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent;
-};
-```
-
-**تحديث الشارة الرئيسية (سطر 778-779):**
 ```tsx
-<Badge className={cn("border text-xs font-semibold", policyTypeColors[pkg.mainPolicy.policy_type_parent])}>
-  {getDisplayLabel(pkg.mainPolicy)}
-</Badge>
+<TableHeader>
+  <TableRow className="bg-muted/30">
+    <TableHead className="font-bold">نوع التأمين</TableHead>
+    <TableHead className="font-bold">الشركة</TableHead>  {/* جديد */}
+    <TableHead className="font-bold">الفترة</TableHead>
+    <TableHead className="font-bold text-left">السعر</TableHead>
+    {isAdmin && <TableHead className="font-bold text-left">الربح</TableHead>}
+  </TableRow>
+</TableHeader>
 ```
 
-**تحديث شارات الإضافات (سطر 784-785):**
+#### 2. إضافة دالة للحصول على اسم الشركة
+
+```typescript
+const getCompanyName = (p: PackagePolicy) => {
+  // For ROAD_SERVICE, show the service provider name
+  if (p.policy_type_parent === 'ROAD_SERVICE' && p.road_services) {
+    return p.road_services.name_ar || p.road_services.name;
+  }
+  // For ACCIDENT_FEE_EXEMPTION, show the service provider name
+  if (p.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION' && p.accident_fee_services) {
+    return p.accident_fee_services.name_ar || p.accident_fee_services.name;
+  }
+  // For other types, show insurance company name
+  if (p.insurance_companies) {
+    return p.insurance_companies.name_ar || p.insurance_companies.name;
+  }
+  return '-';
+};
+```
+
+#### 3. إضافة خلية الشركة في كل صف
+
 ```tsx
-<Badge className={cn("border text-xs", policyTypeColors[addon.policy_type_parent])}>
-  {getDisplayLabel(addon)}
-</Badge>
+<TableCell>
+  <span className="text-sm font-medium">{getCompanyName(policy)}</span>
+</TableCell>
 ```
 
----
+#### 4. تحديث colspan في الـ Footer
 
-### 2. تعديل `PackageComponentsTable.tsx`
-
-تعديل دالة `getTypeName` لعرض النوع الفرعي فقط:
-
-**قبل:**
-```typescript
-const getTypeName = (p: PackagePolicy) => {
-  let name = policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
-  if (p.policy_type_child) {
-    name += ` - ${policyChildLabels[p.policy_type_child] || p.policy_type_child}`;
-  }
-  return name;
-};
-```
-
-**بعد:**
-```typescript
-const getTypeName = (p: PackagePolicy) => {
-  // For THIRD_FULL with a child type, show only the child type (ثالث or شامل)
-  if (p.policy_type_parent === 'THIRD_FULL' && p.policy_type_child) {
-    return policyChildLabels[p.policy_type_child] || p.policy_type_child;
-  }
-  // For other types, use the parent label
-  return policyTypeLabels[p.policy_type_parent] || p.policy_type_parent;
-};
+```tsx
+<TableCell colSpan={3} className="text-left">  {/* كان 2 */}
+  <span className="text-lg">المجموع</span>
+</TableCell>
 ```
 
 ---
@@ -77,27 +69,20 @@ const getTypeName = (p: PackagePolicy) => {
 
 | الملف | التغيير |
 |-------|---------|
-| `src/components/clients/PolicyYearTimeline.tsx` | إضافة دالة `getDisplayLabel` واستخدامها في شارات الباقة |
-| `src/components/policies/PackageComponentsTable.tsx` | تعديل `getTypeName` لعرض النوع الفرعي فقط |
+| `src/components/policies/PackageComponentsTable.tsx` | إضافة عمود "الشركة" مع عرض اسم الشركة أو مقدم الخدمة |
 
 ---
 
 ## النتيجة المتوقعة
 
-### قبل:
-- Timeline: **ثالث/شامل** + إلزامي + خدمات طريق
-- جدول المكونات: **ثالث/شامل - شامل**
-
-### بعد:
-- Timeline: **شامل** + إلزامي + خدمات طريق
-- جدول المكونات: **شامل**
+| نوع التأمين | الشركة | الفترة | السعر | الربح |
+|-------------|--------|--------|-------|-------|
+| طرف ثالث | **اراضي مقدسة** | 01/02/2026 ← 31/01/2027 | ₪1,200 | ₪300 |
+| إلزامي | **اراضي مقدسة** | 01/02/2026 ← 31/01/2027 | ₪2,756 | - |
+| خدمات الطريق | **زجاج + ونش ضفة قدس** | 01/02/2026 ← 31/01/2027 | ₪300 | ₪150 |
 
 ---
 
 ## ملاحظة
 
-هذا التغيير سيؤثر أيضاً على:
-- `PolicyTreeView.tsx` (نفس المنطق)
-- أي مكان آخر يستخدم `policyTypeLabels` مع THIRD_FULL
-
-سأتأكد من تحديث جميع الأماكن ذات الصلة.
+اسم الخدمة (مثل "زجاج + ونش ضفة قدس") سيظهر في عمود الشركة لأنواع ROAD_SERVICE و ACCIDENT_FEE_EXEMPTION، بينما اسم شركة التأمين سيظهر لأنواع ELZAMI و THIRD_FULL.

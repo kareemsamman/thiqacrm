@@ -1,65 +1,123 @@
 
+# خطة: إصلاح مشكلتين في إنشاء الوثائق من قبل العمال
 
-# خطة: إزالة حد 1000 من أداة اكتشاف الباقات المفقودة
+## ملخص المشاكل
 
-## المشكلة
+بعد التحقيق في قاعدة البيانات، اكتشفت مشكلتين:
 
-- يوجد **1159 باقة مفقودة** في قاعدة البيانات
-- لكن الأداة تعرض فقط **1000** بسبب حد Supabase الافتراضي على نتائج RPC
+### المشكلة 1: الوثيقة لا تُنشأ كباقة
+**السبب الجذري:** عندما أنشأ العامل الوثيقة، لم يتم تفعيل أي إضافات (إلزامي، خدمات طريق، إعفاء رسوم) في الخطوة 3. المنطق الحالي في السطر 700:
+```typescript
+if (packageMode && packageAddons.some(addon => addon.enabled)) {
+  // Create policy_groups
+}
+```
+**النتيجة:** `group_id = null` → تظهر كوثيقة منفردة
 
-## الحل
+### المشكلة 2: دفعة الفيزا غير ظاهرة للعامل
+**السبب الجذري:** عند إنشاء دفعة الفيزا في `tranzila-init`، لا يتم تعيين `branch_id`:
+```typescript
+// tranzila-init/index.ts line 82-96
+.insert({
+  policy_id,
+  amount,
+  payment_type: 'visa',
+  // ❌ لا يوجد branch_id هنا!
+})
+```
+**النتيجة:** RLS policy تمنع العمال من رؤية الدفعة لأن `branch_id = null`
 
-### تحديث استدعاء RPC في `src/pages/WordPressImport.tsx`
+---
+
+## الحل التقني
+
+### إصلاح 1: تعيين `branch_id` في `tranzila-init`
+
+#### ملف: `supabase/functions/tranzila-init/index.ts`
 
 **قبل:**
 ```typescript
-const { data, error } = await supabase.rpc('find_missing_packages');
+const { data: payment, error: paymentError } = await supabase
+  .from('policy_payments')
+  .insert({
+    policy_id,
+    amount,
+    payment_type: 'visa',
+    payment_date,
+    notes: notes || null,
+    provider: 'tranzila',
+    tranzila_index: tranzilaIndex,
+    created_by_admin_id: user.id,
+    refused: null,
+  })
 ```
 
 **بعد:**
 ```typescript
-const { data, error } = await supabase
-  .rpc('find_missing_packages')
-  .range(0, 10000);  // جلب حتى 10,000 نتيجة
-```
+// First, fetch the policy to get its branch_id
+const { data: policyData, error: policyError } = await supabase
+  .from('policies')
+  .select('branch_id')
+  .eq('id', policy_id)
+  .single()
 
-ملاحظة: يمكن استخدام `.range(0, 10000)` لتجاوز الحد الافتراضي.
+if (policyError) {
+  console.error('Policy fetch error:', policyError)
+  return new Response(JSON.stringify({ error: 'Policy not found' }), {
+    status: 404,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+const { data: payment, error: paymentError } = await supabase
+  .from('policy_payments')
+  .insert({
+    policy_id,
+    amount,
+    payment_type: 'visa',
+    payment_date,
+    notes: notes || null,
+    provider: 'tranzila',
+    tranzila_index: tranzilaIndex,
+    created_by_admin_id: user.id,
+    refused: null,
+    branch_id: policyData?.branch_id || null,  // ✅ تعيين branch_id من الوثيقة
+  })
+```
 
 ---
 
-## التغييرات التقنية
+### إصلاح 2: إصلاح دفعة الفيزا الموجودة يدوياً
 
-### ملف: `src/pages/WordPressImport.tsx`
+يجب تشغيل هذا الاستعلام في قاعدة البيانات لإصلاح دفعات الفيزا الموجودة:
 
-```typescript
-// خط ~342
-const detectMissingPackages = async () => {
-  setDetectingPackages(true);
-  setPackageLinkStats(null);
-  try {
-    const { data, error } = await supabase
-      .rpc('find_missing_packages')
-      .range(0, 10000);  // ← إضافة هذا السطر
-    
-    if (error) throw error;
-    // ... rest of the code
-  }
-};
+```sql
+UPDATE policy_payments pp
+SET branch_id = p.branch_id
+FROM policies p
+WHERE pp.policy_id = p.id
+  AND pp.payment_type = 'visa'
+  AND pp.branch_id IS NULL
+  AND p.branch_id IS NOT NULL;
 ```
 
 ---
 
-## ملخص
+## ملخص التغييرات
 
 | الملف | التغيير |
 |-------|---------|
-| `src/pages/WordPressImport.tsx` | إضافة `.range(0, 10000)` لجلب جميع النتائج |
+| `supabase/functions/tranzila-init/index.ts` | جلب `branch_id` من الوثيقة وتعيينه في الدفعة الجديدة |
+| قاعدة البيانات | تشغيل migration لإصلاح الدفعات الموجودة |
 
 ---
 
-## النتيجة المتوقعة
+## ملاحظة بخصوص إنشاء الباقات
 
-1. ✅ ستظهر جميع الـ 1159 باقة مفقودة
-2. ✅ يمكن البحث والتحديد من جميع النتائج
-3. ✅ لن يكون هناك حد 1000 بعد الآن
+المشكلة الأولى (الوثيقة ليست باقة) ليست خطأ تقني - العامل ببساطة لم يفعّل أي إضافات. لإنشاء باقة، يجب:
 
+1. اختيار نوع التأمين الأساسي (مثل ثالث/شامل)
+2. تفعيل "وضع الباقة" في الخطوة 3
+3. تفعيل إضافة واحدة على الأقل (إلزامي، خدمات طريق، أو إعفاء رسوم)
+
+إذا أردت أن يكون إنشاء الباقات إلزامياً أو تلقائياً في حالات معينة، أخبرني وسأعدّل المنطق.

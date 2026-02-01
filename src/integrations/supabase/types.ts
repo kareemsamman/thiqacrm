@@ -4329,6 +4329,14 @@ export type Database = {
           total_income: number
         }[]
       }
+      get_active_users_for_tasks: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+        }[]
+      }
       get_all_companies_wallet_summary: {
         Args: never
         Returns: {

@@ -63,16 +63,11 @@ export function TaskDrawer({
   const [dueDate, setDueDate] = useState<Date | undefined>(defaultDate || new Date());
   const [dueTime, setDueTime] = useState("09:00");
 
-  // Fetch active users
+  // Fetch active users using RPC to bypass RLS restrictions for workers
   const { data: users = [] } = useQuery({
-    queryKey: ['active-users'],
+    queryKey: ['active-users-for-tasks'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('status', 'active')
-        .order('full_name');
-      
+      const { data, error } = await supabase.rpc('get_active_users_for_tasks');
       if (error) throw error;
       return data || [];
     },

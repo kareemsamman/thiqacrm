@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // Find the payment by our index
     const { data: payment, error: findError } = await supabase
       .from('policy_payments')
-      .select('*')
+      .select('*, policies!inner(branch_id)')
       .eq('tranzila_index', ourIndex)
       .single()
 
@@ -79,6 +79,9 @@ Deno.serve(async (req) => {
         headers: corsHeaders 
       })
     }
+
+    // Get branch_id from the policy to set on the payment
+    const policyBranchId = (payment as any).policies?.branch_id || null
 
     // Check if payment was already processed (refused=false means paid for visa)
     if (payment.tranzila_response_code === '000' || payment.tranzila_response_code === '0') {
@@ -95,6 +98,7 @@ Deno.serve(async (req) => {
 
     if (isSuccess) {
       // Update payment to success - use refused=false to indicate paid
+      // Also set branch_id from policy if it was missing
       const { error: updateError } = await supabase
         .from('policy_payments')
         .update({
@@ -102,6 +106,7 @@ Deno.serve(async (req) => {
           tranzila_transaction_id: tranzilaIndex,
           tranzila_approval_code: confirmationCode,
           tranzila_response_code: responseCode,
+          branch_id: payment.branch_id || policyBranchId,
         })
         .eq('id', payment.id)
 

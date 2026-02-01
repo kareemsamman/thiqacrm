@@ -60,19 +60,37 @@ export function PolicySuccessDialog({
       let result;
       
       if (isPackage) {
-        // For package: first get all policy IDs in the group
-        const { data: groupPolicies, error: fetchError } = await supabase
+        // First: fetch the actual group_id from the main policy
+        const { data: mainPolicy, error: mainPolicyError } = await supabase
           .from('policies')
-          .select('id')
-          .eq('group_id', policyId);
+          .select('group_id')
+          .eq('id', policyId)
+          .single();
         
-        if (fetchError) throw fetchError;
+        if (mainPolicyError) throw mainPolicyError;
         
-        const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+        const groupId = mainPolicy?.group_id;
         
-        result = await supabase.functions.invoke('send-package-invoice-sms', {
-          body: { policy_ids: policyIds, skip_sms: true }
-        });
+        if (!groupId) {
+          // No package group found - treat as single policy
+          result = await supabase.functions.invoke('send-invoice-sms', {
+            body: { policy_id: policyId, skip_sms: true }
+          });
+        } else {
+          // Fetch all policies in the package group
+          const { data: groupPolicies, error: fetchError } = await supabase
+            .from('policies')
+            .select('id')
+            .eq('group_id', groupId);
+          
+          if (fetchError) throw fetchError;
+          
+          const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+          
+          result = await supabase.functions.invoke('send-package-invoice-sms', {
+            body: { policy_ids: policyIds, skip_sms: true }
+          });
+        }
       } else {
         // Single policy
         result = await supabase.functions.invoke('send-invoice-sms', {
@@ -120,19 +138,37 @@ export function PolicySuccessDialog({
       let result;
       
       if (isPackage) {
-        // For package: first get all policy IDs in the group
-        const { data: groupPolicies, error: fetchError } = await supabase
+        // First: fetch the actual group_id from the main policy
+        const { data: mainPolicy, error: mainPolicyError } = await supabase
           .from('policies')
-          .select('id')
-          .eq('group_id', policyId);
+          .select('group_id')
+          .eq('id', policyId)
+          .single();
         
-        if (fetchError) throw fetchError;
+        if (mainPolicyError) throw mainPolicyError;
         
-        const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+        const groupId = mainPolicy?.group_id;
         
-        result = await supabase.functions.invoke('send-package-invoice-sms', {
-          body: { policy_ids: policyIds }
-        });
+        if (!groupId) {
+          // No package group found - treat as single policy
+          result = await supabase.functions.invoke('send-invoice-sms', {
+            body: { policy_id: policyId, force_resend: true }
+          });
+        } else {
+          // Fetch all policies in the package group
+          const { data: groupPolicies, error: fetchError } = await supabase
+            .from('policies')
+            .select('id')
+            .eq('group_id', groupId);
+          
+          if (fetchError) throw fetchError;
+          
+          const policyIds = groupPolicies?.map(p => p.id) || [policyId];
+          
+          result = await supabase.functions.invoke('send-package-invoice-sms', {
+            body: { policy_ids: policyIds }
+          });
+        }
       } else {
         result = await supabase.functions.invoke('send-invoice-sms', {
           body: { policy_id: policyId, force_resend: true }

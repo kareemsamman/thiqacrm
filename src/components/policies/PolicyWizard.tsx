@@ -696,8 +696,8 @@ export function PolicyWizard({
 
         let groupId: string | null = null;
 
-        // Create policy group if package mode is enabled
-        if (packageMode && (packageAddons[0].enabled || packageAddons[1].enabled)) {
+        // Create policy group if package mode is enabled and ANY addon is enabled
+        if (packageMode && packageAddons.some(addon => addon.enabled)) {
           const { data: groupData, error: groupError } = await supabase
             .from('policy_groups')
             .insert({
@@ -1063,7 +1063,7 @@ export function PolicyWizard({
         policyId: policyIdToUse,
         clientId: dialogClientId || '',
         clientPhone: clientPhone || null,
-        isPackage: packageMode && (packageAddons[0]?.enabled || packageAddons[1]?.enabled),
+        isPackage: packageMode && packageAddons.some(addon => addon.enabled),
       });
       setShowSuccessDialog(true);
       

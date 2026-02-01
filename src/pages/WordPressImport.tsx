@@ -133,6 +133,7 @@ const WordPressImport = () => {
 
   // Missing packages detection state
   const [detectingPackages, setDetectingPackages] = useState(false);
+  const [packageSearch, setPackageSearch] = useState("");
   const [missingPackages, setMissingPackages] = useState<{
     client_id: string;
     car_id: string;
@@ -151,6 +152,13 @@ const WordPressImport = () => {
     linked: number;
     errors: string[];
   } | null>(null);
+  
+  // Filtered packages based on search
+  const filteredPackages = missingPackages.filter(pkg => 
+    !packageSearch.trim() || 
+    pkg.client_name.includes(packageSearch) ||
+    pkg.car_number.includes(packageSearch)
+  );
 
   const entityLabels: Record<string, string> = {
     companies: "شركات التأمين",
@@ -337,7 +345,7 @@ const WordPressImport = () => {
       
       setMissingPackages((data || []).map((pkg: any) => ({
         ...pkg,
-        selected: true
+        selected: false  // Not selected by default - user chooses what to link
       })));
       
       toast({
@@ -2185,47 +2193,69 @@ const WordPressImport = () => {
                     {linkingPackages ? (
                       <><Loader2 className="h-4 w-4 ml-2 animate-spin" />جاري الربط...</>
                     ) : (
-                      <><Link2 className="h-4 w-4 ml-2" />ربط المحددة ({missingPackages.filter(p => p.selected).length})</>
+                    <><Link2 className="h-4 w-4 ml-2" />ربط المحددة ({missingPackages.filter(p => p.selected).length})</>
                     )}
                   </Button>
                 </div>
 
-                {/* List of missing packages */}
+                {/* Search field */}
                 {missingPackages.length > 0 && (
+                  <div className="relative">
+                    <Input
+                      placeholder="بحث بالاسم أو رقم السيارة..."
+                      value={packageSearch}
+                      onChange={(e) => setPackageSearch(e.target.value)}
+                      className="pr-3"
+                    />
+                    {packageSearch && (
+                      <span className="text-xs text-muted-foreground mt-1 block">
+                        نتائج البحث: {filteredPackages.length} من {missingPackages.length}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* List of missing packages */}
+                {filteredPackages.length > 0 && (
                   <ScrollArea className="h-64 border rounded-lg">
                     <div className="divide-y">
-                      {missingPackages.map((pkg, i) => (
-                        <div 
-                          key={`${pkg.client_id}-${pkg.car_id}`} 
-                          className={`p-3 flex items-start gap-3 hover:bg-muted/50 cursor-pointer ${pkg.selected ? 'bg-primary/5' : ''}`}
-                          onClick={() => {
-                            setMissingPackages(prev => prev.map((p, idx) => 
-                              idx === i ? { ...p, selected: !p.selected } : p
-                            ));
-                          }}
-                        >
-                          <Checkbox 
-                            checked={pkg.selected}
-                            onCheckedChange={(checked) => {
+                      {filteredPackages.map((pkg) => {
+                        const originalIdx = missingPackages.findIndex(
+                          p => p.client_id === pkg.client_id && p.car_id === pkg.car_id && p.first_created === pkg.first_created
+                        );
+                        return (
+                          <div 
+                            key={`${pkg.client_id}-${pkg.car_id}-${pkg.first_created}`} 
+                            className={`p-3 flex items-start gap-3 hover:bg-muted/50 cursor-pointer ${pkg.selected ? 'bg-primary/5' : ''}`}
+                            onClick={() => {
                               setMissingPackages(prev => prev.map((p, idx) => 
-                                idx === i ? { ...p, selected: !!checked } : p
+                                idx === originalIdx ? { ...p, selected: !p.selected } : p
                               ));
                             }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium truncate">{pkg.client_name}</span>
-                              <Badge variant="outline">{pkg.car_number}</Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {pkg.policy_count} وثائق: {pkg.types.join('، ')}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              المجموع: ₪{(pkg.total_price || 0).toLocaleString()}
+                          >
+                            <Checkbox 
+                              checked={pkg.selected}
+                              onCheckedChange={(checked) => {
+                                setMissingPackages(prev => prev.map((p, idx) => 
+                                  idx === originalIdx ? { ...p, selected: !!checked } : p
+                                ));
+                              }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-medium truncate">{pkg.client_name}</span>
+                                <Badge variant="outline">{pkg.car_number}</Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {pkg.policy_count} وثائق: {pkg.types.join('، ')}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                المجموع: ₪{(pkg.total_price || 0).toLocaleString()}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 )}

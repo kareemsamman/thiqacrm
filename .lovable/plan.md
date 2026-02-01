@@ -1,72 +1,52 @@
 
-# خطة: إصلاح خطأ "relation payments does not exist"
+# خطة: إصلاح عدم ظهور رقم الهاتف في صفحة متابعة الديون
 
 ## المشكلة
 
-في الـ migration السابقة، تم استخدام اسم جدول خاطئ:
+رقم الهاتف لا يظهر ("لا يوجد رقم") لجميع العملاء بسبب **اختلاف اسم العمود** بين الدالة والواجهة:
 
-| المستخدم ❌ | الصحيح ✅ |
-|------------|----------|
-| `payments` | `policy_payments` |
+| الدالة ترجع | الواجهة تتوقع |
+|------------|--------------|
+| `client_phone` | `phone_number` |
 
-هذا الخطأ موجود في **3 دوال**:
-- `report_client_debts_summary`
-- `report_client_debts`
-- `report_debt_policies_for_clients`
+في ملف `report_client_debts` (السطر 101 و 247-248):
+```sql
+RETURNS TABLE (
+  client_phone text,  -- ← الدالة ترجع client_phone
+  ...
+)
+```
+
+في ملف `DebtTracking.tsx` (السطر 137):
+```typescript
+phone_number: r.phone_number,  // ← يتوقع phone_number
+```
 
 ---
 
 ## الحل
 
-إنشاء migration جديدة لإعادة تعريف الدوال الثلاث مع استبدال:
-- `FROM payments` → `FROM policy_payments`
-- وكذلك إصلاح الشروط لتستخدم الأعمدة الصحيحة:
-  - `p.status != 'cancelled'` → `p.cancelled = false`
-  - إضافة `p.deleted_at IS NULL`
-  - إضافة `p.broker_id IS NULL`
-  - التأكد من استبعاد الدفعات المرفوضة: `WHERE refused IS NOT TRUE`
+تغيير بسيط في الواجهة لقراءة العمود الصحيح `client_phone` بدلاً من `phone_number`.
 
 ---
 
 ## التغييرات التقنية
 
-### migration جديدة
+### ملف: `src/pages/DebtTracking.tsx`
 
-```sql
--- Fix: Replace "payments" with "policy_payments"
--- Fix: Use correct column names (cancelled, deleted_at, etc.)
+**السطر 137** - تغيير:
+```typescript
+// قبل
+phone_number: r.phone_number,
 
-DROP FUNCTION IF EXISTS public.report_client_debts_summary(text, integer);
-DROP FUNCTION IF EXISTS public.report_client_debts(text, integer, integer, integer);
-DROP FUNCTION IF EXISTS public.report_debt_policies_for_clients(uuid[]);
-
--- Recreate with correct table name: policy_payments
--- And correct conditions: cancelled = false, deleted_at IS NULL, etc.
+// بعد  
+phone_number: r.client_phone,
 ```
-
----
-
-## الأخطاء التي سيتم إصلاحها
-
-| الخطأ | التصحيح |
-|-------|---------|
-| `FROM payments` | `FROM policy_payments` |
-| `p.status != 'cancelled'` | `p.cancelled = false AND p.deleted_at IS NULL` |
-| لم يتم استبعاد الدفعات المرفوضة | `WHERE refused IS NOT TRUE` |
-| `c.broker_id IS NULL` | `p.broker_id IS NULL` (على مستوى الوثيقة) |
-
----
-
-## ملخص الملفات
-
-| الملف | التغيير |
-|-------|---------|
-| `supabase/migrations/fix_payments_table_name.sql` | إعادة تعريف الدوال الثلاث بالاسم الصحيح |
 
 ---
 
 ## النتيجة المتوقعة
 
-- ستعمل صفحة "متابعة الديون" بدون أخطاء
-- سيظهر بادج عدد العملاء المدينين في الـ Sidebar
-- حساب الديون على مستوى الباقة سيعمل بشكل صحيح
+- ستظهر أرقام الهواتف لجميع العملاء المدينين
+- سيعمل زر WhatsApp بشكل صحيح
+- لن تظهر "لا يوجد رقم" للعملاء الذين لديهم أرقام مسجلة

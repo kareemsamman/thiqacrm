@@ -1,59 +1,114 @@
 
-# خطة: إصلاح خطأ "column p.renewal_status does not exist"
+# خطة: استيراد تفاضلي من WordPress (الجديد فقط بدون حذف)
 
-## المشكلة
+## ✅ الأخبار الجيدة
 
-الـ SQL Migration التي أنشأناها (`20260202145257`) تحتوي على خطأ:
-- تستخدم `p.renewal_status` و `p.renewal_notes` مباشرة من جدول `policies`
-- لكن هذه الأعمدة **غير موجودة** في جدول `policies`
-- البيانات الفعلية موجودة في جدول منفصل `policy_renewal_tracking`
+**النظام الحالي يدعم هذا بالفعل!** الكود موجود لكن يحتاج تعديلات بسيطة لتفعيله.
 
-**رسالة الخطأ:**
-```
-column p.renewal_status does not exist
-```
+### كيف يعمل الاستيراد الحالي:
+
+1. **الشركات**: تفحص بالاسم → إذا موجودة → تحديث، وإلا → إضافة
+2. **الوسطاء**: تفحص بالاسم → إذا موجود → تحديث، وإلا → إضافة
+3. **العملاء**: تفحص بـ `id_number` → إذا موجود → تحديث، وإلا → إضافة
+4. **السيارات**: تفحص بـ `car_number` → إذا موجودة → تحديث، وإلا → إضافة
+5. **الوثائق**: تفحص بـ `legacy_wp_id` → إذا موجودة → تحديث، وإلا → إضافة
+6. **المدفوعات**: تفحص بـ (policy_id + date + amount) → إذا موجودة → تحديث، وإلا → إضافة
+
+### المشكلة الحالية:
+
+خيار **"مسح البيانات قبل الاستيراد"** مفعّل افتراضياً (`clearBeforeImport: true`)، مما يحذف كل شيء قبل الاستيراد!
 
 ---
 
-## الحل
+## الحل المقترح
 
-إنشاء migration جديدة تُصحح الدالتين `report_renewals` و `report_renewals_service`:
+### التغييرات المطلوبة:
 
-### التصحيحات المطلوبة:
+#### 1. إضافة وضع "استيراد تفاضلي" (Incremental Import)
 
-#### 1. إضافة JOIN مع `policy_renewal_tracking`:
-```sql
--- من:
-FROM policies p
-JOIN clients c ON c.id = p.client_id
-LEFT JOIN cars car ON car.id = p.car_id
+**في الواجهة** (`src/pages/WordPressImport.tsx`):
 
--- إلى:
-FROM policies p
-JOIN clients c ON c.id = p.client_id
-LEFT JOIN cars car ON car.id = p.car_id
-LEFT JOIN policy_renewal_tracking prt ON prt.policy_id = p.id
+```tsx
+// إضافة خيار جديد بدلاً من خيار "مسح البيانات"
+const [incrementalMode, setIncrementalMode] = useState(true); // افتراضي: تفاضلي
+
+// UI جديد واضح:
+<Card className="border-green-200 bg-green-50">
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2 text-green-700">
+      <RefreshCw className="h-5 w-5" />
+      استيراد تفاضلي (آمن)
+    </CardTitle>
+    <CardDescription>
+      سيتم استيراد السجلات الجديدة فقط التي غير موجودة في النظام.
+      <br />
+      <strong>لن يتم حذف أي بيانات موجودة.</strong>
+    </CardDescription>
+  </CardHeader>
+</Card>
 ```
 
-#### 2. تغيير مصدر `renewal_status`:
-```sql
--- من:
-p.renewal_status
-p.renewal_notes
+#### 2. تحديث منطق الاستيراد
 
--- إلى:
-COALESCE(prt.renewal_status, 'not_contacted') as rstatus
-prt.notes as rnotes
+**إزالة خطوة "clear" عند الاستيراد التفاضلي:**
+
+```tsx
+// في handleImport:
+const stepsConfig = incrementalMode
+  ? STEP_KEYS.filter(key => key !== 'clear' && key !== 'preserveRules' && key !== 'restoreRules')
+  : STEP_KEYS;
 ```
 
-#### 3. إضافة `car_numbers` للـ report_renewals (حسب الخطة الأصلية):
-```sql
-ARRAY_AGG(DISTINCT cp.car_num) FILTER (WHERE cp.car_num IS NOT NULL) as car_nums,
+#### 3. تحسين عرض الإحصائيات
+
+```tsx
+// عرض واضح للسجلات الجديدة vs المحدّثة
+<div className="grid grid-cols-2 gap-4">
+  <Card className="border-green-300">
+    <CardHeader className="pb-2">
+      <CardTitle className="text-green-600 text-lg">جديد</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold text-green-700">{stats.inserted}</div>
+    </CardContent>
+  </Card>
+  <Card className="border-blue-300">
+    <CardHeader className="pb-2">
+      <CardTitle className="text-blue-600 text-lg">تم تحديثه</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold text-blue-700">{stats.updated}</div>
+    </CardContent>
+  </Card>
+</div>
 ```
 
-#### 4. إضافة البحث برقم السيارة:
-```sql
-OR car.car_number ILIKE '%' || p_search || '%'
+#### 4. معاينة ذكية قبل الاستيراد
+
+```tsx
+// إضافة خطوة معاينة تُظهر:
+// - كم سجل جديد سيُضاف
+// - كم سجل موجود سيُحدّث
+// - لا شيء سيُحذف
+
+const analyzeJsonForIncrementalImport = async (jsonData) => {
+  // جلب البيانات الموجودة
+  const { data: existingClients } = await supabase
+    .from('clients')
+    .select('id_number')
+    .is('deleted_at', null);
+  
+  const existingIdNumbers = new Set(existingClients.map(c => c.id_number));
+  
+  // تحليل JSON
+  const newClients = jsonData.clients.filter(c => !existingIdNumbers.has(c.id_number));
+  const existingToUpdate = jsonData.clients.filter(c => existingIdNumbers.has(c.id_number));
+  
+  return {
+    clients: { new: newClients.length, update: existingToUpdate.length },
+    // ... نفس الشيء للسيارات والوثائق
+  };
+};
 ```
 
 ---
@@ -62,109 +117,78 @@ OR car.car_number ILIKE '%' || p_search || '%'
 
 | الملف | التغيير |
 |-------|---------|
-| **Database Migration (جديدة)** | إصلاح `report_renewals` و `report_renewals_service` مع JOIN صحيح لـ `policy_renewal_tracking` |
+| `src/pages/WordPressImport.tsx` | إضافة وضع الاستيراد التفاضلي + معاينة ذكية |
 
 ---
 
-## SQL Migration المُصحح
+## كيف سيعمل؟
 
-```sql
--- Drop existing functions to recreate with correct return type
-DROP FUNCTION IF EXISTS public.report_renewals(date, date, text, uuid, text, integer, integer);
-DROP FUNCTION IF EXISTS public.report_renewals_service(date, integer, text, integer, integer);
+### السيناريو المطلوب:
 
--- 1. Fix report_renewals - add car_numbers and search by car_number
-CREATE OR REPLACE FUNCTION public.report_renewals(...)
-RETURNS TABLE(
-  ...
-  car_numbers text[],  -- NEW
-  ...
-)
-AS $$
-...
-WITH client_policies AS (
-  SELECT 
-    ...
-    COALESCE(prt.renewal_status, 'not_contacted') as rstatus,  -- FIXED
-    prt.notes as rnotes,  -- FIXED
-    car.car_number as car_num
-  FROM policies p
-  JOIN clients c ON c.id = p.client_id
-  LEFT JOIN cars car ON car.id = p.car_id
-  LEFT JOIN policy_renewal_tracking prt ON prt.policy_id = p.id  -- FIXED
-  WHERE ...
-    AND (
-      p_search IS NULL
-      OR c.full_name ILIKE '%' || p_search || '%'
-      ...
-      OR car.car_number ILIKE '%' || p_search || '%'  -- NEW: Search by car number
-    )
-),
-aggregated AS (
-  SELECT 
-    ...
-    ARRAY_AGG(DISTINCT cp.car_num) FILTER (WHERE cp.car_num IS NOT NULL) as car_nums,  -- NEW
-    ...
-)
-$$;
+1. **رفع JSON جديد من WordPress**
+2. **المعاينة تُظهر**:
+   - ✅ 50 عميل جديد سيُضاف
+   - 🔄 200 عميل موجود (سيُحدّث إذا تغيّر شيء)
+   - 🚗 30 سيارة جديدة
+   - 📋 75 وثيقة جديدة
+3. **الاستيراد**:
+   - يُضيف الجديد فقط
+   - يُحدّث الموجود (لو تغيّر)
+   - **لا يحذف أي شيء أبداً** ✅
 
--- 2. Fix report_renewals_service (for PDF) - group by client with car_numbers
-CREATE OR REPLACE FUNCTION public.report_renewals_service(...)
-RETURNS TABLE(
-  client_id uuid,
-  client_name text,
-  client_file_number text,
-  client_phone text,
-  policies_count integer,
-  earliest_end_date date,
-  days_remaining integer,
-  total_price numeric,
-  car_numbers text[],  -- NEW
-  policy_types text[],
-  renewal_status text,
-  renewal_notes text,
-  total_rows bigint
-)
-AS $$
-...
-WITH client_policies AS (
-  SELECT 
-    ...
-    COALESCE(prt.renewal_status, 'not_contacted') as rstatus,  -- FIXED
-    prt.notes as rnotes  -- FIXED
-  FROM policies p
-  JOIN clients c ON c.id = p.client_id
-  LEFT JOIN cars car ON car.id = p.car_id
-  LEFT JOIN policy_renewal_tracking prt ON prt.policy_id = p.id  -- FIXED
-  ...
-),
-aggregated AS (
-  -- Group by client for PDF report
-  SELECT 
-    cp.client_id,
-    ...
-    ARRAY_AGG(DISTINCT cp.car_num) FILTER (...) as car_nums,  -- NEW
-    ...
-)
-$$;
+---
+
+## آلية منع التكرار (موجودة بالفعل):
+
+| الكيان | مفتاح التميز | السلوك |
+|--------|--------------|--------|
+| العملاء | `id_number` | موجود → تحديث، جديد → إضافة |
+| السيارات | `car_number` | موجود → تحديث، جديد → إضافة |
+| الوثائق | `legacy_wp_id` | موجود → تحديث، جديد → إضافة |
+| المدفوعات | policy_id + date + amount | موجود → تخطي/تحديث |
+| الوسائط | entity_id + original_name | موجود → تخطي |
+
+---
+
+## UI المقترح
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│                    📥 استيراد WordPress                          │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 🔄 وضع الاستيراد التفاضلي (آمن)                   ✅ مفعّل  │  │
+│  │    • استيراد السجلات الجديدة فقط                           │  │
+│  │    • لن يتم حذف أي بيانات موجودة                           │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  📄 exported-data.json                        [تحليل الملف]      │
+│                                                                  │
+│  ┌─────────────┬─────────────┬─────────────┬─────────────────┐  │
+│  │   العملاء   │  السيارات   │   الوثائق   │   المدفوعات     │  │
+│  ├─────────────┼─────────────┼─────────────┼─────────────────┤  │
+│  │ 🆕 50 جديد │ 🆕 30 جديد │ 🆕 75 جديد │ 🆕 150 جديد    │  │
+│  │ 🔄 200 موجود│ 🔄 180 موجود│ 🔄 400 موجود│ 🔄 800 موجود   │  │
+│  └─────────────┴─────────────┴─────────────┴─────────────────┘  │
+│                                                                  │
+│              [🚀 بدء الاستيراد التفاضلي]                         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## النتيجة المتوقعة
-
-بعد تطبيق الإصلاح:
-1. صفحة `/reports/policies` ستعمل بشكل صحيح
-2. عمود "السيارات" سيظهر في الجدول
-3. البحث برقم السيارة سيعمل
-4. تقرير PDF سيُنشأ مجمّعاً حسب العميل
 
 ---
 
 ## اختبار بعد التنفيذ
 
-1. اذهب لصفحة `/reports/policies`
-2. تأكد أن الصفحة تعمل بدون خطأ "فشل في تحميل البيانات"
-3. تأكد أن عمود السيارات يظهر
-4. ابحث برقم سيارة وتأكد أنه يعمل
-5. اضغط "تصدير PDF" وتأكد أنه يعمل
+1. اذهب لصفحة `/wordpress-import`
+2. ارفع ملف JSON من WordPress
+3. تأكد أن "الاستيراد التفاضلي" مفعّل افتراضياً
+4. اضغط "تحليل الملف" وتأكد من عرض:
+   - عدد السجلات الجديدة
+   - عدد السجلات الموجودة
+5. اضغط "بدء الاستيراد"
+6. تأكد أن:
+   - السجلات الجديدة أُضيفت
+   - السجلات القديمة لم تُحذف
+   - الإحصائيات تُظهر "inserted" و "updated" بشكل منفصل

@@ -181,6 +181,26 @@ interface RenewalSummary {
   total_value: number;
 }
 
+// Renewed client for the new tab
+interface RenewedClient {
+  client_id: string;
+  client_name: string;
+  client_file_number: string | null;
+  client_phone: string | null;
+  policies_count: number;
+  earliest_end_date: string;
+  total_insurance_price: number;
+  policy_types: string[] | null;
+  policy_ids: string[] | null;
+  new_policies_count: number;
+  new_policy_ids: string[] | null;
+  new_policy_types: string[] | null;
+  new_total_price: number;
+  new_start_date: string | null;
+  has_package: boolean;
+  total_count: number;
+}
+
 interface Company {
   id: string;
   name: string;
@@ -222,6 +242,17 @@ export default function PolicyReports() {
   const [renewalsPolicyTypeFilter, setRenewalsPolicyTypeFilter] = useState<string>('all');
   const [renewalsCreatedByFilter, setRenewalsCreatedByFilter] = useState<string>('all');
   const [renewalsSearch, setRenewalsSearch] = useState('');
+  
+  // Renewed Clients State (new tab)
+  const [renewedClients, setRenewedClients] = useState<RenewedClient[]>([]);
+  const [renewedLoading, setRenewedLoading] = useState(true);
+  const [renewedPage, setRenewedPage] = useState(0);
+  const [renewedTotalRows, setRenewedTotalRows] = useState(0);
+  const [renewedMonth, setRenewedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [renewedPolicyTypeFilter, setRenewedPolicyTypeFilter] = useState<string>('all');
+  const [renewedCreatedByFilter, setRenewedCreatedByFilter] = useState<string>('all');
+  const [renewedSearch, setRenewedSearch] = useState('');
+  const [expandedRenewedClientId, setExpandedRenewedClientId] = useState<string | null>(null);
   
   // Reference Data
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -495,6 +526,37 @@ export default function PolicyReports() {
     }
   }, [activeTab, renewalsPage, renewalsMonth, renewalsDaysFilter, renewalsPolicyTypeFilter, renewalsCreatedByFilter, renewalsSearch]);
 
+  // Fetch renewed clients
+  const fetchRenewedClients = async () => {
+    setRenewedLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('report_renewed_clients', {
+        p_end_month: renewedMonth ? `${renewedMonth}-01` : null,
+        p_policy_type: renewedPolicyTypeFilter !== 'all' ? renewedPolicyTypeFilter : null,
+        p_created_by: renewedCreatedByFilter !== 'all' ? renewedCreatedByFilter : null,
+        p_search: renewedSearch || null,
+        p_page_size: PAGE_SIZE,
+        p_page: renewedPage + 1
+      });
+
+      if (error) throw error;
+      const clientData = (data as unknown as RenewedClient[]) || [];
+      setRenewedClients(clientData);
+      setRenewedTotalRows(clientData[0]?.total_count || 0);
+    } catch (error) {
+      console.error('Error fetching renewed clients:', error);
+      toast.error('فشل في تحميل البيانات');
+    } finally {
+      setRenewedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'renewed') {
+      fetchRenewedClients();
+    }
+  }, [activeTab, renewedPage, renewedMonth, renewedPolicyTypeFilter, renewedCreatedByFilter, renewedSearch]);
+
   // Update renewal status for all policies of a client
   const handleUpdateStatus = async () => {
     if (!selectedRenewalClient || !newStatus) return;
@@ -648,6 +710,7 @@ export default function PolicyReports() {
 
   const createdTotalPages = Math.ceil(createdTotalRows / PAGE_SIZE);
   const renewalsTotalPages = Math.ceil(renewalsTotalRows / PAGE_SIZE);
+  const renewedTotalPages = Math.ceil(renewedTotalRows / PAGE_SIZE);
 
   return (
     <MainLayout>
@@ -665,7 +728,7 @@ export default function PolicyReports() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="created" className="gap-2">
               <FileText className="h-4 w-4" />
               الوثائق المنشأة
@@ -673,6 +736,10 @@ export default function PolicyReports() {
             <TabsTrigger value="renewals" className="gap-2">
               <RefreshCw className="h-4 w-4" />
               التجديدات
+            </TabsTrigger>
+            <TabsTrigger value="renewed" className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              تم التجديد
             </TabsTrigger>
           </TabsList>
 
@@ -1365,6 +1432,242 @@ export default function PolicyReports() {
                         size="sm"
                         onClick={() => setRenewalsPage(p => p + 1)}
                         disabled={renewalsPage >= renewalsTotalPages - 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Renewed Clients Tab */}
+          <TabsContent value="renewed" className="space-y-4 mt-6">
+            {/* Filters */}
+            <Card className="p-4">
+              <div className="flex flex-wrap gap-3">
+                <Input
+                  type="month"
+                  value={renewedMonth}
+                  onChange={(e) => { setRenewedMonth(e.target.value); setRenewedPage(0); }}
+                  className="w-[160px]"
+                />
+
+                <Select value={renewedPolicyTypeFilter} onValueChange={(v) => { setRenewedPolicyTypeFilter(v); setRenewedPage(0); }}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="النوع" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الأنواع</SelectItem>
+                    {Object.entries(policyTypeLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={renewedCreatedByFilter} onValueChange={(v) => { setRenewedCreatedByFilter(v); setRenewedPage(0); }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="أنشأه" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل المستخدمين</SelectItem>
+                    {users.map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="بحث..."
+                    value={renewedSearch}
+                    onChange={(e) => { setRenewedSearch(e.target.value); setRenewedPage(0); }}
+                    className="pr-10"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Table */}
+            <Card className="overflow-hidden">
+              {renewedLoading ? (
+                <div className="p-4 space-y-2">
+                  {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : renewedClients.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">لا يوجد عملاء قاموا بالتجديد في هذه الفترة</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-10"></TableHead>
+                        <TableHead className="text-right">العميل</TableHead>
+                        <TableHead className="text-right">الهاتف</TableHead>
+                        <TableHead className="text-right">الوثائق القديمة</TableHead>
+                        <TableHead className="text-right">انتهت بتاريخ</TableHead>
+                        <TableHead className="text-right">السعر القديم</TableHead>
+                        <TableHead className="text-right">الوثائق الجديدة</TableHead>
+                        <TableHead className="text-right">بدأت بتاريخ</TableHead>
+                        <TableHead className="text-right">السعر الجديد</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {renewedClients.map(client => (
+                        <React.Fragment key={client.client_id}>
+                          <TableRow 
+                            className={cn(
+                              "hover:bg-muted/30 cursor-pointer",
+                              expandedRenewedClientId === client.client_id && "bg-muted/40"
+                            )}
+                            onClick={() => setExpandedRenewedClientId(
+                              expandedRenewedClientId === client.client_id ? null : client.client_id
+                            )}
+                          >
+                            <TableCell className="w-10">
+                              <ChevronDown 
+                                className={cn(
+                                  "h-4 w-4 text-muted-foreground transition-transform",
+                                  expandedRenewedClientId === client.client_id && "rotate-180"
+                                )} 
+                              />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div>
+                                <button
+                                  onClick={() => window.location.href = `/clients?open=${client.client_id}`}
+                                  className="font-medium hover:text-primary hover:underline transition-colors text-right"
+                                >
+                                  {client.client_name}
+                                </button>
+                                {client.client_file_number && (
+                                  <p className="text-xs text-muted-foreground">{client.client_file_number}</p>
+                                )}
+                                {client.has_package && (
+                                  <Badge variant="default" className="text-xs gap-1 mt-1 bg-primary">
+                                    <Package className="h-3 w-3" />
+                                    باقة
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <ClickablePhone phone={client.client_phone} />
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-bold">
+                                {client.policies_count} وثيقة
+                              </Badge>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {client.policy_types?.map(type => (
+                                  <span key={type} className="text-[10px] text-muted-foreground">
+                                    {policyTypeLabels[type] || type}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono">{formatDate(client.earliest_end_date)}</TableCell>
+                            <TableCell className="font-bold text-muted-foreground">₪{client.total_insurance_price.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant="default" className="font-bold bg-green-600">
+                                {client.new_policies_count} وثيقة
+                              </Badge>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {client.new_policy_types?.map(type => (
+                                  <span key={type} className="text-[10px] text-green-600">
+                                    {policyTypeLabels[type] || type}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-green-600">{formatDate(client.new_start_date)}</TableCell>
+                            <TableCell className="font-bold text-green-600">₪{client.new_total_price.toLocaleString()}</TableCell>
+                          </TableRow>
+                          
+                          {/* Expanded Details Row */}
+                          {expandedRenewedClientId === client.client_id && (
+                            <TableRow key={`${client.client_id}-details`} className="bg-muted/20">
+                              <TableCell colSpan={9} className="p-0">
+                                <div className="px-6 py-4 border-t border-dashed">
+                                  <div className="grid grid-cols-2 gap-6">
+                                    {/* Old Policies */}
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <XCircle className="h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium text-sm">الوثائق المنتهية</span>
+                                        <Badge variant="outline" className="text-xs">
+                                          {client.policies_count} وثيقة
+                                        </Badge>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {client.policy_types?.map((type, idx) => (
+                                          <div key={idx} className="flex items-center gap-2 p-2 rounded bg-background border text-sm">
+                                            <Badge variant="secondary" className="text-xs">
+                                              {policyTypeLabels[type] || type}
+                                            </Badge>
+                                            <span className="text-muted-foreground">انتهت: {formatDate(client.earliest_end_date)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    
+                                    {/* New Policies */}
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <span className="font-medium text-sm text-green-600">الوثائق الجديدة</span>
+                                        <Badge variant="default" className="text-xs bg-green-600">
+                                          {client.new_policies_count} وثيقة
+                                        </Badge>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {client.new_policy_types?.map((type, idx) => (
+                                          <div key={idx} className="flex items-center gap-2 p-2 rounded bg-green-50 border border-green-200 text-sm">
+                                            <Badge className="text-xs bg-green-600">
+                                              {policyTypeLabels[type] || type}
+                                            </Badge>
+                                            <span className="text-green-700">بدأت: {formatDate(client.new_start_date)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between p-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      إجمالي: {renewedTotalRows} عميل تم تجديد وثائقهم
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRenewedPage(p => Math.max(0, p - 1))}
+                        disabled={renewedPage === 0}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm">
+                        {renewedPage + 1} / {renewedTotalPages || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRenewedPage(p => p + 1)}
+                        disabled={renewedPage >= renewedTotalPages - 1}
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>

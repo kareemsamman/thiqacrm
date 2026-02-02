@@ -6,21 +6,32 @@ export function useRenewalsCount() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchCount = useCallback(async () => {
-    // Get current month for default filter
-    const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
-    
-    const { data, error } = await supabase.rpc('report_renewals_summary', {
-      p_end_month: `${currentMonth}-01`,
-      p_policy_type: null,
-      p_created_by: null,
-      p_search: null
-    });
-    
-    if (!error && data && data.length > 0) {
-      setRenewalsCount(data[0].total_expiring || 0);
+    try {
+      // Get current month for default filter
+      const now = new Date();
+      const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+      
+      const { data, error } = await supabase.rpc('report_renewals_summary', {
+        p_end_month: `${currentMonth}-01`,
+        p_policy_type: null,
+        p_created_by: null,
+        p_search: null
+      });
+      
+      if (error) {
+        console.error('Error fetching renewals count:', error);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        setRenewalsCount(data[0].total_expiring || 0);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching renewals count:', err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {

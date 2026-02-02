@@ -33,7 +33,6 @@ import {
   Contact,
   FileWarning,
   Mail,
-  RefreshCw,
   LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -105,8 +104,7 @@ export const navigationGroups: NavGroup[] = [
     name: "التقارير",
     icon: BarChart3,
     items: [
-      { name: "تقارير الوثائق", href: "/reports/policies", icon: BarChart3 },
-      { name: "التجديدات", href: "/reports/policies?tab=renewals", icon: RefreshCw, badge: 'renewals' },
+      { name: "تقارير الوثائق", href: "/reports/policies", icon: BarChart3, badge: 'renewals' },
       { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true },
       { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true },
     ],
@@ -321,6 +319,9 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                     >
                       <item.icon className={cn("h-4 w-4 flex-shrink-0", isActiveRoute && "text-primary")} />
                       <span>{item.name}</span>
+                      {item.badge === 'renewals' && (
+                        <span className="text-xs text-muted-foreground">| التجديدات</span>
+                      )}
                       {renderBadge(item)}
                     </NavLink>
                   );

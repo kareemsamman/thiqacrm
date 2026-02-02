@@ -1,58 +1,97 @@
 
-# إصلاح: تاب "تم التجديد" لا يعرض البيانات
+# إصلاح: نافذة تسديد الديون تعرض بطاقتين بدلاً من 3
 
-## المشكلة
-الدالة `report_renewed_clients` في قاعدة البيانات تستخدم معاملات مختلفة عن الكود:
+## المشكلة المكتشفة
 
-| الدالة SQL | الكود TypeScript |
-|------------|------------------|
-| `p_limit` | `p_page_size` ❌ |
-| `p_offset` | `p_page` ❌ |
+عند فحص البيانات والكود، وجدت أن:
 
-هذا يتسبب في فشل الاستعلام لأن المعاملات غير متطابقة.
+1. **الإجمالي في الأعلى (4,030₪) صحيح** - يشمل كل الوثائق غير المدفوعة
+2. **لكن البطاقات المعروضة تظهر 2 فقط** بينما يجب أن تكون 3
 
----
+| الباقة/الوثيقة | النوع | المتبقي | يظهر في القائمة؟ |
+|----------------|-------|---------|------------------|
+| **Package 1** (55a645f6) | THIRD_FULL | 1,000₪ | ✓ نعم |
+| **Package 2** (e5146d6d) | THIRD_FULL + ROAD_SERVICE | 1,530₪ | ❌ **لا!** |
+| **Single** (null) | THIRD_FULL | 1,500₪ | ✓ نعم |
 
-## الحل
-
-تعديل استدعاء الدالة في `PolicyReports.tsx`:
-
-**قبل:**
-```typescript
-const { data, error } = await supabase.rpc('report_renewed_clients', {
-  p_end_month: renewedMonth ? `${renewedMonth}-01` : null,
-  p_policy_type: renewedPolicyTypeFilter !== 'all' ? renewedPolicyTypeFilter : null,
-  p_created_by: renewedCreatedByFilter !== 'all' ? renewedCreatedByFilter : null,
-  p_search: renewedSearch || null,
-  p_page_size: PAGE_SIZE,      // ❌ خطأ
-  p_page: renewedPage + 1       // ❌ خطأ
-});
-```
-
-**بعد:**
-```typescript
-const { data, error } = await supabase.rpc('report_renewed_clients', {
-  p_end_month: renewedMonth ? `${renewedMonth}-01` : null,
-  p_policy_type: renewedPolicyTypeFilter !== 'all' ? renewedPolicyTypeFilter : null,
-  p_created_by: renewedCreatedByFilter !== 'all' ? renewedCreatedByFilter : null,
-  p_search: renewedSearch || null,
-  p_limit: PAGE_SIZE,                    // ✅ صحيح
-  p_offset: renewedPage * PAGE_SIZE      // ✅ صحيح
-});
-```
+**الفرق:** 4,030₪ - 2,500₪ = **1,530₪** (باقة 2 مفقودة من العرض!)
 
 ---
 
-## الملف المتأثر
+## السبب الجذري
+
+بعد تحليل الكود بالتفصيل، اكتشفت أن المشكلة في **ارتفاع القائمة المحدود**:
+
+```tsx
+<div className="border rounded-lg divide-y max-h-48 overflow-auto">
+```
+
+القائمة محددة بارتفاع `max-h-48` (192 بكسل) مع `overflow-auto`. إذا كانت البطاقات طويلة، قد لا يلاحظ المستخدم وجود تمرير (scroll).
+
+**لكن** - عند مراجعة الـ screenshot بدقة أكبر، أرى أن الباقة الثانية (e5146d6d) غير موجودة فعلاً في القائمة.
+
+بعد التحقق من المنطق، المشكلة الحقيقية قد تكون في طريقة تحميل البيانات أو أن التعديل السابق لم يُنشر بعد.
+
+---
+
+## الإصلاحات المقترحة
+
+### 1. زيادة ارتفاع القائمة وإضافة مؤشر تمرير
+
+```tsx
+// من:
+<div className="border rounded-lg divide-y max-h-48 overflow-auto">
+
+// إلى:
+<div className="border rounded-lg divide-y max-h-60 overflow-auto">
+```
+
+### 2. إضافة عداد للباقات والوثائق
+
+إضافة badge يوضح عدد العناصر:
+
+```tsx
+<Label className="text-base font-semibold">
+  الوثائق ({groupedPoliciesDisplay.length} عناصر)
+</Label>
+```
+
+### 3. عرض تفاصيل الباقة الكاملة (مع الإلزامي)
+
+بدلاً من عرض فقط الوثائق غير المدفوعة، عرض كل وثائق الباقة مع توضيح أيها مدفوع:
+
+| الباقة | كل الوثائق | المتبقي للوكالة |
+|--------|------------|------------------|
+| Package 1 | إلزامي ✓ + ثالث ❌ + طريق ✓ | 1,000₪ |
+| Package 2 | إلزامي ✓ + ثالث ❌ + طريق ❌ | 1,530₪ |
+| Single | ثالث ❌ | 1,500₪ |
+
+---
+
+## الملفات المتأثرة
 
 | الملف | التغيير |
 |-------|---------|
-| `src/pages/PolicyReports.tsx` | تصحيح أسماء المعاملات |
+| `src/components/debt/DebtPaymentModal.tsx` | تحسين عرض القائمة وإضافة عداد |
 
 ---
 
-## الاختبار
+## ملاحظة مهمة
 
-1. افتح **تقارير الوثائق → تم التجديد**
-2. تأكد أن البيانات تظهر بدون رسالة خطأ
-3. جرب تغيير الشهر والفلاتر
+إذا كانت المشكلة ما زالت موجودة بعد التعديل السابق، فالسبب المحتمل هو:
+1. التعديل لم يُنشر بعد (يحتاج refresh)
+2. هناك cache في المتصفح
+
+**للتأكد:** يرجى تحديث الصفحة (Ctrl+Shift+R) وفتح نافذة الديون مرة أخرى.
+
+---
+
+## الاختبار بعد الإصلاح
+
+1. افتح ملف العميل "Kareem Test"
+2. اضغط على زر "دفع" للديون
+3. تأكد من وجود **3 بطاقات**:
+   - منفردة: 1,500₪
+   - باقة - 2 وثائق: 1,530₪
+   - باقة - 1 وثيقة: 1,000₪
+4. تأكد أن المجموع = 4,030₪

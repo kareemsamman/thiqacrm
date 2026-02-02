@@ -1,167 +1,71 @@
 
-# خطة: عرض سبب فشل الدفع في iframe لـ Tranzila
+# إصلاح: خطأ "فشل في تحميل ملخص التجديدات"
 
-## المشكلة الحالية
-عندما تفشل عملية الدفع، الـ iframe يعرض فقط "فشلت عملية الدفع" بدون تفاصيل عن السبب. بينما صفحة Tranzila الخاصة تعرض رسالة واضحة مثل:
-- "يش להתקשר לחברת האשראי לאישור טלפוני של העסקה" (يجب الاتصال بشركة البطاقة للموافقة الهاتفية)
+## المشكلة
+يوجد **نسختان متداخلتان** من الوظيفة `report_renewals_summary` في قاعدة البيانات:
 
-## ما تُرسله Tranzila عند الفشل
-عند توجيه المستخدم إلى `fail_url_address`، Tranzila تُرسل هذه المعلومات في Query Parameters:
+| OID | نوع `p_end_month` |
+|-----|-------------------|
+| 73363 | `date` |
+| 73365 | `text` |
 
-| Parameter | الوصف |
-|-----------|-------|
-| `Response` | كود الخطأ (مثل "003", "004", "038") |
-| `CResp` | كود شركة البطاقة |
-| `reason` | نص الخطأ بالعبرية (أحياناً) |
-| `ccno` | آخر 4 أرقام من البطاقة |
-| `sum` | المبلغ |
+عندما يتم استدعاء الوظيفة من الواجهة، PostgreSQL لا يستطيع تحديد أي نسخة يستخدم لأن النص يمكن أن يتحول إلى تاريخ أو يبقى نص → **خطأ: function is not unique**
 
-## الحل المقترح
+## الحل
+إنشاء Migration جديدة تحذف النسخة القديمة (DATE) وتُبقي فقط النسخة الجديدة (TEXT):
 
-### 1. تحديث Edge Function: `payment-result`
-إضافة قراءة المعلومات الإضافية + ترجمة كود الخطأ إلى رسالة مفهومة:
-
-```typescript
-// Get additional error info
-const reason = url.searchParams.get('reason') || url.searchParams.get('Reason') || ''
-const CResp = url.searchParams.get('CResp') || url.searchParams.get('cresp') || ''
-const sum = url.searchParams.get('sum') || url.searchParams.get('Sum') || ''
-
-// Map response codes to Hebrew messages
-function getErrorMessage(code: string, cResp: string, reason: string): string {
-  // If reason is provided, use it
-  if (reason) return decodeURIComponent(reason)
-  
-  // Map common Tranzila response codes
-  const errorMessages: Record<string, string> = {
-    '003': 'העסקה נדחתה - יש ליצור קשר עם חברת האשראי',
-    '004': 'הכרטיס נחסם או שייך לרשימה שחורה',
-    '006': 'שגיאה בקוד CVV',
-    '009': 'העסקה נכשלה בבדיקת 3DSecure',
-    '010': 'שגיאה בתאריך תפוגה',
-    '015': 'הכרטיס לא קיים',
-    '017': 'העסקה נדחתה - מומלץ לנסות כרטיס אחר',
-    '027': 'יש להתקשר לחברת האשראי לאישור טלפוני',
-    '033': 'כרטיס אינו תקין',
-    '036': 'הכרטיס פג תוקף',
-    '038': 'יש להתקשר לחברת האשראי לאישור טלפוני של העסקה',
-    '039': 'מספר כרטיס לא תקין',
-    '057': 'העסקה נדחתה על ידי חברת האשראי',
-    '058': 'העסקה אינה מאושרת לעסק',
-    '059': 'העסקה נדחתה - בעיה בחברת האשראי',
-    '060': 'יש לפנות לחברת האשראי',
-    '062': 'סוג כרטיס מוגבל',
-    '063': 'בעיית אימות 3DSecure',
-    '999': 'שגיאת מערכת - יש לנסות שוב',
-  }
-  
-  return errorMessages[code] || 'העסקה נכשלה - קוד שגיאה: ' + code
-}
-```
-
-### 2. عرض الرسالة في صفحة الخطأ
-تحديث HTML ليعرض سبب الفشل:
-
-```html
-<h1>עסקה בסך ₪${sum || amount} נכשלה</h1>
-<p class="reason">סיבת כשלון:</p>
-<p class="error-detail">${errorMessage}</p>
-${cardLastFour ? `<p class="card-info">אמצעי תשלום: כרטיס אשראי המסתיים ב ${cardLastFour}</p>` : ''}
-```
-
-### 3. تحديث Edge Function: `broker-payment-result`
-نفس التغييرات لمدفوعات الوسطاء.
-
-### 4. إرسال رسالة الخطأ للـ Parent Window
-لتحديث UI في Modal:
-
-```javascript
-var msg = {
-  type: 'TRANZILA_PAYMENT_RESULT',
-  status: 'failed',
-  payment_id: '${paymentId}',
-  error_code: '${responseCode}',
-  error_message: '${errorMessageEncoded}',
-  card_last_four: '${cardLastFour}'
-};
-```
-
-### 5. تحديث React Modal
-لعرض رسالة الخطأ من postMessage:
-
-```typescript
-// In TranzilaPaymentModal.tsx
-useEffect(() => {
-  const handleMessage = (event: MessageEvent) => {
-    if (event.data?.type === 'TRANZILA_PAYMENT_RESULT') {
-      if (event.data.status === 'failed') {
-        setStatus('failed');
-        // Set detailed error message if available
-        if (event.data.error_message) {
-          setErrorMessage(event.data.error_message);
-        } else {
-          setErrorMessage('فشلت عملية الدفع');
-        }
-      }
-    }
-  };
-  // ...
-}, []);
+```sql
+-- Drop the old overload with DATE parameter
+DROP FUNCTION IF EXISTS public.report_renewals_summary(date, text, uuid, text);
 ```
 
 ---
 
-## الملفات المتأثرة
+## التفاصيل التقنية
 
-| الملف | التغيير |
-|-------|---------|
-| `supabase/functions/payment-result/index.ts` | قراءة `reason` و `CResp` + ترجمة الأكواد + عرض الرسالة |
-| `supabase/functions/broker-payment-result/index.ts` | نفس التغييرات |
-| `src/components/payments/TranzilaPaymentModal.tsx` | عرض `error_message` من postMessage |
-| `src/components/brokers/BrokerPaymentModal.tsx` | نفس التغييرات |
+### الملف المتأثر
+`supabase/migrations/NEW_*.sql`
 
----
+### الكود
+```sql
+-- Fix: Remove duplicate function overload causing "function is not unique" error
+-- There are two versions of report_renewals_summary:
+--   1. p_end_month date (OID 73363) - OLD
+--   2. p_end_month text (OID 73365) - NEW (correct one)
+-- 
+-- Keep only the TEXT version which handles null/empty string properly
 
-## أكواد الأخطاء الشائعة في Tranzila
+DROP FUNCTION IF EXISTS public.report_renewals_summary(date, text, uuid, text);
+```
 
-| Code | المعنى |
-|------|--------|
-| 003 | رفض من شركة البطاقة |
-| 004 | بطاقة محظورة |
-| 006 | خطأ في CVV |
-| 010 | تاريخ انتهاء خاطئ |
-| 027, 038 | يتطلب موافقة هاتفية (كما في الصورة) |
-| 036 | البطاقة منتهية الصلاحية |
-| 057 | رفض من شركة البطاقة |
+### لماذا هذا يعمل
+- النسخة الجديدة (TEXT) موجودة بالفعل وتعمل بشكل صحيح
+- حذف النسخة القديمة (DATE) يُزيل التعارض
+- الواجهة تُرسل `p_end_month` كـ TEXT فعلاً (مثل `"2026-02-01"`)
 
 ---
 
 ## النتيجة المتوقعة
 
-**قبل:**
+**قبل:** 
 ```
-┌─────────────────────────────┐
-│         ✖                   │
-│   فشلت عملية الدفع         │
-│                             │
-│   حدث خطأ أثناء معالجة      │
-└─────────────────────────────┘
+Toast: فشل في تحميل ملخص التجديدات
+Console: function report_renewals_summary is not unique
 ```
 
 **بعد:**
 ```
-┌─────────────────────────────────────────────┐
-│              ✖                              │
-│      עסקה בסך ₪2200.00 נכשלה               │
-│                                             │
-│      סיבת כשלון:                           │
-│  יש להתקשר לחברת האשראי לאישור             │
-│        טלפוני של העסקה                     │
-│                                             │
-│  אמצעי תשלום: כרטיס אשראי המסתיים ב 9013   │
-│                                             │
-│        ← חזרה למסך החיוב                   │
-└─────────────────────────────────────────────┘
+كروت الإحصائيات تظهر بشكل طبيعي:
+- إجمالي بحاجة للتجديد: 80
+- لم يتم التواصل: 57
+- تم إرسال SMS: 23
+- إلخ...
 ```
 
-العميل الآن يفهم السبب ويعرف أن عليه الاتصال بشركة البطاقة!
+---
+
+## ملفات متأثرة
+
+| الملف | التغيير |
+|-------|---------|
+| `supabase/migrations/NEW_*.sql` | حذف النسخة القديمة من الوظيفة |

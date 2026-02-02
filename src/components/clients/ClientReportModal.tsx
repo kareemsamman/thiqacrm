@@ -321,6 +321,13 @@ export function ClientReportModal({
   });
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Auto-expand all car accordions when modal opens
+  useEffect(() => {
+    if (open && cars.length > 0) {
+      setExpandedCars(new Set(cars.map(c => c.id)));
+    }
+  }, [open, cars]);
+
   // Fetch policy files when modal opens
   useEffect(() => {
     if (open && policies.length > 0) {

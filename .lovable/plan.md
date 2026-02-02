@@ -1,101 +1,82 @@
 
+## ملخص سريع (ليش ما تغير شيء؟)
+سبب “فشل في تحميل البيانات” في تبويب **التجديدات** داخل `/reports/policies` واضح من سجلات قاعدة البيانات:
 
-# خطة: إصلاح خطأ "operator does not exist: policy_type_parent = text"
+- الصفحة تستدعي الدالة:  
+  `public.report_renewals(date, date, text, uuid, text, integer, integer)`
+- داخلها يوجد شرط:
+  `p.policy_type_parent = p_policy_type`
+- لكن `policy_type_parent` هو **ENUM** و `p_policy_type` هو **TEXT**  
+  فينتج الخطأ:
+  `operator does not exist: policy_type_parent = text`
 
-## المشكلة
-
-خطأ في مقارنة نوعي بيانات مختلفين:
-- `p.policy_type_parent` هو من نوع ENUM (`policy_type_parent`)
-- `p_policy_type` هو من نوع TEXT
-
-PostgreSQL لا يمكنه مقارنة ENUM مع TEXT مباشرة.
-
-**رسالة الخطأ:**
-```
-operator does not exist: policy_type_parent = text
-```
+المهم: سبق أن تم تعديل **نسخة ثانية مختلفة** من `report_renewals` (توقيع مختلف)، لذلك التجديدات لم تتحسن لأنها تستعمل Overload آخر.
 
 ---
 
-## الحل
+## ما الذي سنفعله الآن (إصلاح دقيق لنفس الدوال المستخدمة في صفحة التجديدات)
+سنقوم بعمل Migration واحدة فقط لتحديث **الدالتين الصحيحين** (المستعملة في التبويب + التصدير):
 
-تحويل ENUM إلى TEXT قبل المقارنة:
+1) **إصلاح الدالة المستخدمة في تبويب التجديدات**
+- الدالة المستهدفة بالضبط:
+  `report_renewals(p_start_date date, p_end_date date, p_policy_type text, p_created_by uuid, p_search text, p_page_size int, p_page int)`
+- التعديل:
+  - تحويل `p_policy_type` إلى ENUM مرة واحدة داخل الدالة:
+    - `v_policy_type public.policy_type_parent := NULLIF(p_policy_type,'')::public.policy_type_parent;`
+  - استبدال الشرط:
+    - من: `p.policy_type_parent = p_policy_type`
+    - إلى: `p.policy_type_parent = v_policy_type`
+  - (تحسين ثبات النوع) جعل التجميع يرجع `text[]` صراحة:
+    - `ARRAY_AGG(DISTINCT cp.policy_type_parent::text) ...`
 
-```sql
--- قبل (خطأ):
-AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
-
--- بعد (صحيح):
-AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
-```
-
----
-
-## التغييرات المطلوبة
-
-### Migration SQL جديد:
-
-```sql
--- Fix report_renewals - cast ENUM to TEXT for comparison
-CREATE OR REPLACE FUNCTION public.report_renewals(...)
-...
-WHERE ...
-  AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
-...
-
--- Fix report_renewals_service - cast ENUM to TEXT for comparison  
-CREATE OR REPLACE FUNCTION public.report_renewals_service(...)
-...
-WHERE ...
-  AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
-...
-```
+2) **إصلاح الدالة المستخدمة في PDF (التصدير)**
+- الدالة المستهدفة بالضبط:
+  `report_renewals_service(p_end_month date, p_days_remaining int, p_policy_type text, p_limit int, p_offset int)`
+- نفس الإصلاح:
+  - `v_policy_type` كـ ENUM
+  - مقارنة ENUM مع ENUM
+  - `ARRAY_AGG(DISTINCT cp.policy_type_parent::text)` لضمان `text[]`
 
 ---
 
-## الملفات المتأثرة
+## (اختياري لكن أنصح به) منع الوصول العام لهذه التقارير
+حاليًا صلاحية EXECUTE لهذه الدوال على **PUBLIC** (أي قد تكون متاحة لغير المسجلين حسب الإعدادات).
+وبما أن التقارير تحتوي بيانات حساسة (أسماء/هواتف)، سنشددها:
 
-| الملف | التغيير |
-|-------|---------|
-| **Database Migration (جديدة)** | إضافة `::text` لتحويل ENUM إلى TEXT في دالتي `report_renewals` و `report_renewals_service` |
+- `REVOKE ALL ON FUNCTION ... FROM PUBLIC;`
+- `REVOKE EXECUTE ON FUNCTION ... FROM anon;`
+- `GRANT EXECUTE ON FUNCTION ... TO authenticated;`
 
----
-
-## تفاصيل الإصلاح
-
-### في `report_renewals` (سطر 63):
-```sql
--- من:
-AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
-
--- إلى:
-AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
-```
-
-### في `report_renewals_service` (سطر 185):
-```sql
--- من:
-AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
-
--- إلى:
-AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
-```
+هذا لن يغير تجربة المستخدم داخل النظام (لأنه أصلًا يحتاج تسجيل دخول)، لكنه يحمي البيانات.
 
 ---
 
-## النتيجة المتوقعة
+## طريقة التحقق بعد التطبيق (Zero guessing)
+بعد الـ Migration سنجري تحققين واضحين:
 
-بعد تطبيق الإصلاح:
-- صفحة `/reports/policies` ستعمل بدون أخطاء
-- فلترة الوثائق حسب النوع (إلزامي، ثالث/شامل، إلخ) ستعمل
-- تصدير PDF سيعمل
+1) تحقق مباشر من قاعدة البيانات:
+- تشغيل استدعاء للدالة (بنفس توقيع الصفحة) للتأكد أن الخطأ اختفى:
+  - `select * from public.report_renewals(...) limit 1;`
+
+2) تحقق UI:
+- تسجيل الدخول (Google)
+- الذهاب إلى `/reports/policies` → تبويب **التجديدات**
+- تأكيد:
+  - الجدول يظهر البيانات
+  - تغيير فلتر النوع لا يكسر الصفحة
+  - البحث برقم السيارة يعمل
 
 ---
 
-## اختبار
+## نطاق التغيير
+- لا حذف بيانات
+- لا تعديل واجهة
+- Migration واحدة لتعديل دالتين محددتين (Overloads الصحيحة) + تشديد صلاحيات (اختياري)
 
-1. اذهب لصفحة `/reports/policies`
-2. تأكد أن الصفحة تُحمّل بدون خطأ "فشل في تحميل البيانات"
-3. جرب تغيير فلتر "كل الأنواع" إلى نوع محدد
-4. تأكد أن البيانات تُعرض بشكل صحيح
+---
 
+## لماذا هذا سينهي المشكلة فعلاً
+لأننا استخرجنا الخطأ من السجلات بدقة وهو يحدث داخل:
+`PL/pgSQL function report_renewals(date,date,text,uuid,text,integer,integer)`
+
+وسنعدل نفس هذا التوقيع بالضبط (وليس توقيعًا آخر).

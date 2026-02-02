@@ -18,27 +18,29 @@ import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from '@/lib/chequeUtil
 import { useToast } from '@/hooks/use-toast';
 import { ArabicDatePicker } from '@/components/ui/arabic-date-picker';
 
-interface PolicyPaymentInfo {
+// Represents each policy inside a debt item
+interface PolicyComponent {
   policyId: string;
   policyType: string;
   policyTypeChild: string | null;
-  carNumber: string | null;
   price: number;
   paid: number;
   remaining: number;
   branchId: string | null;
-  groupId: string | null;
 }
 
-interface GroupedPolicyDisplay {
-  groupKey: string;
+// Represents a debt item (package or single policy)
+interface DebtItem {
+  itemKey: string;        // group_id or `single_${policy_id}`
   isPackage: boolean;
-  policies: PolicyPaymentInfo[];
-  totalPrice: number;
-  totalPaid: number;
-  totalRemaining: number;
+  policies: PolicyComponent[];
+  fullPrice: number;      // Sum of all policies including ELZAMI
+  paidTotal: number;      // Sum of all payments for this item
+  remainingTotal: number; // fullPrice - paidTotal (clamped to 0)
   carNumber: string | null;
-  policyTypes: string[];
+  includesElzami: boolean;
+  // For payment distribution - policies that can receive payments (non-ELZAMI with remaining > 0)
+  payablePolicies: PolicyComponent[];
 }
 
 interface PaymentLine {
@@ -79,6 +81,11 @@ const policyTypeLabels: Record<string, string> = {
   OTHER: 'أخرى',
 };
 
+const policyChildLabels: Record<string, string> = {
+  THIRD: 'ثالث',
+  FULL: 'شامل',
+};
+
 const paymentTypes = [
   { value: 'cash', label: 'نقدي', icon: Banknote },
   { value: 'cheque', label: 'شيك', icon: CreditCard },
@@ -98,7 +105,7 @@ export function DebtPaymentModal({
   const { toast: uiToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [policies, setPolicies] = useState<PolicyPaymentInfo[]>([]);
+  const [debtItems, setDebtItems] = useState<DebtItem[]>([]);
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([]);
   const [tranzilaModalOpen, setTranzilaModalOpen] = useState(false);
   const [activeVisaPaymentIndex, setActiveVisaPaymentIndex] = useState<number | null>(null);
@@ -107,17 +114,15 @@ export function DebtPaymentModal({
   const [splitCount, setSplitCount] = useState(2);
   const [previewUrls, setPreviewUrls] = useState<PreviewUrls>({});
   const [selectedCars, setSelectedCars] = useState<string[]>([]);
-  const [netDebt, setNetDebt] = useState(0); // Net debt matching client profile calculation
-  const [surplusApplied, setSurplusApplied] = useState(0); // Amount of ELZAMI surplus applied
 
   // Extract unique car numbers for filter
   const uniqueCars = React.useMemo(() => {
-    const cars = policies
-      .filter(p => p.carNumber)
-      .map(p => p.carNumber!)
+    const cars = debtItems
+      .filter(item => item.carNumber)
+      .map(item => item.carNumber!)
       .filter((v, i, a) => a.indexOf(v) === i);
     return cars;
-  }, [policies]);
+  }, [debtItems]);
 
   // Toggle car selection
   const toggleCar = (car: string) => {
@@ -128,48 +133,21 @@ export function DebtPaymentModal({
     );
   };
 
-  // Filter policies by selected cars (empty array = all cars)
-  const filteredPolicies = React.useMemo(() => {
-    if (selectedCars.length === 0) return policies;
-    return policies.filter(p => p.carNumber && selectedCars.includes(p.carNumber));
-  }, [policies, selectedCars]);
+  // Filter items by selected cars (empty array = all cars)
+  const filteredItems = React.useMemo(() => {
+    if (selectedCars.length === 0) return debtItems;
+    return debtItems.filter(item => item.carNumber && selectedCars.includes(item.carNumber));
+  }, [debtItems, selectedCars]);
 
-  // Group policies by group_id for display (packages vs single)
-  const groupedPoliciesDisplay = React.useMemo((): GroupedPolicyDisplay[] => {
-    const groupMap = new Map<string, PolicyPaymentInfo[]>();
-    
-    filteredPolicies.forEach(p => {
-      // Use group_id for packages, policy_id for singles
-      const key = p.groupId || `single_${p.policyId}`;
-      if (!groupMap.has(key)) {
-        groupMap.set(key, []);
-      }
-      groupMap.get(key)!.push(p);
-    });
-    
-    const groups: GroupedPolicyDisplay[] = [];
-    
-    groupMap.forEach((policies, groupKey) => {
-      const isPackage = policies.length > 1 || (policies[0]?.groupId !== null);
-      groups.push({
-        groupKey,
-        isPackage,
-        policies,
-        totalPrice: policies.reduce((sum, p) => sum + p.price, 0),
-        totalPaid: policies.reduce((sum, p) => sum + p.paid, 0),
-        totalRemaining: policies.reduce((sum, p) => sum + p.remaining, 0),
-        carNumber: policies[0]?.carNumber || null,
-        policyTypes: [...new Set(policies.map(p => policyTypeLabels[p.policyType] || p.policyType))],
-      });
-    });
-    
-    // Sort by remaining (highest first)
-    return groups.sort((a, b) => b.totalRemaining - a.totalRemaining);
-  }, [filteredPolicies]);
+  // All payable policies from filtered items
+  const allPayablePolicies = React.useMemo(() => {
+    return filteredItems.flatMap(item => item.payablePolicies);
+  }, [filteredItems]);
 
-  const totalRemaining = filteredPolicies.reduce((sum, p) => sum + p.remaining, 0);
-  const totalPrice = filteredPolicies.reduce((sum, p) => sum + p.price, 0);
-  const totalPaid = filteredPolicies.reduce((sum, p) => sum + p.paid, 0);
+  // Summary calculations
+  const totalFullPrice = filteredItems.reduce((sum, item) => sum + item.fullPrice, 0);
+  const totalPaidAmount = filteredItems.reduce((sum, item) => sum + item.paidTotal, 0);
+  const totalRemaining = filteredItems.reduce((sum, item) => sum + item.remainingTotal, 0);
   
   // Calculate total payments - count paid visa payments as already completed
   const paidVisaTotal = paymentLines
@@ -202,7 +180,7 @@ export function DebtPaymentModal({
 
   useEffect(() => {
     if (open && clientId) {
-      fetchPolicyPaymentInfo();
+      fetchDebtItems();
       // Reset form with one empty payment line
       setPaymentLines([{
         id: crypto.randomUUID(),
@@ -211,6 +189,7 @@ export function DebtPaymentModal({
         paymentDate: new Date().toISOString().split('T')[0],
       }]);
       setPreviewUrls({});
+      setSelectedCars([]);
     }
   }, [open, clientId]);
 
@@ -277,107 +256,128 @@ export function DebtPaymentModal({
 
   const getPreviewUrls = (paymentId: string) => previewUrls[paymentId] || [];
 
-  // State for total ELZAMI payments (fetched separately)
-  const [elzamiPaymentsTotal, setElzamiPaymentsTotal] = useState(0);
-
-  const fetchPolicyPaymentInfo = async () => {
+  /**
+   * Fetch all policies and payments for the client, then build DebtItems
+   * grouped by group_id (packages) or individual policies (singles)
+   */
+  const fetchDebtItems = async () => {
     setLoading(true);
     try {
-      // Fetch ALL policies for this client (including ELZAMI and expired) to calculate global totals
-      const { data: allPoliciesData, error: allPoliciesError } = await supabase
+      // Fetch ALL policies for this client (including ELZAMI)
+      // Exclude: cancelled, deleted, transferred, and broker deals
+      const { data: policiesData, error: policiesError } = await supabase
         .from('policies')
-        .select('id, policy_type_parent, policy_type_child, insurance_price, branch_id, group_id, car:cars(car_number)')
+        .select('id, policy_type_parent, policy_type_child, insurance_price, branch_id, group_id, broker_id, car:cars(car_number)')
         .eq('client_id', clientId)
         .eq('cancelled', false)
-        .is('deleted_at', null);
+        .eq('transferred', false)
+        .is('deleted_at', null)
+        .is('broker_id', null);
 
-      if (allPoliciesError) throw allPoliciesError;
+      if (policiesError) throw policiesError;
 
-      const allPolicyIds = (allPoliciesData || []).map(p => p.id);
+      const allPolicyIds = (policiesData || []).map(p => p.id);
 
-      // Fetch ALL payments for ALL policies (including ELZAMI)
-      let allPaymentsMap: Record<string, number> = {};
+      // Fetch ALL payments for these policies
+      let paymentsMap: Record<string, number> = {};
       if (allPolicyIds.length > 0) {
-        const { data: allPaymentsData, error: allPaymentsError } = await supabase
+        const { data: paymentsData, error: paymentsError } = await supabase
           .from('policy_payments')
           .select('policy_id, amount, refused')
           .in('policy_id', allPolicyIds);
 
-        if (allPaymentsError) throw allPaymentsError;
+        if (paymentsError) throw paymentsError;
 
-        (allPaymentsData || []).forEach(p => {
+        (paymentsData || []).forEach(p => {
           if (!p.refused) {
-            allPaymentsMap[p.policy_id] = (allPaymentsMap[p.policy_id] || 0) + p.amount;
+            paymentsMap[p.policy_id] = (paymentsMap[p.policy_id] || 0) + p.amount;
           }
         });
       }
 
-      // Calculate global totals (same logic as client profile)
-      const totalAllPrices = (allPoliciesData || []).reduce((sum, p) => sum + p.insurance_price, 0);
-      const totalAllPayments = Object.values(allPaymentsMap).reduce((sum, amt) => sum + amt, 0);
-      const calculatedNetDebt = Math.max(0, totalAllPrices - totalAllPayments);
-      setNetDebt(calculatedNetDebt);
+      // Group policies by group_id or individual
+      const groupMap = new Map<string, typeof policiesData>();
+      
+      (policiesData || []).forEach(policy => {
+        const key = policy.group_id || `single_${policy.id}`;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, []);
+        }
+        groupMap.get(key)!.push(policy);
+      });
 
-      // Separate ELZAMI vs agency policies
-      const elzamiPolicies = (allPoliciesData || []).filter(p => p.policy_type_parent === 'ELZAMI');
-      const agencyPolicies = (allPoliciesData || []).filter(p => p.policy_type_parent !== 'ELZAMI');
-
-      // Calculate ELZAMI totals
-      const elzamiTotalPrice = elzamiPolicies.reduce((sum, p) => sum + p.insurance_price, 0);
-      const elzamiTotalPaid = elzamiPolicies.reduce((sum, p) => sum + (allPaymentsMap[p.id] || 0), 0);
-      setElzamiPaymentsTotal(elzamiTotalPaid);
-
-      // Calculate surplus from ELZAMI overpayments
-      const elzamiSurplus = Math.max(0, elzamiTotalPaid - elzamiTotalPrice);
-      setSurplusApplied(elzamiSurplus);
-
-      // Calculate agency-only totals
-      const agencyTotalPrice = agencyPolicies.reduce((sum, p) => sum + p.insurance_price, 0);
-      const agencyTotalPaid = agencyPolicies.reduce((sum, p) => sum + (allPaymentsMap[p.id] || 0), 0);
-
-      // Build policy info for agency policies (with remaining debt)
-      const policyInfo = agencyPolicies
-        .map(p => ({
+      // Build DebtItems
+      const items: DebtItem[] = [];
+      
+      groupMap.forEach((policies, itemKey) => {
+        const isPackage = policies.length > 1 || (policies[0]?.group_id !== null);
+        
+        // Build policy components
+        const policyComponents: PolicyComponent[] = policies.map(p => ({
           policyId: p.id,
           policyType: p.policy_type_parent,
           policyTypeChild: p.policy_type_child,
-          carNumber: (p.car as any)?.car_number || null,
           price: p.insurance_price,
-          paid: allPaymentsMap[p.id] || 0,
-          remaining: p.insurance_price - (allPaymentsMap[p.id] || 0),
+          paid: paymentsMap[p.id] || 0,
+          remaining: p.insurance_price - (paymentsMap[p.id] || 0),
           branchId: p.branch_id,
-          groupId: p.group_id,
-        }))
-        .filter(p => p.remaining > 0);
+        }));
 
-      // Apply ELZAMI surplus to reduce displayed agency debt (sorted by smallest first)
-      let remainingSurplus = elzamiSurplus;
-      const adjustedPolicyInfo: PolicyPaymentInfo[] = [];
-      
-      // Sort by remaining (smallest first) to eliminate fully-covered cards
-      const sortedPolicies = [...policyInfo].sort((a, b) => a.remaining - b.remaining);
-      
-      for (const policy of sortedPolicies) {
-        if (remainingSurplus >= policy.remaining) {
-          // This policy is fully covered by surplus - skip it
-          remainingSurplus -= policy.remaining;
-        } else if (remainingSurplus > 0) {
-          // Partially covered by surplus
-          adjustedPolicyInfo.push({
-            ...policy,
-            paid: policy.paid + remainingSurplus,
-            remaining: policy.remaining - remainingSurplus,
+        // Calculate item-level totals
+        const fullPrice = policyComponents.reduce((sum, p) => sum + p.price, 0);
+        const paidTotal = policyComponents.reduce((sum, p) => sum + p.paid, 0);
+        const remainingTotal = Math.max(0, fullPrice - paidTotal);
+
+        // Determine which policies can receive payments (non-ELZAMI with remaining > 0)
+        // For packages: distribute payment pool internally
+        const poolPaid = paidTotal;
+        let remainingPool = poolPaid;
+        
+        // Sort by priority: ELZAMI first (fills up first), then others by price ascending
+        const sortedComponents = [...policyComponents].sort((a, b) => {
+          if (a.policyType === 'ELZAMI' && b.policyType !== 'ELZAMI') return -1;
+          if (a.policyType !== 'ELZAMI' && b.policyType === 'ELZAMI') return 1;
+          return a.price - b.price;
+        });
+
+        // Distribute paid amount internally to determine what's left to pay per component
+        const componentsWithInternalRemaining = sortedComponents.map(comp => {
+          const coverAmount = Math.min(remainingPool, comp.price);
+          remainingPool = Math.max(0, remainingPool - coverAmount);
+          const internalRemaining = comp.price - coverAmount;
+          return {
+            ...comp,
+            remaining: internalRemaining,
+          };
+        });
+
+        // Payable policies: non-ELZAMI with internal remaining > 0
+        const payablePolicies = componentsWithInternalRemaining.filter(
+          p => p.policyType !== 'ELZAMI' && p.remaining > 0
+        );
+
+        // Only include items with remaining debt
+        if (remainingTotal > 0) {
+          items.push({
+            itemKey,
+            isPackage,
+            policies: componentsWithInternalRemaining,
+            fullPrice,
+            paidTotal,
+            remainingTotal,
+            carNumber: (policies[0]?.car as any)?.car_number || null,
+            includesElzami: policies.some(p => p.policy_type_parent === 'ELZAMI'),
+            payablePolicies,
           });
-          remainingSurplus = 0;
-        } else {
-          // No surplus left
-          adjustedPolicyInfo.push(policy);
         }
-      }
+      });
 
-      setPolicies(adjustedPolicyInfo);
+      // Sort by remaining (highest first)
+      items.sort((a, b) => b.remainingTotal - a.remainingTotal);
+      
+      setDebtItems(items);
     } catch (error) {
-      console.error('Error fetching policy payment info:', error);
+      console.error('Error fetching debt items:', error);
       toast.error('خطأ في جلب بيانات الدفع');
     } finally {
       setLoading(false);
@@ -435,6 +435,7 @@ export function DebtPaymentModal({
 
   /**
    * Sequential "fill one by one" distribution:
+   * - Uses only payable policies from visible debt items
    * - Fills policies in order until each is complete before moving to next
    * - For cheques: Keeps as single record on first policy with space
    * - For cash/transfer: Can span multiple policies
@@ -442,35 +443,31 @@ export function DebtPaymentModal({
   const calculateSplitPayments = (amount: number, paymentType: string = 'cash') => {
     const splits: { policyId: string; amount: number; branchId: string | null }[] = [];
     
-    if (amount <= 0 || totalRemaining <= 0) return splits;
+    if (amount <= 0) return splits;
 
-    // Get filtered policies with remaining balance, sorted by remaining (smallest first for efficient filling)
-    const policiesWithBalance = filteredPolicies
+    // Get payable policies from filtered items, sorted by remaining (smallest first)
+    const policiesWithBalance = [...allPayablePolicies]
       .filter(p => p.remaining > 0)
       .sort((a, b) => a.remaining - b.remaining);
 
     if (policiesWithBalance.length === 0) return splits;
 
     // For cheques: assign FULL amount to a single policy that can fit it
-    // Cheques are physical documents - cannot be split, must remain intact
     if (paymentType === 'cheque') {
-      // Find a policy where the cheque fits entirely (remaining >= cheque amount)
       const policyWithSpace = policiesWithBalance.find(p => p.remaining >= amount);
       
       if (policyWithSpace) {
-        // Found a policy that can accept the full cheque
         splits.push({
           policyId: policyWithSpace.policyId,
-          amount: amount, // Keep FULL cheque amount
+          amount: amount,
           branchId: policyWithSpace.branchId,
         });
       } else {
-        // No single policy can fit the full cheque
-        // Put it on the policy with largest remaining balance (user should be warned separately)
+        // Put it on the policy with largest remaining balance
         const largestPolicy = policiesWithBalance[policiesWithBalance.length - 1];
         splits.push({
           policyId: largestPolicy.policyId,
-          amount: amount, // Keep FULL cheque amount - validation will catch overpayment
+          amount: amount,
           branchId: largestPolicy.branchId,
         });
       }
@@ -484,10 +481,8 @@ export function DebtPaymentModal({
       if (remainingAmount <= 0) break;
       
       const paymentForPolicy = Math.min(remainingAmount, policy.remaining);
-      // Only add if amount is greater than 0 (protect against floating point issues)
       if (paymentForPolicy > 0.001) {
         const roundedAmount = Math.round(paymentForPolicy * 100) / 100;
-        // Double-check after rounding
         if (roundedAmount > 0) {
           splits.push({
             policyId: policy.policyId,
@@ -499,7 +494,6 @@ export function DebtPaymentModal({
       }
     }
 
-    // Final filter to ensure no 0-amount entries
     return splits.filter(s => s.amount > 0);
   };
 
@@ -507,8 +501,8 @@ export function DebtPaymentModal({
     const payment = paymentLines[index];
     if (!payment || payment.amount <= 0) return;
 
-    // Use first policy for Tranzila
-    const firstPolicy = policies.find(p => p.remaining > 0);
+    // Use first payable policy for Tranzila
+    const firstPolicy = allPayablePolicies.find(p => p.remaining > 0);
     if (firstPolicy) {
       setActiveVisaPaymentIndex(index);
       setActiveTranzilaPolicyId(firstPolicy.policyId);
@@ -531,7 +525,6 @@ export function DebtPaymentModal({
     if (!clientPhone) return;
     
     try {
-      // Generate payment receipt instead of full client report
       const { data: receiptData, error: receiptError } = await supabase.functions.invoke('generate-payment-receipt', {
         body: { payment_id: paymentId }
       });
@@ -543,7 +536,6 @@ export function DebtPaymentModal({
       
       const receiptUrl = receiptData?.receipt_url;
       
-      // Send SMS with payment confirmation and receipt link
       const message = `مرحباً ${clientName}، تم استلام دفعة بمبلغ ₪${paidAmount.toLocaleString()}. شكراً لك!\n\nلعرض وصل الدفع:\n${receiptUrl || 'غير متوفر'}`;
       
       await supabase.functions.invoke('send-sms', {
@@ -557,14 +549,12 @@ export function DebtPaymentModal({
       toast.success('تم إرسال رسالة التأكيد للعميل');
     } catch (error) {
       console.error('Error sending payment confirmation SMS:', error);
-      // Don't throw - payment was successful, just SMS failed
     }
   };
 
   const handleSubmit = async () => {
     if (!isValid) return;
 
-    // Check if there are unpaid visa payments
     const unpaidVisaPayments = paymentLines.filter(p => p.paymentType === 'visa' && !p.tranzilaPaid);
     if (unpaidVisaPayments.length > 0) {
       toast.error('يرجى إتمام الدفع بالبطاقة أولاً');
@@ -573,19 +563,16 @@ export function DebtPaymentModal({
 
     setSaving(true);
     try {
-      // Process each payment line
       for (const paymentLine of paymentLines) {
-        // Skip visa payments that are already paid via Tranzila - payment record already created
+        // Skip visa payments that are already paid via Tranzila
         if (paymentLine.paymentType === 'visa' && paymentLine.tranzilaPaid) {
           continue;
         }
         
         if (paymentLine.paymentType !== 'visa') {
-          // Non-visa payment - distribute across policies (sequential for cash/transfer, single for cheque)
           const splits = calculateSplitPayments(paymentLine.amount, paymentLine.paymentType);
           
           if (splits.length > 0) {
-            // Insert all payments first
             const paymentsToInsert = splits.map(split => ({
               policy_id: split.policyId,
               amount: split.amount,
@@ -603,12 +590,11 @@ export function DebtPaymentModal({
             
             if (error) throw error;
 
-            // Upload images for cash/cheque/transfer payments
+            // Upload images
             if ((paymentLine.paymentType === 'cash' || paymentLine.paymentType === 'cheque' || paymentLine.paymentType === 'transfer') && 
                 paymentLine.pendingImages && paymentLine.pendingImages.length > 0 && 
                 insertedPayments && insertedPayments.length > 0) {
               
-              // Upload images for the first inserted payment (they all share the same cheque/transfer)
               const firstPaymentId = insertedPayments[0].id;
               
               for (let imgIndex = 0; imgIndex < paymentLine.pendingImages.length; imgIndex++) {
@@ -624,7 +610,6 @@ export function DebtPaymentModal({
                   });
 
                   if (!uploadError && uploadResult?.url) {
-                    // Insert into payment_images
                     await supabase.from('payment_images').insert({
                       payment_id: firstPaymentId,
                       image_url: uploadResult.url,
@@ -641,36 +626,24 @@ export function DebtPaymentModal({
         }
       }
 
-      // Get the first inserted payment ID for the receipt
-      let firstPaymentId: string | undefined;
-      
-      // Find the first non-visa payment's ID for receipt
-      for (const paymentLine of paymentLines) {
-        if (paymentLine.paymentType !== 'visa' || !paymentLine.tranzilaPaid) {
-          // This payment was just inserted, we need its ID
-          break;
-        }
-      }
-      
-      // Query the most recent payment for this client to get the ID
+      // Get the most recent payment for receipt
+      const allPolicyIds = allPayablePolicies.map(p => p.policyId);
       const { data: recentPayment } = await supabase
         .from('policy_payments')
         .select('id')
-        .in('policy_id', filteredPolicies.map(p => p.policyId))
+        .in('policy_id', allPolicyIds)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
       
-      firstPaymentId = recentPayment?.id;
+      const firstPaymentId = recentPayment?.id;
 
       toast.success('تم تسديد الدفعات بنجاح');
       
-      // Send SMS confirmation with payment receipt link
       if (firstPaymentId) {
         await sendPaymentConfirmationSms(totalPaymentAmount, firstPaymentId);
       }
       
-      // Close modal and refresh debt list
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -681,11 +654,12 @@ export function DebtPaymentModal({
     }
   };
 
-  const getPolicyLabel = (policy: PolicyPaymentInfo) => {
-    const parent = policyTypeLabels[policy.policyType] || policy.policyType;
-    const child = policy.policyTypeChild === 'THIRD_FULL' ? 'شامل' : 
-                  policy.policyTypeChild === 'THIRD_ONLY' ? 'طرف ثالث' : '';
-    return child ? `${parent} - ${child}` : parent;
+  const getPolicyTypeLabel = (policyType: string, policyTypeChild: string | null) => {
+    // For THIRD_FULL, show the child type (ثالث or شامل)
+    if (policyType === 'THIRD_FULL' && policyTypeChild) {
+      return policyChildLabels[policyTypeChild] || policyTypeLabels[policyType];
+    }
+    return policyTypeLabels[policyType] || policyType;
   };
 
   const activeVisaPayment = activeVisaPaymentIndex !== null ? paymentLines[activeVisaPaymentIndex] : null;
@@ -704,7 +678,7 @@ export function DebtPaymentModal({
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : policies.length === 0 ? (
+        ) : debtItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
             <p>لا توجد ديون مستحقة</p>
@@ -714,25 +688,25 @@ export function DebtPaymentModal({
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">إجمالي الدين</p>
-                <p className="text-lg font-bold ltr-nums">₪{totalRemaining.toLocaleString('en-US')}</p>
+                <p className="text-xs text-muted-foreground">إجمالي السعر</p>
+                <p className="text-lg font-bold ltr-nums">₪{totalFullPrice.toLocaleString('en-US')}</p>
               </div>
               <div className="bg-green-500/10 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">المدفوع (وكالة)</p>
+                <p className="text-xs text-muted-foreground">المدفوع</p>
                 <p className="text-lg font-bold text-green-600 ltr-nums">
-                  ₪{(totalPaid + paidVisaTotal + surplusApplied).toLocaleString('en-US')}
+                  ₪{(totalPaidAmount + paidVisaTotal).toLocaleString('en-US')}
                 </p>
               </div>
               <div className="bg-destructive/10 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">المتبقي</p>
+                <p className="text-xs text-muted-foreground">المتبقي للدفع</p>
                 <p className="text-lg font-bold text-destructive ltr-nums">
                   ₪{effectiveRemaining.toLocaleString('en-US')}
                 </p>
               </div>
             </div>
 
-            {/* Car Selection - Clear Checkbox UI */}
-            {uniqueCars.length > 0 && (
+            {/* Car Selection */}
+            {uniqueCars.length > 1 && (
               <Card className="border-2 border-dashed border-primary/30">
                 <CardHeader className="p-3 pb-0">
                   <Label className="text-base font-semibold flex items-center gap-2">
@@ -763,8 +737,8 @@ export function DebtPaymentModal({
                     
                     {/* Individual Cars */}
                     {uniqueCars.map(car => {
-                      const carPolicies = policies.filter(p => p.carNumber === car);
-                      const carTotal = carPolicies.reduce((sum, p) => sum + p.remaining, 0);
+                      const carItems = debtItems.filter(item => item.carNumber === car);
+                      const carTotal = carItems.reduce((sum, item) => sum + item.remainingTotal, 0);
                       const isSelected = selectedCars.includes(car);
                       
                       return (
@@ -782,7 +756,7 @@ export function DebtPaymentModal({
                           <div className="flex-1">
                             <p className="font-bold text-lg font-mono ltr-nums">{car}</p>
                             <p className="text-sm text-muted-foreground">
-                              {carPolicies.length} وثائق - ₪{carTotal.toLocaleString('en-US')}
+                              {carItems.length} عناصر - ₪{carTotal.toLocaleString('en-US')}
                             </p>
                           </div>
                         </div>
@@ -793,48 +767,65 @@ export function DebtPaymentModal({
               </Card>
             )}
 
-            {/* ELZAMI Notice */}
-            <div className="flex items-center gap-2 text-sm p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-lg border border-amber-200 dark:border-amber-800/50">
-              <Info className="h-4 w-4 shrink-0" />
-              <span>المبلغ المعروض هو دين الوكالة فقط (لا يشمل الإلزامي - يُدفع للشركة مباشرة)</span>
-            </div>
-
-            {/* Grouped Policy List */}
+            {/* Debt Items List */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">الوثائق</Label>
                 <Badge variant="secondary" className="text-xs">
-                  {groupedPoliciesDisplay.length} عناصر
+                  {filteredItems.length} عناصر
                 </Badge>
               </div>
-              <div className="border rounded-lg divide-y max-h-60 overflow-auto scrollbar-thin">
-                {groupedPoliciesDisplay.map(group => (
-                  <div key={group.groupKey} className="flex items-center justify-between p-3 text-sm hover:bg-muted/30">
-                    <div className="flex items-center gap-3">
-                      {group.isPackage ? (
-                        <Package className="h-5 w-5 text-primary" />
-                      ) : (
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                      )}
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={group.isPackage ? "default" : "outline"} className="text-xs">
-                            {group.isPackage ? `📦 باقة - ${group.policies.length} وثائق` : '📄 منفردة'}
-                          </Badge>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {group.policyTypes.join(' + ')}
-                        </span>
-                        {group.carNumber && (
-                          <span className="text-xs text-muted-foreground font-mono">🚗 {group.carNumber}</span>
+              <div className="border rounded-lg divide-y max-h-72 overflow-auto scrollbar-thin">
+                {filteredItems.map(item => (
+                  <div key={item.itemKey} className="p-3 hover:bg-muted/30">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        {item.isPackage ? (
+                          <Package className="h-5 w-5 text-primary mt-0.5" />
+                        ) : (
+                          <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
                         )}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={item.isPackage ? "default" : "outline"} className="text-xs">
+                              {item.isPackage ? `📦 باقة تأمين` : getPolicyTypeLabel(item.policies[0]?.policyType, item.policies[0]?.policyTypeChild)}
+                            </Badge>
+                            {item.includesElzami && (
+                              <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                                يشمل الإلزامي
+                              </Badge>
+                            )}
+                          </div>
+                          {item.carNumber && (
+                            <span className="text-xs text-muted-foreground font-mono">🚗 {item.carNumber}</span>
+                          )}
+                          {/* Show package components */}
+                          {item.isPackage && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {item.policies.map((comp, idx) => (
+                                <span key={idx} className="text-xs text-muted-foreground">
+                                  {getPolicyTypeLabel(comp.policyType, comp.policyTypeChild)}
+                                  {idx < item.policies.length - 1 ? ' + ' : ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="text-muted-foreground ltr-nums text-xs">السعر: ₪{group.totalPrice.toLocaleString('en-US')}</span>
-                      <span className="font-medium text-destructive ltr-nums">
-                        المتبقي: ₪{group.totalRemaining.toLocaleString('en-US')}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 text-sm shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">السعر:</span>
+                          <span className="font-medium ltr-nums">₪{item.fullPrice.toLocaleString('en-US')}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">المدفوع:</span>
+                          <span className="font-medium text-green-600 ltr-nums">₪{item.paidTotal.toLocaleString('en-US')}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">المتبقي:</span>
+                          <span className="font-bold text-destructive ltr-nums">₪{item.remainingTotal.toLocaleString('en-US')}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -976,7 +967,7 @@ export function DebtPaymentModal({
                       </div>
                     )}
 
-                    {/* Image Upload Section for Cash/Cheque/Transfer */}
+                    {/* Image Upload Section */}
                     {(payment.paymentType === 'cash' || payment.paymentType === 'cheque' || payment.paymentType === 'transfer') && (
                       <div className="pt-3 border-t border-border/50">
                         <div className="flex-1">
@@ -984,7 +975,6 @@ export function DebtPaymentModal({
                             {payment.paymentType === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : payment.paymentType === 'transfer' ? 'صور إيصال التحويل' : 'صور إيصال الدفع'}
                           </Label>
                           <div className="flex flex-wrap gap-2">
-                            {/* Preview existing images */}
                             {getPreviewUrls(payment.id).map((url, imgIndex) => (
                               <div key={imgIndex} className="relative group">
                                 <img 
@@ -1001,7 +991,6 @@ export function DebtPaymentModal({
                                 </button>
                               </div>
                             ))}
-                            {/* Upload button */}
                             <label className="h-14 w-18 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
                               <input 
                                 type="file" 
@@ -1056,7 +1045,7 @@ export function DebtPaymentModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             إلغاء
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || saving || policies.length === 0}>
+          <Button onClick={handleSubmit} disabled={!isValid || saving || debtItems.length === 0}>
             {saving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
             تسديد المبلغ
           </Button>

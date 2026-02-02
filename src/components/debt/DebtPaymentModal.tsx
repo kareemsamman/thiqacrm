@@ -692,16 +692,13 @@ export function DebtPaymentModal({
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground">إجمالي السعر</p>
+                <p className="text-xs text-muted-foreground">إجمالي الدين</p>
                 <p className="text-lg font-bold ltr-nums">₪{totalPrice.toLocaleString('en-US')}</p>
               </div>
               <div className="bg-green-500/10 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">المدفوع</p>
                 <p className="text-lg font-bold text-green-600 ltr-nums">
-                  ₪{(totalPaid + paidVisaTotal + elzamiPaymentsTotal).toLocaleString('en-US')}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  منها للدين: ₪{(totalPaid + paidVisaTotal).toLocaleString('en-US')}
+                  ₪{(totalPaid + paidVisaTotal).toLocaleString('en-US')}
                 </p>
               </div>
               <div className="bg-destructive/10 rounded-lg p-3 text-center">

@@ -84,7 +84,7 @@ export function BrokerPaymentModal({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'BROKER_PAYMENT_RESULT') {
-        const { status: paymentStatus, settlement_id } = event.data;
+        const { status: paymentStatus, error_message, error_code } = event.data;
         
         if (pollingRef.current) {
           clearInterval(pollingRef.current);
@@ -103,7 +103,14 @@ export function BrokerPaymentModal({
           }, 1500);
         } else if (paymentStatus === 'failed') {
           setStatus('failed');
-          setErrorMessage('فشلت عملية الدفع');
+          // Use detailed error message from Tranzila if available
+          if (error_message && error_message.trim()) {
+            setErrorMessage(error_message);
+          } else if (error_code) {
+            setErrorMessage(`فشلت عملية الدفع (كود الخطأ: ${error_code})`);
+          } else {
+            setErrorMessage('فشلت عملية الدفع');
+          }
         }
       }
     };

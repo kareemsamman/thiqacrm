@@ -4,6 +4,62 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // It returns simple HTML that posts a message to the parent window
 // Also captures card details, installments, and sends SMS receipt
 
+// Map Tranzila response codes to Hebrew error messages
+function getErrorMessage(code: string, reason: string): string {
+  // If reason is provided by Tranzila, use it
+  if (reason) {
+    try {
+      return decodeURIComponent(reason)
+    } catch {
+      return reason
+    }
+  }
+  
+  // Map common Tranzila response codes to Hebrew messages
+  const errorMessages: Record<string, string> = {
+    '003': 'העסקה נדחתה - יש ליצור קשר עם חברת האשראי',
+    '004': 'הכרטיס נחסם או שייך לרשימה שחורה',
+    '005': 'יש לבצע עסקה טלפונית - התקשר לחברת האשראי',
+    '006': 'שגיאה בקוד CVV',
+    '009': 'העסקה נכשלה בבדיקת 3DSecure',
+    '010': 'שגיאה בתאריך תפוגה',
+    '015': 'הכרטיס לא קיים',
+    '017': 'העסקה נדחתה - מומלץ לנסות כרטיס אחר',
+    '024': 'לא ניתן לבצע עסקה מסוג זה',
+    '026': 'הכרטיס אינו תקף',
+    '027': 'יש להתקשר לחברת האשראי לאישור טלפוני',
+    '028': 'אין הרשאה לביצוע העסקה',
+    '029': 'עסקה לא מאושרת לעסק',
+    '030': 'בעיה בטרמינל',
+    '033': 'כרטיס אינו תקין',
+    '034': 'כרטיס לא רשום',
+    '035': 'סוג כרטיס לא מורשה לעסק',
+    '036': 'הכרטיס פג תוקף',
+    '037': 'שגיאה בסכום',
+    '038': 'יש להתקשר לחברת האשראי לאישור טלפוני של העסקה',
+    '039': 'מספר כרטיס לא תקין',
+    '041': 'הכרטיס אבד - יש לפנות לחברת האשראי',
+    '043': 'הכרטיס גנוב - יש לפנות לחברת האשראי',
+    '051': 'חריגה ממסגרת האשראי',
+    '054': 'הכרטיס פג תוקף',
+    '055': 'קוד PIN שגוי',
+    '057': 'העסקה נדחתה על ידי חברת האשראי',
+    '058': 'העסקה אינה מאושרת לעסק',
+    '059': 'העסקה נדחתה - בעיה בחברת האשראי',
+    '060': 'יש לפנות לחברת האשראי',
+    '061': 'חריגה מסכום מקסימלי',
+    '062': 'סוג כרטיס מוגבל',
+    '063': 'בעיית אימות 3DSecure',
+    '065': 'חריגה ממספר עסקאות מותר',
+    '075': 'נסיונות שגויים - נא לנסות מאוחר יותר',
+    '091': 'שגיאת תקשורת - נסה שוב',
+    '096': 'שגיאת מערכת',
+    '999': 'שגיאת מערכת - יש לנסות שוב',
+  }
+  
+  return errorMessages[code] || `העסקה נכשלה - קוד שגיאה: ${code}`
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url)
   const status = url.searchParams.get('status') || 'unknown'
@@ -20,11 +76,17 @@ Deno.serve(async (req) => {
   const expdate = url.searchParams.get('expdate') || url.searchParams.get('Expdate') || '' // MMYY
   const npay = url.searchParams.get('npay') || url.searchParams.get('Npay') || '1' // Number of installments
   
+  // Additional error info from Tranzila
+  const reason = url.searchParams.get('reason') || url.searchParams.get('Reason') || ''
+  const cResp = url.searchParams.get('CResp') || url.searchParams.get('cresp') || ''
+  const sum = url.searchParams.get('sum') || url.searchParams.get('Sum') || ''
+  
   console.log('Payment result page loaded:', { 
-    status, paymentId, responseCode, myid, 
+    status, paymentId, responseCode, myid, cResp, reason,
     ccno: ccno ? `****${ccno.slice(-4)}` : 'none',
     expdate,
-    npay
+    npay,
+    sum
   })
 
   // Determine actual status from response code if available
@@ -40,6 +102,11 @@ Deno.serve(async (req) => {
   if (ccno && ccno.length >= 4) {
     cardLastFour = ccno.replace(/\*/g, '').slice(-4)
   }
+
+  // Generate error message for failed payments
+  const errorMessage = finalStatus === 'failed' ? getErrorMessage(responseCode, reason) : ''
+  // URL-encode for safe embedding in JavaScript
+  const errorMessageEncoded = encodeURIComponent(errorMessage)
 
   // Also update payment in database if we have the info
   let updatedPayment: any = null
@@ -109,13 +176,14 @@ Deno.serve(async (req) => {
   }
 
   const isSuccess = finalStatus === 'success'
+  const displaySum = sum || ''
   
   const html = `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${isSuccess ? 'تم الدفع بنجاح' : 'فشل الدفع'}</title>
+  <title>${isSuccess ? 'תשלום בוצע בהצלחה' : 'התשלום נכשל'}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -147,7 +215,7 @@ Deno.serve(async (req) => {
       color: ${isSuccess ? '#16a34a' : '#dc2626'};
     }
     h1 {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       color: ${isSuccess ? '#16a34a' : '#dc2626'};
       margin-bottom: 12px;
@@ -156,6 +224,21 @@ Deno.serve(async (req) => {
       font-size: 16px;
       color: #6b7280;
       margin-bottom: 8px;
+    }
+    .error-reason {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .error-detail {
+      font-size: 15px;
+      color: #374151;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      line-height: 1.5;
     }
     .card-info {
       background: #f3f4f6;
@@ -183,15 +266,25 @@ Deno.serve(async (req) => {
         : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'
       }
     </div>
-    <h1>${isSuccess ? 'تمت عملية الدفع بنجاح!' : 'فشلت عملية الدفع'}</h1>
-    <p>${isSuccess ? 'شكراً لك، تم استلام الدفع' : 'حدث خطأ أثناء معالجة الدفع'}</p>
+    ${isSuccess 
+      ? `<h1>התשלום בוצע בהצלחה!</h1>
+         <p>תודה רבה, התשלום התקבל</p>`
+      : `<h1>${displaySum ? `עסקה בסך ₪${displaySum} נכשלה` : 'התשלום נכשל'}</h1>
+         <p class="error-reason">סיבת הכשלון:</p>
+         <div class="error-detail">${errorMessage}</div>`
+    }
     ${isSuccess && cardLastFour ? `
     <div class="card-info">
-      <span>بطاقة: ****${cardLastFour}</span>
-      ${parseInt(npay) > 1 ? `<span>عدد التقسيطات: ${npay}</span>` : ''}
+      <span>כרטיס: ****${cardLastFour}</span>
+      ${parseInt(npay) > 1 ? `<span>מספר תשלומים: ${npay}</span>` : ''}
     </div>
     ` : ''}
-    <p class="closing">سيتم إغلاق هذه النافذة تلقائياً...</p>
+    ${!isSuccess && cardLastFour ? `
+    <div class="card-info">
+      <span>אמצעי תשלום: כרטיס אשראי המסתיים ב-${cardLastFour}</span>
+    </div>
+    ` : ''}
+    <p class="closing">החלון ייסגר אוטומטית...</p>
   </div>
   
   <script>
@@ -203,7 +296,9 @@ Deno.serve(async (req) => {
           status: '${finalStatus}',
           payment_id: '${paymentId}',
           card_last_four: '${cardLastFour}',
-          installments: ${npay || 1}
+          installments: ${npay || 1},
+          error_code: '${responseCode}',
+          error_message: decodeURIComponent('${errorMessageEncoded}')
         };
         
         // Try parent

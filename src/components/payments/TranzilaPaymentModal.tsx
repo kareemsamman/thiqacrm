@@ -89,7 +89,7 @@ export function TranzilaPaymentModal({
     const handleMessage = (event: MessageEvent) => {
       // Check if message is from our payment pages
       if (event.data?.type === 'TRANZILA_PAYMENT_RESULT') {
-        const { status: paymentStatus, payment_id } = event.data;
+        const { status: paymentStatus, error_message, error_code } = event.data;
         
         // Clear polling since we got direct result
         if (pollingRef.current) {
@@ -109,7 +109,14 @@ export function TranzilaPaymentModal({
           }, 1500);
         } else if (paymentStatus === 'failed') {
           setStatus('failed');
-          setErrorMessage('فشلت عملية الدفع');
+          // Use detailed error message from Tranzila if available
+          if (error_message && error_message.trim()) {
+            setErrorMessage(error_message);
+          } else if (error_code) {
+            setErrorMessage(`فشلت عملية الدفع (كود الخطأ: ${error_code})`);
+          } else {
+            setErrorMessage('فشلت عملية الدفع');
+          }
         }
       }
     };

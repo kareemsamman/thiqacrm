@@ -4685,6 +4685,34 @@ export type Database = {
           total_value: number
         }[]
       }
+      report_renewed_clients: {
+        Args: {
+          p_created_by?: string
+          p_end_month?: string
+          p_page?: number
+          p_page_size?: number
+          p_policy_type?: string
+          p_search?: string
+        }
+        Returns: {
+          client_file_number: string
+          client_id: string
+          client_name: string
+          client_phone: string
+          earliest_end_date: string
+          has_package: boolean
+          new_policies_count: number
+          new_policy_ids: string[]
+          new_policy_types: string[]
+          new_start_date: string
+          new_total_price: number
+          policies_count: number
+          policy_ids: string[]
+          policy_types: string[]
+          total_count: number
+          total_insurance_price: number
+        }[]
+      }
       reverse_ledger_entry: {
         Args: { p_admin_id?: string; p_entry_id: string; p_reason?: string }
         Returns: string

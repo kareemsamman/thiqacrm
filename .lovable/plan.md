@@ -1,70 +1,101 @@
 
-# خطة: استيراد تفاضلي من WordPress (الجديد فقط بدون حذف)
 
-## ✅ تم التنفيذ
+# خطة: إصلاح خطأ "operator does not exist: policy_type_parent = text"
 
-تم تنفيذ وضع الاستيراد التفاضلي بنجاح!
+## المشكلة
 
-### ما تم إنجازه:
+خطأ في مقارنة نوعي بيانات مختلفين:
+- `p.policy_type_parent` هو من نوع ENUM (`policy_type_parent`)
+- `p_policy_type` هو من نوع TEXT
 
-1. **إضافة وضع الاستيراد التفاضلي** - مفعّل افتراضياً
-2. **تحليل ذكي للملف** - يُظهر عدد السجلات الجديدة vs الموجودة قبل الاستيراد
-3. **تخطي خطوات الحذف** - عند الوضع التفاضلي لا يتم تنفيذ:
-   - حذف البيانات (clear)
-   - حفظ/استعادة قواعد التسعير (لأنه لا حاجة لها)
-4. **واجهة مستخدم محسّنة**:
-   - بطاقة خضراء واضحة للوضع الآمن
-   - معاينة إحصائية قبل الاستيراد
-   - زر تحليل للتأكد مما سيتم استيراده
+PostgreSQL لا يمكنه مقارنة ENUM مع TEXT مباشرة.
+
+**رسالة الخطأ:**
+```
+operator does not exist: policy_type_parent = text
+```
 
 ---
 
-## كيف يعمل الآن؟
+## الحل
 
-### السيناريو:
+تحويل ENUM إلى TEXT قبل المقارنة:
 
-1. **رفع JSON جديد من WordPress**
-2. **اضغط "تحليل الملف"** - يُظهر:
-   - 🆕 50 عميل جديد سيُضاف
-   - 🔄 200 عميل موجود (سيُحدّث إذا تغيّر شيء)
-   - 🆕 30 سيارة جديدة
-   - 🆕 75 وثيقة جديدة
-3. **اضغط "بدء الاستيراد التفاضلي"**:
-   - يُضيف الجديد فقط
-   - يُحدّث الموجود (لو تغيّر)
-   - **لا يحذف أي شيء أبداً** ✅
+```sql
+-- قبل (خطأ):
+AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
+
+-- بعد (صحيح):
+AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
+```
 
 ---
 
-## آلية منع التكرار:
+## التغييرات المطلوبة
 
-| الكيان | مفتاح التميز | السلوك |
-|--------|--------------|--------|
-| العملاء | `id_number` | موجود → تحديث، جديد → إضافة |
-| السيارات | `car_number` | موجود → تحديث، جديد → إضافة |
-| الوثائق | `legacy_wp_id` | موجود → تحديث، جديد → إضافة |
-| المدفوعات | policy_id + date + amount | موجود → تخطي/تحديث |
-| الوسائط | entity_id + original_name | موجود → تخطي |
+### Migration SQL جديد:
 
----
+```sql
+-- Fix report_renewals - cast ENUM to TEXT for comparison
+CREATE OR REPLACE FUNCTION public.report_renewals(...)
+...
+WHERE ...
+  AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
+...
 
-## التغييرات التقنية:
-
-| التغيير | الوصف |
-|---------|-------|
-| `incrementalMode` state | حالة جديدة مفعّلة افتراضياً |
-| `analyzeJsonForIncrementalImport()` | دالة تحليل الملف قبل الاستيراد |
-| `incrementalAnalysis` state | نتائج التحليل (جديد vs موجود) |
-| تعديل `handleImport()` | تخطي خطوات الحذف في الوضع التفاضلي |
-| UI محسّن | بطاقة خضراء + معاينة إحصائية |
+-- Fix report_renewals_service - cast ENUM to TEXT for comparison  
+CREATE OR REPLACE FUNCTION public.report_renewals_service(...)
+...
+WHERE ...
+  AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
+...
+```
 
 ---
 
-## اختبار:
+## الملفات المتأثرة
 
-1. ✅ اذهب لصفحة `/wordpress-import`
-2. ✅ ارفع ملف JSON من WordPress
-3. ✅ تأكد أن "الاستيراد التفاضلي" مفعّل افتراضياً
-4. ✅ اضغط "تحليل الملف" وتأكد من عرض الإحصائيات
-5. ✅ اضغط "بدء الاستيراد التفاضلي"
-6. ✅ تأكد أن السجلات الجديدة أُضيفت والقديمة لم تُحذف
+| الملف | التغيير |
+|-------|---------|
+| **Database Migration (جديدة)** | إضافة `::text` لتحويل ENUM إلى TEXT في دالتي `report_renewals` و `report_renewals_service` |
+
+---
+
+## تفاصيل الإصلاح
+
+### في `report_renewals` (سطر 63):
+```sql
+-- من:
+AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
+
+-- إلى:
+AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
+```
+
+### في `report_renewals_service` (سطر 185):
+```sql
+-- من:
+AND (p_policy_type IS NULL OR p.policy_type_parent = p_policy_type)
+
+-- إلى:
+AND (p_policy_type IS NULL OR p.policy_type_parent::text = p_policy_type)
+```
+
+---
+
+## النتيجة المتوقعة
+
+بعد تطبيق الإصلاح:
+- صفحة `/reports/policies` ستعمل بدون أخطاء
+- فلترة الوثائق حسب النوع (إلزامي، ثالث/شامل، إلخ) ستعمل
+- تصدير PDF سيعمل
+
+---
+
+## اختبار
+
+1. اذهب لصفحة `/reports/policies`
+2. تأكد أن الصفحة تُحمّل بدون خطأ "فشل في تحميل البيانات"
+3. جرب تغيير فلتر "كل الأنواع" إلى نوع محدد
+4. تأكد أن البيانات تُعرض بشكل صحيح
+

@@ -354,6 +354,7 @@ export default function PolicyReports() {
 
   const fetchRenewals = async () => {
     setRenewalsLoading(true);
+    setRenewalsSummary(null); // Reset summary to prevent stale data
     try {
       const { startDate, endDate } = getRenewalDateRange();
       
@@ -382,8 +383,25 @@ export default function PolicyReports() {
       setRenewalClients(clientData);
       setRenewalsTotalRows(clientData[0]?.total_count || 0);
       
-      if (summaryRes.data && summaryRes.data.length > 0) {
+      // Handle summary separately to show errors clearly
+      if (summaryRes.error) {
+        console.error('Error fetching renewals summary:', summaryRes.error);
+        toast.error('فشل في تحميل ملخص التجديدات');
+      } else if (summaryRes.data && summaryRes.data.length > 0) {
         setRenewalsSummary(summaryRes.data[0] as unknown as RenewalSummary);
+      } else {
+        // No data returned, set default empty summary
+        setRenewalsSummary({
+          total_expiring: 0,
+          not_contacted: 0,
+          sms_sent: 0,
+          called: 0,
+          renewed: 0,
+          not_interested: 0,
+          total_packages: 0,
+          total_single: 0,
+          total_value: 0
+        });
       }
     } catch (error) {
       console.error('Error fetching renewals:', error);
@@ -953,8 +971,35 @@ export default function PolicyReports() {
 
           {/* Renewals Tab */}
           <TabsContent value="renewals" className="space-y-4 mt-6">
-            {/* Enhanced Summary Cards */}
-            {renewalsSummary && (
+            {/* Enhanced Summary Cards - with Skeleton for loading */}
+            {renewalsLoading && !renewalsSummary ? (
+              <div className="space-y-4">
+                {/* Main Stats Row - 3 Large Cards Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-3 flex-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-10 w-24" />
+                          <Skeleton className="h-3 w-28" />
+                        </div>
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                {/* Secondary Stats Row - 5 Small Cards Skeleton */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Card key={i} className="p-4 text-center">
+                      <Skeleton className="h-3 w-20 mx-auto mb-2" />
+                      <Skeleton className="h-8 w-12 mx-auto" />
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : renewalsSummary && (
               <div className="space-y-4">
                 {/* Main Stats Row - 3 Large Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

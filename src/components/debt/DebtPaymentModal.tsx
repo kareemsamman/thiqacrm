@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split, Upload, X, ImageIcon, HelpCircle, Car } from 'lucide-react';
+import { Loader2, CreditCard, Banknote, Wallet, AlertCircle, CheckCircle, DollarSign, Plus, Trash2, Split, Upload, X, ImageIcon, HelpCircle, Car, Package, FileText, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,18 @@ interface PolicyPaymentInfo {
   paid: number;
   remaining: number;
   branchId: string | null;
+  groupId: string | null;
+}
+
+interface GroupedPolicyDisplay {
+  groupKey: string;
+  isPackage: boolean;
+  policies: PolicyPaymentInfo[];
+  totalPrice: number;
+  totalPaid: number;
+  totalRemaining: number;
+  carNumber: string | null;
+  policyTypes: string[];
 }
 
 interface PaymentLine {
@@ -119,6 +131,39 @@ export function DebtPaymentModal({
     if (selectedCars.length === 0) return policies;
     return policies.filter(p => p.carNumber && selectedCars.includes(p.carNumber));
   }, [policies, selectedCars]);
+
+  // Group policies by group_id for display (packages vs single)
+  const groupedPoliciesDisplay = React.useMemo((): GroupedPolicyDisplay[] => {
+    const groupMap = new Map<string, PolicyPaymentInfo[]>();
+    
+    filteredPolicies.forEach(p => {
+      // Use group_id for packages, policy_id for singles
+      const key = p.groupId || `single_${p.policyId}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, []);
+      }
+      groupMap.get(key)!.push(p);
+    });
+    
+    const groups: GroupedPolicyDisplay[] = [];
+    
+    groupMap.forEach((policies, groupKey) => {
+      const isPackage = policies.length > 1 || (policies[0]?.groupId !== null);
+      groups.push({
+        groupKey,
+        isPackage,
+        policies,
+        totalPrice: policies.reduce((sum, p) => sum + p.price, 0),
+        totalPaid: policies.reduce((sum, p) => sum + p.paid, 0),
+        totalRemaining: policies.reduce((sum, p) => sum + p.remaining, 0),
+        carNumber: policies[0]?.carNumber || null,
+        policyTypes: [...new Set(policies.map(p => policyTypeLabels[p.policyType] || p.policyType))],
+      });
+    });
+    
+    // Sort by remaining (highest first)
+    return groups.sort((a, b) => b.totalRemaining - a.totalRemaining);
+  }, [filteredPolicies]);
 
   const totalRemaining = filteredPolicies.reduce((sum, p) => sum + p.remaining, 0);
   const totalPrice = filteredPolicies.reduce((sum, p) => sum + p.price, 0);
@@ -240,7 +285,7 @@ export function DebtPaymentModal({
       // This matches the debt tracking page logic
       const { data: policiesData, error: policiesError } = await supabase
         .from('policies')
-        .select('id, policy_type_parent, policy_type_child, insurance_price, branch_id, car:cars(car_number)')
+        .select('id, policy_type_parent, policy_type_child, insurance_price, branch_id, group_id, car:cars(car_number)')
         .eq('client_id', clientId)
         .eq('cancelled', false)
         .is('deleted_at', null)
@@ -304,6 +349,7 @@ export function DebtPaymentModal({
           paid: policyPayments[p.id] || 0,
           remaining: p.insurance_price - (policyPayments[p.id] || 0),
           branchId: p.branch_id,
+          groupId: p.group_id,
         }))
         .filter(p => p.remaining > 0);
 
@@ -728,22 +774,40 @@ export function DebtPaymentModal({
               </Card>
             )}
 
-            {/* Policy List */}
-            <div className="border rounded-lg divide-y max-h-32 overflow-auto">
-              {filteredPolicies.map(policy => (
-                <div key={policy.policyId} className="flex items-center justify-between p-2 text-sm">
-                  <div className="flex flex-col gap-0.5">
-                    <Badge variant="outline" className="text-xs w-fit">
-                      {getPolicyLabel(policy)}
-                    </Badge>
-                    {policy.carNumber && (
-                      <span className="text-xs text-muted-foreground font-mono">{policy.carNumber}</span>
-                    )}
-                  </div>
+            {/* ELZAMI Notice */}
+            <div className="flex items-center gap-2 text-sm p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-lg border border-amber-200 dark:border-amber-800/50">
+              <Info className="h-4 w-4 shrink-0" />
+              <span>المبلغ المعروض هو دين الوكالة فقط (لا يشمل الإلزامي - يُدفع للشركة مباشرة)</span>
+            </div>
+
+            {/* Grouped Policy List */}
+            <div className="border rounded-lg divide-y max-h-48 overflow-auto">
+              {groupedPoliciesDisplay.map(group => (
+                <div key={group.groupKey} className="flex items-center justify-between p-3 text-sm hover:bg-muted/30">
                   <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground ltr-nums">₪{policy.price.toLocaleString('en-US')}</span>
+                    {group.isPackage ? (
+                      <Package className="h-5 w-5 text-primary" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={group.isPackage ? "default" : "outline"} className="text-xs">
+                          {group.isPackage ? `📦 باقة - ${group.policies.length} وثائق` : '📄 منفردة'}
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {group.policyTypes.join(' + ')}
+                      </span>
+                      {group.carNumber && (
+                        <span className="text-xs text-muted-foreground font-mono">🚗 {group.carNumber}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-muted-foreground ltr-nums text-xs">السعر: ₪{group.totalPrice.toLocaleString('en-US')}</span>
                     <span className="font-medium text-destructive ltr-nums">
-                      -₪{policy.remaining.toLocaleString('en-US')}
+                      المتبقي: ₪{group.totalRemaining.toLocaleString('en-US')}
                     </span>
                   </div>
                 </div>

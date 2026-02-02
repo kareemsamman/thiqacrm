@@ -809,26 +809,62 @@ const WordPressImport = () => {
     setIncrementalAnalysis(null);
     
     try {
-      // Fetch existing data in parallel
-      const [clientsRes, carsRes, policiesRes] = await Promise.all([
-        supabase.from('clients').select('id_number').is('deleted_at', null),
-        supabase.from('cars').select('car_number').is('deleted_at', null),
-        supabase.from('policies').select('legacy_wp_id').not('legacy_wp_id', 'is', null),
+      // Helper function to fetch ALL records (bypasses 1000 row limit)
+      const fetchAllRecords = async (
+        tableName: 'clients' | 'cars' | 'policies',
+        selectField: string,
+        filters: { column: string; op: 'is' | 'not'; value: null }[]
+      ): Promise<string[]> => {
+        const allRecords: string[] = [];
+        const pageSize = 1000;
+        let offset = 0;
+        
+        while (true) {
+          let query = supabase.from(tableName).select(selectField);
+          
+          for (const filter of filters) {
+            if (filter.op === 'is') {
+              query = query.is(filter.column, filter.value);
+            } else {
+              query = query.not(filter.column, 'is', filter.value);
+            }
+          }
+          
+          const { data: batch, error } = await query.range(offset, offset + pageSize - 1);
+          
+          if (error) throw error;
+          if (!batch || batch.length === 0) break;
+          
+          allRecords.push(...batch.map((r: any) => r[selectField]));
+          if (batch.length < pageSize) break;
+          offset += pageSize;
+        }
+        
+        return allRecords;
+      };
+      
+      // Fetch ALL existing data in parallel (handles >1000 records)
+      const [existingClientIds, existingCarNumbers, existingPolicyWpIds] = await Promise.all([
+        fetchAllRecords('clients', 'id_number', [{ column: 'deleted_at', op: 'is', value: null }]),
+        fetchAllRecords('cars', 'car_number', [{ column: 'deleted_at', op: 'is', value: null }]),
+        fetchAllRecords('policies', 'legacy_wp_id', [{ column: 'legacy_wp_id', op: 'not', value: null }]),
       ]);
       
-      const existingClientIds = new Set((clientsRes.data || []).map(c => c.id_number));
-      const existingCarNumbers = new Set((carsRes.data || []).map(c => c.car_number));
-      const existingPolicyWpIds = new Set((policiesRes.data || []).map(p => p.legacy_wp_id));
+      const clientIdSet = new Set(existingClientIds.filter(Boolean));
+      const carNumberSet = new Set(existingCarNumbers.filter(Boolean));
+      const policyWpIdSet = new Set(existingPolicyWpIds.filter(Boolean));
+      
+      console.log(`[Analysis] Fetched ${clientIdSet.size} clients, ${carNumberSet.size} cars, ${policyWpIdSet.size} policies from DB`);
       
       // Analyze clients
       const jsonClients = data.clients || [];
-      const newClients = jsonClients.filter((c: any) => !existingClientIds.has(c.id_number));
+      const newClients = jsonClients.filter((c: any) => !clientIdSet.has(c.id_number));
       
       // Extract cars from policies
       const carsMap = new Map<string, boolean>();
       for (const policy of data.policies || []) {
         if (policy.car_number) {
-          carsMap.set(policy.car_number, existingCarNumbers.has(policy.car_number));
+          carsMap.set(policy.car_number, carNumberSet.has(policy.car_number));
         }
       }
       const newCars = Array.from(carsMap.entries()).filter(([_, exists]) => !exists).length;
@@ -836,7 +872,7 @@ const WordPressImport = () => {
       
       // Analyze policies
       const jsonPolicies = data.policies || [];
-      const newPolicies = jsonPolicies.filter((p: any) => !existingPolicyWpIds.has(p.legacy_wp_id));
+      const newPolicies = jsonPolicies.filter((p: any) => !policyWpIdSet.has(p.legacy_wp_id));
       
       // Count payments
       let totalPayments = 0;
@@ -851,7 +887,7 @@ const WordPressImport = () => {
         payments: { new: totalPayments, existing: 0 }, // Payments will be linked to policies
       });
       
-      toast({ title: "تم التحليل", description: "يمكنك مراجعة ما سيتم استيراده" });
+      toast({ title: "تم التحليل", description: `موجود: ${clientIdSet.size} عميل، ${carNumberSet.size} سيارة، ${policyWpIdSet.size} وثيقة` });
     } catch (err: any) {
       console.error('Analysis error:', err);
       toast({ title: "خطأ في التحليل", description: err.message, variant: "destructive" });

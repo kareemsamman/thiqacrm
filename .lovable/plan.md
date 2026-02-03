@@ -1,167 +1,122 @@
 
+# خطة: إصلاح تقرير PDF التجديدات
 
-# خطة: إصلاح حد 1000 سجل في تحليل الاستيراد التفاضلي
+## المشاكل المكتشفة
 
-## المشكلة المحددة
+### المشكلة 1: عدد الزبائن في PDF (83) لا يطابق الواجهة (77)
 
-الكود الحالي في `analyzeJsonForIncrementalImport` يستخدم استعلامات Supabase العادية التي ترجع **فقط 1000 سجل** كحد أقصى:
+**السبب:**
+- **الواجهة** تستخدم `report_renewals_summary` التي تستثني الزبائن الذين تم تجديدهم:
+  ```sql
+  FILTER (WHERE cs.client_status != 'renewed')
+  ```
+- **PDF** يستخدم `report_renewals_service` التي ترجع **جميع** الزبائن بما فيهم الـ 6 الذين تم تجديدهم
 
-```typescript
-// الكود الحالي - يرجع 1000 سجل فقط!
-const [clientsRes, carsRes, policiesRes] = await Promise.all([
-  supabase.from('clients').select('id_number').is('deleted_at', null),
-  supabase.from('cars').select('car_number').is('deleted_at', null),
-  supabase.from('policies').select('legacy_wp_id').not('legacy_wp_id', 'is', null),
-]);
-```
-
-**الأرقام الفعلية في قاعدة البيانات:**
-| الكيان | العدد الفعلي | ما يرجعه الاستعلام |
-|--------|-------------|-------------------|
-| العملاء | 1,069 | 1,000 |
-| السيارات | 1,448 | 1,000 |
-| الوثائق | 4,671 | 1,000 |
-
-**النتيجة الخاطئة:**
-- الـ 65 عميل "جديد" هم في الحقيقة موجودون لكن لم يتم جلبهم!
-- الـ 3716 وثيقة "جديدة" = معظمها موجودة لكن لم يتم جلبها!
+**الحل:** تعديل `report_renewals_service` لاستثناء الزبائن المجددين (renewed) من النتائج
 
 ---
 
-## الحل
+### المشكلة 2: تفاصيل الوثائق مفقودة في PDF
 
-استخدام **دالة مساعدة للـ pagination** تجلب كل السجلات:
+**الحالي:** يظهر صف واحد لكل زبون مع أرقام السيارات والأنواع مجمعة
+**المطلوب:** عرض كل وثيقة بشكل منفصل تحت الزبون (كما في الأكورديون)
+
+**الحل:** إنشاء دالة جديدة تُرجع الوثائق الفردية لكل زبون، وتحديث HTML لعرضها
+
+---
+
+## التغييرات المطلوبة
+
+### 1. تحديث دالة `report_renewals_service` (Database Migration)
+
+```sql
+-- إضافة شرط لاستثناء الزبائن المجددين
+WHERE ...
+  AND NOT EXISTS (
+    SELECT 1 FROM policies newer
+    WHERE newer.client_id = c.id
+      AND newer.car_id IS NOT DISTINCT FROM p.car_id
+      AND newer.policy_type_parent = p.policy_type_parent
+      AND newer.cancelled = false
+      AND newer.start_date > p.start_date
+      AND newer.end_date > CURRENT_DATE
+  )
+```
+
+### 2. إنشاء دالة جديدة `report_renewals_service_detailed`
+
+```sql
+-- ترجع الوثائق الفردية مع معلومات الزبون والشركة
+CREATE FUNCTION report_renewals_service_detailed(
+  p_end_month date,
+  p_days_remaining int,
+  p_policy_type text
+)
+RETURNS TABLE(
+  client_id uuid,
+  client_name text,
+  client_file_number text,
+  client_phone text,
+  policy_id uuid,
+  car_number text,
+  policy_type_parent text,
+  company_name_ar text,
+  end_date date,
+  days_remaining int,
+  insurance_price numeric,
+  renewal_status text
+)
+```
+
+### 3. تحديث Edge Function `generate-renewals-report`
 
 ```typescript
-// دالة مساعدة لجلب كل السجلات
-const fetchAllRecords = async <T>(
-  tableName: string,
-  selectFields: string,
-  filters?: { column: string; op: 'is' | 'not'; value: any }[]
-): Promise<T[]> => {
-  const allRecords: T[] = [];
-  const pageSize = 1000;
-  let offset = 0;
-  
-  while (true) {
-    let query = supabase.from(tableName).select(selectFields);
-    
-    // Apply filters
-    if (filters) {
-      for (const filter of filters) {
-        if (filter.op === 'is') {
-          query = query.is(filter.column, filter.value);
-        } else if (filter.op === 'not') {
-          query = query.not(filter.column, 'is', filter.value);
-        }
-      }
-    }
-    
-    const { data, error } = await query.range(offset, offset + pageSize - 1);
-    
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    
-    allRecords.push(...(data as T[]));
-    if (data.length < pageSize) break;
-    offset += pageSize;
-  }
-  
-  return allRecords;
-};
+// جلب البيانات التفصيلية بدلاً من المجمعة
+const { data: policies } = await supabase.rpc('report_renewals_service_detailed', {
+  p_end_month: `${month}-01`,
+  p_days_remaining: days_filter,
+  p_policy_type: policy_type
+});
+
+// تجميع الوثائق حسب الزبون
+const clientsMap = new Map<string, { info: ClientInfo, policies: PolicyInfo[] }>();
+```
+
+### 4. تحديث HTML Template
+
+```html
+<!-- لكل زبون -->
+<tr class="client-header">
+  <td colspan="10">${client.name} - ${client.phone}</td>
+</tr>
+<!-- الوثائق تحت الزبون -->
+<tr class="policy-row">
+  <td></td>
+  <td>السيارة: ${policy.car_number}</td>
+  <td>${policy.policy_type}</td>
+  <td>${policy.company}</td>
+  <td>${policy.end_date}</td>
+  <td>${policy.days_remaining} يوم</td>
+  <td>₪${policy.price}</td>
+  <td>${policy.status}</td>
+</tr>
 ```
 
 ---
 
-## التغييرات في الملفات
+## ملخص الملفات المتأثرة
 
 | الملف | التغيير |
 |-------|---------|
-| `src/pages/WordPressImport.tsx` | تحديث `analyzeJsonForIncrementalImport` لاستخدام pagination |
-
----
-
-## الكود المحدث
-
-```typescript
-const analyzeJsonForIncrementalImport = async (data: any) => {
-  if (!data) return;
-  
-  setAnalyzingJson(true);
-  setIncrementalAnalysis(null);
-  
-  try {
-    // دالة مساعدة لجلب كل السجلات (تتجاوز حد 1000)
-    const fetchAllRecords = async (
-      tableName: string,
-      selectField: string,
-      filters: { column: string; op: 'is' | 'not'; value: any }[]
-    ): Promise<string[]> => {
-      const allRecords: string[] = [];
-      const pageSize = 1000;
-      let offset = 0;
-      
-      while (true) {
-        let query = supabase.from(tableName).select(selectField);
-        
-        for (const filter of filters) {
-          if (filter.op === 'is') {
-            query = query.is(filter.column, filter.value);
-          } else {
-            query = query.not(filter.column, 'is', filter.value);
-          }
-        }
-        
-        const { data: batch, error } = await query.range(offset, offset + pageSize - 1);
-        
-        if (error) throw error;
-        if (!batch || batch.length === 0) break;
-        
-        allRecords.push(...batch.map((r: any) => r[selectField]));
-        if (batch.length < pageSize) break;
-        offset += pageSize;
-      }
-      
-      return allRecords;
-    };
-    
-    // جلب كل البيانات الموجودة (بدون حد 1000)
-    const [existingClientIds, existingCarNumbers, existingPolicyWpIds] = await Promise.all([
-      fetchAllRecords('clients', 'id_number', [{ column: 'deleted_at', op: 'is', value: null }]),
-      fetchAllRecords('cars', 'car_number', [{ column: 'deleted_at', op: 'is', value: null }]),
-      fetchAllRecords('policies', 'legacy_wp_id', [{ column: 'legacy_wp_id', op: 'not', value: null }]),
-    ]);
-    
-    const clientIdSet = new Set(existingClientIds.filter(Boolean));
-    const carNumberSet = new Set(existingCarNumbers.filter(Boolean));
-    const policyWpIdSet = new Set(existingPolicyWpIds.filter(Boolean));
-    
-    // الباقي كما هو...
-  } catch (err: any) {
-    // ...
-  }
-};
-```
+| **Database Migration** | تحديث `report_renewals_service` لاستثناء المجددين + إنشاء دالة تفصيلية جديدة |
+| `supabase/functions/generate-renewals-report/index.ts` | استخدام الدالة الجديدة + تحديث HTML Template |
 
 ---
 
 ## النتيجة المتوقعة
 
-بعد التعديل:
-
-| الكيان | قبل الإصلاح | بعد الإصلاح |
-|--------|-------------|-------------|
-| العملاء الجدد | 65 ❌ | ~0-5 ✅ |
-| الوثائق الجديدة | 3716 ❌ | الرقم الحقيقي ✅ |
-
----
-
-## اختبار
-
-1. اذهب لصفحة `/wordpress-import`
-2. ارفع نفس الملف JSON
-3. اضغط "تحليل الملف"
-4. تأكد أن الأرقام منطقية:
-   - العملاء الموجودين = ~1069
-   - الوثائق الموجودة = ~4671
-
+| قبل | بعد |
+|-----|-----|
+| 83 زبون في PDF | 77 زبون (يطابق الواجهة) |
+| صف واحد لكل زبون | صفوف للوثائق تحت كل زبون |
+| أنواع مجمعة: "إلزامي, ثالث/شامل" | كل وثيقة منفصلة بتفاصيلها |

@@ -416,6 +416,21 @@ async function sendPaymentReceiptSms(supabase: any, payment: any) {
     const smsResult = await smsResponse.text()
     console.log('SMS result:', smsResult)
 
+    // Log SMS to sms_logs table
+    const { error: logError } = await supabase.from('sms_logs').insert({
+      client_id: client.id || null,
+      policy_id: policy?.id || null,
+      phone_number: phone,
+      message: message,
+      sms_type: 'payment_confirmation',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    if (logError) {
+      console.error('Error logging SMS:', logError);
+    }
+
   } catch (error) {
     console.error('Error sending payment receipt SMS:', error)
   }

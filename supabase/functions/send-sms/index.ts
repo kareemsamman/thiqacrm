@@ -165,6 +165,19 @@ serve(async (req) => {
       );
     }
 
+    // Log SMS to sms_logs table
+    const { error: logError } = await supabase.from('sms_logs').insert({
+      phone_number: cleanPhone,
+      message: message,
+      sms_type: 'manual',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    if (logError) {
+      console.error("Error logging SMS:", logError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

@@ -265,7 +265,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const [packageTotalPaid, setPackageTotalPaid] = useState<number>(0);
   const [policyChildren, setPolicyChildren] = useState<{ id: string; child: { id: string; full_name: string; id_number: string; relation: string | null; phone: string | null } | null }[]>([]);
   const [packagePayments, setPackagePayments] = useState<Payment[]>([]);
-  const [packageEditPolicy, setPackageEditPolicy] = useState<any>(null);
+  const [packageEditGroupId, setPackageEditGroupId] = useState<string | null>(null);
 
   const handleSendSignatureSms = async () => {
     if (!policy || !policy.clients.phone_number) {
@@ -1186,6 +1186,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                             insurance_price: policy.insurance_price,
                             profit: policy.profit,
                             is_under_24: policy.is_under_24,
+                            group_id: policy.group_id,
                             insurance_companies: policy.insurance_companies,
                             road_services: policy.road_services,
                             cars: policy.cars ? {
@@ -1203,6 +1204,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                             insurance_price: rp.insurance_price,
                             profit: rp.profit,
                             is_under_24: policy.is_under_24,
+                            group_id: policy.group_id,
                             insurance_companies: rp.insurance_companies,
                             road_services: rp.road_services,
                             accident_fee_services: rp.accident_fee_services,
@@ -1214,7 +1216,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                           }))
                         ]}
                         isAdmin={isAdmin}
-                        onEditPolicy={(p) => setPackageEditPolicy(p)}
+                        onEditPolicy={(p) => setPackageEditGroupId(p.group_id || null)}
                       />
                     )}
 
@@ -1464,9 +1466,9 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
             onTransferred={handleEditComplete}
           />
           <PackagePolicyEditModal
-            open={!!packageEditPolicy}
-            onOpenChange={(isOpen) => !isOpen && setPackageEditPolicy(null)}
-            policy={packageEditPolicy}
+            open={!!packageEditGroupId}
+            onOpenChange={(isOpen) => !isOpen && setPackageEditGroupId(null)}
+            groupId={packageEditGroupId}
             onSaved={handleEditComplete}
           />
         </>

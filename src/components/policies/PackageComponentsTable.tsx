@@ -20,6 +20,7 @@ interface PackagePolicy {
   insurance_price: number;
   profit: number | null;
   is_under_24?: boolean | null;
+  group_id?: string | null;
   insurance_companies?: {
     id: string;
     name: string;

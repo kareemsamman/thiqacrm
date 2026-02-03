@@ -1,49 +1,132 @@
 
-# خطة: إصلاح فتح رابط الفاتورة عند الطباعة
+# خطة: تسجيل جميع رسائل SMS المُرسلة عبر 019sms في سجل الرسائل
 
-## المشكلة
+## المشكلة الحالية
 
-عند الضغط على "طباعة الفاتورة"، لا يتم فتح الرابط في نافذة جديدة لأن:
-1. الـ Edge Function للباقات (`send-package-invoice-sms`) يُرجع: `package_invoice_url`
-2. الـ Edge Function للوثيقة المفردة (`send-invoice-sms`) يُرجع: `ab_invoice_url`
-3. الكود في `InvoiceSendPrintDialog.tsx` يبحث فقط عن: `ab_invoice_url` أو `invoice_url`
+صفحة "سجل الرسائل النصية" لا تعرض جميع الرسائل المرسلة عبر 019sms لأن العديد من Edge Functions تُرسل SMS ولكن **لا تُسجّل في جدول `sms_logs`**.
 
-**النتيجة**: الرابط `package_invoice_url` لا يُقرأ → يظهر toast فارغ
+### تحليل المشكلة
 
-## الحل
+| Edge Function | يُرسل SMS | يُسجّل في sms_logs |
+|--------------|-----------|------------------|
+| `send-invoice-sms` | ✅ | ❌ **غير مُسجّل** |
+| `send-package-invoice-sms` | ✅ | ❌ **غير مُسجّل** |
+| `send-sms` (يدوي) | ✅ | ⚠️ التسجيل من الـ caller |
+| `cron-renewal-reminders` | ✅ | ❌ **غير مُسجّل** |
+| `payment-result` | ✅ | ❌ **غير مُسجّل** |
+| `send-signature-sms` | ✅ | ✅ مُسجّل |
+| `send-renewal-reminders` | ✅ | ✅ مُسجّل |
+| `send-marketing-sms` | ✅ | ✅ مُسجّل |
 
-تعديل السطر 96 في `InvoiceSendPrintDialog.tsx` ليشمل جميع أسماء الروابط الممكنة:
+---
+
+## الحل المقترح
+
+إضافة تسجيل SMS في جميع الـ Edge Functions التي ترسل رسائل ولكن لا تسجّلها.
+
+---
+
+## التغييرات المطلوبة
+
+### 1. تعديل `send-invoice-sms/index.ts`
+
+بعد إرسال SMS بنجاح (سطر ~375)، إضافة:
 
 ```typescript
-// قبل:
-const invoiceUrl = data?.ab_invoice_url || data?.invoice_url;
-
-// بعد:
-const invoiceUrl = data?.ab_invoice_url || data?.package_invoice_url || data?.invoice_url;
+// Log to sms_logs
+await supabase.from('sms_logs').insert({
+  branch_id: policy.branch_id,
+  client_id: policy.client_id,
+  policy_id: policy_id,
+  phone_number: cleanPhone,
+  message: smsMessage,
+  sms_type: 'invoice',
+  status: 'sent',
+  sent_at: new Date().toISOString(),
+});
 ```
 
-## الملف المتأثر
+### 2. تعديل `send-package-invoice-sms/index.ts`
 
-| الملف | التغيير |
-|-------|---------|
-| `src/components/policies/InvoiceSendPrintDialog.tsx` | إضافة `package_invoice_url` للبحث |
+بعد إرسال SMS بنجاح (سطر ~352)، إضافة نفس التسجيل مع أول policy_id من الباقة.
 
-## التغيير التفصيلي
+### 3. تعديل `cron-renewal-reminders/index.ts`
 
-**السطر 96:**
+إضافة تسجيل SMS بعد الإرسال الناجح:
+
 ```typescript
-const invoiceUrl = data?.ab_invoice_url || data?.package_invoice_url || data?.invoice_url;
+await supabase.from('sms_logs').insert({
+  branch_id: policy.branch_id,
+  client_id: policy.client_id,
+  policy_id: policy.id,
+  phone_number: cleanPhone,
+  message: smsMessage,
+  sms_type: 'reminder_1week', // أو حسب نوع التذكير
+  status: smsSuccess ? 'sent' : 'failed',
+  error_message: smsSuccess ? null : apiMessage,
+  sent_at: new Date().toISOString(),
+});
 ```
 
-هذا يضمن أن:
-- للوثيقة المفردة → يستخدم `ab_invoice_url`
-- للباقة → يستخدم `package_invoice_url`
-- كخيار احتياطي → `invoice_url`
+### 4. تعديل `payment-result/index.ts`
+
+إضافة تسجيل بعد إرسال SMS تأكيد الدفع.
+
+### 5. تعديل `send-sms/index.ts`
+
+تسجيل الرسالة مباشرة داخل الـ Edge Function بدلاً من الاعتماد على الـ caller:
+
+```typescript
+// Log to sms_logs (after successful send)
+await supabase.from('sms_logs').insert({
+  phone_number: cleanPhone,
+  message: message,
+  sms_type: 'manual',
+  status: 'sent',
+  sent_at: new Date().toISOString(),
+});
+```
+
+---
+
+## تحديث نوع SMS الجديد
+
+قد نحتاج إضافة أنواع جديدة لـ `sms_type` enum:
+- `payment_confirmation` - تأكيد الدفع
+- `payment_receipt` - إيصال الدفع
+
+```sql
+ALTER TYPE sms_type ADD VALUE 'payment_confirmation';
+ALTER TYPE sms_type ADD VALUE 'payment_receipt';
+```
+
+---
+
+## الملفات المتأثرة
+
+| الملف | نوع التغيير |
+|-------|-------------|
+| `supabase/functions/send-invoice-sms/index.ts` | إضافة تسجيل SMS |
+| `supabase/functions/send-package-invoice-sms/index.ts` | إضافة تسجيل SMS |
+| `supabase/functions/cron-renewal-reminders/index.ts` | إضافة تسجيل SMS |
+| `supabase/functions/payment-result/index.ts` | إضافة تسجيل SMS |
+| `supabase/functions/send-sms/index.ts` | نقل التسجيل للداخل |
+| قاعدة البيانات | إضافة قيم enum جديدة |
+| `src/pages/SmsHistory.tsx` | إضافة أنواع SMS الجديدة للعرض |
+
+---
 
 ## النتيجة المتوقعة
 
-عند الضغط على "طباعة الفاتورة":
-1. يستدعي الـ Edge Function مع `skip_sms: true`
-2. يحصل على رابط الفاتورة (سواء `ab_invoice_url` أو `package_invoice_url`)
-3. يفتح الرابط في نافذة جديدة `window.open(invoiceUrl, "_blank")`
-4. يُظهر toast نجاح "تم فتح الفاتورة في نافذة جديدة"
+بعد التعديل:
+- ✅ جميع رسائل الفواتير (invoices) ستظهر في السجل
+- ✅ رسائل الباقات ستظهر
+- ✅ تأكيدات الدفع ستظهر
+- ✅ كل رسالة ستحتوي على النص الكامل للعرض
+- ✅ ربط الرسالة بالعميل والوثيقة للتتبع
+
+---
+
+## ملخص
+
+المشكلة ليست في صفحة العرض، بل في أن Edge Functions المسؤولة عن إرسال الفواتير والتذكيرات **لا تُسجّل الرسائل في قاعدة البيانات**. الحل هو إضافة `supabase.from('sms_logs').insert(...)` بعد كل عملية إرسال SMS ناجحة.

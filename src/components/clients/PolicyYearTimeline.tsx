@@ -67,6 +67,9 @@ interface PolicyRecord {
 
 interface PolicyYearTimelineProps {
   policies: PolicyRecord[];
+  paymentInfo?: Record<string, { paid: number; remaining: number }>;
+  accidentInfo?: Record<string, number>;
+  childrenInfo?: Record<string, number>;
   onPolicyClick: (policyId: string) => void;
   onPaymentAdded?: () => void;
   onTransferPolicy?: (policyId: string) => void;
@@ -195,6 +198,9 @@ interface YearGroup {
 
 export function PolicyYearTimeline({ 
   policies, 
+  paymentInfo: externalPaymentInfo,
+  accidentInfo: externalAccidentInfo,
+  childrenInfo: externalChildrenInfo,
   onPolicyClick, 
   onPaymentAdded,
   onTransferPolicy,
@@ -205,10 +211,18 @@ export function PolicyYearTimeline({
   onPoliciesUpdate
 }: PolicyYearTimelineProps) {
   const { isSuperAdmin } = useAuth();
-  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({});
-  const [accidentInfo, setAccidentInfo] = useState<Record<string, number>>({});
-  const [childrenInfo, setChildrenInfo] = useState<Record<string, number>>({});
-  const [loadingPayments, setLoadingPayments] = useState(true);
+  
+  // Use external data if provided (from ClientDetails), otherwise use internal state
+  const hasExternalData = externalPaymentInfo !== undefined;
+  const [internalPaymentInfo, setInternalPaymentInfo] = useState<PaymentInfo>({});
+  const [internalAccidentInfo, setInternalAccidentInfo] = useState<Record<string, number>>({});
+  const [internalChildrenInfo, setInternalChildrenInfo] = useState<Record<string, number>>({});
+  const [loadingPayments, setLoadingPayments] = useState(!hasExternalData);
+  
+  // Use external or internal data
+  const paymentInfo = externalPaymentInfo ?? internalPaymentInfo;
+  const accidentInfo = externalAccidentInfo ?? internalAccidentInfo;
+  const childrenInfo = externalChildrenInfo ?? internalChildrenInfo;
   const [packagePaymentOpen, setPackagePaymentOpen] = useState(false);
   const [selectedPackagePolicyIds, setSelectedPackagePolicyIds] = useState<string[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -245,11 +259,16 @@ export function PolicyYearTimeline({
     }
   };
 
-  // Fetch payment info
+  // Fetch payment info only if not provided externally
   useEffect(() => {
+    if (hasExternalData) {
+      setLoadingPayments(false);
+      return;
+    }
+
     const fetchPaymentInfo = async () => {
       if (policies.length === 0) {
-        setPaymentInfo({});
+        setInternalPaymentInfo({});
         setLoadingPayments(false);
         return;
       }
@@ -274,7 +293,7 @@ export function PolicyYearTimeline({
           };
         });
 
-        setPaymentInfo(info);
+        setInternalPaymentInfo(info);
       } catch (error) {
         console.error('Error fetching payment info:', error);
       } finally {
@@ -283,13 +302,15 @@ export function PolicyYearTimeline({
     };
 
     fetchPaymentInfo();
-  }, [policies]);
+  }, [policies, hasExternalData]);
 
-  // Fetch accident reports count per policy
+  // Fetch accident reports count per policy only if not provided externally
   useEffect(() => {
+    if (hasExternalData) return;
+
     const fetchAccidentInfo = async () => {
       if (policies.length === 0) {
-        setAccidentInfo({});
+        setInternalAccidentInfo({});
         return;
       }
 
@@ -306,20 +327,22 @@ export function PolicyYearTimeline({
           counts[row.policy_id] = (counts[row.policy_id] || 0) + 1;
         });
 
-        setAccidentInfo(counts);
+        setInternalAccidentInfo(counts);
       } catch (error) {
         console.error('Error fetching accident info:', error);
       }
     };
 
     fetchAccidentInfo();
-  }, [policies]);
+  }, [policies, hasExternalData]);
 
-  // Fetch children/additional drivers count per policy
+  // Fetch children/additional drivers count per policy only if not provided externally
   useEffect(() => {
+    if (hasExternalData) return;
+
     const fetchChildrenInfo = async () => {
       if (policies.length === 0) {
-        setChildrenInfo({});
+        setInternalChildrenInfo({});
         return;
       }
 
@@ -336,14 +359,14 @@ export function PolicyYearTimeline({
           counts[row.policy_id] = (counts[row.policy_id] || 0) + 1;
         });
 
-        setChildrenInfo(counts);
+        setInternalChildrenInfo(counts);
       } catch (error) {
         console.error('Error fetching children info:', error);
       }
     };
 
     fetchChildrenInfo();
-  }, [policies]);
+  }, [policies, hasExternalData]);
 
   // Group policies by year, then by package
   const yearGroups = useMemo((): YearGroup[] => {
@@ -552,6 +575,12 @@ export function PolicyYearTimeline({
   };
 
   const refreshPaymentInfo = async () => {
+    // If using external data, call onPaymentAdded to refresh parent
+    if (hasExternalData) {
+      if (onPaymentAdded) onPaymentAdded();
+      return;
+    }
+    
     if (policies.length === 0) return;
     const policyIds = policies.map(p => p.id);
     const { data: paymentsData } = await supabase
@@ -569,7 +598,7 @@ export function PolicyYearTimeline({
         remaining: p.insurance_price - paid,
       };
     });
-    setPaymentInfo(info);
+    setInternalPaymentInfo(info);
   };
 
   const getPackagePaymentStatus = (pkg: PolicyPackage) => {

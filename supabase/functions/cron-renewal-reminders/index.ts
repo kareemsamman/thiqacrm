@@ -196,9 +196,10 @@ serve(async (req) => {
           const { data: smsLog } = await supabase
             .from("sms_logs")
             .insert({
+              branch_id: policy.branch_id || null,
               phone_number: cleanPhone,
               message: message,
-              sms_type: 'renewal_reminder',
+              sms_type: reminderType === '1month' ? 'reminder_1month' : 'reminder_1week',
               status: 'sent',
               client_id: client.id,
               policy_id: policy.id,

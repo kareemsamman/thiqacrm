@@ -350,6 +350,22 @@ serve(async (req) => {
       );
     }
 
+    // Log SMS to sms_logs table
+    const { error: logError } = await supabase.from('sms_logs').insert({
+      branch_id: policies[0]?.branch_id || null,
+      client_id: client?.id || null,
+      policy_id: policy_ids[0], // Primary policy
+      phone_number: cleanPhone,
+      message: smsMessage,
+      sms_type: 'invoice',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    if (logError) {
+      console.error("[send-package-invoice-sms] Error logging SMS:", logError);
+    }
+
     // Mark all policies as sent
     const { error: updateError } = await supabase
       .from("policies")

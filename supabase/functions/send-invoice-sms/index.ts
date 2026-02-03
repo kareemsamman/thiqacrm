@@ -373,6 +373,22 @@ serve(async (req) => {
       );
     }
 
+    // Log SMS to sms_logs table
+    const { error: logError } = await supabase.from('sms_logs').insert({
+      branch_id: policy.branch_id || null,
+      client_id: policy.client?.id || null,
+      policy_id: policy_id,
+      phone_number: cleanPhone,
+      message: smsMessage,
+      sms_type: 'invoice',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    if (logError) {
+      console.error("[send-invoice-sms] Error logging SMS:", logError);
+    }
+
     // Mark as sent
     const { error: updateError } = await supabase
       .from("policies")

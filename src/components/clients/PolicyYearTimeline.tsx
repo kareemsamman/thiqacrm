@@ -1065,6 +1065,31 @@ function PolicyPackageCard({
           </div>
         </div>
 
+        {/* Package Components Section - Shows details for each policy in the package */}
+        {isPackage && pkg.mainPolicy && (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              مكونات الباقة
+            </div>
+            <div className="space-y-1">
+              {/* Main policy */}
+              <PackageComponentRow 
+                policy={pkg.mainPolicy} 
+                isActive={isActive}
+              />
+              {/* Addons */}
+              {pkg.addons.map(addon => (
+                <PackageComponentRow 
+                  key={addon.id} 
+                  policy={addon} 
+                  isActive={isActive}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Notes Section - Inline Edit */}
         <div 
           className="mt-3 pt-3 border-t border-border/50"
@@ -1137,5 +1162,57 @@ function PolicyPackageCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+// Compact row component for package component details
+function PackageComponentRow({ 
+  policy, 
+  isActive 
+}: { 
+  policy: PolicyRecord; 
+  isActive: boolean;
+}) {
+  const typeLabel = getDisplayLabel(policy);
+  const typeColor = policyTypeColors[policy.policy_type_parent];
+  
+  // Get company/service name based on policy type
+  const getProviderName = () => {
+    // For road service or accident fee policies, the company field should contain the service provider
+    // If not, we show the insurance company
+    return policy.company?.name_ar || policy.company?.name || '-';
+  };
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between text-xs rounded-md px-2.5 py-1.5",
+      isActive ? "bg-muted/40" : "bg-muted/20"
+    )}>
+      <div className="flex items-center gap-2 min-w-0">
+        <Badge className={cn("text-[10px] px-1.5 py-0 h-5 font-medium border", typeColor)}>
+          {typeLabel}
+        </Badge>
+        <span className={cn(
+          "truncate max-w-[120px]",
+          isActive ? "text-muted-foreground" : "text-muted-foreground/70"
+        )}>
+          {getProviderName()}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className={cn(
+          "ltr-nums text-[11px]",
+          isActive ? "text-muted-foreground" : "text-muted-foreground/70"
+        )}>
+          {formatDate(policy.start_date).slice(0, 5)} → {formatDate(policy.end_date).slice(0, 5)}
+        </span>
+        <span className={cn(
+          "font-semibold ltr-nums min-w-[60px] text-left",
+          isActive ? "text-foreground" : "text-muted-foreground"
+        )}>
+          ₪{policy.insurance_price.toLocaleString()}
+        </span>
+      </div>
+    </div>
   );
 }

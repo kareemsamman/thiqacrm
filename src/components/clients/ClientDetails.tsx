@@ -269,6 +269,11 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
   const [deletingCar, setDeletingCar] = useState(false);
   const [carPolicyCounts, setCarPolicyCounts] = useState<Record<string, number>>({});
   
+  // Policy metadata - fetched once, used for instant filtering
+  const [policyPaymentInfo, setPolicyPaymentInfo] = useState<Record<string, { paid: number; remaining: number }>>({});
+  const [policyAccidentCounts, setPolicyAccidentCounts] = useState<Record<string, number>>({});
+  const [policyChildrenCounts, setPolicyChildrenCounts] = useState<Record<string, number>>({});
+  
   // Payment delete state
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   const [deletePaymentDialogOpen, setDeletePaymentDialogOpen] = useState(false);
@@ -341,6 +346,63 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
     }
   };
 
+  // Fetch policy metadata (payments, accidents, children) - called once after policies load
+  const fetchPolicyMetadata = async (policyIds: string[], policiesData: PolicyRecord[]) => {
+    if (policyIds.length === 0) {
+      setPolicyPaymentInfo({});
+      setPolicyAccidentCounts({});
+      setPolicyChildrenCounts({});
+      return;
+    }
+
+    try {
+      // Fetch all three in parallel
+      const [paymentsRes, accidentsRes, childrenRes] = await Promise.all([
+        supabase
+          .from('policy_payments')
+          .select('policy_id, amount, refused')
+          .in('policy_id', policyIds),
+        supabase
+          .from('accident_reports')
+          .select('policy_id')
+          .in('policy_id', policyIds),
+        supabase
+          .from('policy_children')
+          .select('policy_id')
+          .in('policy_id', policyIds),
+      ]);
+
+      // Process payment info
+      const paymentInfo: Record<string, { paid: number; remaining: number }> = {};
+      policiesData.forEach(p => {
+        const policyPayments = (paymentsRes.data || [])
+          .filter(pay => pay.policy_id === p.id && !pay.refused);
+        const paid = policyPayments.reduce((sum, pay) => sum + pay.amount, 0);
+        paymentInfo[p.id] = {
+          paid,
+          remaining: p.insurance_price - paid,
+        };
+      });
+      setPolicyPaymentInfo(paymentInfo);
+
+      // Process accident counts
+      const accCounts: Record<string, number> = {};
+      (accidentsRes.data || []).forEach(row => {
+        accCounts[row.policy_id] = (accCounts[row.policy_id] || 0) + 1;
+      });
+      setPolicyAccidentCounts(accCounts);
+
+      // Process children counts
+      const childCounts: Record<string, number> = {};
+      (childrenRes.data || []).forEach(row => {
+        childCounts[row.policy_id] = (childCounts[row.policy_id] || 0) + 1;
+      });
+      setPolicyChildrenCounts(childCounts);
+    } catch (error) {
+      console.error('Error fetching policy metadata:', error);
+    }
+  };
+
   const fetchPolicies = async () => {
     setLoadingPolicies(true);
     try {
@@ -361,6 +423,15 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
 
       if (error) throw error;
       setPolicies(data || []);
+      
+      // Fetch metadata once for all policies
+      if (data && data.length > 0) {
+        fetchPolicyMetadata(data.map(p => p.id), data);
+      } else {
+        setPolicyPaymentInfo({});
+        setPolicyAccidentCounts({});
+        setPolicyChildrenCounts({});
+      }
     } catch (error) {
       console.error('Error fetching policies:', error);
     } finally {
@@ -1328,6 +1399,9 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
             ) : (
               <PolicyYearTimeline 
                 policies={filteredPolicies} 
+                paymentInfo={policyPaymentInfo}
+                accidentInfo={policyAccidentCounts}
+                childrenInfo={policyChildrenCounts}
                 onPolicyClick={handlePolicyClick}
                 onPaymentAdded={() => {
                   fetchPaymentSummary();

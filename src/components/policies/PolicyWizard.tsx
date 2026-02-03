@@ -468,26 +468,51 @@ export function PolicyWizard({
                         newClient.under24_type === 'client' ||
                         newClient.under24_type === 'additional_driver';
 
-      const policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
-      const policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
+      // For packages: use the first enabled addon's type instead of category
+      // The category slug is THIRD_FULL but for packages we want ELZAMI as main
+      let policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
+      let policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
+      let tempCompanyId = policy.company_id;
+      let tempInsurancePrice = pricing.totalPrice;
+      
+      // For packages: prioritize ELZAMI addon's type and company
+      if (packageMode && packageAddons.some(a => a.enabled)) {
+        const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
+        if (elzamiAddon) {
+          policyTypeParentValue = 'ELZAMI' as PolicyTypeParent;
+          policyTypeChildValue = null;
+          tempCompanyId = elzamiAddon.company_id || policy.company_id;
+          tempInsurancePrice = parseFloat(elzamiAddon.insurance_price) || pricing.totalPrice;
+        } else {
+          // Fallback to third_full addon
+          const thirdAddon = packageAddons.find(a => a.type === 'third_full' && a.enabled);
+          if (thirdAddon) {
+            policyTypeParentValue = 'THIRD_FULL' as PolicyTypeParent;
+            policyTypeChildValue = (thirdAddon.policy_type_child as PolicyTypeChild) || null;
+            tempCompanyId = thirdAddon.company_id || policy.company_id;
+            tempInsurancePrice = parseFloat(thirdAddon.insurance_price) || pricing.totalPrice;
+          }
+        }
+      }
+      
       const carTypeValue = (selectedCar?.car_type || newCar.car_type || 'car') as CarType;
       const ageBandValue = isUnder24 ? 'UNDER_24' as const : 'UP_24' as const;
 
       const profitData = await calculatePolicyProfit({
         policyTypeParent: policyTypeParentValue,
         policyTypeChild: policyTypeChildValue,
-        companyId: policy.company_id,
+        companyId: tempCompanyId,
         carType: carTypeValue,
         ageBand: ageBandValue,
         carValue: policy.full_car_value ? parseFloat(policy.full_car_value) : (selectedCar?.car_value || (newCar.car_value ? parseFloat(newCar.car_value) : null)),
         carYear: selectedCar?.year || (newCar.year ? parseInt(newCar.year) : null),
-        insurancePrice: pricing.totalPrice,
+        insurancePrice: tempInsurancePrice,
         roadServiceId: policy.road_service_id || null,
         accidentFeeServiceId: policy.accident_fee_service_id || null,
       });
 
-      const policyTypeParent = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
-      const policyTypeChild = policy.policy_type_child ? policy.policy_type_child as PolicyTypeChild : null;
+      const policyTypeParent = policyTypeParentValue;
+      const policyTypeChild = policyTypeChildValue;
       const brokerDir = brokerDirection ? brokerDirection as "from_broker" | "to_broker" : null;
 
       // Create policy
@@ -499,10 +524,10 @@ export function PolicyWizard({
           category_id: selectedCategory?.id || null,
           policy_type_parent: policyTypeParent,
           policy_type_child: policyTypeChild,
-          company_id: policy.company_id || null,
+          company_id: tempCompanyId || null,
           start_date: policy.start_date,
           end_date: policy.end_date,
-          insurance_price: pricing.totalPrice,
+          insurance_price: tempInsurancePrice,
           profit: profitData.profit,
           payed_for_company: profitData.companyPayment,
           company_cost_snapshot: profitData.companyPayment,
@@ -534,7 +559,7 @@ export function PolicyWizard({
   }, [
     steps, validateStep, goToStep, toast, selectedClient, selectedCar, createNewClient,
     newClient, effectiveBranchId, user, isLightMode, createNewCar, newCar, selectedCategory,
-    policy, pricing, policyBrokerId, brokerDirection,
+    policy, pricing, policyBrokerId, brokerDirection, packageMode, packageAddons,
   ]);
 
   // Delete temporary policy on payment failure

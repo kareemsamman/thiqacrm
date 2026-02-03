@@ -104,7 +104,9 @@ serve(async (req) => {
         client:clients(full_name, phone_number, id_number, signature_url),
         car:cars(car_number, manufacturer_name, model, year, car_type, color),
         company:insurance_companies(name, name_ar),
-        broker:brokers(name)
+        broker:brokers(name),
+        road_service:road_services(name, name_ar),
+        accident_fee_service:accident_fee_services(name, name_ar)
       `)
       .in("id", policy_ids);
 
@@ -180,12 +182,12 @@ serve(async (req) => {
       );
     }
 
-    // Get payments for all policies
+    // Get payments for all policies (include refused=null for pending Visa payments)
     const { data: allPayments } = await supabase
       .from('policy_payments')
       .select('policy_id, payment_type, amount, payment_date')
       .in('policy_id', policy_ids)
-      .eq('refused', false)
+      .or('refused.eq.false,refused.is.null')
       .order('created_at', { ascending: true });
 
     // Get policy children (additional drivers) for all policies
@@ -487,7 +489,19 @@ function buildPackageInvoiceHtml(
     const policyPayments = paymentsByPolicy[p.id] || [];
     const policyPaid = policyPayments.reduce((sum: number, pay: any) => sum + (pay.amount || 0), 0);
     const policyRemaining = (p.insurance_price || 0) - policyPaid;
-    const policyType = POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent;
+    
+    // Use policy_type_child for THIRD_FULL, road service name for ROAD_SERVICE, etc.
+    let policyType = '';
+    if (p.policy_type_parent === 'ROAD_SERVICE' && p.road_service) {
+      policyType = `خدمات الطريق - ${(p.road_service as any).name_ar || (p.road_service as any).name || ''}`;
+    } else if (p.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION' && p.accident_fee_service) {
+      policyType = `إعفاء رسوم - ${(p.accident_fee_service as any).name_ar || (p.accident_fee_service as any).name || ''}`;
+    } else if (p.policy_type_child && POLICY_TYPE_LABELS[p.policy_type_child]) {
+      // Use child type (THIRD or FULL) when available
+      policyType = POLICY_TYPE_LABELS[p.policy_type_child];
+    } else {
+      policyType = POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent;
+    }
     
     return `
       <tr>
@@ -502,21 +516,25 @@ function buildPackageInvoiceHtml(
     `;
   }).join('');
 
-  // Build all payments table
+  // Build all payments table - for packages, merge all payments without showing policy column
   const allPaymentsRows: string[] = [];
+  const allPaymentsList: any[] = [];
   policies.forEach(p => {
     const policyPayments = paymentsByPolicy[p.id] || [];
-    const policyType = POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent;
-    policyPayments.forEach((pay) => {
-      allPaymentsRows.push(`
-        <tr>
-          <td style="padding: 10px; border: 1px solid #e2e8f0;">${policyType}</td>
-          <td style="padding: 10px; border: 1px solid #e2e8f0;">${formatDate(pay.payment_date)}</td>
-          <td style="padding: 10px; border: 1px solid #e2e8f0;">${PAYMENT_TYPE_LABELS[pay.payment_type] || pay.payment_type}</td>
-          <td style="padding: 10px; border: 1px solid #e2e8f0;">₪${(pay.amount || 0).toLocaleString()}</td>
-        </tr>
-      `);
-    });
+    policyPayments.forEach(pay => allPaymentsList.push(pay));
+  });
+  
+  // Sort by payment date
+  allPaymentsList.sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
+  
+  allPaymentsList.forEach((pay) => {
+    allPaymentsRows.push(`
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${formatDate(pay.payment_date)}</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${PAYMENT_TYPE_LABELS[pay.payment_type] || pay.payment_type}</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">₪${(pay.amount || 0).toLocaleString()}</td>
+      </tr>
+    `);
   });
 
   // Build contact footer
@@ -948,7 +966,6 @@ function buildPackageInvoiceHtml(
           <table>
             <thead>
               <tr>
-                <th>الوثيقة</th>
                 <th>التاريخ</th>
                 <th>طريقة الدفع</th>
                 <th>المبلغ</th>

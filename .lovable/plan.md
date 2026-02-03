@@ -1,79 +1,231 @@
 
-
-# خطة: إصلاح عرض المتبقي الصحيح في صفحة متابعة الديون
-
-## المشكلة
-
-العميل **اسلام عيسى**:
-- المبلغ الصحيح: **₪8,700** (حسب الوثائق الفعلية)
-- المعروض: **₪14,300** (خطأ - مجموع الأسعار بدلاً من المتبقي)
-
-## التحليل
-
-### بيانات الوثائق من قاعدة البيانات:
-
-| رقم الوثيقة | النوع | السعر | المدفوع | المتبقي |
-|------------|-------|-------|---------|---------|
-| 0c2dcdc3 | ثالث | 4,500 | 0 | 4,500 |
-| f31d2f71 | ثالث | 8,800 | 5,600 | 3,200 |
-| 9f6a459d | خدمات طريق | 1,000 | 0 | 1,000 |
-| **المجموع** | | **14,300** | **5,600** | **8,700** |
-
-### نتيجة الـ RPC:
-```
-total_owed: 14300.00      ← مجموع الأسعار
-total_remaining: 8700.00  ← الدين المتبقي الفعلي ✅
-```
-
-الـ RPC يُرجع القيمتين بشكل صحيح، لكن الـ Frontend يستخدم الحقل الخاطئ.
+# خطة: تحسينات معالج الوثائق وملف العميل
 
 ---
 
-## جذر المشكلة
+## المتطلبات
 
-**الملف:** `src/pages/DebtTracking.tsx`
+### 1. تعطيل زر "التالي" عند اختيار شامل بدون سعر السيارة
+عند اختيار نوع التأمين **شامل** (FULL) في الخطوة 3، يجب تعطيل زر "التالي" حتى يتم إدخال قيمة السيارة.
 
-### الخطأ الأول (السطر 142):
+### 2. إضافة نوع السيارة في فلتر السيارات بملف العميل
+عرض نوع السيارة (خصوصي، شحن، تاكسي، إلخ) في كل شريحة سيارة.
+
+### 3. عرض عدد الوثائق النشطة والإجمالية
+- عرض عدد الوثائق النشطة بجانب العدد الإجمالي
+- تحسين UX لجعل المعلومات واضحة ومقروءة
+
+---
+
+## التفاصيل الفنية
+
+### الملف 1: `src/components/policies/wizard/usePolicyWizardState.ts`
+
+**المشكلة الحالية (السطور 226-246):**
 ```typescript
-// قبل:
-total_remaining: Number(r.total_owed) || 0, // ← يستخدم total_owed بدلاً من total_remaining
-
-// بعد:
-total_remaining: Number(r.total_remaining) || 0, // ← استخدم الحقل الصحيح
+const step3Valid = !!(policy.company_id && policy.start_date && policy.end_date && policy.insurance_price && ...);
 ```
+لا يتحقق من وجود `full_car_value` عند اختيار شامل.
 
-### الخطأ الثاني (السطر 484):
+**الحل:**
+إضافة تحقق من قيمة السيارة في `step3Valid`:
+
 ```typescript
-// قبل:
-{formatCurrency(client.total_owed)}  // ← يعرض مجموع الأسعار
+// Check car value requirement for FULL insurance
+const fullInsuranceCarValueValid = 
+  policy.policy_type_parent !== 'THIRD_FULL' || 
+  policy.policy_type_child !== 'FULL' ||
+  !!(policy.full_car_value && parseFloat(policy.full_car_value) > 0);
 
-// بعد:
-{formatCurrency(client.total_remaining)}  // ← يعرض المتبقي الفعلي
+const step3Valid = !!(
+  policy.company_id && 
+  policy.start_date && 
+  policy.end_date && 
+  policy.insurance_price && 
+  fullInsuranceCarValueValid &&  // ← إضافة هذا الشرط
+  elzamiAddonValid && 
+  thirdFullAddonValid && 
+  roadServiceAddonValid && 
+  accidentFeeAddonValid
+);
 ```
 
 ---
 
-## التغييرات المطلوبة
+### الملف 2: `src/components/clients/CarFilterChips.tsx`
 
-| الملف | السطر | التغيير |
-|-------|-------|---------|
-| `src/pages/DebtTracking.tsx` | 142 | تغيير `r.total_owed` إلى `r.total_remaining` |
-| `src/pages/DebtTracking.tsx` | 484 | تغيير `client.total_owed` إلى `client.total_remaining` |
+**المشكلة الحالية:**
+- لا يعرض نوع السيارة
+- يعرض عدد الوثائق الإجمالي فقط
+- لا يفرق بين النشطة والمنتهية
+
+**التغييرات المطلوبة:**
+
+#### أ) تحديث Interface لتشمل `car_type`:
+```typescript
+interface CarRecord {
+  id: string;
+  car_number: string;
+  manufacturer_name: string | null;
+  model: string | null;
+  year: number | null;
+  car_type: string | null;  // ← إضافة
+}
+
+interface CarWithPolicyCount extends CarRecord {
+  policyCount: number;
+  activePolicyCount: number;  // ← إضافة
+}
+```
+
+#### ب) تحديث Props لتشمل معلومات end_date:
+```typescript
+interface CarFilterChipsProps {
+  cars: CarRecord[];
+  policies: { 
+    car: { id: string } | null;
+    end_date: string;  // ← إضافة
+    cancelled: boolean | null;  // ← إضافة
+    transferred: boolean | null;  // ← إضافة
+  }[];
+  selectedCarId: string;
+  onSelect: (carId: string) => void;
+}
+```
+
+#### ج) حساب الوثائق النشطة:
+```typescript
+const carsWithPolicyCounts = useMemo((): CarWithPolicyCount[] => {
+  const today = new Date();
+  return cars.map(car => {
+    const carPolicies = policies.filter(p => p.car?.id === car.id);
+    const activePolicies = carPolicies.filter(p => 
+      !p.cancelled && 
+      !p.transferred && 
+      new Date(p.end_date) >= today
+    );
+    return {
+      ...car,
+      policyCount: carPolicies.length,
+      activePolicyCount: activePolicies.length,
+    };
+  });
+}, [cars, policies]);
+
+// إجمالي النشطة للكل
+const totalActivePolicies = useMemo(() => {
+  const today = new Date();
+  return policies.filter(p => 
+    !p.cancelled && 
+    !p.transferred && 
+    new Date(p.end_date) >= today
+  ).length;
+}, [policies]);
+```
+
+#### د) تحديث UI لعرض نوع السيارة والوثائق النشطة:
+
+**بطاقة "الكل":**
+```jsx
+<div className="...">
+  <span>الكل</span>
+  <div className="flex items-center gap-1">
+    <span className="text-success">{totalActivePolicies} سارية</span>
+    <span className="text-muted-foreground">/ {totalPolicies}</span>
+  </div>
+</div>
+```
+
+**بطاقة السيارة:**
+```jsx
+{/* نوع السيارة */}
+{car.car_type && (
+  <span className="text-[8px] text-black/60 font-medium">
+    {carTypeLabels[car.car_type] || car.car_type}
+  </span>
+)}
+
+{/* عداد الوثائق */}
+<div className="absolute -top-2 -left-2 flex items-center gap-0.5">
+  {/* الوثائق النشطة */}
+  {car.activePolicyCount > 0 && (
+    <div className="h-5 w-5 rounded-full bg-success text-white text-[10px] font-bold flex items-center justify-center">
+      {car.activePolicyCount}
+    </div>
+  )}
+  {/* إجمالي الوثائق إذا يختلف */}
+  {car.policyCount > car.activePolicyCount && (
+    <div className="h-4 w-4 rounded-full bg-muted text-muted-foreground text-[9px] font-bold flex items-center justify-center">
+      {car.policyCount}
+    </div>
+  )}
+</div>
+```
 
 ---
 
-## التفسير
+### الملف 3: `src/components/clients/ClientDetails.tsx`
 
-- **`total_owed`**: مجموع أسعار الوثائق غير المسددة بالكامل (14,300₪)
-- **`total_remaining`**: المبلغ الفعلي المتبقي للتحصيل (8,700₪)
+**التغييرات المطلوبة:**
 
-الفرق = 5,600₪ (المبلغ المدفوع بالفعل)
+تحديث استدعاء `CarFilterChips` لتمرير البيانات الإضافية:
+
+```typescript
+<CarFilterChips
+  cars={cars}
+  policies={policies.map(p => ({
+    car: p.car,
+    end_date: p.end_date,
+    cancelled: p.cancelled,
+    transferred: p.transferred,
+  }))}
+  selectedCarId={policyCarFilter}
+  onSelect={setPolicyCarFilter}
+/>
+```
+
+---
+
+## تصميم UX المقترح
+
+### بطاقة السيارة المحسّنة:
+
+```text
+┌─────────────────────────────────────┐
+│  🟢 3                              ✓ │  ← 3 وثائق سارية (أخضر)
+│  ┌─────────────────────────────────┐ │
+│  │  🇮🇱   │   55-722-52            │ │  ← لوحة السيارة
+│  │  IL   │   2013 • خصوصي         │ │  ← السنة + نوع السيارة
+│  └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+```
+
+### بطاقة "الكل":
+
+```text
+┌──────────────────┐
+│       🚗        │
+│      الكل       │
+│   5 سارية / 8   │  ← 5 نشطة من 8 إجمالي
+└──────────────────┘
+```
+
+---
+
+## الملفات المتأثرة
+
+| الملف | التغيير |
+|-------|---------|
+| `src/components/policies/wizard/usePolicyWizardState.ts` | إضافة شرط قيمة السيارة في `step3Valid` |
+| `src/components/clients/CarFilterChips.tsx` | إضافة نوع السيارة + الوثائق النشطة |
+| `src/components/clients/ClientDetails.tsx` | تمرير بيانات الوثائق الإضافية |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ صفحة متابعة الديون ستعرض **₪8,700** للعميل اسلام عيسى
-2. ✅ الأرقام ستتطابق مع حساب الوثائق الفردية
-3. ✅ رسائل WhatsApp ستحتوي المبلغ الصحيح
-
+1. ✅ زر "التالي" يصبح معطلاً عند اختيار شامل بدون إدخال قيمة السيارة
+2. ✅ نوع السيارة (خصوصي، شحن، تاكسي) يظهر في كل بطاقة سيارة
+3. ✅ عدد الوثائق النشطة (سارية) يظهر بلون أخضر
+4. ✅ العدد الإجمالي يظهر بلون رمادي إذا كان مختلفاً
+5. ✅ بطاقة "الكل" تعرض "X سارية / Y" للوضوح

@@ -1,125 +1,133 @@
 
-# خطة: تحسين نموذج إضافة عميل جديد
 
-## المشاكل الحالية
+# خطة: تصحيح حساب عدد الوثائق (عدد البطاقات بدل الوثائق الفردية)
 
-1. **حقل الوسيط موجود** - يجب إزالته من نموذج إضافة العميل
-2. **كل حقل في سطر منفصل** - يجب جعل حقلين في صف واحد مثل نموذج الوثائق
-3. **RadioGroup يستخدم `dir="ltr"`** - يجب تغييره لـ RTL مع محاذاة للنص
-4. **لا يوجد إمكانية إضافة سائقين** - يجب إظهار ClientChildrenManager عند إنشاء عميل جديد أيضاً (ليس فقط عند التعديل)
+## المشكلة
+
+حالياً يظهر "35 سارية" لأن النظام يحسب **كل وثيقة بشكل منفصل**.
+
+المطلوب: حساب **عدد البطاقات** (Cards) وليس الوثائق:
+- **الباقة** (مجموعة وثائق بنفس `group_id`) = **1**
+- **وثيقة فردية** (بدون `group_id`) = **1**
+
+مثال: لو العميل كريم عنده 14 بطاقة في الواجهة → يجب أن يظهر "14 سارية"
 
 ---
 
 ## التغييرات المطلوبة
 
-### الملف: `src/components/clients/ClientDrawer.tsx`
+### الملف: `src/components/clients/ClientDetails.tsx`
 
-#### 1. إزالة حقل الوسيط
-- حذف FormField الخاص بـ `broker_id` (السطور 450-478)
-- إزالة جلب الوسطاء من useEffect
-
-#### 2. تنظيم الحقول في صفين
-تحويل التخطيط من عمود واحد إلى شبكة:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  الاسم الكامل *              │  رقم الهوية *        │
-├─────────────────────────────────────────────────────┤
-│  تاريخ الميلاد              │  رقم الهاتف *        │
-├─────────────────────────────────────────────────────┤
-│  هاتف إضافي (اختياري)       │  رقم الملف           │
-├─────────────────────────────────────────────────────┤
-│  الفرع (للمدير فقط)                                │
-├─────────────────────────────────────────────────────┤
-│  أقل من 24 سنة (Select بدل Radio)                  │
-├─────────────────────────────────────────────────────┤
-│  السائقين الإضافيين / التابعين                     │
-│  ┌─────────────────────────────────────────────────┐│
-│  │ + إضافة سائق جديد                              ││
-│  └─────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────┤
-│  ملاحظات                                           │
-└─────────────────────────────────────────────────────┘
-```
-
-#### 3. تحويل RadioGroup إلى Select مع RTL
-استبدال RadioGroup بـ Select component:
+**تمرير `group_id` إلى `CarFilterChips`:**
 
 ```tsx
-// قبل (RadioGroup مع dir="ltr")
-<RadioGroup className="flex flex-col space-y-2">
-  <RadioGroupItem value="none" />
-  <RadioGroupItem value="client" />
-</RadioGroup>
-
-// بعد (Select مع RTL صحيح)
-<Select value={field.value} onValueChange={field.onChange}>
-  <SelectTrigger>
-    <SelectValue />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="none">لا</SelectItem>
-    <SelectItem value="client">نعم – العميل أقل من 24</SelectItem>
-  </SelectContent>
-</Select>
+// السطور 1325-1330
+policies={policies.map(p => ({
+  car: p.car,
+  end_date: p.end_date,
+  cancelled: p.cancelled,
+  transferred: p.transferred,
+  group_id: p.group_id,  // ← إضافة
+}))}
 ```
-
-#### 4. إظهار ClientChildrenManager للعملاء الجدد
-- إزالة الشرط `{isEditing && (...)}` من حول ClientChildrenManager
-- السماح بإضافة سائقين مباشرة عند إنشاء عميل جديد
 
 ---
 
-## التغييرات بالتفصيل
+### الملف: `src/components/clients/CarFilterChips.tsx`
 
-### هيكل الفورم الجديد:
+#### 1. تحديث Interface لتشمل `group_id`:
 
-```tsx
-<form className="space-y-4 mt-6">
-  {/* صف 1: الاسم + رقم الهوية */}
-  <div className="grid gap-4 sm:grid-cols-2">
-    <FormField name="full_name" ... />
-    <FormField name="id_number" ... />
-  </div>
+```typescript
+interface PolicyData {
+  car: { id: string } | null;
+  end_date: string;
+  cancelled: boolean | null;
+  transferred: boolean | null;
+  group_id: string | null;  // ← إضافة
+}
+```
 
-  {/* صف 2: تاريخ الميلاد + رقم الهاتف */}
-  <div className="grid gap-4 sm:grid-cols-2">
-    <FormField name="birth_date" ... />
-    <FormField name="phone_number" ... />
-  </div>
+#### 2. تحديث منطق الحساب:
 
-  {/* صف 3: هاتف إضافي + رقم الملف */}
-  <div className="grid gap-4 sm:grid-cols-2">
-    <FormField name="phone_number_2" ... />
-    <FormField name="file_number" ... />
-  </div>
+**بدلاً من:**
+```typescript
+const activePolicies = carPolicies.filter(...);
+return { activePolicyCount: activePolicies.length }
+```
 
-  {/* الفرع - للمدير فقط */}
-  {isAdmin && branches.length > 0 && (
-    <FormField name="branch_id" ... />
-  )}
+**يصبح:**
+```typescript
+// حساب عدد البطاقات (packages + standalone)
+const countCards = (policyList: PolicyData[], today: Date) => {
+  const activePolicies = policyList.filter(p => 
+    !p.cancelled && 
+    !p.transferred && 
+    new Date(p.end_date) >= today
+  );
+  
+  // تجميع حسب group_id
+  const grouped = new Set<string>();
+  let standaloneCount = 0;
+  
+  activePolicies.forEach(p => {
+    if (p.group_id) {
+      grouped.add(p.group_id);
+    } else {
+      standaloneCount++;
+    }
+  });
+  
+  return grouped.size + standaloneCount;
+};
+```
 
-  {/* أقل من 24 سنة - Select */}
-  <FormField name="under24_type">
-    <Select ...>
-      <SelectItem value="none">لا</SelectItem>
-      <SelectItem value="client">نعم – العميل أقل من 24</SelectItem>
-    </Select>
-  </FormField>
+#### 3. تطبيق على "كل السيارات" وكل سيارة:
 
-  {/* السائقين الإضافيين - يظهر دائماً */}
-  <div className="border-t pt-4">
-    <ClientChildrenManager
-      existingChildren={existingChildren}
-      newChildren={newChildren}
-      onNewChildrenChange={setNewChildren}
-      ...
-    />
-  </div>
+```typescript
+const carsWithPolicyCounts = useMemo((): CarWithPolicyCount[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return cars.map(car => {
+    const carPolicies = policies.filter(p => p.car?.id === car.id);
+    
+    // حساب البطاقات الفعّالة
+    const activeCardCount = countCards(carPolicies, today);
+    
+    // حساب إجمالي البطاقات
+    const totalCardCount = countTotalCards(carPolicies);
+    
+    return {
+      ...car,
+      policyCount: totalCardCount,
+      activePolicyCount: activeCardCount,
+    };
+  });
+}, [cars, policies]);
+```
 
-  {/* ملاحظات */}
-  <FormField name="notes" ... />
-</form>
+---
+
+## مثال توضيحي
+
+```text
+الوثائق في قاعدة البيانات:
+┌────────────────────┬───────────┬────────────┐
+│ الوثيقة            │ group_id  │ الحالة     │
+├────────────────────┼───────────┼────────────┤
+│ إلزامي            │ pkg_001   │ سارية      │
+│ شامل              │ pkg_001   │ سارية      │
+│ خدمات طريق        │ pkg_001   │ سارية      │
+│ إلزامي (فردي)     │ null      │ سارية      │
+│ ثالث (فردي)       │ null      │ سارية      │
+│ إلزامي            │ pkg_002   │ منتهية     │
+│ شامل              │ pkg_002   │ منتهية     │
+└────────────────────┴───────────┴────────────┘
+
+الحساب القديم: 7 وثائق (3 سارية من الباقة + 2 فردية + 2 منتهية)
+الحساب الجديد: 
+  - سارية: 1 (pkg_001) + 2 (فردية) = 3 بطاقات
+  - إجمالي: 2 (packages) + 2 (standalone) = 4 بطاقات
 ```
 
 ---
@@ -128,14 +136,16 @@
 
 | الملف | التغيير |
 |-------|---------|
-| `src/components/clients/ClientDrawer.tsx` | إعادة تنظيم الفورم + إزالة الوسيط + Select بدل Radio + إظهار السائقين دائماً |
+| `src/components/clients/ClientDetails.tsx` | تمرير `group_id` للمكون |
+| `src/components/clients/CarFilterChips.tsx` | تحديث الحساب ليعدّ البطاقات بدل الوثائق |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ إزالة حقل الوسيط
-2. ✅ حقلين في كل صف (تصميم مضغوط)
-3. ✅ Select بدل RadioGroup (RTL صحيح)
-4. ✅ إمكانية إضافة سائقين عند إنشاء عميل جديد
-5. ✅ تصميم متناسق مع نموذج الوثائق
+| الحالة | قبل | بعد |
+|--------|-----|-----|
+| 14 بطاقة في الواجهة | "35 سارية" | "14 سارية" |
+| الباقة بـ 3 وثائق | تُحسب 3 | تُحسب 1 |
+| وثيقة فردية | تُحسب 1 | تُحسب 1 |
+

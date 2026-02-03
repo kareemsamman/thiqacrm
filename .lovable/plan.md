@@ -1,152 +1,259 @@
 
-# خطة: إصلاح مشكلة نوع الوثيقة عند دفع الفيزا في الباقات
+# خطة: إصلاح مشكلة التحقق من الدفعات عند الدفع بالفيزا في الباقات
 
-## تحليل المشكلة
+## تشخيص المشكلة
 
-### السيناريو المُكتشف:
-عند إنشاء باقة مع دفعة فيزا:
-1. المستخدم يختار فئة **THIRD_FULL** (ثالث/شامل)
-2. في Step 3، يختار النوع الفرعي **THIRD** (ثالث) وشركة **اراضي مقدسة**
-3. يُفعّل وضع الباقة ويُضيف:
-   - إلزامي من **منورا**
-   - خدمات طريق من **شركة اكس**
-4. في Step 4، يدفع بالفيزا
-
-### البيانات في قاعدة البيانات:
-| الشركة | النوع الأب | النوع الفرعي | ملاحظات |
-|--------|-----------|-------------|---------|
-| منورا | THIRD_FULL | null | ❌ يجب أن يكون ELZAMI |
-| اراضي مقدسة | THIRD_FULL | THIRD | ✅ صحيح (إضافة ضمن باقة) |
-| شركة اكس | ROAD_SERVICE | null | ✅ صحيح (إضافة ضمن باقة) |
-
-### السبب الجذري:
-الكود في `handleCreateTempPolicy` (سطر 473-474):
-```typescript
-let policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
-let policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
-let tempCompanyId = policy.company_id;
+### رسالة الخطأ:
+```
+Payment total exceeds policy insurance_price (total=3001.00, price=2700.00) (P0001)
 ```
 
-**المشكلة:** الوثيقة المؤقتة تُنشأ بـ:
-- `policy_type_parent = 'THIRD_FULL'` (من الفئة)
-- `company_id` = شركة الوثيقة الرئيسية (اراضي مقدسة أو منورا)
+### تحليل السيناريو من الصورة:
+| الدفعة | المبلغ |
+|--------|--------|
+| دفعة إلزامي تلقائية (مقفلة) | 3,000₪ |
+| فيزا (تم الدفع) | 1₪ |
+| نقدي | 1,799₪ |
+| **المجموع** | **4,800₪** (أو 3,001₪ إذا لم يُحتسب النقدي بعد) |
 
-لكن عندما يُفعّل المستخدم **إلزامي كإضافة**، الوثيقة المؤقتة يجب أن تكون **ELZAMI** لا **THIRD_FULL**.
+### السبب الجذري:
 
-**تحليل أعمق:** 
-عند مراجعة بيانات الباقة `f1ef4b13-af49-4530-8341-0b8a7b904b75`:
-- الوثيقة الأولى (منورا) أُنشئت في 12:23:30 بدون ملاحظات ← هذه هي الوثيقة المؤقتة
-- اراضي مقدسة أُنشئت في 12:24:52 مع ملاحظة "إضافة ضمن باقة" ← هذه إضافة
+عند إنشاء الوثيقة المؤقتة للفيزا (`handleCreateTempPolicy`)، الكود يستخدم **سعر الإضافة الأولى** وليس **سعر الوثيقة الرئيسية**:
 
-هذا يعني أن `policy.company_id` كان **منورا** عند إنشاء الوثيقة المؤقتة!
+```typescript
+// السطور 480-502 في PolicyWizard.tsx
+if (packageMode && packageAddons.some(a => a.enabled)) {
+  const firstAddon = elzamiAddon || thirdAddon || roadAddon || accidentAddon;
+  if (firstAddon) {
+    tempInsurancePrice = parseFloat(firstAddon.insurance_price) || 0;  // ← 2700₪
+  }
+}
+```
 
-**الاستنتاج:** المستخدم قد يكون قد غيّر الشركة في Step 3 أو أن هناك مشكلة في كيفية تحديث `policy.company_id`.
+**النتيجة:**
+1. الوثيقة المؤقتة تُنشأ بـ `insurance_price = 2700₪` (من الإضافة الأولى)
+2. لكن الدفعة المقفلة للإلزامي = `3000₪` (من `policy.insurance_price` الرئيسية)
+3. Trigger قاعدة البيانات يقارن الدفعات (3001₪) بسعر الوثيقة (2700₪)
+4. **خطأ!**
 
 ---
 
-## التحقيق في المشكلة الحقيقية
+## التحليل التفصيلي
 
-بعد مراجعة الكود والبيانات، يبدو أن:
-1. الوثيقة المؤقتة أُنشئت بشركة **منورا** ونوع **THIRD_FULL**
-2. لكن منورا ليست من شركات THIRD_FULL - هي شركة ELZAMI!
-3. المستخدم قد أدخل منورا في حقل الشركة الرئيسية بالخطأ، أو هناك خلط بين الإضافات والوثيقة الرئيسية
+### المشكلة في الكود:
 
-**الفرضية:** قد يكون المستخدم يختار شركة ELZAMI في الحقل الرئيسي بدلاً من إضافتها كإضافة. هذا يحدث لأن القائمة المنسدلة للشركات لا تُفلتر بشكل صحيح.
+**عند دخول الخطوة 4 (السطور 317-337):**
+```typescript
+if (nextStep === 4 && policy.policy_type_parent === 'ELZAMI') {
+  const totalPrice = parseFloat(policy.insurance_price) || pricing.totalPrice;
+  // يُنشئ دفعة مقفلة بـ 3000₪
+}
+```
+
+هذا يعمل فقط إذا كان النوع الرئيسي هو ELZAMI، لكنه يستخدم `policy.insurance_price` (الوثيقة الرئيسية في Step 3).
+
+**عند إنشاء الوثيقة المؤقتة للفيزا (السطور 480-502):**
+```typescript
+if (packageMode && packageAddons.some(a => a.enabled)) {
+  const firstAddon = elzamiAddon || thirdAddon || ...;
+  tempInsurancePrice = parseFloat(firstAddon.insurance_price); // ← مختلف!
+}
+```
+
+**التناقض:**
+- الدفعة المقفلة = `policy.insurance_price` = 3000₪
+- الوثيقة المؤقتة = `firstAddon.insurance_price` = 2700₪
 
 ---
 
 ## الإصلاح المطلوب
 
-### الإصلاح 1: التحقق من نوع الشركة في handleCreateTempPolicy
+### الإصلاح 1: توحيد سعر الوثيقة المؤقتة
 
 **الملف:** `src/components/policies/PolicyWizard.tsx`
 
 **المنطق الجديد:**
-1. إذا كان `packageMode` مفعّل
-2. وتم اختيار شركة ELZAMI من الإضافات
-3. فإن الوثيقة المؤقتة يجب أن تكون ELZAMI
+
+عند إنشاء الوثيقة المؤقتة للفيزا في وضع الباقة، يجب استخدام:
+1. **إذا كانت الوثيقة الرئيسية ELZAMI:** استخدم `policy.insurance_price` (سعر الإلزامي الرئيسي)
+2. **إذا كانت الوثيقة الرئيسية THIRD_FULL وهناك إضافة ELZAMI:** استخدم سعر إضافة ELZAMI
 
 ```typescript
-// In handleCreateTempPolicy, after getting policyTypeParentValue:
+// handleCreateTempPolicy (حوالي سطر 476)
+let tempInsurancePrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
 
-// For packages: if the first enabled addon is ELZAMI, use it for temp policy
-// This handles cases where user wants ELZAMI + THIRD_FULL together
 if (packageMode && packageAddons.some(a => a.enabled)) {
-  const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
-  
-  if (elzamiAddon && elzamiAddon.company_id) {
-    // The first policy in package should be ELZAMI
-    policyTypeParentValue = 'ELZAMI' as PolicyTypeParent;
+  // إذا كان النوع الرئيسي ELZAMI، استخدم سعر الوثيقة الرئيسية
+  if (policy.policy_type_parent === 'ELZAMI') {
+    policyTypeParentValue = 'ELZAMI';
     policyTypeChildValue = null;
-    tempCompanyId = elzamiAddon.company_id;
-    tempInsurancePrice = parseFloat(elzamiAddon.insurance_price) || 0;
+    tempCompanyId = policy.company_id;
+    tempInsurancePrice = parseFloat(policy.insurance_price) || 0;  // ← استخدم سعر الوثيقة الرئيسية
+  } else {
+    // النوع الرئيسي ليس ELZAMI، استخدم الإضافة الأولى
+    const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
+    // ... باقي المنطق الحالي
   }
 }
 ```
 
-### الإصلاح 2: تحديث handleSave لتجنب التكرار
+### الإصلاح 2: تحديث الوثيقة المؤقتة بسعر الباقة الكامل
 
-**المنطق:** إذا أُنشئت الوثيقة المؤقتة كـ ELZAMI، يجب ألا ننشئ إضافة ELZAMI مرة أخرى.
+**المشكلة الإضافية:** Trigger قاعدة البيانات يتحقق من `insurance_price` للوثيقة الواحدة، لكن الدفعات قد تكون للباقة كلها.
 
-```typescript
-// In handleSave, when creating addon policies for Visa flow:
-for (const addon of packageAddons) {
-  if (!addon.enabled) continue;
-  
-  // Skip ELZAMI if temp policy was already created as ELZAMI
-  if (addon.type === 'elzami' && tempPolicyIsElzami) continue;
-  
-  // ... create other addons
-}
-```
-
-### الإصلاح 3: تحديث الوثيقة المؤقتة بالنوع الصحيح
-
-في `handleSave`، بعد إنشاء `group_id`، يجب تحديث الوثيقة المؤقتة بالنوع الصحيح إذا كانت خاطئة:
+**الحل:** بعد إنشاء `group_id` في `handleSave`، يجب تحديث `insurance_price` للوثيقة المؤقتة ليصبح مجموع الباقة:
 
 ```typescript
-// After creating group_id in handleSave for Visa flow:
-// Update temp policy with correct type based on first enabled addon
-const firstAddon = packageAddons.find(a => a.enabled);
-if (firstAddon) {
-  const addonTypeMap = { 'elzami': 'ELZAMI', 'third_full': 'THIRD_FULL', ... };
-  const correctType = addonTypeMap[firstAddon.type];
-  
-  await supabase
-    .from('policies')
-    .update({ 
-      group_id: groupId,
-      policy_type_parent: correctType,
-      policy_type_child: firstAddon.type === 'third_full' ? firstAddon.policy_type_child : null,
-      company_id: firstAddon.company_id,
-      insurance_price: parseFloat(firstAddon.insurance_price),
-      // ... recalculate profit
-    })
-    .eq('id', tempPolicyId);
-}
+// في handleSave (بعد إنشاء group_id)
+// تحديث الوثيقة المؤقتة لتكون جزءًا من المجموعة
+const { error: updateError } = await supabase
+  .from('policies')
+  .update({ 
+    group_id: groupId,
+    // لا تغير insurance_price هنا - يبقى سعر المكون الأول
+  })
+  .eq('id', tempPolicyId);
 ```
+
+**لكن:** Trigger الآن يستخدم مجموع `group_id` إذا وُجد (انظر migration 20260109162302):
+```sql
+IF v_group_id IS NOT NULL THEN
+  SELECT COALESCE(SUM(pkg.insurance_price), 0)
+  INTO v_policy_price
+  FROM public.policies pkg
+  WHERE pkg.group_id = v_group_id;
+END IF;
+```
+
+**المشكلة:** الوثيقة المؤقتة لا تحتوي على `group_id` عند إنشائها، والدفعات تُنشأ قبل تحديث `group_id`!
 
 ---
 
-## الملفات المتأثرة
+## الإصلاح الشامل
 
-| الملف | التغيير |
-|-------|---------|
-| `src/components/policies/PolicyWizard.tsx` | إصلاح handleCreateTempPolicy و handleSave |
+### الحل: تأخير التحقق أو تحديث group_id قبل الدفعات
+
+**الخيار الأفضل:** تحديث الوثيقة المؤقتة بـ `group_id` **قبل** إضافة الدفعات:
+
+```typescript
+// في handleSave للـ Visa flow:
+
+// 1. إنشاء group_id أولاً
+const { data: groupData } = await supabase
+  .from('policy_groups')
+  .insert({ client_id, car_id, name: 'باقة' })
+  .select().single();
+
+// 2. تحديث الوثيقة المؤقتة بـ group_id فوراً
+await supabase
+  .from('policies')
+  .update({ group_id: groupData.id })
+  .eq('id', tempPolicyId);
+
+// 3. إنشاء بقية وثائق الباقة
+for (const addon of packageAddons) {
+  // إنشاء وثيقة الإضافة مع group_id
+}
+
+// 4. الآن يمكن إضافة الدفعات - Trigger سيحسب مجموع الباقة
+```
+
+**لكن في الكود الحالي:** الدفعات تُنشأ **بعد** تحديث `group_id` وإنشاء الإضافات (السطور 1045-1111)، لكن المشكلة هي أن دفعة الفيزا أُنشئت **قبل** `handleSave` عبر Tranzila!
+
+---
+
+## السبب الحقيقي للمشكلة
+
+دفعة الفيزا (1₪) تُنشأ عبر **Tranzila webhook** (Edge Function) **قبل** أن تصبح الوثيقة جزءًا من الباقة!
+
+**التسلسل:**
+1. المستخدم يضيف دفعة فيزا 1₪ ويضغط "ادفع"
+2. `handleCreateTempPolicy` يُنشئ الوثيقة المؤقتة بـ `insurance_price = 2700₪` (بدون `group_id`)
+3. Tranzila webhook يُنشئ دفعة 1₪ للوثيقة المؤقتة
+4. المستخدم يضغط "حفظ الوثيقة"
+5. `handleSave` يحاول إضافة الدفعات الأخرى (3000₪ مقفلة + 1799₪ نقدي)
+6. Trigger يتحقق: `3000 + 1 = 3001 > 2700` ← **خطأ!**
+
+---
+
+## الحل النهائي
+
+### الإصلاح 1: استخدام pricing.totalPrice للوثيقة المؤقتة
+
+**الملف:** `src/components/policies/PolicyWizard.tsx`
+
+عند إنشاء الوثيقة المؤقتة في وضع الباقة، استخدم **مجموع سعر الباقة** كـ `insurance_price`:
+
+```typescript
+// handleCreateTempPolicy (سطر 476)
+let tempInsurancePrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
+
+if (packageMode && packageAddons.some(a => a.enabled)) {
+  // لا تغير tempInsurancePrice - استخدم pricing.totalPrice (مجموع الباقة)
+  // فقط غير النوع والشركة للإضافة الأولى
+  const firstAddon = elzamiAddon || thirdAddon || roadAddon || accidentAddon;
+  if (firstAddon) {
+    policyTypeParentValue = addonTypeMap[firstAddon.type];
+    tempCompanyId = firstAddon.company_id || policy.company_id;
+    // ← لا تغير tempInsurancePrice!
+  }
+}
+```
+
+### الإصلاح 2: تحديث insurance_price عند إنشاء الباقة
+
+في `handleSave`، بعد إنشاء كل وثائق الباقة، يجب توزيع الأسعار بشكل صحيح.
+
+---
+
+## التغييرات المطلوبة
+
+| الملف | السطور | التغيير |
+|-------|--------|---------|
+| `src/components/policies/PolicyWizard.tsx` | 476-502 | استخدام `pricing.totalPrice` للوثيقة المؤقتة بدلاً من سعر الإضافة الأولى |
+| `src/components/policies/PolicyWizard.tsx` | 912-925 | تحديث الوثيقة المؤقتة بالسعر الصحيح بعد إنشاء الباقة |
+
+---
+
+## ملخص الإصلاح
+
+**التغيير الأساسي في `handleCreateTempPolicy`:**
+
+```typescript
+// قبل:
+let tempInsurancePrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
+// ... ثم
+tempInsurancePrice = parseFloat(firstAddon.insurance_price) || 0;
+
+// بعد:
+let tempInsurancePrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
+// لا نغير السعر - نبقي على pricing.totalPrice
+```
+
+**التغيير في `handleSave`:**
+
+عند تحديث الوثيقة المؤقتة بـ `group_id`، يجب تحديث `insurance_price` ليكون سعر **المكون الأول فقط** (ليكون التوزيع صحيحًا)، لكن **قبل** ذلك يجب أن تكون الوثيقة المؤقتة بسعر الباقة الكامل لتمرير التحقق.
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ الوثيقة المؤقتة ستُنشأ بالنوع الصحيح (ELZAMI إذا كانت الإضافة الأولى)
-2. ✅ الشركة الصحيحة ستُستخدم (منورا للإلزامي)
-3. ✅ لن تتكرر الوثائق (ELZAMI لن تُنشأ مرتين)
-4. ✅ باقي الإضافات (THIRD_FULL, ROAD_SERVICE) ستُنشأ بشكل صحيح
+1. ✅ الوثيقة المؤقتة تُنشأ بـ `pricing.totalPrice` (مثلاً 4500₪)
+2. ✅ Trigger يتحقق: `3000 + 1 + 1799 = 4800 > 4500`... 
 
----
+**انتظر!** هذا أيضًا سيفشل لأن الدفعات (4800₪) تتجاوز السعر (4500₪)!
 
-## ملاحظة بخصوص الوثائق السابقة
+**التحقق من البيانات:**
+- سعر الباقة الكلي (pricing.totalPrice) يجب أن يساوي مجموع الدفعات أو أكثر
+- الدفعة المقفلة = 3000₪ (سعر الإلزامي)
+- فيزا = 1₪
+- نقدي = 1799₪
+- **المجموع = 4800₪**
 
-الوثائق المُنشأة قبل هذا الإصلاح تحتاج تحديث يدوي في قاعدة البيانات لتصحيح:
-- `policy_type_parent` من THIRD_FULL إلى ELZAMI
-- للوثائق التي شركتها من شركات ELZAMI فقط
+يجب أن يكون `pricing.totalPrice >= 4800₪` لتمرير التحقق.
+
+**الاستنتاج:** المشكلة ليست فقط في الكود - المستخدم يحاول دفع أكثر من سعر الباقة!
+
+ولكن رسالة الخطأ تقول `price=2700.00`، مما يعني أن الوثيقة المؤقتة أُنشئت بسعر 2700₪ فقط.
+
+**الإصلاح المطلوب:** التأكد من أن الوثيقة المؤقتة تُنشأ بـ `pricing.totalPrice` (الباقة كاملة)، وليس سعر الإضافة الأولى فقط.

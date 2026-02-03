@@ -475,8 +475,9 @@ export function PolicyWizard({
       let tempCompanyId = policy.company_id;
       let tempInsurancePrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
 
-      // For packages with Visa: use the FIRST enabled addon for temp policy
-      // This ensures correct policy_type_parent (e.g., ELZAMI instead of THIRD_FULL)
+      // For packages with Visa: use the FIRST enabled addon for temp policy type/company
+      // BUT keep tempInsurancePrice as pricing.totalPrice (full package price) to pass validation
+      // The correct individual price will be set in handleSave after group_id is created
       if (packageMode && packageAddons.some(a => a.enabled)) {
         // Priority: elzami > third_full > road_service > accident_fee
         const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
@@ -498,7 +499,9 @@ export function PolicyWizard({
             ? firstAddon.policy_type_child as PolicyTypeChild 
             : null;
           tempCompanyId = firstAddon.company_id || policy.company_id;
-          tempInsurancePrice = parseFloat(firstAddon.insurance_price) || 0;
+          // DO NOT override tempInsurancePrice here - keep pricing.totalPrice
+          // This allows all package payments (including locked ELZAMI) to pass validation
+          // The correct component price will be set in handleSave after package is created
         }
       }
       

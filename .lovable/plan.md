@@ -1,117 +1,171 @@
 
-## الهدف
-حل مشكلتين داخل نافذة **تعديل الباقة (PackagePolicyEditModal)**:
-1) التمرير داخل الـ popup لا يعمل (لا يمكن الصعود/النزول).
-2) زر **إضافة جديد** للسائقين الإضافيين يبدو “لا يفعل شيء” (غالبًا يتم الإضافة لكن لا تظهر بسبب عدم التمرير).
-3) تقليل ارتفاع/حجم البطاقات أكثر (UI أكثر compact).
+# خطة: إضافة تاريخ الميلاد والهاتف للسائقين الإضافيين + نافذة إرسال/طباعة
+
+## المطلوب
+
+### 1. السائقين الإضافيين - حقول إضافية
+- إضافة **تاريخ الميلاد** (لمعرفة إذا +24 أو أقل)
+- إضافة **رقم الهاتف**
+- في جميع أماكن اختيار السائقين الإضافيين
+
+### 2. زر الإرسال (في بطاقة الوثيقة)
+- عند الضغط على أيقونة الإرسال ✈️ → يفتح نافذة تختار بين:
+  - **إرسال SMS للعميل**
+  - **طباعة الفاتورة**
+- بدلاً من الإرسال المباشر الحالي
 
 ---
 
-## التشخيص (سبب عدم عمل التمرير)
-`DialogContent` في مشروعنا يأتي افتراضيًا بـ `display: grid` (موجود في `src/components/ui/dialog.tsx` ضمن الكلاسات الأساسية).
-داخل `PackagePolicyEditModal` نحن نضيف `flex flex-col`، لكن في Tailwind قد لا تتغلب دائمًا على `grid` بسبب ترتيب توليد الـ utilities، فتظل الـ Dialog **Grid** فعليًا.
+## الملفات المتأثرة
 
-عندما تكون Dialog Grid:
-- `flex-1` و `min-h-0` على `ScrollArea` لا تعمل كما نتوقع
-- محتوى الـ modal يتم قصّه بسبب `max-h` + `overflow-hidden`
-- النتيجة: **لا Scroll** حتى لو المحتوى أطول من 90vh
-
-هذا يفسّر أيضًا “زر إضافة جديد لا يعمل” لأن النموذج يُضاف لكن لا يمكن الوصول له/رؤيته عند تمدد المحتوى.
+| الملف | التغيير |
+|-------|---------|
+| `src/components/policies/PackagePolicyEditModal.tsx` | إضافة حقول birth_date + phone للسائقين الجدد والموجودين |
+| `src/components/policies/wizard/PolicyChildrenSelector.tsx` | إضافة حقول birth_date + phone للنموذج الجديد |
+| `src/components/clients/PolicyYearTimeline.tsx` | استبدال handleSendInvoice بفتح نافذة Send/Print |
+| `src/components/policies/InvoiceSendPrintDialog.tsx` | ✨ **ملف جديد** - نافذة اختيار إرسال/طباعة |
 
 ---
 
-## التغييرات المقترحة (على الكود)
+## التفاصيل التقنية
 
-### 1) فرض أن الـ Dialog فعليًا Flex وليس Grid (حل جذري للتمرير)
-**الملف:** `src/components/policies/PackagePolicyEditModal.tsx`
+### 1. تحديث نموذج السائق الجديد في PackagePolicyEditModal
 
-- تعديل `DialogContent` ليستخدم `!flex !flex-col` (important) لضمان التغلب على `grid`:
-  - مثال:
-    - `className="... overflow-hidden !flex !flex-col ..."`
+الحقول الحالية:
+- الاسم ✓
+- رقم الهوية ✓
+- الصلة ✓
 
-- إضافة Wrapper داخلي يضمن وجود “منطقة قابلة للتمدد” للتمرير:
-  - إنشاء `<div className="flex-1 min-h-0 flex flex-col">`
-  - وضع `ScrollArea` + (Total Summary) داخله بحيث:
-    - `ScrollArea` يأخذ `flex-1 min-h-0`
-    - Total Summary يبقى `shrink-0` تحت منطقة التمرير
-    - Footer يبقى خارج هذا الـ wrapper (كما هو) أو `shrink-0`
+الحقول المطلوب إضافتها:
+- تاريخ الميلاد (ArabicDatePicker مع isBirthDate)
+- رقم الهاتف (Input مع validation 10 أرقام)
 
-- إضافة `dir="rtl"` إلى `ScrollArea` في هذه النافذة تحديدًا لتوحيد السلوك RTL:
-  - `<ScrollArea dir="rtl" ...>`
+**تصميم الشبكة الجديد:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ سائق جديد #1                                       [حذف]   │
+├─────────────────────────────────────────────────────────────┤
+│ [الاسم*]  [رقم الهوية*]  [الصلة]  [تاريخ الميلاد]  [الهاتف] │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**النتيجة المتوقعة:** المحتوى إذا زاد عن ارتفاع النافذة، سيصبح قابلًا للتمرير فعليًا.
+Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5`
+
+### 2. تحديث قائمة السائقين الموجودين
+
+عند عرض السائق الموجود، إضافة:
+- عرض تاريخ الميلاد (إن وجد)
+- عرض رقم الهاتف (إن وجد)
+- حساب "أقل من 24" بناءً على تاريخ الميلاد
+
+```typescript
+// حساب العمر
+const isUnder24 = (birthDate: string | null): boolean | null => {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  const age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    return age - 1 < 24;
+  }
+  return age < 24;
+};
+```
+
+إضافة Badge بجانب الاسم:
+```tsx
+{isUnder24(child.birth_date) === true && (
+  <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700">
+    أقل من 24
+  </Badge>
+)}
+```
+
+### 3. إنشاء InvoiceSendPrintDialog (ملف جديد)
+
+```typescript
+interface InvoiceSendPrintDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  policyIds: string[];
+  isPackage: boolean;
+  clientPhone: string | null;
+}
+```
+
+**التصميم:**
+```
+┌────────────────────────────────────────────────┐
+│  📄 إرسال / طباعة الفاتورة                      │
+├────────────────────────────────────────────────┤
+│                                                │
+│  ┌────────────────────────────────────────┐   │
+│  │  📨  إرسال SMS للعميل                   │   │
+│  │      (سيتم إرسال رابط الفاتورة)        │   │
+│  └────────────────────────────────────────┘   │
+│                                                │
+│  ┌────────────────────────────────────────┐   │
+│  │  🖨️  طباعة الفاتورة                    │   │
+│  │      (فتح الفاتورة في نافذة جديدة)      │   │
+│  └────────────────────────────────────────┘   │
+│                                                │
+│        [ إغلاق ]                               │
+└────────────────────────────────────────────────┘
+```
+
+**المنطق:**
+- **إرسال SMS**: استدعاء `send-invoice-sms` أو `send-package-invoice-sms`
+- **طباعة**: استدعاء نفس الدالة مع `skip_sms: true` ثم فتح `ab_invoice_url`
+
+### 4. تعديل PolicyYearTimeline
+
+**قبل:**
+```tsx
+<Button onClick={onSendInvoice}>
+  <Send />
+</Button>
+```
+
+**بعد:**
+```tsx
+<Button onClick={(e) => handleOpenSendPrintDialog(e, pkg.allPolicyIds)}>
+  <Send />
+</Button>
+```
+
+إضافة State:
+```tsx
+const [sendPrintDialogOpen, setSendPrintDialogOpen] = useState(false);
+const [sendPrintPolicyIds, setSendPrintPolicyIds] = useState<string[]>([]);
+```
 
 ---
 
-### 2) جعل زر “إضافة جديد” واضح أنه اشتغل (Auto-scroll + Auto-focus)
-**الملف:** `src/components/policies/PackagePolicyEditModal.tsx`
+## تحديث PolicyChildrenSelector أيضاً
 
-حتى بعد إصلاح التمرير، أفضل UX: عند الضغط على “إضافة جديد” نريد:
-- النزول تلقائيًا إلى “سائق جديد #N”
-- وضع المؤشر تلقائيًا في حقل الاسم
-
-**التغييرات:**
-- تعديل `handleAddNewChild` لاستخدام functional update لتجنب أي مشاكل state:
-  - `setNewChildren((prev) => [...prev, createEmptyChildForm()])`
-- إضافة `ref` (مثل `newChildBottomRef`) في آخر قسم السائقين الجدد:
-  - `<div ref={newChildBottomRef} />`
-- إضافة `useEffect` عندما `newChildren.length` يزيد:
-  - `newChildBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })`
-- إضافة `autoFocus` على Input الاسم للسائق الجديد الأخير فقط:
-  - إذا `index === newChildren.length - 1` → `autoFocus`
-
-**النتيجة المتوقعة:** المستخدم يضغط “إضافة جديد” ويرى فورًا النموذج الجديد بدون الحاجة للتمرير يدويًا.
+نفس التغييرات في ملف `PolicyChildrenSelector.tsx`:
+- إضافة حقل تاريخ الميلاد
+- إضافة حقل الهاتف
+- عرض badge "أقل من 24" للموجودين
 
 ---
 
-### 3) تقليل ارتفاع البطاقات أكثر (Compact UI)
-**الملف:** `src/components/policies/PackagePolicyEditModal.tsx`
+## ملخص التغييرات
 
-سنقلل المسافات بدون كسر القراءة:
-- بطاقات الوثائق:
-  - `p-3` → `p-2`
-  - `space-y-2` → `space-y-1.5`
-  - تصغير الأيقونة:
-    - `w-8 h-8` → `w-7 h-7`
-    - `h-4 w-4` → `h-3.5 w-3.5`
-- Grid الحقول:
-  - `gap-3` → `gap-2`
-  - وإضافة responsive لمنع ضيق شديد على الموبايل:
-    - `grid-cols-1 sm:grid-cols-3`
-- قسم السائقين الإضافيين:
-  - `p-3` → `p-2`
-  - صفوف الاختيار:
-    - `p-2` → `p-1.5`
-    - `rounded-md` تبقى
-- قسم “إجمالي الباقة”:
-  - `px-4 py-3` → `px-3 py-2`
-  - `text-2xl` → `text-xl` (اختياري حسب رغبتك)
-
-**ملاحظة أداء/UX:** هذه تغييرات CSS فقط، لا تؤثر على الأداء أو الداتا.
+| الملف | نوع التغيير |
+|-------|-------------|
+| `PackagePolicyEditModal.tsx` | تعديل - إضافة حقول birth_date + phone |
+| `PolicyChildrenSelector.tsx` | تعديل - إضافة حقول birth_date + phone |
+| `PolicyYearTimeline.tsx` | تعديل - استبدال إرسال مباشر بنافذة |
+| `InvoiceSendPrintDialog.tsx` | إنشاء جديد |
 
 ---
 
-## خطوات التحقق (Manual QA)
-1) افتح أي وثيقة باقة واضغط “تعديل”.
-2) جرّب scroll بالماوس/التراكباد داخل النافذة:
-   - لازم يشتغل صعود/نزول عندما المحتوى أطول من النافذة.
-3) اضغط “إضافة جديد” عدة مرات:
-   - يجب أن يضيف فورًا نموذج جديد
-   - يجب أن ينزل تلقائيًا للنموذج الجديد + يركز على حقل الاسم
-4) اختبر على شاشة صغيرة (Mobile ≤ 640px):
-   - لا يوجد horizontal scrolling للصفحة
-   - الحقول تتحول لصف واحد/Stack بشكل منطقي
-   - التمرير داخل النافذة يظل يعمل
+## النتيجة المتوقعة
 
----
-
-## الملفات التي سنعدلها
-- `src/components/policies/PackagePolicyEditModal.tsx`
-
-(لا تغييرات في قاعدة البيانات مطلوبة)
-
----
-
-## ملاحظات تقنية مختصرة
-- أصل المشكلة غالبًا تعارض `grid` الافتراضي في `DialogContent` مع layout المطلوب (flex) للتمرير.
-- استخدام `!flex` هو الحل الأقل مخاطرة لأنه محصور في هذا الـ modal فقط ولا يغير سلوك كل الـ dialogs في النظام.
+1. ✅ عند إضافة سائق جديد → يمكن إدخال تاريخ الميلاد والهاتف
+2. ✅ عند عرض السائقين الموجودين → يظهر badge "أقل من 24" إذا كان العمر أقل من 24
+3. ✅ عند الضغط على زر الإرسال ✈️ في بطاقة الوثيقة → تفتح نافذة بخيارين:
+   - إرسال SMS للعميل
+   - طباعة الفاتورة (فتح في نافذة جديدة)

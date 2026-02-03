@@ -1,66 +1,113 @@
 
-# خطة: إصلاح ظهور العملاء المُجدَّدين في قائمة التجديدات
+# خطة: إصلاح مشكلة الباقات مع دفعات الفيزا
 
 ## المشكلة
 
-العميلة **إيمان عليان** تظهر في تبويب "التجديدات" رغم أن جميع وثائقها تم تجديدها بالفعل:
-- وثيقة ELZAMI: انتهت 31/01/2026 ← تم تجديدها لـ 31/01/2027
-- وثيقة THIRD_FULL: انتهت 29/01/2026 ← تم تجديدها لـ 29/01/2027
+عند إنشاء باقة (Package) ودفع جزء منها بالفيزا، تظهر الوثيقة **كوثيقة منفردة** بدلاً من باقة:
 
-عند النقر على الصف، يظهر "0 وثيقة" لأن دالة `get_client_renewal_policies` تستبعد الوثائق المُجددة بشكل صحيح، لكن الجدول الرئيسي لا يفعل ذلك.
+| السيناريو | النتيجة |
+|-----------|---------|
+| باقة مع دفع نقدي فقط | ✅ باقة صحيحة مع جميع المكونات |
+| باقة مع دفع فيزا (1₪) + نقدي | ❌ وثيقة منفردة بدون مكونات الباقة |
 
----
-
-## التشخيص
+## التحليل التقني
 
 ### السبب الجذري
-الدالة `report_renewals` (7 معاملات) التي تُستخدم لعرض الجدول الرئيسي **لا تحتوي على شرط استبعاد الوثائق المُجددة**.
 
-| الدالة | هل تستبعد المُجدَّدين؟ |
-|--------|------------------------|
-| `report_renewals` (7 params) - الجدول الرئيسي | ❌ لا |
-| `get_client_renewal_policies` - تفاصيل العميل | ✅ نعم |
-| `report_renewals_summary` (TEXT) - البطاقات | ✅ نعم |
+في ملف `PolicyWizard.tsx`:
 
-### الدليل
-```sql
--- الدالة الحالية لا تحتوي على NOT EXISTS
-CREATE OR REPLACE FUNCTION public.report_renewals(...)
-  ...
-  FROM policies p
-  JOIN clients c ON c.id = p.client_id
-  WHERE p.cancelled = false
-    AND p.transferred = false
-    -- ❌ لا يوجد شرط استبعاد المُجددين!
+1. **عند النقر على "ادفع فيزا"** (handleCreateTempPolicy - سطر 390-538):
+   - يتم إنشاء وثيقة **منفردة** (standalone) بدون `group_id`
+   - لا يتم إنشاء سجل `policy_groups`
+   - لا يتم إنشاء وثائق الإضافات (ELZAMI, ROAD_SERVICE, ACCIDENT_FEE)
+
+2. **عند حفظ الوثيقة** (handleSave - سطر 556):
+   - سطر 590: `const useTempPolicy = !!tempPolicyId;`
+   - سطر 598: `if (!useTempPolicy) { /* إنشاء الباقة هنا */ }`
+   - عندما يوجد `tempPolicyId`، يتم **تخطي** كود إنشاء الباقة بالكامل (سطور 600-802)
+
+### تتبع الكود:
+```typescript
+// سطر 590 - تحقق من وجود وثيقة مؤقتة
+const useTempPolicy = !!tempPolicyId;
+
+// سطر 598-802 - كل منطق إنشاء الباقة داخل هذا الشرط
+if (!useTempPolicy) {
+  // ❌ هذا الكود لا يُنفذ عند دفع الفيزا
+  
+  // سطر 700-712 - إنشاء مجموعة الباقة
+  if (packageMode && packageAddons.some(addon => addon.enabled)) {
+    const { data: groupData } = await supabase
+      .from('policy_groups')
+      .insert({ client_id, car_id, name: `باقة - ${date}` })
+      .select().single();
+    groupId = groupData.id;
+  }
+  
+  // سطر 715-742 - إنشاء الوثيقة الرئيسية مع group_id
+  // سطر 748-801 - إنشاء وثائق الإضافات
+}
 ```
 
 ---
 
-## الحل
+## الحل المقترح
 
-### تحديث دالة `report_renewals` لإضافة شرط الاستبعاد
+### تعديل handleSave لمعالجة الباقات في وضع الفيزا
 
-سيتم إضافة شرط `NOT EXISTS` لاستبعاد الوثائق التي لها وثيقة أحدث نشطة (نفس العميل + السيارة + نوع التأمين):
+عند وجود `tempPolicyId` مع `packageMode`، نحتاج:
 
-```sql
-WHERE p.cancelled = false
-  AND p.transferred = false
-  AND p.deleted_at IS NULL
-  -- ✅ إضافة: استبعاد الوثائق المُجددة
-  AND NOT EXISTS (
-    SELECT 1 FROM policies newer
-    WHERE newer.client_id = p.client_id
-      AND newer.car_id IS NOT DISTINCT FROM p.car_id
-      AND newer.policy_type_parent = p.policy_type_parent
-      AND newer.deleted_at IS NULL
-      AND newer.cancelled = false
-      AND newer.transferred = false
-      AND newer.start_date > p.start_date
-      AND newer.end_date > CURRENT_DATE
-  )
+1. إنشاء سجل `policy_groups` جديد
+2. تحديث الوثيقة المؤقتة بإضافة `group_id`
+3. إنشاء وثائق الإضافات (ELZAMI, ROAD_SERVICE, إلخ)
+
+### التعديلات المطلوبة:
+
+```typescript
+// في handleSave (بعد سطر 597)
+
+if (!useTempPolicy) {
+  // ... الكود الحالي للحالة العادية ...
+} else {
+  // ✅ جديد: معالجة الباقات عند وجود وثيقة مؤقتة (دفع فيزا)
+  if (packageMode && packageAddons.some(addon => addon.enabled)) {
+    // 1. إنشاء مجموعة الباقة
+    const { data: groupData, error: groupError } = await supabase
+      .from('policy_groups')
+      .insert({
+        client_id: tempPolicyClientId,
+        car_id: tempPolicyCarId,
+        name: `باقة - ${new Date().toLocaleDateString('en-GB')}`,
+      })
+      .select().single();
+    
+    if (groupError) throw groupError;
+    const groupId = groupData.id;
+    
+    // 2. تحديث الوثيقة المؤقتة بإضافة group_id
+    await supabase
+      .from('policies')
+      .update({ group_id: groupId })
+      .eq('id', tempPolicyId);
+    
+    // 3. إنشاء وثائق الإضافات
+    for (const addon of packageAddons) {
+      if (!addon.enabled) continue;
+      
+      // إنشاء وثيقة الإضافة مع group_id
+      await supabase.from('policies').insert({
+        client_id: tempPolicyClientId,
+        car_id: tempPolicyCarId,
+        policy_type_parent: addonTypeMap[addon.type],
+        company_id: addon.company_id,
+        insurance_price: addon.insurance_price,
+        group_id: groupId,
+        // ... باقي الحقول
+      });
+    }
+  }
+}
 ```
-
-**ملاحظة هامة**: استخدام `IS NOT DISTINCT FROM` بدلاً من `=` للمقارنة بين car_id لضمان التعامل الصحيح مع القيم NULL.
 
 ---
 
@@ -68,157 +115,61 @@ WHERE p.cancelled = false
 
 | الملف | التغيير |
 |-------|---------|
-| قاعدة البيانات (Migration) | تحديث دالة `report_renewals` |
+| `src/components/policies/PolicyWizard.tsx` | إضافة منطق إنشاء الباقة عند وجود tempPolicyId |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ "إيمان عليان" والعملاء المُجدَّدون لن يظهروا في القائمة
-2. ✅ تطابق الأرقام بين الجدول والبطاقات الإحصائية
-3. ✅ عند النقر على عميل، ستظهر الوثائق المُنتهية الفعلية فقط
-4. ✅ الأداء سيتحسن (استعلامات أقل لبيانات لا نحتاجها)
+1. ✅ الباقات مع دفعات فيزا ستظهر كباقات كاملة
+2. ✅ جميع مكونات الباقة (إلزامي، خدمات طريق، إعفاء حوادث) ستُنشأ
+3. ✅ الدفعات ستُوزع على جميع وثائق الباقة بشكل صحيح
+4. ✅ العرض في ملف العميل سيُظهر "باقة" مع جميع المكونات
 
 ---
 
-## التفاصيل التقنية
+## التفاصيل التقنية الإضافية
 
-### الدالة المُحدَّثة الكاملة:
+### جلب بيانات الوثيقة المؤقتة:
 
-```sql
-CREATE OR REPLACE FUNCTION public.report_renewals(
-  p_start_date date DEFAULT NULL,
-  p_end_date date DEFAULT NULL,
-  p_policy_type text DEFAULT NULL,
-  p_created_by uuid DEFAULT NULL,
-  p_search text DEFAULT NULL,
-  p_page_size integer DEFAULT 25,
-  p_page integer DEFAULT 1
-)
-RETURNS TABLE(
-  client_id uuid,
-  client_name text,
-  client_file_number text,
-  client_phone text,
-  policies_count integer,
-  earliest_end_date date,
-  days_remaining integer,
-  total_insurance_price numeric,
-  policy_types text[],
-  policy_ids uuid[],
-  car_numbers text[],
-  worst_renewal_status text,
-  renewal_notes text,
-  total_count bigint
-)
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_offset integer;
-BEGIN
-  v_offset := (p_page - 1) * p_page_size;
+بما أن الوثيقة المؤقتة تم إنشاؤها قبل الحفظ، نحتاج لجلب `client_id` و `car_id` منها:
 
-  RETURN QUERY
-  WITH client_policies AS (
-    SELECT
-      c.id as cid,
-      c.full_name as cname,
-      c.file_number as cfile,
-      c.phone_number as cphone,
-      p.id as pid,
-      p.end_date,
-      p.insurance_price,
-      p.policy_type_parent,
-      COALESCE(prt.renewal_status, 'not_contacted') as rstatus,
-      prt.notes as rnotes,
-      car.car_number as car_num
-    FROM policies p
-    JOIN clients c ON c.id = p.client_id
-    LEFT JOIN cars car ON car.id = p.car_id
-    LEFT JOIN policy_renewal_tracking prt ON prt.policy_id = p.id
-    WHERE p.cancelled = false
-      AND p.transferred = false
-      AND p.deleted_at IS NULL
-      AND c.deleted_at IS NULL
-      AND p.end_date >= COALESCE(p_start_date, p.end_date)
-      AND p.end_date <= COALESCE(p_end_date, p.end_date)
-      AND (
-        NULLIF(p_policy_type, '') IS NULL
-        OR p.policy_type_parent::text = NULLIF(p_policy_type, '')
-      )
-      AND (p_created_by IS NULL OR p.created_by_admin_id = p_created_by)
-      AND (
-        p_search IS NULL
-        OR c.full_name ILIKE '%' || p_search || '%'
-        OR c.phone_number ILIKE '%' || p_search || '%'
-        OR c.file_number ILIKE '%' || p_search || '%'
-        OR c.id_number ILIKE '%' || p_search || '%'
-        OR car.car_number ILIKE '%' || p_search || '%'
-      )
-      -- ✅ استبعاد الوثائق المُجددة (وجود وثيقة أحدث)
-      AND NOT EXISTS (
-        SELECT 1 FROM policies newer
-        WHERE newer.client_id = p.client_id
-          AND newer.car_id IS NOT DISTINCT FROM p.car_id
-          AND newer.policy_type_parent = p.policy_type_parent
-          AND newer.deleted_at IS NULL
-          AND newer.cancelled = false
-          AND newer.transferred = false
-          AND newer.start_date > p.start_date
-          AND newer.end_date > CURRENT_DATE
-      )
-  ),
-  aggregated AS (
-    SELECT
-      cp.cid,
-      cp.cname,
-      cp.cfile,
-      cp.cphone,
-      COUNT(*)::integer as pcount,
-      MIN(cp.end_date) as min_end,
-      (MIN(cp.end_date) - CURRENT_DATE)::integer as days_rem,
-      SUM(COALESCE(cp.insurance_price, 0)) as total_price,
-      ARRAY_AGG(DISTINCT cp.policy_type_parent::text) 
-        FILTER (WHERE cp.policy_type_parent IS NOT NULL) as ptypes,
-      ARRAY_AGG(cp.pid) as pids,
-      ARRAY_AGG(DISTINCT cp.car_num) 
-        FILTER (WHERE cp.car_num IS NOT NULL) as car_nums,
-      -- أسوأ حالة (أولوية: لم يتم التواصل > SMS > اتصال > غير مهتم > مُجدَّد)
-      CASE
-        WHEN bool_or(cp.rstatus = 'not_contacted') THEN 'not_contacted'
-        WHEN bool_or(cp.rstatus = 'sms_sent') THEN 'sms_sent'
-        WHEN bool_or(cp.rstatus = 'called') THEN 'called'
-        WHEN bool_or(cp.rstatus = 'not_interested') THEN 'not_interested'
-        ELSE 'renewed'
-      END as worst_status,
-      STRING_AGG(cp.rnotes, '; ') 
-        FILTER (WHERE cp.rnotes IS NOT NULL) as notes_agg
-    FROM client_policies cp
-    GROUP BY cp.cid, cp.cname, cp.cfile, cp.cphone
-  ),
-  counted AS (
-    SELECT COUNT(*) OVER() as total FROM aggregated
-  )
-  SELECT
-    a.cid,
-    a.cname,
-    a.cfile,
-    a.cphone,
-    a.pcount,
-    a.min_end,
-    a.days_rem,
-    a.total_price,
-    a.ptypes,
-    a.pids,
-    a.car_nums,
-    a.worst_status,
-    a.notes_agg,
-    (SELECT total FROM counted LIMIT 1)
-  FROM aggregated a
-  ORDER BY a.min_end ASC
-  LIMIT p_page_size
-  OFFSET v_offset;
-END;
-$$;
+```typescript
+if (useTempPolicy && packageMode && packageAddons.some(addon => addon.enabled)) {
+  // جلب بيانات الوثيقة المؤقتة
+  const { data: tempPolicy } = await supabase
+    .from('policies')
+    .select('client_id, car_id')
+    .eq('id', tempPolicyId)
+    .single();
+  
+  if (!tempPolicy) throw new Error('Temp policy not found');
+  
+  const tempClientId = tempPolicy.client_id;
+  const tempCarId = tempPolicy.car_id;
+  
+  // ... إنشاء الباقة والإضافات ...
+}
 ```
+
+### حساب الربح للإضافات:
+
+يجب استخدام `calculatePolicyProfit` لكل إضافة لحساب:
+- `profit`
+- `payed_for_company`
+- `company_cost_snapshot`
+
+### تحديث insurance_price للوثيقة الرئيسية:
+
+الوثيقة المؤقتة تم إنشاؤها بـ `pricing.totalPrice` (مجموع الباقة)، لكن يجب تحديثها لتحتوي فقط على سعر الوثيقة الرئيسية:
+
+```typescript
+await supabase
+  .from('policies')
+  .update({ 
+    group_id: groupId,
+    insurance_price: parseFloat(policy.insurance_price) // السعر الفعلي للوثيقة الرئيسية فقط
+  })
+  .eq('id', tempPolicyId);
+```
+

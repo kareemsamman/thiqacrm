@@ -1204,7 +1204,7 @@ function PackageComponentRow({
           "ltr-nums text-[11px]",
           isActive ? "text-muted-foreground" : "text-muted-foreground/70"
         )}>
-          {formatDate(policy.start_date).slice(0, 5)} → {formatDate(policy.end_date).slice(0, 5)}
+          {formatDate(policy.end_date)} ← {formatDate(policy.start_date)}
         </span>
         <span className={cn(
           "font-semibold ltr-nums min-w-[60px] text-left",

@@ -1,53 +1,102 @@
 
-# خطة: إغلاق نافذة نجاح الوثيقة عند النقر خارجها
 
-## المشكلة
+# خطة: تحسين تصميم فلتر السيارات
 
-عند النقر خارج نافذة "تم إنشاء الوثيقة بنجاح" (على اليمين أو اليسار):
-- النافذة تختفي ✓
-- لكن معالج إنشاء الوثيقة يبقى مفتوحًا ❌
+## المشكلة الحالية
 
-السبب: `onOpenChange(false)` يخفي فقط نافذة النجاح، بينما `onClose()` يقوم بالإغلاق الكامل.
+1. لوحات السيارة تبدو مزدحمة وغير واضحة
+2. الشارات (badges) متداخلة وصعبة القراءة
+3. التصميم غير متناسق مع باقي الواجهة
 
 ---
 
-## الحل
+## التصميم الجديد المقترح
 
-### الملف: `src/components/policies/PolicySuccessDialog.tsx`
+### الشكل المحسّن:
 
-**تعديل `onOpenChange`** ليستدعي `onClose()` عند الإغلاق:
-
-```typescript
-// قبل (السطر 205):
-<Dialog open={open} onOpenChange={onOpenChange}>
-
-// بعد:
-<Dialog 
-  open={open} 
-  onOpenChange={(isOpen) => {
-    if (!isOpen) {
-      // عند الإغلاق (بأي طريقة)، قم بالإغلاق الكامل
-      handleClose();
-    } else {
-      onOpenChange(isOpen);
-    }
-  }}
->
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                                                                            │
+│  ┌─────────────────┐    ┌──────────────────────────────┐                  │
+│  │  🚗 كل السيارات  │    │  55-722-52                   │                  │
+│  │  5 سارية من 8   │    │  Audi • 2018                 │                  │
+│  │                 │    │  ● 3 سارية  ○ 5 إجمالي      │                  │
+│  └─────────────────┘    └──────────────────────────────┘                  │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**أو ببساطة:**
+---
 
-```typescript
-<Dialog 
-  open={open} 
-  onOpenChange={(isOpen) => !isOpen && handleClose()}
->
+## التغييرات التصميمية
+
+### 1. إزالة شكل لوحة السيارة المعقد
+- استبداله ببطاقات أنيقة موحدة مع باقي النظام
+- خلفية بيضاء مع حدود ناعمة
+
+### 2. عرض المعلومات بشكل منظم
+- **السطر الأول**: رقم السيارة بخط واضح
+- **السطر الثاني**: الشركة المصنعة + السنة
+- **السطر الثالث**: عدد الوثائق (سارية / إجمالي)
+
+### 3. مؤشرات بصرية واضحة
+- نقطة خضراء للوثائق السارية
+- نقطة رمادية للإجمالي
+- حدود ملونة عند التحديد
+
+---
+
+## الكود المحدث
+
+### الهيكل الجديد لكل بطاقة سيارة:
+
+```tsx
+<button className="group relative flex flex-col gap-1.5 p-3 rounded-xl 
+  border-2 bg-card/80 backdrop-blur-sm transition-all duration-200
+  hover:shadow-md hover:border-primary/30
+  [selected]: border-primary bg-primary/5 shadow-lg">
+  
+  {/* رقم السيارة */}
+  <div className="flex items-center gap-2">
+    <span className="text-base font-bold ltr-nums">55-722-52</span>
+    {selectedCarId === car.id && <Check className="h-4 w-4 text-primary" />}
+  </div>
+  
+  {/* الشركة المصنعة + السنة */}
+  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <span>Audi</span>
+    <span className="ltr-nums">2018</span>
+  </div>
+  
+  {/* عداد الوثائق */}
+  <div className="flex items-center gap-3 text-xs">
+    <div className="flex items-center gap-1">
+      <div className="h-2 w-2 rounded-full bg-success" />
+      <span className="font-medium ltr-nums">{activePolicyCount}</span>
+      <span className="text-muted-foreground">سارية</span>
+    </div>
+    {policyCount > activePolicyCount && (
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <div className="h-2 w-2 rounded-full bg-muted" />
+        <span className="ltr-nums">{policyCount}</span>
+        <span>إجمالي</span>
+      </div>
+    )}
+  </div>
+</button>
 ```
 
-هذا يضمن أنه عند النقر:
-- على الخلفية (overlay) ← يتم استدعاء `handleClose()`
-- على زر X ← يتم استدعاء `handleClose()` (عبر نفس الآلية)
-- على زر "إغلاق" ← يتم استدعاء `handleClose()` مباشرة
+---
+
+## مميزات التصميم الجديد
+
+| الميزة | التصميم القديم | التصميم الجديد |
+|--------|---------------|----------------|
+| الوضوح | شارات متداخلة | معلومات مرتبة |
+| التناسق | شكل لوحة مختلف | بطاقات موحدة |
+| سهولة القراءة | صعب | سهل جداً |
+| المساحة | مضغوطة | مريحة |
+| المؤشرات | أرقام فقط | نقاط ملونة + أرقام |
 
 ---
 
@@ -55,13 +104,14 @@
 
 | الملف | التغيير |
 |-------|---------|
-| `src/components/policies/PolicySuccessDialog.tsx` | تعديل `onOpenChange` ليستدعي `handleClose` |
+| `src/components/clients/CarFilterChips.tsx` | إعادة تصميم البطاقات بالكامل |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ النقر خارج النافذة يغلق كل شيء (نافذة النجاح + معالج الوثيقة)
-2. ✅ النقر على زر X يغلق كل شيء
-3. ✅ النقر على زر "إغلاق" يغلق كل شيء
-4. ✅ بعد الإغلاق، يتم التنقل لصفحة العميل
+1. ✅ تصميم نظيف ومتناسق مع باقي النظام
+2. ✅ معلومات واضحة وسهلة القراءة
+3. ✅ مؤشرات بصرية للوثائق السارية والإجمالية
+4. ✅ تجربة مستخدم محسّنة
+

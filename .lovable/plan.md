@@ -1,106 +1,79 @@
 
-# خطة: تحسين نموذج إضافة العميل الجديد
+# خطة: استبعاد العملاء الذين تم تجديد جميع وثائقهم من تبويب التجديدات
 
 ## المشكلة الحالية
 
-في صفحة العملاء عند الضغط على "إضافة عميل جديد" (`ClientDrawer.tsx`):
-- حقل تاريخ الميلاد يستخدم `Calendar` component القديم
-- لا يسمح بالكتابة اليدوية للتاريخ (DD/MM/YYYY)
-- يختلف عن نموذج إنشاء العميل في wizard الذي يستخدم `ArabicDatePicker`
+في تبويب "التجديدات" بصفحة `/reports/policies`:
+- العميل "ايمان عليان" يظهر رغم أنه تم تجديد جميع وثائقه
+- عند النقر على الصف يظهر "الوثائق المنتهية: 0 وثيقة"
+- يجب عدم ظهور العملاء الذين ليس لديهم وثائق تحتاج تجديد
+
+## سبب المشكلة
+
+الدالة `report_renewals` في الـ migration الأخير (`20260202150200`) **لا تحتوي على فلتر** لاستبعاد الوثائق التي تم تجديدها (يوجد وثيقة أحدث لنفس السيارة ونوع التأمين).
+
+الـ migration السابق (`20260202102930`) كان يحتوي على الفلتر الصحيح باستخدام `NOT EXISTS` ولكن تمت إعادة كتابة الدالة بدون هذا الفلتر.
 
 ## الحل
 
-استبدال `Calendar` + `Popover` بـ `ArabicDatePicker` في `ClientDrawer.tsx`
+### 1. تحديث دالة `report_renewals`
 
----
+إضافة شرط `NOT EXISTS` لاستبعاد الوثائق المُجددة (التي يوجد لها وثيقة أحدث لنفس العميل + السيارة + نوع التأمين):
 
-## التغييرات المطلوبة
-
-### الملف: `src/components/clients/ClientDrawer.tsx`
-
-#### 1. إزالة imports غير مستخدمة
-
-```typescript
-// إزالة:
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-
-// إضافة:
-import { ArabicDatePicker } from '@/components/ui/arabic-date-picker';
+```sql
+-- داخل WHERE clause:
+AND NOT EXISTS (
+  SELECT 1 FROM policies newer
+  WHERE newer.client_id = p.client_id
+    AND newer.car_id = p.car_id
+    AND newer.policy_type_parent = p.policy_type_parent
+    AND newer.cancelled = false
+    AND newer.transferred = false
+    AND newer.start_date > p.start_date
+    AND newer.end_date > CURRENT_DATE
+)
 ```
 
-#### 2. تعديل schema لقبول string بدلاً من Date
+### 2. تحديث دالة `report_renewals_summary`
 
-```typescript
-// قبل:
-birth_date: z.date().optional().nullable(),
+نفس الشرط يجب إضافته ليتطابق العدد في البطاقات مع الجدول.
 
-// بعد:
-birth_date: z.string().optional(),
+### 3. تحديث دالة `get_client_renewal_policies`
+
+التأكد من أن الدالة تستخدم نفس الفلتر عند عرض تفاصيل وثائق العميل.
+
+## التغييرات التقنية
+
+### Migration SQL جديد
+
+```sql
+-- 1. تحديث report_renewals لاستبعاد الوثائق المُجددة
+CREATE OR REPLACE FUNCTION public.report_renewals(...)
+...
+WHERE p.cancelled = false
+  AND p.transferred = false
+  -- NEW: استبعاد الوثائق التي تم تجديدها
+  AND NOT EXISTS (
+    SELECT 1 FROM policies newer
+    WHERE newer.client_id = p.client_id
+      AND newer.car_id = p.car_id
+      AND newer.policy_type_parent = p.policy_type_parent
+      AND newer.cancelled = false
+      AND newer.transferred = false
+      AND newer.start_date > p.start_date
+      AND newer.end_date > CURRENT_DATE
+  )
 ```
 
-#### 3. تحديث defaultValues
+## الملفات المتأثرة
 
-```typescript
-// قبل:
-birth_date: client?.birth_date ? new Date(client.birth_date) : null,
-
-// بعد:
-birth_date: client?.birth_date || '',
-```
-
-#### 4. تحديث حفظ البيانات
-
-```typescript
-// قبل:
-birth_date: data.birth_date ? format(data.birth_date, 'yyyy-MM-dd') : null,
-
-// بعد:
-birth_date: data.birth_date || null,
-```
-
-#### 5. استبدال حقل تاريخ الميلاد (السطور 522-563)
-
-```tsx
-{/* Birth Date */}
-<FormField
-  control={form.control}
-  name="birth_date"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>تاريخ الميلاد</FormLabel>
-      <FormControl>
-        <ArabicDatePicker
-          value={field.value || ''}
-          onChange={field.onChange}
-          placeholder="اختر تاريخ الميلاد"
-          isBirthDate
-        />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-```
-
----
-
-## ملخص التغييرات
-
-| الموقع | التغيير |
-|--------|---------|
-| Imports | استبدال Calendar/Popover بـ ArabicDatePicker |
-| Schema | تغيير birth_date من Date إلى string |
-| Form Field | استبدال Calendar+Popover بـ ArabicDatePicker |
-| Save Logic | إزالة format() لأن القيمة بالفعل YYYY-MM-DD |
-
----
+| الملف | نوع التغيير |
+|-------|-------------|
+| قاعدة البيانات (Migration) | تحديث 3 دوال RPC |
 
 ## النتيجة المتوقعة
 
-- ✅ حقل تاريخ الميلاد يسمح بالكتابة اليدوية (DD/MM/YYYY)
-- ✅ أيقونة التقويم تفتح popup للاختيار
-- ✅ نفس تجربة المستخدم مثل wizard إنشاء الوثيقة
-- ✅ دعم تاريخ الميلاد (1920-الحالي)
+- ✅ العملاء الذين تم تجديد جميع وثائقهم لن يظهروا في التجديدات
+- ✅ البطاقات الإحصائية ستعرض الأرقام الصحيحة
+- ✅ الـ PDF المُصدّر سيستبعد الوثائق المُجددة أيضاً
+- ✅ تبويب "تم التجديد" يبقى كما هو لعرض العملاء المُجددين

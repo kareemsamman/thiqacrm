@@ -1,138 +1,116 @@
 
-# خطة: إصلاح مشاكل فاتورة الباقة على CDN
+# خطة: إصلاح مشكلة عرض الباقات المدفوعة بالفيزا
 
-## ملخص المشاكل المُكتشفة
+## المشكلة الحالية
 
-| # | المشكلة | السبب |
-|---|---------|-------|
-| 1 | منورا تظهر "ثالث/شامل" بدلاً من "إلزامي" | عند دفع الفيزا، يتم إنشاء الوثيقة المؤقتة بنوع الفئة (THIRD_FULL) بدلاً من نوع الوثيقة الفعلي (ELZAMI) |
-| 2 | اراضي مقدسة تظهر "ثالث/شامل" بدلاً من "ثالث" | دالة buildPackageInvoiceHtml تستخدم `policy_type_parent` فقط وتتجاهل `policy_type_child` |
-| 3 | دفعة الفيزا (1₪) لا تظهر في سجل الدفعات | الاستعلام يُفلتر بـ `.eq('refused', false)` لكن دفعة الفيزا لها `refused: null` (قيد الانتظار) |
-| 4 | عمود "الوثيقة" يظهر في جدول الدفعات للباقة | للباقات، الدفعات تغطي الباقة كلها فلا حاجة لإظهار الوثيقة لكل دفعة |
-| 5 | نوع الخدمة لا يظهر للـ ROAD_SERVICE | يجب إظهار اسم خدمة الطريق المحددة |
+عند إنشاء باقة ودفع جزء منها بالفيزا:
+1. الوثائق الجديدة تُنشأ مع `group_id` صحيح ✅
+2. لكنها تظهر كوثائق منفردة في واجهة العميل ❌
 
----
-
-## الإصلاح 1: تصحيح نوع الوثيقة في handleCreateTempPolicy
-
-**الملف:** `src/components/policies/PolicyWizard.tsx`
-
-**المشكلة:** عند إنشاء الوثيقة المؤقتة للباقة، يتم استخدام نوع الفئة (THIRD_FULL) بدلاً من نوع الوثيقة الرئيسية الفعلي.
-
-في الباقة:
-- الوثيقة الرئيسية من منورا هي **ELZAMI** (إلزامي)
-- اراضي مقدسة هي **THIRD** (ثالث)
-- الخدمة هي **ROAD_SERVICE**
-
-**الحل:** تحديث handleCreateTempPolicy للتعامل مع الباقات:
+**السبب الجذري:**
+الإصلاح السابق في `handleCreateTempPolicy` كان خاطئاً:
+- الكود يبحث عن إضافة ELZAMI أولاً، ثم THIRD_FULL
+- لكن الوثيقة المؤقتة يجب أن تمثل **الوثيقة الرئيسية** (من Step 3)، وليس الإضافات
 
 ```typescript
-// عند إنشاء وثيقة مؤقتة للباقة، استخدم نوع الإضافة الأولى المفعلة
-// لأن الوثيقة الرئيسية في الباقة هي عادةً ELZAMI
-
+// الكود الخاطئ:
 if (packageMode && packageAddons.some(a => a.enabled)) {
-  // الوثيقة المؤقتة يجب أن تكون للمكون الأول (عادةً ELZAMI)
-  const firstAddon = packageAddons.find(a => a.type === 'ELZAMI' && a.enabled);
-  if (firstAddon) {
-    policyTypeParent = 'ELZAMI';
-    companyId = firstAddon.company_id;
-    insurancePrice = firstAddon.insurance_price;
+  const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
+  if (elzamiAddon) {
+    policyTypeParentValue = 'ELZAMI';  // ❌ خطأ - قد لا يكون هناك إلزامي
   }
 }
 ```
 
+**مثال من البيانات:**
+- باقة `f1ef4b13-af49-4530-8341-0b8a7b904b75` تحتوي:
+  - منورا THIRD_FULL (الرئيسية) ← نوعها خطأ: يجب أن تكون THIRD أو FULL
+  - اراضي مقدسة THIRD_FULL THIRD (إضافة)
+  - شركة اكس ROAD_SERVICE (إضافة)
+
 ---
 
-## الإصلاح 2: عرض policy_type_child بشكل صحيح
+## الحل الصحيح
 
-**الملف:** `supabase/functions/send-package-invoice-sms/index.ts`
+### المبدأ:
+1. **الوثيقة المؤقتة** = الوثيقة الرئيسية (ما يُدخله المستخدم في Step 3)
+2. **الإضافات** = ما يُفعّله المستخدم في PackageBuilderSection
 
-**التغيير:** تحديث دالة عرض نوع التأمين لاستخدام policy_type_child عند توفره:
+### التعديلات المطلوبة:
+
+#### 1. إصلاح handleCreateTempPolicy
+
+**الملف:** `src/components/policies/PolicyWizard.tsx`
+
+**التغيير:** إزالة المنطق الخاطئ والاعتماد على بيانات الوثيقة الرئيسية:
 
 ```typescript
-// الكود الحالي (سطر 490):
-const policyType = POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent;
+// الكود الصحيح:
+// الوثيقة المؤقتة تستخدم بيانات الوثيقة الرئيسية مباشرة
+let policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
+let policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
+let tempCompanyId = policy.company_id;
+let tempInsurancePrice = pricing.basePrice || parseFloat(policy.insurance_price) || 0;
 
-// الكود الجديد:
-let policyType = '';
-if (p.policy_type_child && POLICY_TYPE_LABELS[p.policy_type_child]) {
-  // استخدم النوع الفرعي إذا وُجد (ثالث أو شامل)
-  policyType = POLICY_TYPE_LABELS[p.policy_type_child];
-} else {
-  policyType = POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent;
+// لا نغير النوع للإضافات - الوثيقة المؤقتة هي دائماً الرئيسية
+```
+
+#### 2. إصلاح عرض الباقات في PolicyTreeView
+
+**المشكلة:** الوثائق القديمة بدون `group_id` تظهر منفردة
+
+**الحل:** لا يمكن إصلاح الوثائق القديمة تلقائياً - تحتاج تحديث يدوي في قاعدة البيانات
+
+---
+
+## التفاصيل التقنية
+
+### التغيير في handleCreateTempPolicy (سطور 471-496):
+
+**قبل (الكود الخاطئ):**
+```typescript
+let policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
+let policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
+let tempCompanyId = policy.company_id;
+let tempInsurancePrice = pricing.totalPrice;
+
+// For packages: prioritize ELZAMI addon's type and company
+if (packageMode && packageAddons.some(a => a.enabled)) {
+  const elzamiAddon = packageAddons.find(a => a.type === 'elzami' && a.enabled);
+  if (elzamiAddon) {
+    policyTypeParentValue = 'ELZAMI' as PolicyTypeParent;
+    policyTypeChildValue = null;
+    tempCompanyId = elzamiAddon.company_id || policy.company_id;
+    tempInsurancePrice = parseFloat(elzamiAddon.insurance_price) || pricing.totalPrice;
+  } else {
+    const thirdAddon = packageAddons.find(a => a.type === 'third_full' && a.enabled);
+    if (thirdAddon) {
+      policyTypeParentValue = 'THIRD_FULL' as PolicyTypeParent;
+      policyTypeChildValue = (thirdAddon.policy_type_child as PolicyTypeChild) || null;
+      tempCompanyId = thirdAddon.company_id || policy.company_id;
+      tempInsurancePrice = parseFloat(thirdAddon.insurance_price) || pricing.totalPrice;
+    }
+  }
 }
 ```
 
----
-
-## الإصلاح 3: إظهار دفعات الفيزا (refused = null)
-
-**الملف:** `supabase/functions/send-package-invoice-sms/index.ts`
-
-**التغيير:** تعديل استعلام الدفعات ليشمل `refused IS NULL` (للفيزا قيد المعالجة) و `refused = false` (للدفعات المقبولة):
-
+**بعد (الكود الصحيح):**
 ```typescript
-// الكود الحالي (سطر 187):
-.eq('refused', false)
+// الوثيقة المؤقتة = الوثيقة الرئيسية دائماً
+let policyTypeParentValue = (selectedCategory?.slug || policy.policy_type_parent) as PolicyTypeParent;
+let policyTypeChildValue = (policy.policy_type_child || null) as PolicyTypeChild | null;
+let tempCompanyId = policy.company_id;
 
-// الكود الجديد:
-.or('refused.eq.false,refused.is.null')
+// للباقات: استخدم سعر الوثيقة الرئيسية فقط (basePrice)، وليس المجموع
+let tempInsurancePrice = packageMode 
+  ? (pricing.basePrice || parseFloat(policy.insurance_price) || 0)
+  : (pricing.totalPrice || parseFloat(policy.insurance_price) || 0);
 ```
 
----
-
-## الإصلاح 4: إخفاء عمود "الوثيقة" في جدول دفعات الباقات
-
-**الملف:** `supabase/functions/send-package-invoice-sms/index.ts`
-
-**التغيير:** بما أن الدفعات للباقة كلها، لا حاجة لإظهار عمود الوثيقة:
-
-```html
-<!-- الجدول الحالي -->
-<table>
-  <tr>
-    <th>الوثيقة</th>  <!-- حذف هذا العمود -->
-    <th>التاريخ</th>
-    <th>طريقة الدفع</th>
-    <th>المبلغ</th>
-  </tr>
-</table>
-
-<!-- الجدول الجديد -->
-<table>
-  <tr>
-    <th>التاريخ</th>
-    <th>طريقة الدفع</th>
-    <th>المبلغ</th>
-  </tr>
-</table>
-```
-
-**ملاحظة:** يجب أيضاً دمج الدفعات من جميع الوثائق بدلاً من تكرارها مع اسم الوثيقة.
-
----
-
-## الإصلاح 5: إظهار نوع الخدمة للـ ROAD_SERVICE
-
-**الملف:** `supabase/functions/send-package-invoice-sms/index.ts`
-
-**التغيير:** جلب بيانات خدمة الطريق وعرض اسمها:
-
-```typescript
-// إضافة JOIN لجلب اسم خدمة الطريق
-const { data: policies } = await supabase
-  .from("policies")
-  .select(`
-    *,
-    road_service:road_services(name),
-    ...
-  `)
-
-// وفي عرض نوع التأمين:
-if (p.policy_type_parent === 'ROAD_SERVICE' && p.road_service?.name) {
-  policyType = `خدمات الطريق - ${p.road_service.name}`;
-}
-```
+**السبب:**
+- `pricing.basePrice` = سعر الوثيقة الرئيسية فقط
+- `pricing.totalPrice` = مجموع الباقة كلها
+- الوثيقة المؤقتة يجب أن تحتوي سعرها فقط، والإضافات تُنشأ لاحقاً في handleSave
 
 ---
 
@@ -140,28 +118,21 @@ if (p.policy_type_parent === 'ROAD_SERVICE' && p.road_service?.name) {
 
 | الملف | التغيير |
 |-------|---------|
-| `src/components/policies/PolicyWizard.tsx` | إصلاح نوع الوثيقة المؤقتة للباقات |
-| `supabase/functions/send-package-invoice-sms/index.ts` | إصلاحات عرض نوع التأمين، الدفعات، والخدمات |
+| `src/components/policies/PolicyWizard.tsx` | إصلاح handleCreateTempPolicy لاستخدام بيانات الوثيقة الرئيسية |
 
 ---
 
 ## النتيجة المتوقعة
 
-1. ✅ منورا ستظهر "إلزامي" بدلاً من "ثالث/شامل"
-2. ✅ اراضي مقدسة ستظهر "ثالث" بدلاً من "ثالث/شامل"
-3. ✅ دفعة الفيزا (1₪) ستظهر في سجل الدفعات كـ "فيزا"
-4. ✅ جدول الدفعات لن يحتوي عمود "الوثيقة" للباقات
-5. ✅ خدمات الطريق ستظهر مع اسم الخدمة
+1. ✅ الوثيقة المؤقتة ستُنشأ بالنوع الصحيح (THIRD أو FULL)
+2. ✅ الشركة الصحيحة (منورا مثلاً) ستُستخدم
+3. ✅ السعر الصحيح (سعر الوثيقة الرئيسية فقط)
+4. ✅ الإضافات ستُنشأ بشكل منفصل في handleSave
 
 ---
 
-## ملاحظة بخصوص الوثائق الحالية
+## ملاحظة بخصوص الوثائق السابقة
 
-الوثائق المُنشأة سابقاً (مثل باقة "Kareem Test") بها مشكلة في البيانات:
-- منورا مسجلة كـ THIRD_FULL بدلاً من ELZAMI
-
-**خياران للإصلاح:**
-1. **إصلاح يدوي**: تحديث `policy_type_parent` للوثيقة الخاطئة في قاعدة البيانات
-2. **إعادة إنشاء**: حذف الباقة الخاطئة وإنشاء واحدة جديدة
-
-هل ترغب أن أقوم بإصلاح البيانات الحالية أيضاً؟
+الوثائق المُنشأة قبل هذا الإصلاح تحتاج تحديث يدوي:
+- تحديث `policy_type_child` للوثائق التي يجب أن تكون THIRD أو FULL
+- أو حذفها وإعادة إنشائها بالطريقة الصحيحة

@@ -800,6 +800,162 @@ export function PolicyWizard({
             });
           }
         }
+      } else {
+        // ✅ PACKAGE HANDLING FOR VISA PAYMENTS (tempPolicyId exists)
+        // When user paid with Visa, temp policy was created WITHOUT group_id
+        // We need to create the package group and addon policies now
+        if (packageMode && packageAddons.some(addon => addon.enabled)) {
+          // 1. Fetch temp policy data to get client_id, car_id, and other details
+          const { data: tempPolicy, error: tempPolicyError } = await supabase
+            .from('policies')
+            .select('client_id, car_id, start_date, end_date, is_under_24')
+            .eq('id', tempPolicyId)
+            .single();
+          
+          if (tempPolicyError || !tempPolicy) {
+            throw new Error('لم يتم العثور على الوثيقة المؤقتة');
+          }
+
+          const tempClientId = tempPolicy.client_id;
+          const tempCarId = tempPolicy.car_id;
+          const tempStartDate = tempPolicy.start_date;
+          const tempEndDate = tempPolicy.end_date;
+          const tempIsUnder24 = tempPolicy.is_under_24;
+
+          // 2. Create policy group
+          const { data: groupData, error: groupError } = await supabase
+            .from('policy_groups')
+            .insert({
+              client_id: tempClientId,
+              car_id: tempCarId || null,
+              name: `باقة - ${new Date().toLocaleDateString('en-GB')}`,
+            })
+            .select()
+            .single();
+
+          if (groupError) throw groupError;
+          const groupId = groupData.id;
+
+          // 3. Get car data for profit calculation
+          let carTypeForCalc: CarType = 'car';
+          let carValueForCalc: number | null = null;
+          let carYearForCalc: number | null = null;
+
+          if (tempCarId) {
+            const { data: carData } = await supabase
+              .from('cars')
+              .select('car_type, car_value, year')
+              .eq('id', tempCarId)
+              .single();
+            
+            if (carData) {
+              carTypeForCalc = (carData.car_type || 'car') as CarType;
+              carValueForCalc = carData.car_value;
+              carYearForCalc = carData.year;
+            }
+          }
+
+          // 4. Calculate main policy profit with correct insurance_price (not total)
+          const mainInsurancePrice = parseFloat(policy.insurance_price) || 0;
+          const selectedCompany = companies.find(c => c.id === policy.company_id);
+          const isCompanyLinkedToBroker = !!selectedCompany?.broker_id;
+          const brokerBuyPriceValue = isCompanyLinkedToBroker && policy.broker_buy_price 
+            ? parseFloat(policy.broker_buy_price) 
+            : null;
+
+          const mainProfitData = await calculatePolicyProfit({
+            policyTypeParent: policy.policy_type_parent as PolicyTypeParent,
+            policyTypeChild: (policy.policy_type_child || null) as PolicyTypeChild | null,
+            companyId: policy.company_id,
+            carType: carTypeForCalc,
+            ageBand: tempIsUnder24 ? 'UNDER_24' as const : 'UP_24' as const,
+            carValue: policy.full_car_value ? parseFloat(policy.full_car_value) : carValueForCalc,
+            carYear: carYearForCalc,
+            insurancePrice: mainInsurancePrice,
+            brokerBuyPrice: brokerBuyPriceValue,
+            roadServiceId: policy.road_service_id || null,
+            accidentFeeServiceId: policy.accident_fee_service_id || null,
+          });
+
+          // 5. Update the temp policy with group_id and correct insurance_price
+          const { error: updateError } = await supabase
+            .from('policies')
+            .update({ 
+              group_id: groupId,
+              insurance_price: mainInsurancePrice,
+              profit: mainProfitData.profit,
+              payed_for_company: mainProfitData.companyPayment,
+              company_cost_snapshot: mainProfitData.companyPayment,
+              broker_buy_price: brokerBuyPriceValue || 0,
+            })
+            .eq('id', tempPolicyId);
+
+          if (updateError) throw updateError;
+
+          // 6. Create addon policies
+          for (const addon of packageAddons) {
+            if (!addon.enabled) continue;
+
+            const addonTypeMap: Record<string, PolicyTypeParent> = {
+              'elzami': 'ELZAMI',
+              'third_full': 'THIRD_FULL',
+              'road_service': 'ROAD_SERVICE',
+              'accident_fee_exemption': 'ACCIDENT_FEE_EXEMPTION',
+            };
+            const addonTypeParent = addonTypeMap[addon.type] as PolicyTypeParent;
+            const addonInsurancePrice = parseFloat(addon.insurance_price) || 0;
+            
+            // Get policy_type_child for THIRD_FULL addons
+            const addonTypeChild = addon.type === 'third_full' && addon.policy_type_child 
+              ? addon.policy_type_child as PolicyTypeChild 
+              : null;
+
+            // Calculate profit for addon
+            const addonProfitData = await calculatePolicyProfit({
+              policyTypeParent: addonTypeParent,
+              policyTypeChild: addonTypeChild,
+              companyId: addon.company_id || '',
+              carType: carTypeForCalc,
+              ageBand: tempIsUnder24 ? 'UNDER_24' as const : 'UP_24' as const,
+              carValue: policy.full_car_value ? parseFloat(policy.full_car_value) : carValueForCalc,
+              carYear: carYearForCalc,
+              insurancePrice: addonInsurancePrice,
+              roadServiceId: addon.road_service_id || null,
+              accidentFeeServiceId: addon.accident_fee_service_id || null,
+            });
+
+            // Use addon's own dates if provided, otherwise use policy dates
+            const addonStartDate = addon.start_date || tempStartDate;
+            const addonEndDate = addon.end_date || tempEndDate;
+
+            const { error: addonError } = await supabase.from('policies').insert({
+              client_id: tempClientId,
+              car_id: tempCarId || null,
+              category_id: null,
+              policy_type_parent: addonTypeParent,
+              policy_type_child: addonTypeChild,
+              company_id: addon.company_id || null,
+              start_date: addonStartDate,
+              end_date: addonEndDate,
+              insurance_price: addonInsurancePrice,
+              profit: addonProfitData.profit,
+              payed_for_company: addonProfitData.companyPayment,
+              company_cost_snapshot: addonProfitData.companyPayment,
+              road_service_id: addon.road_service_id || null,
+              accident_fee_service_id: addon.accident_fee_service_id || null,
+              group_id: groupId,
+              notes: 'إضافة ضمن باقة',
+              branch_id: effectiveBranchId || null,
+              created_by_admin_id: user?.id || null,
+              is_under_24: tempIsUnder24,
+            });
+
+            if (addonError) {
+              console.error('Error creating addon policy:', addonError);
+              throw addonError;
+            }
+          }
+        }
       }
 
       if (!policyIdToUse) throw new Error('Policy ID is required');

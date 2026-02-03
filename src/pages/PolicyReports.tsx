@@ -30,7 +30,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { PolicyWizard } from '@/components/policies/PolicyWizard';
+import { RenewalData } from '@/components/policies/wizard/types';
 import {
   Search,
   FileText,
@@ -272,6 +275,11 @@ export default function PolicyReports() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [sendingSingleSms, setSendingSingleSms] = useState<string | null>(null);
+  
+  // Renewal Wizard State
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [renewalData, setRenewalData] = useState<RenewalData | null>(null);
+  const [renewingClientId, setRenewingClientId] = useState<string | null>(null);
   
   // Expandable row for payment activity (created policies)
   const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null);
@@ -694,6 +702,64 @@ export default function PolicyReports() {
       toast.error(error.message || 'فشل في إرسال الرسالة');
     } finally {
       setSendingSingleSms(null);
+    }
+  };
+
+  // Handle renew from report - opens PolicyWizard with pre-filled data
+  const handleRenewFromReport = async (client: RenewalClient) => {
+    setRenewingClientId(client.client_id);
+    
+    try {
+      // Fetch client's policies for renewal
+      const { startDate, endDate } = getRenewalDateRange();
+      const { data: policies, error } = await supabase.rpc('get_client_renewal_policies', {
+        p_client_id: client.client_id,
+        p_start_date: startDate,
+        p_end_date: endDate
+      });
+      
+      if (error) throw error;
+      
+      if (!policies?.length) {
+        toast.error('لم يتم العثور على الوثائق');
+        return;
+      }
+      
+      // Determine main policy (THIRD_FULL or ELZAMI takes priority)
+      const mainPolicy = policies.find((p: RenewalPolicy) => 
+        p.policy_type_parent === 'THIRD_FULL' || p.policy_type_parent === 'ELZAMI'
+      ) || policies[0];
+      
+      // Build addons from other policies
+      const addons = policies
+        .filter((p: RenewalPolicy) => p.id !== mainPolicy.id)
+        .map((p: RenewalPolicy) => ({
+          type: p.policy_type_parent.toLowerCase() as 'elzami' | 'third_full' | 'road_service' | 'accident_fee_exemption',
+          companyId: p.company_id || '',
+          insurancePrice: p.insurance_price,
+          policyTypeChild: p.policy_type_child || undefined,
+        }));
+      
+      // Prepare renewal data
+      const renewal: RenewalData = {
+        clientId: client.client_id,
+        carId: mainPolicy.car_id,
+        categorySlug: 'THIRD_FULL', // For cars
+        policyTypeParent: mainPolicy.policy_type_parent,
+        policyTypeChild: mainPolicy.policy_type_child || undefined,
+        companyId: mainPolicy.company_id || '',
+        insurancePrice: mainPolicy.insurance_price,
+        packageAddons: addons.length > 0 ? addons : undefined,
+        originalEndDate: mainPolicy.end_date,
+      };
+      
+      setRenewalData(renewal);
+      setWizardOpen(true);
+    } catch (error) {
+      console.error('Error preparing renewal:', error);
+      toast.error('فشل في تحضير التجديد');
+    } finally {
+      setRenewingClientId(null);
     }
   };
 
@@ -1361,6 +1427,18 @@ export default function PolicyReports() {
                                       </DropdownMenuItem>
                                     </>
                                   )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleRenewFromReport(client)}
+                                    disabled={renewingClientId === client.client_id}
+                                  >
+                                    {renewingClientId === client.client_id ? (
+                                      <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-4 w-4 ml-2" />
+                                    )}
+                                    تجديد ({client.policies_count} وثيقة)
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -1754,6 +1832,27 @@ export default function PolicyReports() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Policy Wizard for Renewal */}
+      <PolicyWizard
+        open={wizardOpen}
+        onOpenChange={(open) => {
+          setWizardOpen(open);
+          if (!open) {
+            setRenewalData(null);
+          }
+        }}
+        onSaved={() => {
+          setWizardOpen(false);
+          setRenewalData(null);
+          toast.success('تم تجديد الوثيقة بنجاح');
+          // Refresh data - client will move to "Renewed" automatically via DB trigger
+          setClientPolicies({});
+          setExpandedClientId(null);
+          fetchRenewals();
+        }}
+        renewalData={renewalData ?? undefined}
+      />
     </MainLayout>
   );
 }

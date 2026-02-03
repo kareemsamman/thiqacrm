@@ -1,212 +1,79 @@
 
 
-# خطة: إصلاح حساب الديون في RPC - الفرق بين ₪11,400 و ₪15,200
+# خطة: إصلاح عرض المتبقي الصحيح في صفحة متابعة الديون
 
-## ملخص المشكلة
+## المشكلة
 
-العميل **اشرف زياد ناصر**:
-- صفحة ملف العميل: **₪15,200** ✅ (صحيح)
-- صفحة متابعة الديون: **₪11,400** ❌ (خطأ)
+العميل **اسلام عيسى**:
+- المبلغ الصحيح: **₪8,700** (حسب الوثائق الفعلية)
+- المعروض: **₪14,300** (خطأ - مجموع الأسعار بدلاً من المتبقي)
 
-**الفرق = ₪3,800** (دين باقة كاملة مفقودة!)
+## التحليل
+
+### بيانات الوثائق من قاعدة البيانات:
+
+| رقم الوثيقة | النوع | السعر | المدفوع | المتبقي |
+|------------|-------|-------|---------|---------|
+| 0c2dcdc3 | ثالث | 4,500 | 0 | 4,500 |
+| f31d2f71 | ثالث | 8,800 | 5,600 | 3,200 |
+| 9f6a459d | خدمات طريق | 1,000 | 0 | 1,000 |
+| **المجموع** | | **14,300** | **5,600** | **8,700** |
+
+### نتيجة الـ RPC:
+```
+total_owed: 14300.00      ← مجموع الأسعار
+total_remaining: 8700.00  ← الدين المتبقي الفعلي ✅
+```
+
+الـ RPC يُرجع القيمتين بشكل صحيح، لكن الـ Frontend يستخدم الحقل الخاطئ.
 
 ---
 
-## تشخيص السبب الجذري
+## جذر المشكلة
 
-### المشكلة في دالة `report_client_debts` RPC
+**الملف:** `src/pages/DebtTracking.tsx`
 
-الحساب الحالي في السطور 48-70:
+### الخطأ الأول (السطر 142):
+```typescript
+// قبل:
+total_remaining: Number(r.total_owed) || 0, // ← يستخدم total_owed بدلاً من total_remaining
 
-```sql
--- 1. حساب المدفوعات لكل باقة (كل الوثائق بما فيها الإلزامي)
-group_payments AS (
-  SELECT p.group_id, SUM(pp.amount) AS paid   -- ← جميع الدفعات
-  FROM policies p ...
-),
--- 2. حساب الأسعار لكل باقة (بدون الإلزامي)  
-group_prices AS (
-  SELECT p.group_id, SUM(p.insurance_price) AS price
-  FROM policies p
-  WHERE p.policy_type_parent <> 'ELZAMI'  -- ← فقط غير الإلزامي
-  ...
-),
--- 3. دمج الأسعار والمدفوعات للباقات
-group_debts AS (
-  SELECT
-    gpr.price,                           -- السعر بدون إلزامي
-    gpa.paid,                            -- جميع الدفعات
-    gpr.price - gpa.paid AS remaining    -- ← خطأ!
-  ...
-)
+// بعد:
+total_remaining: Number(r.total_remaining) || 0, // ← استخدم الحقل الصحيح
 ```
 
-### المشكلة الرياضية:
+### الخطأ الثاني (السطر 484):
+```typescript
+// قبل:
+{formatCurrency(client.total_owed)}  // ← يعرض مجموع الأسعار
 
-| الباقة | السعر الكلي | سعر غير إلزامي | جميع الدفعات | المتبقي الصحيح | المتبقي الخاطئ |
-|--------|-------------|----------------|--------------|----------------|----------------|
-| 5c3f8f | 6,524 | 4,800 | 1,724 | **4,800** | 3,076 |
-| 73538a | 5,333 | 3,300 | 2,033 | **3,300** | 1,267 |
-| c1b342 | 4,805 | 3,300 | 1,505 | **3,300** | 1,795 |
-| cc912f | 7,928 | 3,800 | 4,128 | **3,800** | **-328** (مفقودة!) |
-| **المجموع** | | | | **15,200** | 6,138 |
-
-**السبب:** عندما تكون الدفعات أكبر من سعر غير الإلزامي، يصبح المتبقي سالبًا ويُستبعد!
-
----
-
-## الحل الصحيح
-
-### المنطق المطلوب:
-
-```
-المتبقي للوكالة = (سعر الباقة الكلي - جميع الدفعات) - سعر الإلزامي
-               = max(0, السعر الكلي - الدفعات) بحيث لا يتجاوز سعر غير الإلزامي
-```
-
-أو بشكل أبسط:
-```
-المتبقي = min(سعر_غير_الإلزامي, السعر_الكلي - الدفعات)
-```
-
-### الإصلاح في SQL:
-
-```sql
-group_debts AS (
-  SELECT
-    gpr.group_id,
-    gpr.non_elzami_price AS agency_price,
-    gfp.full_price,
-    gpa.paid,
-    -- المتبقي = أقل قيمة بين:
-    -- 1. سعر غير الإلزامي (الحد الأقصى للدين)
-    -- 2. الفرق بين السعر الكلي والمدفوعات (إذا موجب)
-    GREATEST(0, LEAST(
-      gpr.non_elzami_price,
-      gfp.full_price - COALESCE(gpa.paid, 0)
-    )) AS remaining
-  FROM group_non_elzami_prices gpr
-  JOIN group_full_prices gfp ON gfp.group_id = gpr.group_id
-  LEFT JOIN group_payments gpa ON gpa.group_id = gpr.group_id
-)
+// بعد:
+{formatCurrency(client.total_remaining)}  // ← يعرض المتبقي الفعلي
 ```
 
 ---
 
 ## التغييرات المطلوبة
 
-### 1. تحديث دالة `report_client_debts`
-
-**الملف:** `supabase/migrations/[new_migration].sql`
-
-تعديل CTEs:
-1. إضافة CTE لحساب السعر الكلي للباقة
-2. تعديل `group_debts` لاستخدام صيغة `LEAST(non_elzami, full - paid)`
-
-### 2. تحديث دالة `report_client_debts_summary`
-
-نفس التعديل لضمان تطابق الأرقام
-
-### 3. تحديث دالة `report_debt_policies_for_clients`
-
-لعرض المتبقي الصحيح لكل وثيقة
+| الملف | السطر | التغيير |
+|-------|-------|---------|
+| `src/pages/DebtTracking.tsx` | 142 | تغيير `r.total_owed` إلى `r.total_remaining` |
+| `src/pages/DebtTracking.tsx` | 484 | تغيير `client.total_owed` إلى `client.total_remaining` |
 
 ---
 
-## SQL المقترح
+## التفسير
 
-```sql
--- Migration: Fix debt calculation for packages
+- **`total_owed`**: مجموع أسعار الوثائق غير المسددة بالكامل (14,300₪)
+- **`total_remaining`**: المبلغ الفعلي المتبقي للتحصيل (8,700₪)
 
-CREATE OR REPLACE FUNCTION report_client_debts(...)
-RETURNS TABLE(...) AS $function$
-BEGIN
-  RETURN QUERY
-  WITH
-  -- 1. السعر الكلي للباقة (مع الإلزامي)
-  group_full_prices AS (
-    SELECT p.group_id, SUM(p.insurance_price) AS full_price
-    FROM policies p
-    WHERE p.group_id IS NOT NULL
-      AND p.cancelled = FALSE
-      AND p.deleted_at IS NULL
-      AND p.broker_id IS NULL
-    GROUP BY p.group_id
-  ),
-  
-  -- 2. سعر غير الإلزامي (دين الوكالة)
-  group_non_elzami_prices AS (
-    SELECT p.group_id, SUM(p.insurance_price) AS non_elzami_price
-    FROM policies p
-    WHERE p.group_id IS NOT NULL
-      AND p.policy_type_parent <> 'ELZAMI'
-      AND p.cancelled = FALSE
-      AND p.deleted_at IS NULL
-      AND p.broker_id IS NULL
-    GROUP BY p.group_id
-  ),
-  
-  -- 3. جميع الدفعات للباقة
-  group_payments AS (
-    SELECT p.group_id, 
-           COALESCE(SUM(pp.amount) FILTER (WHERE NOT COALESCE(pp.refused, FALSE)), 0) AS paid
-    FROM policies p
-    LEFT JOIN policy_payments pp ON pp.policy_id = p.id
-    WHERE p.group_id IS NOT NULL
-      AND p.cancelled = FALSE
-      AND p.deleted_at IS NULL
-      AND p.broker_id IS NULL
-    GROUP BY p.group_id
-  ),
-  
-  -- 4. حساب الدين الصحيح للباقات
-  group_debts AS (
-    SELECT
-      gnp.group_id,
-      gnp.non_elzami_price AS price,
-      gpa.paid,
-      -- المتبقي للوكالة = min(سعر_غير_الإلزامي, السعر_الكلي - المدفوع)
-      GREATEST(0, LEAST(
-        gnp.non_elzami_price,
-        gfp.full_price - COALESCE(gpa.paid, 0)
-      )) AS remaining
-    FROM group_non_elzami_prices gnp
-    JOIN group_full_prices gfp ON gfp.group_id = gnp.group_id
-    LEFT JOIN group_payments gpa ON gpa.group_id = gnp.group_id
-    WHERE LEAST(gnp.non_elzami_price, gfp.full_price - COALESCE(gpa.paid, 0)) > 0
-  ),
-  
-  -- ... باقي CTEs كما هي
-```
-
----
-
-## الملفات المتأثرة
-
-| الملف | التغيير |
-|-------|---------|
-| `supabase/migrations/new.sql` | تحديث 3 دوال RPC |
+الفرق = 5,600₪ (المبلغ المدفوع بالفعل)
 
 ---
 
 ## النتيجة المتوقعة
 
-| الباقة | قبل الإصلاح | بعد الإصلاح |
-|--------|-------------|-------------|
-| 5c3f8f | 3,076 | **4,800** |
-| 73538a | 1,267 | **3,300** |
-| c1b342 | 1,795 | **3,300** |
-| cc912f | **0** (مفقودة) | **3,800** |
-| **المجموع** | **6,138** | **15,200** ✅ |
-
-الآن صفحة متابعة الديون ستعرض **₪15,200** مطابقة لملف العميل.
-
----
-
-## ملاحظة تقنية
-
-الصيغة `LEAST(non_elzami, full - paid)` تضمن:
-- إذا دفع العميل الإلزامي فقط → المتبقي = سعر غير الإلزامي بالكامل
-- إذا دفع أكثر من الإلزامي → المتبقي ينقص من غير الإلزامي
-- إذا دفع كل شيء → المتبقي = 0
+1. ✅ صفحة متابعة الديون ستعرض **₪8,700** للعميل اسلام عيسى
+2. ✅ الأرقام ستتطابق مع حساب الوثائق الفردية
+3. ✅ رسائل WhatsApp ستحتوي المبلغ الصحيح
 

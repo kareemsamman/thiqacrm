@@ -1,79 +1,92 @@
 
-# خطة: استبعاد العملاء الذين تم تجديد جميع وثائقهم من تبويب التجديدات
 
-## المشكلة الحالية
+# خطة: إصلاح مشكلة دفعة بطاقة الائتمان لموسى هلسة
 
-في تبويب "التجديدات" بصفحة `/reports/policies`:
-- العميل "ايمان عليان" يظهر رغم أنه تم تجديد جميع وثائقه
-- عند النقر على الصف يظهر "الوثائق المنتهية: 0 وثيقة"
-- يجب عدم ظهور العملاء الذين ليس لديهم وثائق تحتاج تجديد
+## المشكلة المكتشفة
 
-## سبب المشكلة
+بعد التحقيق، تم اكتشاف مشكلتين:
 
-الدالة `report_renewals` في الـ migration الأخير (`20260202150200`) **لا تحتوي على فلتر** لاستبعاد الوثائق التي تم تجديدها (يوجد وثيقة أحدث لنفس السيارة ونوع التأمين).
+### 1. الدفعة موجودة ولكن غير مؤكدة
 
-الـ migration السابق (`20260202102930`) كان يحتوي على الفلتر الصحيح باستخدام `NOT EXISTS` ولكن تمت إعادة كتابة الدالة بدون هذا الفلتر.
+الدفعة بقيمة **₪3,000** موجودة في قاعدة البيانات:
+- `id: 681c996a-fcdf-4847-9925-cc5c5bf20259`
+- `amount: 3000`
+- `payment_type: visa`
+- `refused: NULL` ← **في حالة معلقة**
+- `tranzila_approval_code: NULL` ← **لم يتم تحديثها**
+
+### 2. السبب الجذري (Bug في الكود)
+
+في ملف `supabase/functions/tranzila-init/index.ts`، الكود **لا يرسل `myid`** إلى Tranzila:
+
+```typescript
+// الكود الحالي (ناقص):
+const formFields: Record<string, string> = {
+  sum: amount.toString(),
+  currency: '1',
+  cred_type: '8',
+  maxpay: '12',
+  lang: 'il',
+  tranmode: 'A',
+  newprocess: '1',
+  // ❌ myid مفقود!
+}
+```
+
+بينما في `tranzila-broker-init/index.ts`، الكود صحيح:
+```typescript
+myid: tranzilaIndex, // ✅ موجود
+```
+
+---
 
 ## الحل
 
-### 1. تحديث دالة `report_renewals`
+### الجزء 1: تحديث الدفعة الحالية يدوياً
 
-إضافة شرط `NOT EXISTS` لاستبعاد الوثائق المُجددة (التي يوجد لها وثيقة أحدث لنفس العميل + السيارة + نوع التأمين):
-
-```sql
--- داخل WHERE clause:
-AND NOT EXISTS (
-  SELECT 1 FROM policies newer
-  WHERE newer.client_id = p.client_id
-    AND newer.car_id = p.car_id
-    AND newer.policy_type_parent = p.policy_type_parent
-    AND newer.cancelled = false
-    AND newer.transferred = false
-    AND newer.start_date > p.start_date
-    AND newer.end_date > CURRENT_DATE
-)
-```
-
-### 2. تحديث دالة `report_renewals_summary`
-
-نفس الشرط يجب إضافته ليتطابق العدد في البطاقات مع الجدول.
-
-### 3. تحديث دالة `get_client_renewal_policies`
-
-التأكد من أن الدالة تستخدم نفس الفلتر عند عرض تفاصيل وثائق العميل.
-
-## التغييرات التقنية
-
-### Migration SQL جديد
+سأقوم بتحديث الدفعة المعلقة لتصبح مؤكدة (لأن الدفع تم بالفعل في Tranzila):
 
 ```sql
--- 1. تحديث report_renewals لاستبعاد الوثائق المُجددة
-CREATE OR REPLACE FUNCTION public.report_renewals(...)
-...
-WHERE p.cancelled = false
-  AND p.transferred = false
-  -- NEW: استبعاد الوثائق التي تم تجديدها
-  AND NOT EXISTS (
-    SELECT 1 FROM policies newer
-    WHERE newer.client_id = p.client_id
-      AND newer.car_id = p.car_id
-      AND newer.policy_type_parent = p.policy_type_parent
-      AND newer.cancelled = false
-      AND newer.transferred = false
-      AND newer.start_date > p.start_date
-      AND newer.end_date > CURRENT_DATE
-  )
+UPDATE policy_payments
+SET 
+  refused = false,
+  tranzila_response_code = '000',
+  tranzila_approval_code = 'MANUAL-FIX',
+  cheque_status = null
+WHERE id = '681c996a-fcdf-4847-9925-cc5c5bf20259';
 ```
+
+### الجزء 2: إصلاح الكود لمنع المشكلة مستقبلاً
+
+تعديل `supabase/functions/tranzila-init/index.ts` لإضافة `myid`:
+
+```typescript
+const formFields: Record<string, string> = {
+  sum: amount.toString(),
+  currency: '1',
+  cred_type: '8',
+  maxpay: '12',
+  lang: 'il',
+  tranmode: 'A',
+  newprocess: '1',
+  myid: tranzilaIndex, // ✅ إضافة هذا السطر
+}
+```
+
+---
 
 ## الملفات المتأثرة
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| قاعدة البيانات (Migration) | تحديث 3 دوال RPC |
+| قاعدة البيانات | تحديث الدفعة المعلقة |
+| `supabase/functions/tranzila-init/index.ts` | إضافة `myid` لنموذج Tranzila |
+
+---
 
 ## النتيجة المتوقعة
 
-- ✅ العملاء الذين تم تجديد جميع وثائقهم لن يظهروا في التجديدات
-- ✅ البطاقات الإحصائية ستعرض الأرقام الصحيحة
-- ✅ الـ PDF المُصدّر سيستبعد الوثائق المُجددة أيضاً
-- ✅ تبويب "تم التجديد" يبقى كما هو لعرض العملاء المُجددين
+1. ✅ دفعة موسى هلسة ستظهر كمؤكدة
+2. ✅ المبلغ المتبقي سينخفض من ₪3,000 إلى الصفر
+3. ✅ جميع الدفعات المستقبلية عبر Visa ستتم معالجتها بشكل صحيح
+

@@ -97,23 +97,8 @@ Deno.serve(async (req) => {
     const companyName = 'AB تأمين';
     const companyLocation = smsSettings?.company_location || '';
     
-    // Embedded logo as base64 SVG - teal shield icon
-    const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="70" height="82">
-      <rect x="10" y="10" width="100" height="100" rx="20" fill="#0d9488"/>
-      <path d="M60 30 C40 35 35 50 35 65 C35 90 60 105 60 105 C60 105 85 90 85 65 C85 50 80 35 60 30 Z" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M50 65 L57 72 L72 55" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="60" y="135" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0d9488" text-anchor="middle">AB تأمين</text>
-    </svg>`;
-    const logoDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(logoSvg)))}`;
-    
     // Format date
     const letterDate = new Date(letter.created_at).toLocaleDateString('en-GB');
-
-    // Build phone links for header
-    const phonesHeaderHtml = phoneLinks.map(p => {
-      const label = p.label ? `${p.label}: ` : '';
-      return `<div>${label}${p.phone}</div>`;
-    }).join('');
 
     // Build phone links for footer
     const phonesFooterHtml = phoneLinks.map((p, i) => {
@@ -122,7 +107,7 @@ Deno.serve(async (req) => {
       return `${separator}${label}${p.phone}`;
     }).join('');
 
-    // Build complete HTML with professional design
+    // Build complete HTML with professional official letter design
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -142,73 +127,56 @@ Deno.serve(async (req) => {
       max-width: 800px;
       margin: 0 auto;
       background: white;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      border-radius: 4px;
       overflow: hidden;
     }
-    .header {
-      background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%);
-      padding: 40px;
+    .letterhead {
+      padding: 32px 40px 24px;
+      border-bottom: 3px double #0d9488;
       text-align: center;
     }
-    .header h1 {
-      font-size: 36px;
+    .letterhead h1 {
+      font-size: 28px;
       font-weight: bold;
       margin: 0;
-      color: white;
-      letter-spacing: 2px;
-    }
-    .header p {
-      font-size: 14px;
-      margin: 8px 0 0;
-      color: rgba(255,255,255,0.9);
+      color: #0d9488;
       letter-spacing: 1px;
     }
-    .letter-title {
-      text-align: center;
-      padding: 24px 40px 16px;
-      border-bottom: 2px solid #0d9488;
-      margin: 0 40px;
-    }
-    .letter-title h2 {
-      font-size: 22px;
-      font-weight: bold;
-      color: #0d9488;
-      margin: 0;
+    .letterhead p {
+      font-size: 13px;
+      margin: 4px 0 0;
+      color: #64748b;
     }
     .letter-meta {
-      padding: 24px 40px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      background: #f8fafc;
+      padding: 24px 40px 16px;
     }
-    .meta-item {
-      display: flex;
-      gap: 8px;
+    .date-line {
+      text-align: left;
+      margin-bottom: 20px;
+      color: #374151;
+      font-size: 14px;
     }
-    .meta-item.full {
-      grid-column: span 2;
+    .meta-row {
+      margin-bottom: 8px;
+      font-size: 14px;
     }
     .meta-label {
       color: #64748b;
-      font-weight: 600;
     }
     .meta-value {
       color: #1e293b;
-    }
-    .meta-value.bold {
       font-weight: 600;
     }
-    .decorative-line {
-      height: 4px;
-      background: linear-gradient(90deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%);
+    .separator {
+      border-bottom: 1px solid #e5e7eb;
+      margin: 16px 0 20px;
     }
     .content {
-      padding: 32px 40px;
-      min-height: 250px;
+      padding: 0 40px 32px;
+      min-height: 200px;
       font-size: 14px;
-      line-height: 2.2;
+      line-height: 2;
       color: #1e293b;
     }
     .content img {
@@ -218,60 +186,49 @@ Deno.serve(async (req) => {
     }
     .greeting {
       margin-bottom: 16px;
-      font-weight: 600;
     }
     .closing {
       margin-top: 32px;
     }
     .signature-area {
-      padding: 24px 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      padding: 16px 40px 32px;
+      text-align: left;
     }
-    .signature-line {
-      width: 150px;
-      border-top: 2px solid #cbd5e1;
-      padding-top: 8px;
-      color: #64748b;
-      font-size: 13px;
+    .signature-block {
+      display: inline-block;
       text-align: center;
     }
-    .signature-brand {
+    .signature-name {
       font-size: 16px;
       color: #0d9488;
       font-weight: 600;
+      margin-bottom: 8px;
     }
-    .footer {
-      background: #1e293b;
-      padding: 16px 40px;
-      text-align: center;
-      color: white;
+    .signature-line {
+      width: 120px;
+      border-top: 1px solid #94a3b8;
+      padding-top: 6px;
+      color: #64748b;
       font-size: 12px;
     }
-    .footer-name {
-      margin-bottom: 4px;
-      font-weight: 600;
-    }
-    .footer-contact {
-      opacity: 0.7;
+    .footer {
+      border-top: 3px double #0d9488;
+      padding: 16px 40px;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      background: #f8fafc;
     }
     @media print {
       body { 
         background: white; 
         padding: 0; 
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
       }
       .container { 
         box-shadow: none; 
         max-width: 100%;
       }
-      .header {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      .decorative-line {
+      .letterhead {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
@@ -289,35 +246,28 @@ Deno.serve(async (req) => {
 </head>
 <body>
   <div class="container">
-    <!-- Elegant Header -->
-    <div class="header">
+    <!-- Elegant Letterhead -->
+    <div class="letterhead">
       <h1>${companyName}</h1>
       <p>وكالة تأمين معتمدة</p>
     </div>
 
-    <!-- Letter Title -->
-    <div class="letter-title">
-      <h2>${letter.title || 'رسالة رسمية'}</h2>
-    </div>
-
-    <!-- Letter Meta Info -->
+    <!-- Letter Meta -->
     <div class="letter-meta">
-      <div class="meta-item">
-        <span class="meta-label">التاريخ:</span>
-        <span class="meta-value">${letterDate}</span>
+      <div class="date-line">التاريخ: ${letterDate}</div>
+      
+      <div class="meta-row">
+        <span class="meta-label">إلى: </span>
+        <span class="meta-value">${letter.recipient_name || '---'}</span>
       </div>
-      <div class="meta-item">
-        <span class="meta-label">من:</span>
-        <span class="meta-value">${companyName}</span>
+      
+      <div class="meta-row">
+        <span class="meta-label">الموضوع: </span>
+        <span class="meta-value">${letter.title || 'رسالة رسمية'}</span>
       </div>
-      <div class="meta-item full">
-        <span class="meta-label">إلى:</span>
-        <span class="meta-value bold">${letter.recipient_name || '---'}</span>
-      </div>
+      
+      <div class="separator"></div>
     </div>
-
-    <!-- Decorative Line -->
-    <div class="decorative-line"></div>
 
     <!-- Body Content -->
     <div class="content">
@@ -334,18 +284,15 @@ Deno.serve(async (req) => {
 
     <!-- Signature Area -->
     <div class="signature-area">
-      <div class="signature-line">
-        التوقيع والختم
+      <div class="signature-block">
+        <div class="signature-name">${companyName}</div>
+        <div class="signature-line">التوقيع والختم</div>
       </div>
-      <div class="signature-brand">${companyName}</div>
     </div>
 
-    <!-- Professional Footer -->
+    <!-- Simple Footer -->
     <div class="footer">
-      <div class="footer-name">${companyName} - وكالة تأمين معتمدة</div>
-      <div class="footer-contact">
-        ${phonesFooterHtml}${companyLocation ? ` | ${companyLocation}` : ''}
-      </div>
+      ${phonesFooterHtml}${companyLocation ? ` | ${companyLocation}` : ''}
     </div>
   </div>
 </body>
@@ -353,7 +300,7 @@ Deno.serve(async (req) => {
 
     // Upload to BunnyCDN
     const bunnyStorageKey = Deno.env.get('BUNNY_API_KEY');
-    const bunnyAccountKey = Deno.env.get('BUNNY_ACCOUNT_API_KEY'); // For CDN purge
+    const bunnyAccountKey = Deno.env.get('BUNNY_ACCOUNT_API_KEY');
     const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || 'basheer-ab';
     const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
 
@@ -368,7 +315,6 @@ Deno.serve(async (req) => {
     // Fixed filename for stable URL
     const storagePath = `correspondence/${letter.id}/letter.html`;
     const uploadUrl = `https://storage.bunnycdn.com/${bunnyStorageZone}/${storagePath}`;
-    // Ensure CDN URL has the https:// prefix
     const cdnBaseUrl = bunnyCdnUrl.startsWith('http') ? bunnyCdnUrl : `https://${bunnyCdnUrl}`;
     const cdnUrl = `${cdnBaseUrl}/${storagePath}`;
 
@@ -392,7 +338,7 @@ Deno.serve(async (req) => {
 
     console.log('Upload successful, purging cache...');
 
-    // Purge CDN cache - requires Account API Key, not Storage Key
+    // Purge CDN cache
     if (bunnyAccountKey) {
       try {
         const purgeUrl = `https://api.bunny.net/purge?url=${encodeURIComponent(cdnUrl)}`;

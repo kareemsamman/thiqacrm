@@ -148,33 +148,21 @@ Deno.serve(async (req) => {
     }
     .header {
       background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%);
-      padding: 32px 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      color: white;
-    }
-    .header-logo {
-      height: 80px;
-      width: auto;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-    .header-brand {
+      padding: 40px;
       text-align: center;
     }
-    .header-brand h1 {
-      font-size: 32px;
+    .header h1 {
+      font-size: 36px;
       font-weight: bold;
       margin: 0;
-      letter-spacing: 1px;
+      color: white;
+      letter-spacing: 2px;
     }
-    .header-brand p {
+    .header p {
       font-size: 14px;
-      margin: 6px 0 0;
-      opacity: 0.9;
-      letter-spacing: 0.5px;
+      margin: 8px 0 0;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 1px;
     }
     .letter-title {
       text-align: center;
@@ -250,19 +238,8 @@ Deno.serve(async (req) => {
       text-align: center;
     }
     .signature-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      opacity: 0.7;
-    }
-    .signature-brand img {
-      height: 40px;
-      width: auto;
-      border-radius: 8px;
-    }
-    .signature-brand span {
-      font-size: 14px;
-      color: #64748b;
+      font-size: 16px;
+      color: #0d9488;
       font-weight: 600;
     }
     .footer {
@@ -314,11 +291,8 @@ Deno.serve(async (req) => {
   <div class="container">
     <!-- Elegant Header -->
     <div class="header">
-      <img src="${logoDataUrl}" alt="${companyName}" class="header-logo" />
-      <div class="header-brand">
-        <h1>${companyName}</h1>
-        <p>وكالة تأمين معتمدة</p>
-      </div>
+      <h1>${companyName}</h1>
+      <p>وكالة تأمين معتمدة</p>
     </div>
 
     <!-- Letter Title -->
@@ -363,10 +337,7 @@ Deno.serve(async (req) => {
       <div class="signature-line">
         التوقيع والختم
       </div>
-      <div class="signature-brand">
-        <img src="${logoDataUrl}" alt="${companyName}" />
-        <span>${companyName}</span>
-      </div>
+      <div class="signature-brand">${companyName}</div>
     </div>
 
     <!-- Professional Footer -->

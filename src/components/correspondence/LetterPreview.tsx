@@ -98,21 +98,11 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
       {/* Elegant Header */}
       <div style={{ 
         background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%)',
-        padding: '32px 40px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '20px',
+        padding: '40px',
+        textAlign: 'center',
       }}>
-        <img 
-          src={abLogoLocal} 
-          alt="AB تأمين"
-          style={{ height: '80px', width: 'auto', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
-        />
-        <div style={{ color: 'white', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 'bold', margin: 0, letterSpacing: '1px' }}>AB تأمين</h1>
-          <p style={{ fontSize: '14px', margin: '6px 0 0', opacity: 0.9, letterSpacing: '0.5px' }}>وكالة تأمين معتمدة</p>
-        </div>
+        <h1 style={{ fontSize: '36px', fontWeight: 'bold', margin: 0, color: 'white', letterSpacing: '2px' }}>AB تأمين</h1>
+        <p style={{ fontSize: '14px', margin: '8px 0 0', color: 'rgba(255,255,255,0.9)', letterSpacing: '1px' }}>وكالة تأمين معتمدة</p>
       </div>
 
       {/* Letter Title */}
@@ -205,19 +195,11 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
           </div>
         </div>
         <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '12px',
-          opacity: 0.7,
+          fontSize: '16px',
+          color: '#0d9488',
+          fontWeight: '600',
         }}>
-          <img 
-            src={abLogoLocal} 
-            alt="AB تأمين"
-            style={{ height: '40px', width: 'auto', borderRadius: '8px' }}
-          />
-          <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
-            AB تأمين
-          </span>
+          AB تأمين
         </div>
       </div>
 

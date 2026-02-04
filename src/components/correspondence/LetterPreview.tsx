@@ -3,7 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import abLogo from '@/assets/ab-insurance-logo.png';
+import abLogoLocal from '@/assets/ab-insurance-logo.png';
+
+// Use CDN URL for printed documents, local import for preview
+const CDN_LOGO_URL = 'https://cdn.basheer-ab.com/assets/ab-insurance-logo.png';
 
 interface CompanyInfo {
   company_name?: string;
@@ -102,7 +105,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <img 
-            src={abLogo} 
+            src={abLogoLocal} 
             alt="AB تأمين"
             style={{ height: '70px', width: 'auto', borderRadius: '12px' }}
           />
@@ -224,7 +227,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
           opacity: 0.7,
         }}>
           <img 
-            src={abLogo} 
+            src={abLogoLocal} 
             alt="AB تأمين"
             style={{ height: '40px', width: 'auto', borderRadius: '8px' }}
           />

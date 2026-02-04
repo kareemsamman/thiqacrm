@@ -96,7 +96,15 @@ Deno.serve(async (req) => {
 
     const companyName = 'AB تأمين';
     const companyLocation = smsSettings?.company_location || '';
-    const logoUrl = 'https://cdn.basheer-ab.com/assets/ab-insurance-logo.png';
+    
+    // Embedded logo as base64 SVG - teal shield icon
+    const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="70" height="82">
+      <rect x="10" y="10" width="100" height="100" rx="20" fill="#0d9488"/>
+      <path d="M60 30 C40 35 35 50 35 65 C35 90 60 105 60 105 C60 105 85 90 85 65 C85 50 80 35 60 30 Z" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M50 65 L57 72 L72 55" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="60" y="135" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0d9488" text-anchor="middle">AB تأمين</text>
+    </svg>`;
+    const logoDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(logoSvg)))}`;
     
     // Format date
     const letterDate = new Date(letter.created_at).toLocaleDateString('en-GB');
@@ -310,7 +318,7 @@ Deno.serve(async (req) => {
     <!-- Professional Header -->
     <div class="header">
       <div class="header-left">
-        <img src="${logoUrl}" alt="${companyName}" class="header-logo" onerror="this.style.display='none'" />
+        <img src="${logoDataUrl}" alt="${companyName}" class="header-logo" />
         <div class="header-brand">
           <h1>${companyName}</h1>
           <p>وكالة تأمين معتمدة</p>
@@ -365,7 +373,7 @@ Deno.serve(async (req) => {
         التوقيع والختم
       </div>
       <div class="signature-brand">
-        <img src="${logoUrl}" alt="${companyName}" onerror="this.style.display='none'" />
+        <img src="${logoDataUrl}" alt="${companyName}" />
         <span>${companyName}</span>
       </div>
     </div>

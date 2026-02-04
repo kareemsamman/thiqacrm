@@ -3,10 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import abLogoLocal from '@/assets/ab-insurance-logo.png';
-
-// Use CDN URL for printed documents, local import for preview
-const CDN_LOGO_URL = 'https://cdn.basheer-ab.com/assets/ab-insurance-logo.png';
 
 interface CompanyInfo {
   company_name?: string;
@@ -91,75 +87,75 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
         margin: '0 auto',
         backgroundColor: 'white',
         border: '1px solid #e5e7eb',
-        borderRadius: '8px',
+        borderRadius: '4px',
         overflow: 'hidden',
       }}
     >
-      {/* Elegant Header */}
+      {/* Elegant Letterhead */}
       <div style={{ 
-        background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%)',
-        padding: '40px',
-        textAlign: 'center',
+        padding: '32px 40px 24px',
+        borderBottom: '3px double #0d9488',
       }}>
-        <h1 style={{ fontSize: '36px', fontWeight: 'bold', margin: 0, color: 'white', letterSpacing: '2px' }}>AB تأمين</h1>
-        <p style={{ fontSize: '14px', margin: '8px 0 0', color: 'rgba(255,255,255,0.9)', letterSpacing: '1px' }}>وكالة تأمين معتمدة</p>
+        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+          <h1 style={{ 
+            fontSize: '28px', 
+            fontWeight: 'bold', 
+            margin: 0, 
+            color: '#0d9488',
+            letterSpacing: '1px',
+          }}>
+            AB تأمين
+          </h1>
+          <p style={{ 
+            fontSize: '13px', 
+            margin: '4px 0 0', 
+            color: '#64748b',
+          }}>
+            وكالة تأمين معتمدة
+          </p>
+        </div>
       </div>
 
-      {/* Letter Title */}
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '24px 40px 16px',
-        borderBottom: '2px solid #0d9488',
-        margin: '0 40px',
-      }}>
-        <h2 style={{ 
-          fontSize: '22px', 
-          fontWeight: 'bold', 
-          color: '#0d9488',
-          margin: 0,
+      {/* Letter Meta */}
+      <div style={{ padding: '24px 40px 16px' }}>
+        {/* Date */}
+        <div style={{ 
+          textAlign: 'left',
+          marginBottom: '20px',
+          color: '#374151',
+          fontSize: '14px',
         }}>
-          {title || 'رسالة رسمية'}
-        </h2>
-      </div>
+          التاريخ: {formattedDate}
+        </div>
 
-      {/* Letter Meta Info */}
-      <div style={{ 
-        padding: '24px 40px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px',
-        backgroundColor: '#f8fafc',
-        margin: '0',
-      }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <span style={{ color: '#64748b', fontWeight: '600' }}>التاريخ:</span>
-          <span style={{ color: '#1e293b' }}>{formattedDate}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <span style={{ color: '#64748b', fontWeight: '600' }}>من:</span>
-          <span style={{ color: '#1e293b' }}>AB تأمين</span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', gridColumn: 'span 2' }}>
-          <span style={{ color: '#64748b', fontWeight: '600' }}>إلى:</span>
+        {/* Recipient */}
+        <div style={{ marginBottom: '8px', fontSize: '14px' }}>
+          <span style={{ color: '#64748b' }}>إلى: </span>
           <span style={{ color: '#1e293b', fontWeight: '600' }}>{recipientName || '---'}</span>
         </div>
+
+        {/* Subject */}
+        <div style={{ marginBottom: '16px', fontSize: '14px' }}>
+          <span style={{ color: '#64748b' }}>الموضوع: </span>
+          <span style={{ color: '#1e293b', fontWeight: '600' }}>{title || 'رسالة رسمية'}</span>
+        </div>
+
+        {/* Separator */}
+        <div style={{ 
+          borderBottom: '1px solid #e5e7eb',
+          marginBottom: '20px',
+        }} />
       </div>
 
-      {/* Decorative Line */}
-      <div style={{ 
-        height: '4px', 
-        background: 'linear-gradient(90deg, #0d9488 0%, #14b8a6 50%, #0d9488 100%)',
-      }} />
-
       {/* Body Content */}
-      <div style={{ padding: '32px 40px', minHeight: '250px' }}>
+      <div style={{ padding: '0 40px 32px', minHeight: '200px' }}>
         <div style={{ 
           fontSize: '14px',
-          lineHeight: '2.2',
+          lineHeight: '2',
           color: '#1e293b',
         }}>
           {/* Greeting */}
-          <p style={{ marginBottom: '16px', fontWeight: '600' }}>
+          <p style={{ marginBottom: '16px' }}>
             {recipientName ? `حضرة السيد/ة ${recipientName} المحترم/ة،` : 'تحية طيبة وبعد،'}
           </p>
           
@@ -171,50 +167,47 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
           
           {/* Closing */}
           <div style={{ marginTop: '32px' }}>
-            <p style={{ marginBottom: '8px' }}>وتفضلوا بقبول فائق الاحترام والتقدير،</p>
+            <p>وتفضلوا بقبول فائق الاحترام والتقدير،</p>
           </div>
         </div>
       </div>
 
       {/* Signature Area */}
       <div style={{ 
-        padding: '24px 40px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        padding: '16px 40px 32px',
+        textAlign: 'left',
       }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ display: 'inline-block', textAlign: 'center' }}>
           <div style={{ 
-            width: '150px', 
-            borderTop: '2px solid #cbd5e1', 
-            paddingTop: '8px',
+            fontSize: '16px',
+            color: '#0d9488',
+            fontWeight: '600',
+            marginBottom: '8px',
+          }}>
+            AB تأمين
+          </div>
+          <div style={{ 
+            width: '120px', 
+            borderTop: '1px solid #94a3b8', 
+            paddingTop: '6px',
             color: '#64748b',
-            fontSize: '13px',
+            fontSize: '12px',
           }}>
             التوقيع والختم
           </div>
         </div>
-        <div style={{ 
-          fontSize: '16px',
-          color: '#0d9488',
-          fontWeight: '600',
-        }}>
-          AB تأمين
-        </div>
       </div>
 
-      {/* Professional Footer */}
+      {/* Simple Footer */}
       <div style={{ 
-        background: '#1e293b',
+        borderTop: '3px double #0d9488',
         padding: '16px 40px',
         textAlign: 'center',
-        color: 'white',
+        color: '#64748b',
         fontSize: '12px',
+        backgroundColor: '#f8fafc',
       }}>
-        <div style={{ marginBottom: '4px', fontWeight: '600' }}>
-          AB تأمين - وكالة تأمين معتمدة
-        </div>
-        <div style={{ opacity: 0.7 }}>
+        <div>
           {phoneLinks.map((p, i) => (
             <span key={i}>
               {i > 0 && ' | '}

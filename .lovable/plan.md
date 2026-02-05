@@ -1,153 +1,76 @@
 
-# خطة إضافة حقول بلاغ الحادث وتوقيع العميل عبر SMS
+# خطة إضافة الحقول الجديدة لمُعَيِّن القالب وإرفاق صور/ملفات للحوادث
 
 ## ملخص المتطلبات
-بناءً على تحليل ملفات PDF الثلاثة (الأراضي المقدسة، المشرق، الأهلية) وطلب المستخدم:
-1. إضافة الحقول المفقودة من نماذج شركات التأمين
-2. إنشاء نظام توقيع العميل على بلاغ الحادث (مشابه لنظام توقيع العميل الحالي)
-3. إرسال رابط التوقيع عبر SMS أو إدخال رقم الهاتف يدوياً
+1. إضافة الحقول الجديدة إلى قائمة الحقول في Template Mapper
+2. تحديث Edge Function لتوليد PDF ليشمل الحقول الجديدة
+3. إضافة واجهة رفع صور وملفات الحادث (صور السيارة، محاضر الشرطة، إلخ)
 
 ---
 
-## الحقول المفقودة من نماذج PDF
+## الجزء الأول: إضافة الحقول الجديدة للـ Template Mapper
 
-### بيانات صاحب السيارة (Owner Info)
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| owner_name | TEXT | اسم صاحب السيارة (إذا مختلف عن السائق) |
-| owner_phone | TEXT | رقم جوال صاحب السيارة |
+### الحقول المطلوب إضافتها:
 
-### بيانات السائق الإضافية (Driver Extended)
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| driver_license_grade | TEXT | درجة رخصة السائق |
-| driver_license_issue_date | DATE | تاريخ إصدار الرخصة |
+| الحقل | المعرف | المجموعة |
+|-------|--------|----------|
+| اسم صاحب السيارة (إذا مختلف) | owner_name_override | المالك |
+| هاتف صاحب السيارة (إذا مختلف) | owner_phone_override | المالك |
+| درجة رخصة السائق | driver_license_grade | السائق |
+| تاريخ إصدار رخصة السائق | driver_license_issue_date | السائق |
+| رقم الشاصي | vehicle_chassis_number | المركبة |
+| سرعة السيارة وقت الحادث | vehicle_speed_at_accident | الحادث |
+| ملاحظات الموظف | employee_notes | التقرير |
+| تاريخ توقيع الموظف | employee_signature_date | التقرير |
+| توقيع العميل | customer_signature | التقرير |
 
-### بيانات السيارة الإضافية (Vehicle Extended)
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| vehicle_chassis_number | TEXT | رقم الشاصي |
-| vehicle_speed_at_accident | TEXT | سرعة السيارة وقت الحادث |
-
-### بيانات الإصابات الشخصية (Personal Injuries Table)
-سيتم إنشاء جدول منفصل `accident_injured_persons`:
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| injured_name | TEXT | اسم المصاب |
-| injured_age | INT | عمره |
-| injured_address | TEXT | عنوانه |
-| injured_occupation | TEXT | طبيعة العمل |
-| injured_salary | TEXT | الراتب/شيكل |
-| injury_type | TEXT | نوع الإصابة |
-| sort_order | INT | ترتيب |
-
-### ملاحظات الموظف (Employee Notes)
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| employee_notes | TEXT | ملاحظات الموظف |
-| employee_signature_date | DATE | تاريخ توقيع الموظف |
-
-### توقيع العميل (Customer Signature)
-| الحقل | النوع | الوصف |
-|-------|-------|-------|
-| customer_signature_url | TEXT | رابط صورة توقيع العميل |
-| customer_signed_at | TIMESTAMP | تاريخ ووقت التوقيع |
-| customer_signature_ip | TEXT | عنوان IP |
-| signature_token | TEXT | Token للتوقيع |
-| signature_token_expires_at | TIMESTAMP | انتهاء صلاحية التوكن |
+### الملف: `src/pages/AccidentTemplateMapper.tsx`
+إضافة الحقول الجديدة في مصفوفة `CANONICAL_FIELDS`
 
 ---
 
-## التغييرات التقنية
+## الجزء الثاني: تحديث Edge Function
 
-### 1. Migration SQL
-إضافة الأعمدة الجديدة لجدول `accident_reports`:
+### الملف: `supabase/functions/generate-accident-pdf/index.ts`
 
-```sql
-ALTER TABLE public.accident_reports
-  ADD COLUMN IF NOT EXISTS owner_name TEXT,
-  ADD COLUMN IF NOT EXISTS owner_phone TEXT,
-  ADD COLUMN IF NOT EXISTS driver_license_grade TEXT,
-  ADD COLUMN IF NOT EXISTS driver_license_issue_date DATE,
-  ADD COLUMN IF NOT EXISTS vehicle_chassis_number TEXT,
-  ADD COLUMN IF NOT EXISTS vehicle_speed_at_accident TEXT,
-  ADD COLUMN IF NOT EXISTS employee_notes TEXT,
-  ADD COLUMN IF NOT EXISTS employee_signature_date DATE,
-  ADD COLUMN IF NOT EXISTS customer_signature_url TEXT,
-  ADD COLUMN IF NOT EXISTS customer_signed_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS customer_signature_ip TEXT,
-  ADD COLUMN IF NOT EXISTS signature_token TEXT,
-  ADD COLUMN IF NOT EXISTS signature_token_expires_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS signature_phone_override TEXT;
-```
+1. تحديث interface `AccidentReport` ليشمل الحقول الجديدة
+2. تحديث دالة `buildFieldValues()` لإضافة القيم الجديدة:
+   - `owner_name_override` → من `report.owner_name`
+   - `owner_phone_override` → من `report.owner_phone`
+   - `driver_license_grade` → من `report.driver_license_grade`
+   - `driver_license_issue_date` → من `report.driver_license_issue_date`
+   - `vehicle_chassis_number` → من `report.vehicle_chassis_number`
+   - `vehicle_speed_at_accident` → من `report.vehicle_speed_at_accident`
+   - `employee_notes` → من `report.employee_notes`
+   - `employee_signature_date` → من `report.employee_signature_date`
+   - `customer_signature` → عرض صورة التوقيع إذا موجودة
 
-إنشاء جدول المصابين:
+---
 
-```sql
-CREATE TABLE public.accident_injured_persons (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  accident_report_id UUID NOT NULL REFERENCES accident_reports(id) ON DELETE CASCADE,
-  injured_name TEXT NOT NULL,
-  injured_age INT,
-  injured_address TEXT,
-  injured_occupation TEXT,
-  injured_salary TEXT,
-  injury_type TEXT,
-  sort_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
+## الجزء الثالث: إضافة واجهة رفع ملفات الحادث
 
-### 2. Edge Functions
+### جدول `accident_report_files` (موجود مسبقاً)
+يحتوي على:
+- `accident_report_id` - معرف البلاغ
+- `file_url` - رابط الملف
+- `file_name` - اسم الملف
+- `file_type` - نوع الملف (image/pdf)
 
-#### `send-accident-signature-sms`
-إنشاء Edge Function جديدة لإرسال رابط التوقيع على بلاغ الحادث:
-- المدخلات: `accident_report_id`, `phone_number_override` (اختياري)
-- يستخدم رقم هاتف العميل أو الرقم المدخل يدوياً
-- يولد Token آمن وصفحة HTML للتوقيع
-- يرفع الصفحة إلى Bunny CDN
-- يرسل SMS مع الرابط
+### مكون جديد: `AccidentFilesSection.tsx`
+Tab جديد في نموذج البلاغ لإدارة الملفات:
+- استخدام مكون `FileUploader` الموجود
+- عرض الملفات المرفقة حالياً مع إمكانية الحذف
+- معاينة الصور والـ PDFs
+- أنواع الملفات المدعومة: صور (jpg, png, webp) و PDF
 
-#### `submit-accident-signature`
-Edge Function لاستلام التوقيع من العميل:
-- المدخلات: `token`, `signature_data_url`
-- يتحقق من صحة Token وعدم انتهاء صلاحيته
-- يرفع صورة التوقيع إلى Bunny CDN
-- يحدث `accident_reports` بـ:
-  - `customer_signature_url`
-  - `customer_signed_at`
-  - `customer_signature_ip`
-- يلغي Token بعد الاستخدام
+### تحديث `AccidentReportForm.tsx`
+- إضافة Tab جديد "الملفات والصور"
+- عرض عدد الملفات المرفقة في الـ Tab
 
-### 3. واجهة المستخدم (UI)
-
-#### تحديث `AccidentReportForm.tsx`
-- إضافة Tab جديد "توقيع العميل"
-- عرض حالة التوقيع (تم / لم يتم)
-- زر "إرسال رابط التوقيع"
-- حقل لإدخال رقم هاتف بديل (اختياري)
-- معاينة صورة التوقيع بعد التوقيع
-- إضافة الحقول الجديدة في tabs الموجودة
-
-#### تحديث الحقول الموجودة
-- Tab "صاحب السيارة": إضافة اسم صاحب السيارة ورقم جواله
-- Tab "السائق": إضافة درجة الرخصة وتاريخ إصدارها
-- Tab "السيارة": إضافة رقم الشاصي وسرعة السيارة
-- Tab جديد "المصابين": جدول لإدارة المصابين (إضافة/تعديل/حذف)
-- Tab "ملاحظات الموظف": حقل ملاحظات وتاريخ التوقيع
-
-### 4. صفحة التوقيع للعميل (HTML)
-- تصميم مطابق لموقع AB Insurance
-- عرض بيانات الحادث الأساسية
-- Canvas للتوقيع
-- موافقة على صحة البيانات
-- زر إرسال
-
-### 5. تحديث توليد PDF
-تعديل `generate-accident-pdf` لإضافة:
-- صورة توقيع العميل في المكان المخصص ("مكان التوقيع")
-- الحقول الجديدة في الأماكن المناسبة
+### تحديث `generate-accident-pdf/index.ts`
+- استعلام عن الملفات المرفقة من `accident_report_files`
+- إضافة قسم "المرفقات" في نهاية PDF (اختياري)
+- أو إضافة صفحات إضافية للصور
 
 ---
 
@@ -155,38 +78,28 @@ Edge Function لاستلام التوقيع من العميل:
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| Migration SQL | جديد |
-| `supabase/functions/send-accident-signature-sms/index.ts` | جديد |
-| `supabase/functions/submit-accident-signature/index.ts` | جديد |
-| `src/pages/AccidentReportForm.tsx` | تعديل كبير |
-| `src/components/accident-reports/InjuredPersonsSection.tsx` | جديد |
-| `src/components/accident-reports/AccidentSignatureSection.tsx` | جديد |
-| `supabase/functions/generate-accident-pdf/index.ts` | تعديل |
-| `src/integrations/supabase/types.ts` | تحديث تلقائي |
+| `src/pages/AccidentTemplateMapper.tsx` | إضافة حقول جديدة |
+| `supabase/functions/generate-accident-pdf/index.ts` | تحديث القيم والمرفقات |
+| `src/components/accident-reports/AccidentFilesSection.tsx` | مكون جديد |
+| `src/pages/AccidentReportForm.tsx` | إضافة Tab الملفات |
 
 ---
 
-## سير العمل (Workflow)
+## سير العمل
 
 ```text
-1. الموظف يملأ بلاغ الحادث بالحقول الجديدة
-2. يضغط "إرسال رابط التوقيع"
-   ├── يستخدم رقم هاتف العميل افتراضياً
-   └── أو يدخل رقم هاتف بديل
-3. العميل يستلم SMS برابط
-4. العميل يفتح الرابط على موبايله
-5. يرى بيانات الحادث ويوقع
-6. يضغط "إرسال التوقيع"
-7. التوقيع يظهر في النظام
-8. عند توليد PDF، التوقيع يظهر في "مكان التوقيع"
+1. الموظف يفتح بلاغ الحادث
+2. يملأ الحقول الجديدة (الشاصي، درجة الرخصة، إلخ)
+3. ينتقل لـ Tab "الملفات والصور"
+4. يرفع صور السيارة ومحاضر الشرطة
+5. عند توليد PDF:
+   - الحقول الجديدة تظهر في أماكنها المحددة بالقالب
+   - المرفقات تظهر كصفحات إضافية (أو قسم منفصل)
 ```
 
 ---
 
-## الأمان
-- Token عشوائي 32 حرف
-- صلاحية 24 ساعة
-- Rate limiting: 15 محاولة/ساعة/IP
-- Token يُلغى بعد الاستخدام
-- تسجيل IP و User Agent
-
+## ملاحظات تقنية
+- استخدام `FileUploader` الموجود مع `entityType: 'accident_report'`
+- الملفات ترفع إلى Bunny CDN
+- RLS على `accident_report_files` يجب التحقق منه

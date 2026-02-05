@@ -40,11 +40,17 @@ interface AccidentReport {
   license_issue_place: string | null;
   license_expiry_date: string | null;
   first_license_date: string | null;
+ driver_license_grade: string | null;
+ driver_license_issue_date: string | null;
   police_reported: boolean;
   police_station: string | null;
   police_report_number: string | null;
   owner_address: string | null;
+ owner_name: string | null;
+ owner_phone: string | null;
   vehicle_license_expiry: string | null;
+ vehicle_chassis_number: string | null;
+ vehicle_speed_at_accident: string | null;
   passengers_count: number | null;
   vehicle_usage_purpose: string | null;
   own_car_damages: string | null;
@@ -54,6 +60,10 @@ interface AccidentReport {
   passengers_info: string | null;
   responsible_party: string | null;
   additional_details: string | null;
+ employee_notes: string | null;
+ employee_signature_date: string | null;
+ customer_signature_url: string | null;
+ customer_signed_at: string | null;
   company_id: string | null;
   branch_id: string | null;
   clients: {
@@ -356,6 +366,25 @@ function buildFieldValues(report: AccidentReport, thirdParties: ThirdParty[]): R
     // Report metadata
     report_date: formatDate(new Date().toISOString()),
   };
+   
+   // New fields - Owner override
+   values.owner_name_override = report.owner_name || "";
+   values.owner_phone_override = report.owner_phone || "";
+   
+   // New fields - Driver extended
+   values.driver_license_grade = report.driver_license_grade || "";
+   values.driver_license_issue_date = formatDate(report.driver_license_issue_date);
+   
+   // New fields - Vehicle extended  
+   values.vehicle_chassis_number = report.vehicle_chassis_number || "";
+   values.vehicle_speed_at_accident = report.vehicle_speed_at_accident || "";
+   
+   // New fields - Employee notes
+   values.employee_notes = report.employee_notes || "";
+   values.employee_signature_date = formatDate(report.employee_signature_date);
+   
+   // Customer signature - show signature indicator if present
+   values.customer_signature = report.customer_signature_url ? "✓ تم التوقيع" : "";
   
   // Add third party info
   if (thirdParties.length > 0) {

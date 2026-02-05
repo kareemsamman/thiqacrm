@@ -54,12 +54,14 @@ import {
   Clock,
   CalendarIcon,
   Check,
+   FileImage,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { AccidentThirdPartyForm } from "@/components/accident-reports/AccidentThirdPartyForm";
  import { AccidentSignatureSection } from "@/components/accident-reports/AccidentSignatureSection";
  import { InjuredPersonsSection } from "@/components/accident-reports/InjuredPersonsSection";
+ import { AccidentFilesSection } from "@/components/accident-reports/AccidentFilesSection";
 
 interface Policy {
   id: string;
@@ -267,6 +269,9 @@ export default function AccidentReportForm() {
    const [vehicleSpeedAtAccident, setVehicleSpeedAtAccident] = useState("");
    const [employeeNotes, setEmployeeNotes] = useState("");
    const [employeeSignatureDate, setEmployeeSignatureDate] = useState("");
+ 
+    // Files count
+    const [filesCount, setFilesCount] = useState(0);
  
   const [activeTab, setActiveTab] = useState("accident");
 
@@ -981,6 +986,13 @@ export default function AccidentReportForm() {
               <FileText className="h-4 w-4" />
               المرفقات
             </TabsTrigger>
+             <TabsTrigger value="files" className="gap-2">
+               <FileImage className="h-4 w-4" />
+               الصور والملفات
+               {filesCount > 0 && (
+                 <Badge variant="secondary" className="mr-1">{filesCount}</Badge>
+               )}
+             </TabsTrigger>
              <TabsTrigger value="injured" className="gap-2">
                <Users className="h-4 w-4" />
                المصابين
@@ -1501,6 +1513,23 @@ export default function AccidentReportForm() {
              <TabsContent value="injured" className="space-y-4 m-0">
                <InjuredPersonsSection reportId={report?.id || null} />
              </TabsContent>
+ 
+              {/* Files Tab */}
+              <TabsContent value="files" className="space-y-4 m-0">
+                {report ? (
+                  <AccidentFilesSection
+                    accidentReportId={report.id}
+                    onFilesChange={setFilesCount}
+                  />
+                ) : (
+                  <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      <FileImage className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>يجب حفظ البلاغ أولاً لرفع الملفات</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
  
              {/* Customer Signature Tab */}
              <TabsContent value="signature" className="space-y-4 m-0">

@@ -135,6 +135,25 @@ const CANONICAL_FIELDS = [
   // Report metadata
   { id: "report_date", label: "تاريخ التقرير", group: "التقرير", sample: "2024-06-16" },
   { id: "signature_placeholder", label: "مكان التوقيع", group: "التقرير", sample: "_______________" },
+ 
+   // New fields - Owner override
+   { id: "owner_name_override", label: "اسم صاحب السيارة (إذا مختلف)", group: "المالك", sample: "محمد أحمد" },
+   { id: "owner_phone_override", label: "هاتف صاحب السيارة (إذا مختلف)", group: "المالك", sample: "0501234567" },
+   
+   // New fields - Driver extended
+   { id: "driver_license_grade", label: "درجة رخصة السائق", group: "السائق", sample: "خصوصي" },
+   { id: "driver_license_issue_date", label: "تاريخ إصدار رخصة السائق", group: "السائق", sample: "2020-01-15" },
+   
+   // New fields - Vehicle extended
+   { id: "vehicle_chassis_number", label: "رقم الشاصي", group: "المركبة", sample: "JTDKN3DU5A0123456" },
+   { id: "vehicle_speed_at_accident", label: "سرعة السيارة وقت الحادث", group: "الحادث", sample: "60 كم/س" },
+   
+   // New fields - Employee notes
+   { id: "employee_notes", label: "ملاحظات الموظف", group: "التقرير", sample: "تم التحقق من البيانات" },
+   { id: "employee_signature_date", label: "تاريخ توقيع الموظف", group: "التقرير", sample: "2024-06-17" },
+   
+   // Customer signature
+   { id: "customer_signature", label: "توقيع العميل", group: "التقرير", sample: "[توقيع]" },
 ];
 
 interface FieldMapping {

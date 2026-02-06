@@ -1,22 +1,71 @@
 
 # خطة إصلاح قص صور الشيكات وإضافتها للدفعات
 
-## المشكلة الحالية
+## المشاكل المكتشفة
 
-1. **الصورة لا تُقص**: الـ AI يكتشف الـ bounding_box لكل شيك، لكن الصورة الكاملة تُرفع بدلاً من قص كل شيك
-2. **الصورة لا تُضاف للدفعة**: عند النقر على "إضافة كدفعات"، رقم الشيك والمبلغ يُضافان لكن صورة الشيك لا تظهر في قسم "صور الشيك"
+### 1. فشل القص - الصور سوداء
+**السبب الجذري:**
+- الـ AI يُرجع `bounding_box` بقيم غير دقيقة (غالباً `x=0, y=0, width=100, height=100`)
+- دالة `cropImageOnClient` تستقبل الصورة الكاملة وتعيدها كما هي عندما لا يوجد قص فعلي
+- عندما تكون الصور مدورة (90°/180°/270°)، الـ AI يُعطي إحداثيات خاطئة
+- استخدام `gemini-2.5-flash` أقل دقة في تحديد الـ bounding box من `gemini-3-pro-preview`
+
+### 2. الصورة لا تُضاف لقسم "صور الشيك"
+**السبب الجذري:**
+- في `handleScannedCheques` بأغلب الملفات (PolicyPaymentsSection, PackagePaymentModal, SinglePolicyPaymentModal, DebtPaymentModal)، لا يتم نقل `cropped_base64` أو `pendingImages`
+- الدالة تنشئ الدفعات بدون صور:
+```typescript
+const handleScannedCheques = (cheques: any[]) => {
+  const newPayments = cheques.map(cheque => ({
+    id: crypto.randomUUID(),
+    amount: cheque.amount,
+    paymentType: 'cheque',
+    paymentDate: cheque.payment_date,
+    chequeNumber: cheque.cheque_number,
+    // ❌ لا يوجد pendingImages!
+  }));
+};
+```
+
+### 3. الرفع الفوري غير مُطبَّق
+- حالياً: الصورة تُحفظ في `pendingImages` للرفع عند حفظ الدفعة
+- المطلوب: رفع الصورة فوراً بعد التحليل وربطها بالدفعة
 
 ---
 
-## الحل المقترح
+## الحل الشامل
 
-### الجزء 1: قص الصور في الواجهة الأمامية (Client-side Cropping)
+### الجزء 1: استخدام نموذج أذكى للقص (gemini-2.5-pro)
 
-بما أن Deno لا يدعم Canvas مباشرة، سنقوم بالقص في المتصفح قبل إرسال البيانات:
+بما أن `gemini-2.5-flash` سريع لكن أقل دقة في تحديد الـ bounding box، سنستخدم:
+- `gemini-2.5-flash` للتحليل الأساسي (سريع)
+- `gemini-2.5-pro` لتحسين الـ bounding box (أدق) - يُستخدم فقط عند الحاجة
+
+**التحسين البديل:** تحسين الـ prompt ليُجبر الـ AI على قياس الإحداثيات بدقة أكبر باستخدام تقنية "chain-of-thought".
+
+**ملف: `supabase/functions/process-cheque-scan/index.ts`**
+
+```typescript
+// Prompt محسَّن يُجبر AI على التفكير خطوة بخطوة
+const CHEQUE_DETECTION_PROMPT = `...
+STEP 1: First, identify ALL cheques in the image and count them.
+STEP 2: For EACH cheque, measure its PRECISE boundaries:
+  - Look at the TOP-LEFT corner of each cheque rectangle
+  - Look at the BOTTOM-RIGHT corner of each cheque rectangle
+  - Calculate x% = (left_edge_pixels / image_width) * 100
+  - Calculate y% = (top_edge_pixels / image_height) * 100
+  - Calculate width% = (cheque_width_pixels / image_width) * 100
+  - Calculate height% = (cheque_height_pixels / image_height) * 100
+  
+ROTATION: If image is rotated, mentally rotate it first, then measure.
+...`;
+```
+
+### الجزء 2: تحسين القص على العميل
 
 **ملف: `src/components/payments/ChequeScannerDialog.tsx`**
 
-إضافة دالة قص الصورة باستخدام Canvas:
+إضافة التحقق من صحة الـ bounding box قبل القص:
 
 ```typescript
 const cropImageOnClient = async (
@@ -25,71 +74,115 @@ const cropImageOnClient = async (
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return reject('Failed to get canvas context');
+      const { x, y, width, height } = boundingBox;
       
-      // Calculate actual pixel values from percentages
-      const cropX = (boundingBox.x / 100) * img.naturalWidth;
-      const cropY = (boundingBox.y / 100) * img.naturalHeight;
-      const cropW = (boundingBox.width / 100) * img.naturalWidth;
-      const cropH = (boundingBox.height / 100) * img.naturalHeight;
+      // التحقق من صحة الـ bounding box
+      if (x < 0 || y < 0 || width <= 0 || height <= 0) {
+        console.warn('Invalid bounding box, returning full image');
+        return resolve(base64Image); // إعادة الصورة الكاملة
+      }
       
-      canvas.width = cropW;
-      canvas.height = cropH;
+      // التحقق من أن القص ليس للصورة بالكامل
+      const isFullImage = x <= 2 && y <= 2 && width >= 96 && height >= 96;
+      if (isFullImage) {
+        // لا حاجة للقص - إعادة الصورة الأصلية
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        return resolve(dataUrl.split(',')[1]);
+      }
       
-      ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      resolve(canvas.toDataURL('image/jpeg', 0.9));
+      // ... باقي منطق القص
     };
-    
-    img.onerror = () => reject('Failed to load image');
-    img.src = base64Image.startsWith('data:') 
-      ? base64Image 
-      : `data:image/jpeg;base64,${base64Image}`;
   });
 };
 ```
 
-### الجزء 2: تحديث نوع PaymentLine
+### الجزء 3: الرفع الفوري بعد التحليل
 
-**ملف: `src/components/policies/wizard/types.ts`**
+**ملف جديد: منطق الرفع الفوري**
+
+إضافة دالة لرفع صورة الشيك فوراً بعد التحليل:
 
 ```typescript
-export interface PaymentLine {
-  // ... existing fields ...
-  cheque_image_url?: string; // CDN URL for cheque image
+const uploadChequeImage = async (base64Image: string, chequeNumber: string): Promise<string | null> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+    
+    // تحويل base64 إلى Blob
+    const blob = base64ToBlob(base64Image);
+    const file = new File([blob], `cheque_${chequeNumber}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('entity_type', 'cheque');
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-media`,
+      { method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }, body: formData }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.file?.cdn_url || null;
+    }
+    return null;
+  } catch (e) {
+    console.error('Failed to upload cheque image:', e);
+    return null;
+  }
+};
+```
+
+**تحديث دالة `processImages`:**
+
+```typescript
+// بعد التحليل والقص، رفع الصور فوراً
+for (const cheque of processedCheques) {
+  if (cheque.cropped_base64) {
+    const uploadedUrl = await uploadChequeImage(cheque.cropped_base64, cheque.cheque_number);
+    if (uploadedUrl) {
+      cheque.image_url = uploadedUrl;
+    }
+  }
 }
 ```
 
-### الجزء 3: تحديث إضافة الشيكات
+### الجزء 4: إصلاح handleScannedCheques في جميع الملفات
 
-**ملف: `src/components/policies/wizard/Step4Payments.tsx`**
+**الملفات المتأثرة:**
+1. `src/components/policies/PolicyPaymentsSection.tsx`
+2. `src/components/clients/PackagePaymentModal.tsx`
+3. `src/components/clients/SinglePolicyPaymentModal.tsx`
+4. `src/components/debt/DebtPaymentModal.tsx`
+5. `src/pages/BrokerWallet.tsx`
 
-عند استلام الشيكات من الماسح، تحويل الـ URL إلى File للرفع:
+**التعديل المطلوب (نفس التعديل في كل ملف):**
 
 ```typescript
-onConfirm={async (detectedCheques) => {
+const handleScannedCheques = (cheques: any[]) => {
   const newPayments: PaymentLine[] = [];
+  const newPreviewUrls: { [key: string]: string[] } = {};
   
-  for (const cheque of detectedCheques) {
+  for (const cheque of cheques) {
+    const paymentId = crypto.randomUUID();
     const payment: PaymentLine = {
-      id: crypto.randomUUID(),
-      payment_type: 'cheque',
+      id: paymentId,
       amount: cheque.amount || 0,
-      payment_date: cheque.payment_date || new Date().toISOString().split('T')[0],
-      cheque_number: cheque.cheque_number || '',
-      refused: false,
+      paymentType: 'cheque',
+      paymentDate: cheque.payment_date || new Date().toISOString().split('T')[0],
+      chequeNumber: cheque.cheque_number || '',
+      // ✅ إضافة رابط الصورة المرفوعة
+      chequeImageUrl: cheque.image_url || undefined,
     };
     
-    // Convert cheque image to File for pendingImages
+    // ✅ إضافة صورة للـ pendingImages للعرض
     if (cheque.cropped_base64) {
       try {
         const blob = base64ToBlob(cheque.cropped_base64);
-        const file = new File([blob], `cheque_${cheque.cheque_number}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], `cheque_${cheque.cheque_number || paymentId}.jpg`, { type: 'image/jpeg' });
         payment.pendingImages = [file];
+        newPreviewUrls[paymentId] = [URL.createObjectURL(blob)];
       } catch (e) {
         console.error('Failed to convert cheque image:', e);
       }
@@ -98,81 +191,66 @@ onConfirm={async (detectedCheques) => {
     newPayments.push(payment);
   }
   
-  setPayments([...payments, ...newPayments]);
-}}
+  // تحديث حالة الـ preview URLs
+  setPreviewUrls(prev => ({ ...prev, ...newPreviewUrls }));
+  setPaymentLines(prev => [...prev, ...newPayments]);
+  toast.success(`تم إضافة ${newPayments.length} دفعة شيك مع الصور`);
+};
 ```
 
-### الجزء 4: تحديث Edge Function للقص
+**دالة مساعدة (تُضاف في كل ملف):**
 
-**ملف: `supabase/functions/process-cheque-scan/index.ts`**
-
-تحديث prompt الـ AI للحصول على bounding_box أدق:
-
-```
-BOUNDING BOX - CRITICAL:
-For each cheque in the image, provide PRECISE bounding box:
-- x: percentage from LEFT edge where cheque starts (0-100)
-- y: percentage from TOP edge where cheque starts (0-100)  
-- width: percentage of image width the cheque occupies
-- height: percentage of image height the cheque occupies
-
-Example for 3 cheques stacked vertically:
-- Top cheque: x=5, y=0, width=90, height=30
-- Middle cheque: x=5, y=33, width=90, height=30
-- Bottom cheque: x=5, y=66, width=90, height=30
-```
-
----
-
-## تدفق العمل بعد الإصلاح
-
-```text
-1. المستخدم يمسح صفحة فيها 3 شيكات
-                ↓
-2. الـ AI يكتشف 3 شيكات مع bounding_box لكل واحد
-                ↓
-3. [جديد] المتصفح يقص كل شيك حسب الـ bounding_box
-                ↓
-4. [جديد] الصورة المقصوصة تُرفع لـ Bunny CDN
-                ↓
-5. عرض الشيكات مع الصور المقصوصة
-                ↓
-6. النقر على "إضافة كدفعات"
-                ↓
-7. [جديد] تحويل الصورة إلى File وإضافتها في pendingImages
-                ↓
-8. الدفعات تُعرض مع صور الشيكات في قسم الدفعات
+```typescript
+const base64ToBlob = (base64: string, type = 'image/jpeg'): Blob => {
+  try {
+    // إزالة prefix إن وُجد
+    const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+    const byteString = atob(cleanBase64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type });
+  } catch (e) {
+    console.error('Failed to convert base64 to blob:', e);
+    return new Blob([], { type });
+  }
+};
 ```
 
 ---
 
-## الملفات المتأثرة
+## ملخص التغييرات
 
 | الملف | التغيير |
 |-------|---------|
-| `ChequeScannerDialog.tsx` | إضافة دالة قص الصور على Client |
-| `process-cheque-scan/index.ts` | تحسين prompt للحصول على bounding_box دقيق + قص الصور قبل الرفع |
-| `types.ts` | إضافة `cheque_image_url` لـ PaymentLine |
-| `Step4Payments.tsx` | تحويل صورة الشيك لـ File وإضافتها في pendingImages |
+| `supabase/functions/process-cheque-scan/index.ts` | تحسين prompt الـ AI للحصول على bounding box أدق + إضافة خطوات التفكير |
+| `src/components/payments/ChequeScannerDialog.tsx` | تحسين دالة القص + إضافة الرفع الفوري بعد التحليل |
+| `src/components/policies/PolicyPaymentsSection.tsx` | إصلاح `handleScannedCheques` لتضمين الصور |
+| `src/components/clients/PackagePaymentModal.tsx` | إصلاح `handleScannedCheques` لتضمين الصور |
+| `src/components/clients/SinglePolicyPaymentModal.tsx` | إصلاح `handleScannedCheques` لتضمين الصور |
+| `src/components/debt/DebtPaymentModal.tsx` | إصلاح `handleScannedCheques` لتضمين الصور |
+| `src/pages/BrokerWallet.tsx` | إصلاح `handleScannedCheques` لتضمين الصور |
 
 ---
 
-## ملاحظات تقنية
+## التدفق بعد الإصلاح
 
-1. **القص على Client أفضل من Server** لأن:
-   - Deno لا يدعم Canvas مباشرة (يحتاج مكتبات خارجية)
-   - المتصفح يملك الصورة الأصلية بالفعل
-   - أسرع وأقل ضغطاً على الخادم
-
-2. **base64ToBlob** دالة مساعدة لتحويل base64 إلى Blob:
-```typescript
-function base64ToBlob(base64: string, type = 'image/jpeg'): Blob {
-  const byteString = atob(base64);
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  return new Blob([ab], { type });
-}
+```
+1. المستخدم يمسح صفحة فيها شيكات
+              ↓
+2. AI يكتشف الشيكات + bounding_box دقيق (prompt محسَّن)
+              ↓
+3. المتصفح يقص كل شيك من الصورة الأصلية
+              ↓
+4. [جديد] الصورة المقصوصة تُرفع فوراً لـ Bunny CDN
+              ↓
+5. عرض الشيكات مع الصور المقصوصة + CDN URLs
+              ↓
+6. النقر على "إضافة كدفعات"
+              ↓
+7. [جديد] الدفعات تُنشأ مع صور في pendingImages + chequeImageUrl
+              ↓
+8. الصور تظهر في قسم "صور الشيك" فوراً
 ```

@@ -66,7 +66,14 @@ export function ExpiringPolicies() {
         .limit(6);
 
       if (error) throw error;
-      setPolicies(data || []);
+
+      // Filter out renewed policies - they shouldn't appear in expiring list
+      const filteredPolicies = (data || []).filter(policy => {
+        const renewalStatus = policy.renewal_tracking?.[0]?.renewal_status;
+        return renewalStatus !== 'renewed';
+      });
+
+      setPolicies(filteredPolicies);
     } catch (error) {
       console.error("Error fetching expiring policies:", error);
     } finally {

@@ -25,7 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface TaskCardProps {
-  task: Task;
+  task: Task & { isOverdue?: boolean };
   onComplete: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
@@ -86,6 +86,12 @@ export function TaskCard({ task, onComplete, onEdit, onDelete }: TaskCardProps) 
             <span className="text-base font-bold font-mono ltr-nums">
               {formatTime(task.due_time)}
             </span>
+            {/* Show date for overdue tasks */}
+            {(task.isOverdue || overdue) && (
+              <span className="text-[10px] mt-0.5 opacity-75 font-medium">
+                {format(new Date(task.due_date), 'd/M')}
+              </span>
+            )}
           </div>
 
           {/* Content */}

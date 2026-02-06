@@ -438,47 +438,31 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
 
   const fetchPaymentSummary = async () => {
     try {
-      // Get ALL active policies for this client (including ELZAMI for complete view)
-      const { data: policiesData } = await supabase
-        .from('policies')
-        .select('id, insurance_price, profit, policy_type_parent, cancelled, transferred')
-        .eq('client_id', client.id)
-        .eq('cancelled', false)
-        .eq('transferred', false)
-        .is('deleted_at', null);
+      // Use the new wallet-based source of truth
+      const [walletRes, policiesRes] = await Promise.all([
+        supabase.rpc('get_client_wallet_balance', { p_client_id: client.id }),
+        supabase
+          .from('policies')
+          .select('profit')
+          .eq('client_id', client.id)
+          .eq('cancelled', false)
+          .eq('transferred', false)
+          .is('deleted_at', null),
+      ]);
 
-      if (!policiesData || policiesData.length === 0) {
-        setPaymentSummary({ total_paid: 0, total_remaining: 0, total_profit: 0 });
-        return;
+      // Calculate total profit from policies (for admin view)
+      const totalProfit = (policiesRes.data || []).reduce((sum, p) => sum + (p.profit || 0), 0);
+
+      if (walletRes.data && walletRes.data.length > 0) {
+        const wallet = walletRes.data[0];
+        setPaymentSummary({
+          total_paid: (wallet.total_credits || 0) + (wallet.total_refunds || 0),
+          total_remaining: Math.max(0, wallet.wallet_balance || 0),
+          total_profit: totalProfit,
+        });
+      } else {
+        setPaymentSummary({ total_paid: 0, total_remaining: 0, total_profit: totalProfit });
       }
-
-      // Total insurance = ALL policies INCLUDING ELZAMI (for customer view)
-      const totalInsurance = policiesData.reduce((sum, p) => sum + (p.insurance_price || 0), 0);
-      
-      // Total profit from all policies (ELZAMI profit = 0 by design)
-      const totalProfit = policiesData.reduce((sum, p) => sum + (p.profit || 0), 0);
-
-      // Get ALL payments for ALL policies (including ELZAMI)
-      const allPolicyIds = policiesData.map(p => p.id);
-      let totalPaid = 0;
-      
-      if (allPolicyIds.length > 0) {
-        const { data: paymentsData } = await supabase
-          .from('policy_payments')
-          .select('amount, refused')
-          .in('policy_id', allPolicyIds);
-
-        totalPaid = (paymentsData || [])
-          .filter(p => !p.refused)
-          .reduce((sum, p) => sum + (p.amount || 0), 0);
-      }
-
-      // Remaining = Total Insurance - Total Paid (simple and clear)
-      setPaymentSummary({
-        total_paid: totalPaid,
-        total_remaining: Math.max(0, totalInsurance - totalPaid),
-        total_profit: totalProfit,
-      });
     } catch (error) {
       console.error('Error fetching payment summary:', error);
     }

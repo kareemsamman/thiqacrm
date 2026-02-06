@@ -116,9 +116,12 @@ verify_jwt = false
 
 [functions.generate-bulk-payment-receipt]
 verify_jwt = true
- 
- [functions.send-accident-signature-sms]
- verify_jwt = true
- 
- [functions.submit-accident-signature]
- verify_jwt = false
+
+[functions.send-accident-signature-sms]
+verify_jwt = true
+
+[functions.submit-accident-signature]
+verify_jwt = false
+
+[functions.send-bulk-debt-sms]
+verify_jwt = true

@@ -97,6 +97,7 @@ const App = () => (
                   <Tasks />
                 </ProtectedRoute>
               } />
+              {/* Activity log is now a dialog in Dashboard, but keep the page as fallback */}
               <Route path="/activity" element={
                 <ProtectedRoute>
                   <ActivityLog />

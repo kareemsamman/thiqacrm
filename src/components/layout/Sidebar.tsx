@@ -76,7 +76,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
       { name: "المهام", href: "/tasks", icon: ListTodo, badge: 'tasks' },
-      { name: "سجل النشاط", href: "/activity", icon: History },
+      { name: "سجل النشاط", href: "/activity", icon: Activity },
       { name: "التنبيهات", href: "/notifications", icon: Bell, badge: 'notifications' },
     ],
   },

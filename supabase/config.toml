@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.send-bulk-debt-sms]
 verify_jwt = true
+
+[functions.process-cheque-scan]
+verify_jwt = true

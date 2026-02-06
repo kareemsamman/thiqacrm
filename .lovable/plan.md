@@ -1,141 +1,166 @@
 
+# خطة توحيد حساب الرصيد المتبقي (إجمالي المتبقي)
 
-# خطة تحسين مسح الشيكات
+## المشكلة
 
-## المشاكل المكتشفة
+ثلاثة أماكن مختلفة تحسب "إجمالي المتبقي" بطرق متباينة:
 
-### 1. ترتيب الشيكات
-الشيكات تظهر بترتيب الاكتشاف وليس بترتيب التاريخ. المطلوب ترتيبها تصاعدياً حسب تاريخ الاستحقاق.
-
-### 2. مشكلة روابط الصور
-- الرابط يُبنى بـ `cdn.basheer-ab.com` ✅
-- لكن الصورة لا تُرفع بنجاح أو لا يتم انتظار الرفع قبل الإرجاع
-- يجب التحقق من نجاح الرفع وإضافة fallback للـ base64
-
-### 3. خطأ في قراءة المبلغ
-- AI يقرأ `18,007` بدلاً من `1,800`
-- السبب: الفاصلة الألفية والصورة المدورة
-- الحل: تحسين الـ prompt + استخدام نموذج أقوى
-
-### 4. الصور المدورة
-- الشيكات قد تكون مدورة مما يؤثر على OCR
-- الحل: إضافة تعليمات للـ AI للتعامل مع الصور المدورة
+| المكان | المنطق الحالي | النتيجة |
+|--------|--------------|---------|
+| صفحة العميل | كل الوثائق - كل المدفوعات - المرتجعات | ₪10,098 |
+| صفحة الديون | غير الإلزامي فقط - المدفوعات (منطق معقد للباقات) | ₪5,600 |
+| SMS | حساب لكل وثيقة منفردة (تكرار في الباقات) | ₪18,198 |
 
 ---
 
-## التغييرات المطلوبة
+## الحل: RPC موحدة كمصدر وحيد للحقيقة
 
-### ملف: `supabase/functions/process-cheque-scan/index.ts`
+### 1. إنشاء RPC جديدة: `get_client_balance`
 
-#### 1. استخدام نموذج Gemini Pro
-```typescript
-// قبل
-model: "google/gemini-2.5-flash"
-
-// بعد
-model: "google/gemini-2.5-pro"
+```sql
+CREATE OR REPLACE FUNCTION get_client_balance(p_client_id uuid)
+RETURNS TABLE(
+  total_insurance numeric,
+  total_paid numeric,
+  total_refunds numeric,
+  total_remaining numeric,
+  policy_count integer
+)
 ```
 
-#### 2. تحسين الـ Prompt للتعامل مع:
-- الصور المدورة (rotated images)
-- الفواصل في الأرقام
-- دقة أفضل في قراءة المبالغ
+**المنطق:**
+```
+total_insurance = SUM(ALL active policies insurance_price)
+                  -- INCLUDING ELZAMI
+                  -- EXCLUDING cancelled, deleted, transferred
 
-```typescript
-const CHEQUE_DETECTION_PROMPT = `You are an expert OCR system analyzing scanned Israeli bank cheques.
+total_paid = SUM(ALL non-refused payments)
+             -- For ALL policies including ELZAMI
 
-CRITICAL INSTRUCTIONS:
-1. Images may be ROTATED (90°, 180°, 270°) - rotate mentally to read correctly
-2. Amounts are in NIS - typical values range from 500-50,000
-3. NEVER confuse comma separators with decimal points
-   - "1,800" = one thousand eight hundred (1800)
-   - "18,007" would be unusual - verify carefully
-4. Cheque numbers are usually 6-8 digits without commas
+total_refunds = SUM(wallet transactions)
+                -- refund + transfer_refund_owed + manual_refund
+                -- MINUS transfer_adjustment_due
 
-For each cheque extract:
-- CHEQUE NUMBER (מספר שיק / رقم الشيك): 6-8 digit number
-- DATE (תאריך / التاريخ): payment due date
-- AMOUNT (סכום / المبلغ): monetary value in NIS (be careful with thousands separator)
-- BANK NAME (if visible)
-- ACCOUNT NUMBER (if visible)
-- BRANCH NUMBER (if visible)
-
-DATE HANDLING:
-- Convert to YYYY-MM-DD format
-- Israeli dates: DD/MM/YY or DD/MM/YYYY
-- If year is 2 digits (e.g., 26), assume 2026
-
-AMOUNT HANDLING - CRITICAL:
-- Amounts use comma as THOUSANDS separator (e.g., 1,800 = 1800)
-- Common amounts: 500, 800, 1000, 1200, 1400, 1500, 1800, 2000, 2500, 3000
-- If you see something like 18,007 - double check, it's likely 1,800.7 or 1,800
-
-Output JSON only, no markdown:
-{
-  "cheques": [
-    {
-      "cheque_number": "80001254",
-      "payment_date": "2026-03-25",
-      "amount": 1800,
-      "bank_name": "דיסקונט",
-      "account_number": "",
-      "branch_number": "",
-      "bounding_box": {"x": 0, "y": 0, "width": 100, "height": 100},
-      "confidence": 95
-    }
-  ]
-}`;
+total_remaining = MAX(0, total_insurance - total_paid - total_refunds)
 ```
 
-#### 3. ترتيب الشيكات حسب التاريخ
-```typescript
-// بعد جمع كل الشيكات، قبل الإرجاع:
-allDetectedCheques.sort((a, b) => {
-  const dateA = new Date(a.payment_date);
-  const dateB = new Date(b.payment_date);
-  return dateA.getTime() - dateB.getTime();
-});
-```
+### 2. تعديل `report_client_debts` لاستخدام نفس المنطق
 
-#### 4. إصلاح رفع الصور + Fallback
-```typescript
-// في الحلقة، تأكد من الرفع ثم أضف fallback
-const cdnUrl = await uploadToBunny(imageBase64, fileName);
+تحويل المنطق الحالي من "دين الوكالة" إلى "رصيد العميل الصافي":
 
-if (cdnUrl) {
-  cheque.image_url = cdnUrl;
-} else {
-  // Fallback: استخدم base64 مباشرة كـ data URL
-  cheque.image_url = `data:image/jpeg;base64,${imageBase64}`;
-}
+**التغييرات:**
+- إلغاء استثناء ELZAMI من الحسابات
+- إلغاء استثناء broker policies (اختياري - حسب متطلبات العمل)
+- إضافة خصم المرتجعات (wallet_transactions)
+- إزالة منطق GREATEST/LEAST المعقد
 
-// لا نحتاج cropped_base64 إذا الـ CDN يعمل
-// لكن نحتفظ به كـ fallback
-cheque.cropped_base64 = imageBase64;
-```
+### 3. تحديث Edge Functions
+
+#### `send-manual-reminder/index.ts`:
+- استبدال حساب كل policy على حدة
+- استخدام إجمالي موحد من الـ RPC الجديدة
+
+#### `send-bulk-debt-sms/index.ts`:
+- نفس التغيير - استخدام الـ RPC الجديدة
 
 ---
 
-### ملف: `src/components/payments/ChequeScannerDialog.tsx`
+## التغييرات التفصيلية
 
-#### 1. إصلاح عرض الصورة مع Fallback
-```tsx
-// في عرض صورة الشيك
-{(cheque.image_url || cheque.cropped_base64) && (
-  <div className="w-20 h-14 rounded overflow-hidden bg-muted shrink-0">
-    <img
-      src={cheque.image_url || `data:image/jpeg;base64,${cheque.cropped_base64}`}
-      alt={`شيك ${cheque.cheque_number}`}
-      className="w-full h-full object-cover"
-      onError={(e) => {
-        // Fallback to base64 if CDN fails
-        if (cheque.cropped_base64 && e.currentTarget.src !== `data:image/jpeg;base64,${cheque.cropped_base64}`) {
-          e.currentTarget.src = `data:image/jpeg;base64,${cheque.cropped_base64}`;
-        }
-      }}
-    />
-  </div>
-)}
+### Migration SQL الجديدة
+
+```sql
+-- 1. RPC لحساب رصيد عميل واحد
+CREATE OR REPLACE FUNCTION get_client_balance(p_client_id uuid)
+RETURNS TABLE(
+  total_insurance numeric,
+  total_paid numeric,
+  total_refunds numeric,
+  total_remaining numeric
+)
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH 
+  -- All active policies (including ELZAMI)
+  active_policies AS (
+    SELECT p.id, p.insurance_price
+    FROM policies p
+    WHERE p.client_id = p_client_id
+      AND p.cancelled = FALSE
+      AND p.transferred = FALSE
+      AND p.deleted_at IS NULL
+      AND p.broker_id IS NULL  -- Exclude broker deals
+  ),
+  -- Sum of all prices
+  policy_totals AS (
+    SELECT 
+      COALESCE(SUM(insurance_price), 0) AS total_insurance,
+      COUNT(*) AS policy_count
+    FROM active_policies
+  ),
+  -- All payments for these policies
+  payment_totals AS (
+    SELECT COALESCE(SUM(pp.amount), 0) AS total_paid
+    FROM policy_payments pp
+    JOIN active_policies ap ON ap.id = pp.policy_id
+    WHERE COALESCE(pp.refused, FALSE) = FALSE
+  ),
+  -- Wallet transactions
+  wallet_totals AS (
+    SELECT COALESCE(SUM(
+      CASE 
+        WHEN transaction_type IN ('refund', 'transfer_refund_owed', 'manual_refund') 
+        THEN amount
+        WHEN transaction_type = 'transfer_adjustment_due' 
+        THEN -amount
+        ELSE 0 
+      END
+    ), 0) AS total_refunds
+    FROM customer_wallet_transactions
+    WHERE client_id = p_client_id
+  )
+  SELECT
+    pt.total_insurance,
+    pay.total_paid,
+    wt.total_refunds,
+    GREATEST(0, pt.total_insurance - pay.total_paid - wt.total_refunds)
+  FROM policy_totals pt
+  CROSS JOIN payment_totals pay
+  CROSS JOIN wallet_totals wt;
+END;
+$$;
+
+-- 2. تحديث report_client_debts لاستخدام نفس المنطق
+DROP FUNCTION IF EXISTS report_client_debts(text, integer, integer, integer);
+
+CREATE OR REPLACE FUNCTION report_client_debts(
+  p_search text DEFAULT NULL,
+  p_filter_days integer DEFAULT NULL,
+  p_limit integer DEFAULT 50,
+  p_offset integer DEFAULT 0
+)
+RETURNS TABLE(
+  client_id uuid,
+  client_name text,
+  client_phone text,
+  total_insurance numeric,
+  total_paid numeric,
+  total_refunds numeric,
+  total_remaining numeric,
+  oldest_end_date date,
+  days_until_oldest integer,
+  policies_count integer,
+  total_rows bigint
+)
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $$
+-- [Implementation using same logic as get_client_balance]
+-- Returns clients with total_remaining > 0
+$$;
 ```
 
 ---
@@ -144,35 +169,37 @@ cheque.cropped_base64 = imageBase64;
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `supabase/functions/process-cheque-scan/index.ts` | تحسين الـ prompt + النموذج + الترتيب + الرفع |
-| `src/components/payments/ChequeScannerDialog.tsx` | Fallback للصور |
+| `supabase/migrations/XXXXXX_unified_balance.sql` | إنشاء - RPC جديدة + تحديث RPC الديون |
+| `src/pages/DebtTracking.tsx` | تعديل - تحديث أسماء الحقول |
+| `src/components/clients/ClientDetails.tsx` | تعديل - استخدام RPC بدلاً من الحساب المحلي |
+| `supabase/functions/send-manual-reminder/index.ts` | تعديل - استخدام RPC للمجموع |
+| `supabase/functions/send-bulk-debt-sms/index.ts` | تعديل - استخدام RPC للمجموع |
+| `src/hooks/useDebtCount.tsx` | تعديل - تحديث أسماء الحقول |
 
 ---
 
-## النتائج المتوقعة
+## قواعد العمل الجديدة
 
-1. **ترتيب صحيح**: الشيكات مرتبة حسب التاريخ تصاعدياً
-   - 25/02/26 → 25/03/26 → 25/04/26 → ...
-
-2. **صور ظاهرة**: إما من CDN أو base64 كـ fallback
-
-3. **دقة أفضل في المبالغ**: 
-   - Gemini Pro أدق من Flash
-   - Prompt محسّن للتعامل مع الفواصل والدوران
-
-4. **تعامل مع الصور المدورة**: تعليمات واضحة للـ AI
+1. **مصدر واحد للحقيقة**: الـ RPC `get_client_balance` هي المرجع الوحيد
+2. **شمول الإلزامي**: كل الوثائق تُحسب (العميل دفع ثمن الإلزامي)
+3. **خصم المرتجعات**: المرتجعات تُخصم دائماً من المتبقي
+4. **لا تكرار**: الباقات تُحسب مرة واحدة كمجموع
+5. **استثناء الوسطاء**: صفقات الوسطاء لا تدخل في دين العميل
 
 ---
 
-## التفاصيل التقنية
+## معايير القبول
 
-### لماذا Gemini Pro بدلاً من Flash؟
-- Pro أفضل في OCR والتحليل البصري المعقد
-- أدق في قراءة الأرقام والتواريخ
-- يتعامل بشكل أفضل مع الصور ذات الجودة المنخفضة
+- صفحة العميل وصفحة الديون والـ SMS تُظهر نفس "إجمالي المتبقي" ✅
+- المجموع لا يتجاوز رصيد صفحة العميل ✅
+- إضافة وثيقة للباقة لا تزيد المتبقي بشكل خاطئ ✅
+- حذف دفعة ينقص المتبقي مرة واحدة فقط ✅
 
-### لماذا الـ Fallback للصور؟
-- Bunny CDN قد يفشل أحياناً
-- الـ base64 موجود بالفعل، لذا نستخدمه كـ backup
-- يضمن ظهور الصورة دائماً
+---
 
+## ملاحظة هامة
+
+إذا كان "دين الوكالة" (غير الإلزامي) مطلوباً للتقارير الداخلية:
+- سيُحتفظ به كـ RPC منفصلة: `get_agency_debt`
+- لن يُسمى أبداً "إجمالي المتبقي"
+- سيُعرض بتسمية واضحة: "دين الوكالة (غير الإلزامي)"

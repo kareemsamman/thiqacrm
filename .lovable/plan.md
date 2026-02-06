@@ -1,57 +1,113 @@
 
-# خطة إصلاح مشكلتين في عرض صور الشيكات والدفعات
+# خطة إصلاح عرض صور الشيكات في نافذة تسديد الديون
 
-## المشكلة 1: صور إيصال الدفع لا تظهر بعد مسح الشيكات
+## المشكلة
 
-### السبب الجذري
-عند إضافة شيكات من الماسح الضوئي، الكود يحفظ `cheque_image_url` (رابط CDN) في كائن الدفعة، لكن لا يُضيفه إلى حالة `previewUrls` التي تُستخدم لعرض الصور.
+عند مسح الشيكات في نافذة "تسديد الديون"، البيانات تُضاف بشكل صحيح (المبلغ، رقم الشيك، التاريخ) لكن الصور لا تظهر في قسم "صور الشيك".
 
-### الكود الحالي (Step4Payments.tsx - سطر 579):
+## تشخيص السبب
+
+الـ Edge Function يُرجع الآن `image_url` (رابط CDN) بدلاً من `cropped_base64`:
+- الكود الحالي في `handleScannedCheques` يبحث فقط عن `cropped_base64`
+- لا يوجد حقل `cheque_image_url` في interface الدفعة
+- قسم عرض الصور لا يعرض روابط CDN
+
+---
+
+## الحل المقترح
+
+### التغيير 1: إضافة حقل `cheque_image_url` للـ interface
+
+**الملف**: `src/components/debt/DebtPaymentModal.tsx`  
+**السطر**: 47-56
+
 ```typescript
-cheque_image_url: cheque.image_url,
-```
-
-### الحل
-إضافة عرض صورة الشيك من `cheque_image_url` في قسم عرض الصور:
-
-```typescript
-// في قسم Preview existing images (سطر 473-489)
-// عرض صورة الشيك المحفوظة من المسح (CDN URL)
-{payment.cheque_image_url && (
-  <div className="relative group">
-    <img 
-      src={payment.cheque_image_url} 
-      alt="" 
-      className="h-14 w-18 object-cover rounded border"
-    />
-  </div>
-)}
+interface PaymentLine {
+  id: string;
+  amount: number;
+  paymentType: 'cash' | 'cheque' | 'transfer' | 'visa';
+  paymentDate: string;
+  chequeNumber?: string;
+  notes?: string;
+  tranzilaPaid?: boolean;
+  pendingImages?: File[];
+  cheque_image_url?: string;  // إضافة هذا الحقل
+}
 ```
 
 ---
 
-## المشكلة 2: صور الشيكات مقطوعة (ارتفاع غير كافٍ)
+### التغيير 2: تحديث `handleScannedCheques` لحفظ رابط CDN
 
-### السبب الجذري
-في `ChequeScannerDialog.tsx` سطر 863:
-```tsx
-<div className="w-20 h-14 rounded overflow-hidden bg-muted shrink-0">
-```
-الارتفاع `h-14` (56px) صغير جداً، والـ `object-cover` يقص الصورة.
-
-### الحل
-1. زيادة الارتفاع من `h-14` إلى `h-20` أو `h-24`
-2. تغيير `object-cover` إلى `object-contain` للحفاظ على نسبة العرض للارتفاع
+**الملف**: `src/components/debt/DebtPaymentModal.tsx`  
+**السطر**: 467-499
 
 ```typescript
-// قبل
-<div className="w-20 h-14 rounded overflow-hidden bg-muted shrink-0">
-  <img className="w-full h-full object-cover" />
-</div>
+const handleScannedCheques = (cheques: any[]) => {
+  const newPayments: PaymentLine[] = [];
+  const newPreviewUrls: PreviewUrls = {};
+  
+  for (const cheque of cheques) {
+    const paymentId = crypto.randomUUID();
+    const payment: PaymentLine = {
+      id: paymentId,
+      amount: cheque.amount || 0,
+      paymentType: 'cheque' as const,
+      paymentDate: cheque.payment_date || new Date().toISOString().split('T')[0],
+      chequeNumber: cheque.cheque_number || '',
+      cheque_image_url: cheque.image_url,  // حفظ رابط CDN
+    };
+    
+    // إضافة رابط CDN إلى previewUrls إذا موجود
+    if (cheque.image_url) {
+      newPreviewUrls[paymentId] = [cheque.image_url];
+    }
+    // fallback: استخدام base64 إذا لم يوجد CDN URL
+    else if (cheque.cropped_base64) {
+      try {
+        const blob = base64ToBlob(cheque.cropped_base64);
+        const file = new File([blob], `cheque_${cheque.cheque_number || paymentId}.jpg`, { type: 'image/jpeg' });
+        payment.pendingImages = [file];
+        newPreviewUrls[paymentId] = [URL.createObjectURL(blob)];
+      } catch (e) {
+        console.error('Failed to convert cheque image:', e);
+      }
+    }
+    
+    newPayments.push(payment);
+  }
+  
+  setPreviewUrls(prev => ({ ...prev, ...newPreviewUrls }));
+  setPaymentLines(prev => [...prev, ...newPayments]);
+  toast.success(`تم إضافة ${newPayments.length} دفعة شيك مع الصور`);
+};
+```
 
-// بعد
-<div className="w-24 h-20 rounded overflow-hidden bg-muted shrink-0">
-  <img className="w-full h-full object-contain" />
+---
+
+### التغيير 3: إضافة عرض صورة CDN في قسم الصور (احتياطي)
+
+**الملف**: `src/components/debt/DebtPaymentModal.tsx`  
+**السطر**: 1052
+
+إضافة عرض صورة CDN إذا موجودة وغير معروضة في previewUrls:
+
+```typescript
+<div className="flex flex-wrap gap-2">
+  {/* عرض صورة CDN من الماسح */}
+  {payment.cheque_image_url && !getPreviewUrls(payment.id).includes(payment.cheque_image_url) && (
+    <div className="relative group">
+      <img 
+        src={payment.cheque_image_url} 
+        alt="صورة الشيك" 
+        className="h-14 w-18 object-cover rounded border"
+      />
+    </div>
+  )}
+  {/* عرض الصور من previewUrls */}
+  {getPreviewUrls(payment.id).map((url, imgIndex) => (
+    // ... الكود الحالي
+  ))}
 </div>
 ```
 
@@ -61,39 +117,15 @@ cheque_image_url: cheque.image_url,
 
 | الملف | السطر | التغيير |
 |-------|-------|---------|
-| `Step4Payments.tsx` | 473-489 | إضافة عرض `cheque_image_url` من CDN |
-| `ChequeScannerDialog.tsx` | 863 | تغيير `w-20 h-14` → `w-24 h-20` |
-| `ChequeScannerDialog.tsx` | 865-867 | تغيير `object-cover` → `object-contain` |
-
----
-
-## تفاصيل تقنية
-
-### لماذا الصور لا تظهر في قسم "صور إيصال الدفع"؟
-
-```
-┌─────────────────────────────────────────────────────┐
-│  مسار الصورة عند المسح:                              │
-│                                                       │
-│  1. ChequeScannerDialog → يكتشف الشيك               │
-│  2. يحصل على image_url من CDN                       │
-│  3. يرسل إلى Step4Payments                          │
-│  4. Step4Payments يحفظ في cheque_image_url ✓        │
-│  5. لكن لا يُضيف إلى previewUrls[] ✗                │
-│  6. قسم العرض يقرأ فقط من previewUrls[]             │
-│  7. النتيجة: الصورة لا تظهر                         │
-└─────────────────────────────────────────────────────┘
-```
-
-### لماذا `object-contain` أفضل للشيكات؟
-
-- **object-cover**: يملأ الحاوية ويقص الأجزاء الزائدة (يخفي أجزاء من الشيك)
-- **object-contain**: يحافظ على نسبة العرض للارتفاع كاملة (يظهر الشيك بالكامل)
+| `DebtPaymentModal.tsx` | 47-56 | إضافة `cheque_image_url` للـ interface |
+| `DebtPaymentModal.tsx` | 467-499 | تحديث `handleScannedCheques` لحفظ وعرض CDN URL |
+| `DebtPaymentModal.tsx` | 1052 | إضافة عرض صورة CDN احتياطية |
 
 ---
 
 ## النتيجة المتوقعة
 
 بعد التنفيذ:
-1. صور الشيكات ستظهر في قسم "صور إيصال الدفع" بعد المسح
-2. صور الشيكات في نتائج المسح ستكون أكبر ولن تُقطع
+1. عند مسح الشيكات، سيتم حفظ رابط صورة CDN
+2. الصورة ستظهر فوراً في قسم "صور الشيك (أمامي/خلفي)"
+3. ستعمل مع كل من CDN URL و base64 fallback

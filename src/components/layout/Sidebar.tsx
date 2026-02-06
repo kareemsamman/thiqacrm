@@ -25,6 +25,7 @@ import {
   Upload,
   DollarSign,
   History,
+  Activity,
   Truck,
   Shield,
   Megaphone,
@@ -75,6 +76,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
       { name: "المهام", href: "/tasks", icon: ListTodo, badge: 'tasks' },
+      { name: "سجل النشاط", href: "/activity", icon: History },
       { name: "التنبيهات", href: "/notifications", icon: Bell, badge: 'notifications' },
     ],
   },

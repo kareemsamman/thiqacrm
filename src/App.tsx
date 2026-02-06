@@ -57,6 +57,7 @@ import RepairClaims from "./pages/RepairClaims";
 import RepairClaimDetail from "./pages/RepairClaimDetail";
 import CorrespondenceLetters from "./pages/CorrespondenceLetters";
 import Leads from "./pages/Leads";
+import ActivityLog from "./pages/ActivityLog";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,11 @@ const App = () => (
               <Route path="/tasks" element={
                 <ProtectedRoute>
                   <Tasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/activity" element={
+                <ProtectedRoute>
+                  <ActivityLog />
                 </ProtectedRoute>
               } />
               <Route path="/contacts" element={

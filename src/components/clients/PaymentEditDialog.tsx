@@ -35,15 +35,12 @@ interface PaymentRecord {
   refused: boolean | null;
   notes: string | null;
   locked: boolean | null;
-  // For legacy payments
-  policy_id: string | null;
+  policy_id: string;
   policy: {
     id: string;
     policy_type_parent: string;
     insurance_price: number;
   } | null;
-  // Source of payment
-  source?: 'policy' | 'client';
 }
 
 interface PaymentEditDialogProps {
@@ -132,11 +129,8 @@ export function PaymentEditDialog({
         updateData.cheque_number = null;
       }
 
-      // Determine which table to update based on source
-      const tableName = payment.source === 'client' ? 'client_payments' : 'policy_payments';
-      
       const { error } = await supabase
-        .from(tableName)
+        .from('policy_payments')
         .update(updateData)
         .eq('id', payment.id);
 

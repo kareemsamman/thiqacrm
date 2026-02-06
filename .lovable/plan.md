@@ -1,316 +1,325 @@
 
-# تحسين "النشاط الأخير" - تجميع البيانات + Popup احترافي
+# تحديثات جدول الوثائق - تصحيح الأعمدة والفلاتر والترتيب
 
-## ملخص المتطلبات من الصورة المرفقة
+## ملخص المشاكل والحلول
 
-المشكلة الحالية واضحة في الصورة:
-- نفس العميل (جمال محمد داري) يظهر 4 مرات بنفس المعلومات
-- كل دفعة تظهر في كارت منفصل
-- لا يوجد تجميع للمبالغ أو تفصيل لأنواع الدفع
-
-| المطلوب | الوصف |
-|---------|-------|
-| **بحث أولاً** | فلتر بالاسم، رقم السيارة، نوع الوثيقة |
-| **Popup بدل صفحة** | "عرض الكل" يفتح Dialog/Popup وليس صفحة جديدة |
-| **تجميع بالعميل** | دفعات نفس الشخص تُجمّع في كارت واحد |
-| **مجموع المبالغ** | عرض إجمالي ما دفعه العميل |
-| **تفصيل الدفعات** | كم نقداً، كم شيك، كم حوالة |
-| **اسم المنشئ** | من أنشأ الوثيقة |
-| **Scroll 24 ساعة** | كل نشاطات آخر 24 ساعة بالتمرير |
-| **كروت أجمل في Popup** | تفاصيل أكثر مع تصميم أفضل |
+| المشكلة | الحل |
+|---------|------|
+| السهم باتجاه خاطئ (→) | تغيير إلى (←) |
+| خدمات الطريق بدون نوع الخدمة | إضافة نوع الخدمة الفرعي |
+| ترتيب التواريخ معكوس | تبديل: البداية ← النهاية |
+| عمود "أنشأها" بدون تاريخ | إضافة التاريخ والوقت تحت الاسم |
+| عرض عمود الدفع ضيق | زيادة العرض |
+| البحث لا يعمل | تفعيل البحث في الـ Query |
+| الفلاتر لا تؤثر | موجودة لكن البحث مفقود |
+| الترتيب الافتراضي | التأكد من `created_at DESC` |
 
 ---
 
-## التصميم الجديد
+## التغييرات التفصيلية
 
-### الكارت المجمّع (على Dashboard)
+### 1. إصلاح اتجاه السهم في عمود التأمينات
 
-**قبل (4 كروت منفصلة):**
+**قبل:**
 ```
-┌─────────────────────────────────────┐
-│ دفعة مستلمة     منذ 21 ساعة         │
-│ جمال محمد داري (66)                 │
-│ ₪1,800  [شيك]  شامل → اراضي مقدسة  │
-└─────────────────────────────────────┘
-┌─────────────────────────────────────┐
-│ دفعة مستلمة     منذ 21 ساعة         │
-│ جمال محمد داري (66)                 │
-│ ₪1,800  [شيك]  شامل → اراضي مقدسة  │
-└─────────────────────────────────────┘
-...
+شامل → اراضي مقدسة
 ```
 
-**بعد (كارت واحد مجمّع):**
+**بعد:**
 ```
-┌──────────────────────────────────────────────────────┐
-│ 💰 دفعات مستلمة (4 دفعات)      منذ 21 ساعة          │
-│ ═══════════════════════════════════════════════════ │
-│ العميل: جمال محمد داري (66)                         │
-│                                                      │
-│ الإجمالي: ₪5,500                                    │
-│ ─────────────────────────────────────────────────── │
-│ التفاصيل:                                           │
-│   • نقدًا: ₪100  (إعفاء حوادث → شركة اكس)          │
-│   • شيك: ₪5,400  (شامل → اراضي مقدسة) - 3 دفعات    │
-│                                                      │
-│ بواسطة: أحمد                                        │
-└──────────────────────────────────────────────────────┘
+شامل ← اراضي مقدسة
 ```
 
----
+**لخدمات الطريق:**
+```
+خدمات الطريق ← شركة اكس ← زجاج وجرار
+```
 
-## هيكل البيانات الجديد
+### 2. إضافة نوع الخدمة الفرعي للـ ROAD_SERVICE و ACCIDENT_FEE_EXEMPTION
 
-### Interface للتجميع
+**مصدر البيانات:**
+- `policies.road_service_id` → جدول `road_services`
+- `policies.accident_fee_service_id` → جدول `accident_fee_services`
 
+**تحديث الـ Query:**
 ```typescript
-interface GroupedClientActivity {
-  clientId: string;
-  clientName: string;
-  clientFileNumber: string;
-  
-  // Policies
-  policies: {
-    id: string;
-    type: string;
-    companyName: string;
-    carNumber: string;
-    price: number;
-    createdBy: string;
-    createdAt: string;
-  }[];
-  
-  // Aggregated Payments
-  payments: {
-    total: number;
-    count: number;
-    byType: {
-      cash: number;
-      cheque: number;
-      visa: number;
-      transfer: number;
-    };
-    items: {
-      id: string;
-      amount: number;
-      paymentType: string;
-      policyType: string;
-      companyName: string;
-      chequeNumber?: string;
-      createdBy: string;
-      createdAt: string;
-    }[];
-  };
-  
-  latestActivityAt: string;
+// إضافة للـ select
+road_services(id, name, name_ar),
+accident_fee_services(id, name, name_ar)
+```
+
+**تحديث التنسيق:**
+```typescript
+// للتأمين العادي
+نوع التأمين ← اسم الشركة
+
+// لخدمات الطريق
+خدمات الطريق ← اسم الشركة ← نوع الخدمة
+
+// لإعفاء الحوادث
+إعفاء حوادث ← اسم الشركة ← نوع الخدمة
+```
+
+### 3. إصلاح ترتيب التواريخ
+
+**قبل:**
+```
+09/02/2027 ← 10/02/2026
+(تاريخ النهاية أولاً)
+```
+
+**بعد:**
+```
+10/02/2026 ← 09/02/2027
+(تاريخ البداية أولاً ← تاريخ النهاية)
+```
+
+### 4. إضافة التاريخ والوقت لعمود "أنشأها"
+
+**قبل:**
+```
+raghda
+```
+
+**بعد:**
+```
+raghda
+10/02/2026 • 14:35
+```
+
+### 5. تعديل عرض الأعمدة
+
+| العمود | قبل | بعد |
+|--------|-----|------|
+| الدفع | `w-[100px]` | `min-w-[130px]` |
+| الفترة | `min-w-[180px]` | `min-w-[170px]` |
+
+### 6. تفعيل البحث في الـ Query
+
+**المشكلة:** `searchQuery` موجود في state لكن لا يُستخدم في الـ Query!
+
+**الحل:** إضافة شرط البحث للـ Query:
+```typescript
+// البحث في الـ client name, file_number, car_number, phone
+if (searchQuery.trim()) {
+  query = query.or(`
+    clients.full_name.ilike.%${searchQuery}%,
+    clients.file_number.ilike.%${searchQuery}%,
+    clients.phone_number.ilike.%${searchQuery}%,
+    cars.car_number.ilike.%${searchQuery}%
+  `);
 }
 ```
 
----
+**ملاحظة:** البحث في العلاقات المتداخلة مع Supabase صعب. الحل البديل: استخدام RPC function أو البحث في الـ frontend بعد الـ fetch.
 
-## المكونات المتأثرة
+### 7. الترتيب الافتراضي
 
-| الملف | التغيير |
-|-------|---------|
-| `src/components/dashboard/RecentActivity.tsx` | إعادة كتابة كاملة |
-
-### التغييرات الرئيسية:
-
-1. **إضافة شريط بحث** في أعلى الكارت
-2. **تجميع النشاطات** حسب العميل
-3. **Popup "عرض الكل"** بدلاً من Link لصفحة
-4. **ScrollArea** لعرض كل نشاطات 24 ساعة
-5. **كروت محسّنة** في الـ Popup
-
----
-
-## واجهة المستخدم الجديدة
-
-### Dashboard Card
-
-```text
-┌────────────────────────────────────────────────────────┐
-│ النشاط الأخير                         [عرض الكل ←]    │
-│ ══════════════════════════════════════════════════════ │
-│                                                        │
-│ ┌────────────────────────────────────────────────────┐ │
-│ │ 🔍 بحث بالاسم، رقم السيارة، نوع التأمين...        │ │
-│ └────────────────────────────────────────────────────┘ │
-│                                                        │
-│ ┌────────────────────────────────────────────────────┐ │
-│ │ 💰 جمال محمد داري (66)         منذ 21 ساعة        │ │
-│ │ ─────────────────────────────────────────────────  │ │
-│ │ 4 دفعات | المجموع: ₪5,500                         │ │
-│ │ شيك: ₪5,400 | نقدًا: ₪100                          │ │
-│ │ شامل → اراضي | بواسطة: أحمد                        │ │
-│ └────────────────────────────────────────────────────┘ │
-│                                                        │
-│ ┌────────────────────────────────────────────────────┐ │
-│ │ 📄 اشرف زياد ناصر (5)           منذ 21 ساعة       │ │
-│ │ ─────────────────────────────────────────────────  │ │
-│ │ 1 دفعة | ₪1,400                                    │ │
-│ │ شيك: ₪1,400 | شامل → اراضي                        │ │
-│ └────────────────────────────────────────────────────┘ │
-│                                                        │
-│                 ↓ التمرير لمزيد من النشاطات ↓          │
-└────────────────────────────────────────────────────────┘
-```
-
-### Popup "عرض الكل"
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│                                              ✕               │
-│                    سجل النشاط الكامل                         │
-│ ════════════════════════════════════════════════════════════ │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ 🔍 بحث...        │ من تاريخ │ إلى تاريخ │ [النوع ▼]     │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-│ عرض 15 نتيجة | مجموع الدفعات: ₪45,000                       │
-│                                                              │
-│ ═══════════════════════════════════════════════════════════ │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ 💰 جمال محمد داري (66)                    21 ساعة        │ │
-│ │ ══════════════════════════════════════════════════════  │ │
-│ │                                                          │ │
-│ │ ┌─ الوثائق ─────────────────────────────────────────┐   │ │
-│ │ │ • شامل → اراضي مقدسة | سيارة: 12-345-67          │   │ │
-│ │ │ • إعفاء حوادث → شركة اكس | بواسطة: أحمد          │   │ │
-│ │ └───────────────────────────────────────────────────┘   │ │
-│ │                                                          │ │
-│ │ ┌─ الدفعات (4 دفعات) ───────────────────────────────┐   │ │
-│ │ │ الإجمالي: ₪5,500                                   │   │ │
-│ │ │ ─────────────────────────────────────────────────  │   │ │
-│ │ │ • شيك #1234: ₪1,800 (شامل)                        │   │ │
-│ │ │ • شيك #1235: ₪1,800 (شامل)                        │   │ │
-│ │ │ • شيك #1236: ₪1,800 (شامل)                        │   │ │
-│ │ │ • نقدًا: ₪100 (إعفاء حوادث)                       │   │ │
-│ │ └───────────────────────────────────────────────────┘   │ │
-│ │                                                          │ │
-│ │ أنشأها: أحمد                                            │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ 📄 سارة أحمد (F1022)                       3 ساعات       │ │
-│ │ ...                                                      │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-│                        [تحميل المزيد]                        │
-└──────────────────────────────────────────────────────────────┘
-```
+موجود حالياً: `.order('created_at', { ascending: false })`
 
 ---
 
 ## التفاصيل التقنية
 
-### 1. دالة تجميع النشاطات
+### الملفات المتأثرة
+
+| الملف | التغيير |
+|-------|---------|
+| `src/pages/Policies.tsx` | تحديث الـ Query لإضافة road_services و accident_fee_services + تفعيل البحث |
+| `src/components/policies/PolicyTableView.tsx` | تحديث عرض التأمينات والتواريخ والأعمدة |
+| `src/components/policies/cards/types.ts` | إضافة road_services و accident_fee_services للـ interface |
+
+### تحديث PolicyRecord Interface
 
 ```typescript
-const groupActivitiesByClient = (activities: Activity[]): GroupedClientActivity[] => {
-  const groups = new Map<string, GroupedClientActivity>();
-  
-  for (const activity of activities) {
-    const clientKey = activity.details.client_id || activity.details.client_name;
-    
-    if (!groups.has(clientKey)) {
-      groups.set(clientKey, {
-        clientId: activity.details.client_id,
-        clientName: activity.details.client_name,
-        clientFileNumber: activity.details.client_file_number,
-        policies: [],
-        payments: {
-          total: 0,
-          count: 0,
-          byType: { cash: 0, cheque: 0, visa: 0, transfer: 0 },
-          items: [],
-        },
-        latestActivityAt: activity.created_at,
-      });
+export interface PolicyRecord {
+  // ... existing fields
+  road_service_id?: string | null;
+  accident_fee_service_id?: string | null;
+  road_services?: {
+    id: string;
+    name: string;
+    name_ar: string | null;
+  } | null;
+  accident_fee_services?: {
+    id: string;
+    name: string;
+    name_ar: string | null;
+  } | null;
+  created_at?: string; // للتاريخ والوقت
+}
+```
+
+### تحديث Query في Policies.tsx
+
+```typescript
+let query = supabase
+  .from('policies')
+  .select(`
+    *,
+    clients(id, full_name, phone_number, file_number, less_than_24),
+    cars(id, car_number, car_type, car_value, year),
+    insurance_companies(id, name, name_ar),
+    road_services(id, name, name_ar),
+    accident_fee_services(id, name, name_ar),
+    created_by:profiles!policies_created_by_admin_id_fkey(full_name, email),
+    branch:branches(id, name, name_ar)
+  `, { count: 'exact' })
+  .is('deleted_at', null)
+  .order('created_at', { ascending: false });
+```
+
+### تحديث getInsuranceLines
+
+```typescript
+const getInsuranceLines = (group: PolicyGroup) => {
+  const allPolicies = [
+    ...(group.mainPolicy ? [group.mainPolicy] : []),
+    ...group.addons,
+  ];
+
+  return allPolicies.map((policy) => {
+    const label =
+      policy.policy_type_parent === 'THIRD_FULL' && policy.policy_type_child
+        ? policyChildLabels[policy.policy_type_child]
+        : policyTypeLabels[policy.policy_type_parent];
+
+    const companyName =
+      policy.insurance_companies?.name_ar ||
+      policy.insurance_companies?.name ||
+      '';
+
+    // Service subtype for ROAD_SERVICE and ACCIDENT_FEE_EXEMPTION
+    let serviceName = '';
+    if (policy.policy_type_parent === 'ROAD_SERVICE' && policy.road_services) {
+      serviceName = policy.road_services.name_ar || policy.road_services.name;
+    } else if (policy.policy_type_parent === 'ACCIDENT_FEE_EXEMPTION' && policy.accident_fee_services) {
+      serviceName = policy.accident_fee_services.name_ar || policy.accident_fee_services.name;
     }
-    
-    const group = groups.get(clientKey)!;
-    
-    if (activity.type === "payment") {
-      group.payments.total += activity.details.amount || 0;
-      group.payments.count += 1;
-      group.payments.byType[activity.details.payment_type] += activity.details.amount || 0;
-      group.payments.items.push({ ... });
-    }
-    
-    if (activity.type === "policy") {
-      group.policies.push({ ... });
-    }
-    
-    // Update latest activity timestamp
-    if (new Date(activity.created_at) > new Date(group.latestActivityAt)) {
-      group.latestActivityAt = activity.created_at;
-    }
-  }
-  
-  return Array.from(groups.values())
-    .sort((a, b) => new Date(b.latestActivityAt).getTime() - new Date(a.latestActivityAt).getTime());
+
+    return { label, companyName, serviceName, policyId: policy.id };
+  });
 };
 ```
 
-### 2. Query محسّن لآخر 24 ساعة
+### تحديث عرض التأمينات (JSX)
 
-```typescript
-const twentyFourHoursAgo = new Date();
-twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-
-const { data: payments } = await supabase
-  .from("policy_payments")
-  .select(`...`)
-  .gte("created_at", twentyFourHoursAgo.toISOString())
-  .order("created_at", { ascending: false });
+```tsx
+<TableCell>
+  <div className="flex flex-col gap-0.5 text-xs">
+    {insuranceLines.map((line) => (
+      <div key={line.policyId} className="whitespace-nowrap">
+        <span className="font-medium">{line.label}</span>
+        {line.companyName && (
+          <span className="text-muted-foreground"> ← {line.companyName}</span>
+        )}
+        {line.serviceName && (
+          <span className="text-muted-foreground"> ← {line.serviceName}</span>
+        )}
+      </div>
+    ))}
+  </div>
+</TableCell>
 ```
 
-### 3. مكون الـ Popup
+### تحديث عرض التواريخ (JSX)
+
+```tsx
+<TableCell>
+  <div className="flex flex-col gap-0.5 text-xs">
+    {dateRanges.map((range, idx) => (
+      <div key={idx} className="whitespace-nowrap">
+        <span>{range.start}</span>
+        <span className="text-muted-foreground"> ← {range.end}</span>
+      </div>
+    ))}
+  </div>
+</TableCell>
+```
+
+### تحديث عمود "أنشأها" (JSX)
+
+```tsx
+<TableCell>
+  <div className="flex flex-col">
+    <span className="truncate max-w-[90px] block text-sm">
+      {creatorName}
+    </span>
+    {createdAt && (
+      <span className="text-[10px] text-muted-foreground">
+        {formatDateTime(createdAt)}
+      </span>
+    )}
+  </div>
+</TableCell>
+```
+
+### دالة تنسيق التاريخ والوقت
 
 ```typescript
-<Dialog open={showAllDialog} onOpenChange={setShowAllDialog}>
-  <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden">
-    <DialogHeader>
-      <DialogTitle>سجل النشاط الكامل</DialogTitle>
-    </DialogHeader>
-    
-    {/* Filters */}
-    <div className="flex gap-3 flex-wrap">
-      <Input placeholder="بحث..." />
-      <ArabicDatePicker />
-      <Select>...</Select>
-    </div>
-    
-    {/* Scrollable Content */}
-    <ScrollArea className="h-[60vh]">
-      {groupedActivities.map((group) => (
-        <DetailedActivityCard key={group.clientId} group={group} />
-      ))}
-    </ScrollArea>
-  </DialogContent>
-</Dialog>
+const formatDateTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${day}/${month}/${year} • ${hours}:${minutes}`;
+};
+```
+
+### حل مشكلة البحث
+
+لأن Supabase لا يدعم البحث في العلاقات المتداخلة بسهولة، سنستخدم أحد الحلول:
+
+**الحل 1: RPC Function (مفضل للأداء)**
+```sql
+CREATE OR REPLACE FUNCTION search_policies(search_term TEXT)
+RETURNS SETOF policies AS $$
+  SELECT p.*
+  FROM policies p
+  LEFT JOIN clients c ON p.client_id = c.id
+  LEFT JOIN cars ca ON p.car_id = ca.id
+  WHERE 
+    c.full_name ILIKE '%' || search_term || '%' OR
+    c.file_number ILIKE '%' || search_term || '%' OR
+    c.phone_number ILIKE '%' || search_term || '%' OR
+    ca.car_number ILIKE '%' || search_term || '%'
+$$ LANGUAGE SQL;
+```
+
+**الحل 2: Frontend Filter (أسهل للتنفيذ)**
+```typescript
+// بعد الـ fetch، نطبق filter على البيانات
+const filteredPolicies = useMemo(() => {
+  if (!searchQuery.trim()) return policies;
+  const q = searchQuery.toLowerCase().trim();
+  return policies.filter(p => {
+    const clientName = p.clients?.full_name?.toLowerCase() || '';
+    const fileNumber = p.clients?.file_number?.toLowerCase() || '';
+    const phone = p.clients?.phone_number?.toLowerCase() || '';
+    const carNumber = p.cars?.car_number?.toLowerCase() || '';
+    return clientName.includes(q) || fileNumber.includes(q) || 
+           phone.includes(q) || carNumber.includes(q);
+  });
+}, [policies, searchQuery]);
 ```
 
 ---
 
 ## خطوات التنفيذ
 
-1. **تحديث `RecentActivity.tsx`**:
-   - إضافة state للـ Dialog (`showAllDialog`)
-   - إضافة state للبحث (`search`)
-   - إضافة دالة `groupActivitiesByClient()`
-   - تعديل Query لجلب آخر 24 ساعة
-   - إضافة شريط بحث في أعلى الكارت
-   - استبدال `<Link>` بـ `<Dialog>`
-   - إنشاء مكون `GroupedActivityCard` للعرض المجمّع
-   - إنشاء مكون `DetailedActivityCard` للـ Popup
-   - إضافة `<ScrollArea>` للتمرير
+1. **تحديث `types.ts`**:
+   - إضافة `road_services` و `accident_fee_services` للـ PolicyRecord interface
+   - إضافة `created_at` للـ PolicyRecord interface
 
-2. **تحديث الـ Styling**:
-   - كروت أكثر احترافية
-   - ألوان مميزة لكل نوع دفعة
-   - تنظيم أفضل للمعلومات
+2. **تحديث `Policies.tsx`**:
+   - إضافة road_services و accident_fee_services للـ Query
+   - إضافة منطق البحث (frontend filter أو RPC)
 
+3. **تحديث `PolicyTableView.tsx`**:
+   - تحديث `getInsuranceLines()` لإرجاع `serviceName`
+   - تغيير السهم من → إلى ←
+   - تبديل ترتيب التواريخ
+   - إضافة التاريخ والوقت لعمود "أنشأها"
+   - تعديل عرض الأعمدة

@@ -16,7 +16,8 @@ import { format, differenceInDays } from "date-fns";
 import { 
   DollarSign, Search, AlertTriangle, Clock, Send, 
   Phone, Eye, Filter, Users, TrendingDown, Calendar,
-  MessageSquare, RefreshCw, ChevronDown, ChevronUp, Wallet, MessageCircle
+  MessageSquare, RefreshCw, ChevronDown, ChevronUp, Wallet, MessageCircle,
+  SendHorizonal
 } from "lucide-react";
 import { PolicyDetailsDrawer } from "@/components/policies/PolicyDetailsDrawer";
 import { DebtPaymentModal } from "@/components/debt/DebtPaymentModal";
@@ -86,6 +87,11 @@ export default function DebtTracking() {
   const [filterDays, setFilterDays] = useState<number | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentClient, setPaymentClient] = useState<ClientDebt | null>(null);
+
+  // Bulk SMS state
+  const [bulkSmsDialogOpen, setBulkSmsDialogOpen] = useState(false);
+  const [bulkSmsMessage, setBulkSmsMessage] = useState("");
+  const [sendingBulkSms, setSendingBulkSms] = useState(false);
 
   const [totalRows, setTotalRows] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
@@ -262,6 +268,50 @@ export default function DebtTracking() {
     setPaymentModalOpen(true);
   };
 
+  // Get filter label for bulk SMS dialog
+  const getFilterLabel = () => {
+    if (filterDays === null) return 'الكل';
+    if (filterDays === 7) return 'أسبوع';
+    if (filterDays === 30) return 'شهر';
+    if (filterDays === 0) return 'منتهية';
+    return 'الكل';
+  };
+
+  // Handle bulk SMS send
+  const handleBulkSmsSend = async () => {
+    if (summary.totalClients === 0) return;
+    
+    setSendingBulkSms(true);
+    try {
+      // Call edge function to send bulk SMS
+      const { data, error } = await supabase.functions.invoke("send-bulk-debt-sms", {
+        body: {
+          filter_days: filterDays,
+          search: debouncedSearch || null,
+          custom_message: bulkSmsMessage || null,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الإرسال",
+        description: `تم إرسال ${data?.sent_count || 0} رسالة بنجاح${data?.failed_count ? ` (فشل ${data.failed_count})` : ''}`,
+      });
+      setBulkSmsDialogOpen(false);
+      setBulkSmsMessage("");
+    } catch (error: any) {
+      console.error("Error sending bulk SMS:", error);
+      toast({
+        title: "خطأ",
+        description: error.message || "فشل في إرسال الرسائل",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingBulkSms(false);
+    }
+  };
+
   const getWhatsAppUrl = (client: ClientDebt): string | null => {
     if (!client.phone_number) return null;
     
@@ -411,6 +461,15 @@ export default function DebtTracking() {
               <Button variant="outline" onClick={fetchDebtData}>
                 <RefreshCw className="h-4 w-4 ml-2" />
                 تحديث
+              </Button>
+
+              <Button 
+                variant="default"
+                onClick={() => setBulkSmsDialogOpen(true)}
+                disabled={summary.totalClients === 0}
+              >
+                <SendHorizonal className="h-4 w-4 ml-2" />
+                إرسال للكل ({summary.totalClients})
               </Button>
             </div>
           </CardContent>
@@ -674,6 +733,60 @@ export default function DebtTracking() {
                 <Send className="h-4 w-4 ml-2" />
               )}
               إرسال
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk SMS Dialog */}
+      <Dialog open={bulkSmsDialogOpen} onOpenChange={setBulkSmsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إرسال رسائل جماعية</DialogTitle>
+            <DialogDescription>
+              سيتم إرسال رسالة تذكير لجميع العملاء المطابقين للفلتر الحالي
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <span className="text-sm text-muted-foreground">الفلتر الحالي</span>
+              <Badge variant="outline">{getFilterLabel()}</Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+              <span className="text-sm font-medium">عدد العملاء</span>
+              <span className="font-bold text-lg">{summary.totalClients}</span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                رسالة مخصصة (اختياري - اتركها فارغة لاستخدام القالب الافتراضي)
+              </p>
+              <Textarea
+                value={bulkSmsMessage}
+                onChange={(e) => setBulkSmsMessage(e.target.value)}
+                placeholder="اكتب رسالة مخصصة أو اترك الحقل فارغاً..."
+                rows={4}
+              />
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                ⚠️ سيتم إرسال رسالة واحدة لكل عميل. تأكد من صحة الفلتر قبل الإرسال.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkSmsDialogOpen(false)}>
+              إلغاء
+            </Button>
+            <Button
+              onClick={handleBulkSmsSend}
+              disabled={sendingBulkSms || summary.totalClients === 0}
+            >
+              {sendingBulkSms ? (
+                <RefreshCw className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <SendHorizonal className="h-4 w-4 ml-2" />
+              )}
+              إرسال ({summary.totalClients})
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -643,14 +643,17 @@ export function ChequeScannerDialog({
               <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="text-destructive font-medium">{error}</p>
-                <a 
-                  href="https://asprise.com/document-scan-upload-image-browser/html-web-scanner-download.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline text-xs mt-1 block"
-                >
-                  تحميل ScanApp
-                </a>
+                {/* Show ScanApp link only for scanner-related errors */}
+                {(error.includes('سكانر') || error.includes('ScanApp') || error.includes('مسح') || error.includes('Scanner')) && (
+                  <a 
+                    href="https://asprise.com/document-scan-upload-image-browser/html-web-scanner-download.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline text-xs mt-1 block"
+                  >
+                    تحميل ScanApp
+                  </a>
+                )}
               </div>
             </div>
           )}

@@ -1,167 +1,125 @@
 
-# خطة توحيد حساب الرصيد المتبقي (إجمالي المتبقي)
 
-## المشكلة
+# خطة تحسين مسح الشيكات - Gemini 3 Pro + مؤشر التقدم
 
-ثلاثة أماكن مختلفة تحسب "إجمالي المتبقي" بطرق متباينة:
+## المشاكل المكتشفة
 
-| المكان | المنطق الحالي | النتيجة |
-|--------|--------------|---------|
-| صفحة العميل | كل الوثائق - كل المدفوعات - المرتجعات | ₪10,098 |
-| صفحة الديون | غير الإلزامي فقط - المدفوعات (منطق معقد للباقات) | ₪5,600 |
-| SMS | حساب لكل وثيقة منفردة (تكرار في الباقات) | ₪18,198 |
+### 1. النموذج الحالي بطيء
+- النموذج الحالي: `google/gemini-2.5-pro`
+- المطلوب: `google/gemini-3-pro-preview` (أسرع وأدق)
 
----
-
-## الحل: RPC موحدة كمصدر وحيد للحقيقة
-
-### 1. إنشاء RPC جديدة: `get_client_balance`
-
-```sql
-CREATE OR REPLACE FUNCTION get_client_balance(p_client_id uuid)
-RETURNS TABLE(
-  total_insurance numeric,
-  total_paid numeric,
-  total_refunds numeric,
-  total_remaining numeric,
-  policy_count integer
-)
-```
-
-**المنطق:**
-```
-total_insurance = SUM(ALL active policies insurance_price)
-                  -- INCLUDING ELZAMI
-                  -- EXCLUDING cancelled, deleted, transferred
-
-total_paid = SUM(ALL non-refused payments)
-             -- For ALL policies including ELZAMI
-
-total_refunds = SUM(wallet transactions)
-                -- refund + transfer_refund_owed + manual_refund
-                -- MINUS transfer_adjustment_due
-
-total_remaining = MAX(0, total_insurance - total_paid - total_refunds)
-```
-
-### 2. تعديل `report_client_debts` لاستخدام نفس المنطق
-
-تحويل المنطق الحالي من "دين الوكالة" إلى "رصيد العميل الصافي":
-
-**التغييرات:**
-- إلغاء استثناء ELZAMI من الحسابات
-- إلغاء استثناء broker policies (اختياري - حسب متطلبات العمل)
-- إضافة خصم المرتجعات (wallet_transactions)
-- إزالة منطق GREATEST/LEAST المعقد
-
-### 3. تحديث Edge Functions
-
-#### `send-manual-reminder/index.ts`:
-- استبدال حساب كل policy على حدة
-- استخدام إجمالي موحد من الـ RPC الجديدة
-
-#### `send-bulk-debt-sms/index.ts`:
-- نفس التغيير - استخدام الـ RPC الجديدة
+### 2. لا يوجد مؤشر تقدم
+- المستخدم يرى فقط "جاري تحليل الشيكات..." بدون معلومات
+- لا يعرف كم من الوقت سيستغرق
+- لا يعرف في أي مرحلة هي العملية
 
 ---
 
-## التغييرات التفصيلية
+## التغييرات المطلوبة
 
-### Migration SQL الجديدة
+### 1. ترقية النموذج إلى Gemini 3 Pro
 
-```sql
--- 1. RPC لحساب رصيد عميل واحد
-CREATE OR REPLACE FUNCTION get_client_balance(p_client_id uuid)
-RETURNS TABLE(
-  total_insurance numeric,
-  total_paid numeric,
-  total_refunds numeric,
-  total_remaining numeric
-)
-LANGUAGE plpgsql
-SET search_path TO 'public'
-AS $$
-BEGIN
-  RETURN QUERY
-  WITH 
-  -- All active policies (including ELZAMI)
-  active_policies AS (
-    SELECT p.id, p.insurance_price
-    FROM policies p
-    WHERE p.client_id = p_client_id
-      AND p.cancelled = FALSE
-      AND p.transferred = FALSE
-      AND p.deleted_at IS NULL
-      AND p.broker_id IS NULL  -- Exclude broker deals
-  ),
-  -- Sum of all prices
-  policy_totals AS (
-    SELECT 
-      COALESCE(SUM(insurance_price), 0) AS total_insurance,
-      COUNT(*) AS policy_count
-    FROM active_policies
-  ),
-  -- All payments for these policies
-  payment_totals AS (
-    SELECT COALESCE(SUM(pp.amount), 0) AS total_paid
-    FROM policy_payments pp
-    JOIN active_policies ap ON ap.id = pp.policy_id
-    WHERE COALESCE(pp.refused, FALSE) = FALSE
-  ),
-  -- Wallet transactions
-  wallet_totals AS (
-    SELECT COALESCE(SUM(
-      CASE 
-        WHEN transaction_type IN ('refund', 'transfer_refund_owed', 'manual_refund') 
-        THEN amount
-        WHEN transaction_type = 'transfer_adjustment_due' 
-        THEN -amount
-        ELSE 0 
-      END
-    ), 0) AS total_refunds
-    FROM customer_wallet_transactions
-    WHERE client_id = p_client_id
-  )
-  SELECT
-    pt.total_insurance,
-    pay.total_paid,
-    wt.total_refunds,
-    GREATEST(0, pt.total_insurance - pay.total_paid - wt.total_refunds)
-  FROM policy_totals pt
-  CROSS JOIN payment_totals pay
-  CROSS JOIN wallet_totals wt;
-END;
-$$;
+**ملف:** `supabase/functions/process-cheque-scan/index.ts`
 
--- 2. تحديث report_client_debts لاستخدام نفس المنطق
-DROP FUNCTION IF EXISTS report_client_debts(text, integer, integer, integer);
+```typescript
+// قبل
+model: "google/gemini-2.5-pro"
 
-CREATE OR REPLACE FUNCTION report_client_debts(
-  p_search text DEFAULT NULL,
-  p_filter_days integer DEFAULT NULL,
-  p_limit integer DEFAULT 50,
-  p_offset integer DEFAULT 0
-)
-RETURNS TABLE(
-  client_id uuid,
-  client_name text,
-  client_phone text,
-  total_insurance numeric,
-  total_paid numeric,
-  total_refunds numeric,
-  total_remaining numeric,
-  oldest_end_date date,
-  days_until_oldest integer,
-  policies_count integer,
-  total_rows bigint
-)
-LANGUAGE plpgsql
-SET search_path TO 'public'
-AS $$
--- [Implementation using same logic as get_client_balance]
--- Returns clients with total_remaining > 0
-$$;
+// بعد  
+model: "google/gemini-3-pro-preview"
 ```
+
+**لماذا Gemini 3 Pro؟**
+- أسرع في المعالجة
+- أدق في OCR والتحليل البصري
+- تعامل أفضل مع الصور المدورة
+
+---
+
+### 2. إضافة مؤشر تقدم مع تقدير الوقت
+
+**ملف:** `src/components/payments/ChequeScannerDialog.tsx`
+
+#### التغييرات:
+
+**أ) إضافة states للتقدم:**
+```typescript
+const [processingProgress, setProcessingProgress] = useState({
+  currentImage: 0,
+  totalImages: 0,
+  estimatedSeconds: 0,
+  elapsedSeconds: 0,
+});
+```
+
+**ب) مؤقت لعد الثواني:**
+```typescript
+// عند بدء المعالجة
+const estimatedSecondsPerImage = 15; // ~15 ثانية لكل صورة مع Gemini 3
+const totalEstimated = scannedImages.length * estimatedSecondsPerImage;
+
+// تشغيل مؤقت لعد الثواني المنقضية
+const timerRef = useRef<NodeJS.Timeout>();
+timerRef.current = setInterval(() => {
+  setProcessingProgress(prev => ({
+    ...prev,
+    elapsedSeconds: prev.elapsedSeconds + 1
+  }));
+}, 1000);
+```
+
+**ج) شاشة التقدم المحسّنة:**
+```tsx
+{stage === 'processing' && (
+  <div className="py-8 text-center space-y-4">
+    <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+    
+    <div>
+      <p className="text-lg font-medium">جاري تحليل الشيكات...</p>
+      <p className="text-sm text-muted-foreground mt-1">
+        يتم استخدام الذكاء الاصطناعي للكشف عن الشيكات
+      </p>
+    </div>
+    
+    {/* شريط التقدم */}
+    <div className="max-w-xs mx-auto">
+      <Progress 
+        value={(elapsedSeconds / estimatedSeconds) * 100} 
+        className="h-2"
+      />
+    </div>
+    
+    {/* معلومات الوقت */}
+    <div className="text-sm text-muted-foreground">
+      <p>
+        الوقت المقدر: ~{Math.ceil(estimatedSeconds / 60)} دقيقة
+        {totalImages > 1 && ` (${totalImages} صور)`}
+      </p>
+      <p className="text-xs mt-1">
+        انقضى: {formatTime(elapsedSeconds)}
+      </p>
+    </div>
+    
+    {/* نصيحة */}
+    <p className="text-xs text-muted-foreground/70">
+      💡 كلما كانت الصورة أوضح، كان التحليل أسرع وأدق
+    </p>
+  </div>
+)}
+```
+
+---
+
+## تقدير الوقت
+
+| عدد الصور | الوقت المتوقع (Gemini 3 Pro) |
+|-----------|------------------------------|
+| 1 صورة | ~10-15 ثانية |
+| 3 صور | ~30-45 ثانية |
+| 5 صور | ~50-75 ثانية |
+| 10 صور | ~1.5-2.5 دقيقة |
+
+**ملاحظة:** Gemini 3 Pro أسرع بنسبة ~20-30% من Gemini 2.5 Pro
 
 ---
 
@@ -169,37 +127,34 @@ $$;
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `supabase/migrations/XXXXXX_unified_balance.sql` | إنشاء - RPC جديدة + تحديث RPC الديون |
-| `src/pages/DebtTracking.tsx` | تعديل - تحديث أسماء الحقول |
-| `src/components/clients/ClientDetails.tsx` | تعديل - استخدام RPC بدلاً من الحساب المحلي |
-| `supabase/functions/send-manual-reminder/index.ts` | تعديل - استخدام RPC للمجموع |
-| `supabase/functions/send-bulk-debt-sms/index.ts` | تعديل - استخدام RPC للمجموع |
-| `src/hooks/useDebtCount.tsx` | تعديل - تحديث أسماء الحقول |
+| `supabase/functions/process-cheque-scan/index.ts` | تغيير النموذج |
+| `src/components/payments/ChequeScannerDialog.tsx` | إضافة مؤشر التقدم والوقت |
 
 ---
 
-## قواعد العمل الجديدة
+## النتائج المتوقعة
 
-1. **مصدر واحد للحقيقة**: الـ RPC `get_client_balance` هي المرجع الوحيد
-2. **شمول الإلزامي**: كل الوثائق تُحسب (العميل دفع ثمن الإلزامي)
-3. **خصم المرتجعات**: المرتجعات تُخصم دائماً من المتبقي
-4. **لا تكرار**: الباقات تُحسب مرة واحدة كمجموع
-5. **استثناء الوسطاء**: صفقات الوسطاء لا تدخل في دين العميل
-
----
-
-## معايير القبول
-
-- صفحة العميل وصفحة الديون والـ SMS تُظهر نفس "إجمالي المتبقي" ✅
-- المجموع لا يتجاوز رصيد صفحة العميل ✅
-- إضافة وثيقة للباقة لا تزيد المتبقي بشكل خاطئ ✅
-- حذف دفعة ينقص المتبقي مرة واحدة فقط ✅
+1. **سرعة أفضل**: Gemini 3 Pro أسرع من 2.5 Pro
+2. **تجربة أفضل**: المستخدم يعرف الوقت المتوقع
+3. **شفافية**: عداد الوقت المنقضي يُظهر التقدم
+4. **دقة أعلى**: Gemini 3 Pro أدق في OCR
 
 ---
 
-## ملاحظة هامة
+## واجهة المستخدم المحسّنة
 
-إذا كان "دين الوكالة" (غير الإلزامي) مطلوباً للتقارير الداخلية:
-- سيُحتفظ به كـ RPC منفصلة: `get_agency_debt`
-- لن يُسمى أبداً "إجمالي المتبقي"
-- سيُعرض بتسمية واضحة: "دين الوكالة (غير الإلزامي)"
+```text
+┌─────────────────────────────────────────────┐
+│                    🔄                       │
+│           جاري تحليل الشيكات...            │
+│   يتم استخدام الذكاء الاصطناعي للكشف      │
+│                                            │
+│   ══════════════════════════▒▒▒▒▒ 70%     │
+│                                            │
+│     الوقت المقدر: ~1 دقيقة (3 صور)        │
+│           انقضى: 0:42                      │
+│                                            │
+│ 💡 كلما كانت الصورة أوضح، كان التحليل أسرع │
+└─────────────────────────────────────────────┘
+```
+

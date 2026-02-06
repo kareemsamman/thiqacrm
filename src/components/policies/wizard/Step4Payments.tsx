@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
-import { Plus, Trash2, CreditCard, AlertCircle, Loader2, Split, Upload, X, ImageIcon, Lock } from "lucide-react";
+import { Plus, Trash2, CreditCard, AlertCircle, Loader2, Split, Upload, X, ImageIcon, Lock, Scan } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PaymentSummaryBar } from "./PaymentSummaryBar";
 import { TranzilaPaymentModal } from "@/components/payments/TranzilaPaymentModal";
+import { ChequeScannerDialog } from "@/components/payments/ChequeScannerDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from "@/lib/chequeUtils";
@@ -50,6 +51,7 @@ export function Step4Payments({
 }: Step4Props) {
   const { toast } = useToast();
   const [showTranzilaModal, setShowTranzilaModal] = useState(false);
+  const [showChequeScannerModal, setShowChequeScannerModal] = useState(false);
   const [selectedVisaPaymentIndex, setSelectedVisaPaymentIndex] = useState<number | null>(null);
   const [creatingPolicy, setCreatingPolicy] = useState(false);
   const [activePolicyIdForPayment, setActivePolicyIdForPayment] = useState<string | null>(null);
@@ -284,6 +286,18 @@ export function Step4Payments({
                 </div>
               </PopoverContent>
             </Popover>
+            
+            {/* Scan Cheques Button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowChequeScannerModal(true)}
+              className="gap-2"
+            >
+              <Scan className="h-4 w-4" />
+              مسح شيكات
+            </Button>
             
             {/* Add Payment Button - always show */}
             <Button
@@ -527,6 +541,31 @@ export function Step4Payments({
           onFailure={handleVisaFailure}
         />
       )}
+
+      {/* Cheque Scanner Modal */}
+      <ChequeScannerDialog
+        open={showChequeScannerModal}
+        onOpenChange={setShowChequeScannerModal}
+        onConfirm={(detectedCheques) => {
+          // Convert detected cheques to payment lines
+          const newPayments: PaymentLine[] = detectedCheques.map((cheque) => ({
+            id: crypto.randomUUID(),
+            payment_type: 'cheque',
+            amount: cheque.amount || 0,
+            payment_date: cheque.payment_date || new Date().toISOString().split('T')[0],
+            cheque_number: cheque.cheque_number || '',
+            refused: false,
+            // Store the image URL if available
+            cheque_image_url: cheque.image_url,
+          }));
+          
+          setPayments([...payments, ...newPayments]);
+          toast({
+            title: 'تمت إضافة الشيكات',
+            description: `تم إضافة ${newPayments.length} دفعة شيك`,
+          });
+        }}
+      />
     </div>
   );
 }

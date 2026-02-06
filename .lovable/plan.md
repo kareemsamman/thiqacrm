@@ -1,124 +1,138 @@
 
-# إصلاح مشكلة تسديد ديون العميل - عدم توافق العرض مع المنطق
 
-## المشكلة المكتشفة
+# تجميع الدفعات في سجل الدفعات - عرض موحد
 
-عند فتح نافذة "تسديد ديون" للعميل Kareem Test:
-- **العرض يُظهر:** 300₪ متبقي للدفع
-- **لكن عند إدخال 600₪:** النظام يقول "باقي 300" بدلاً من الاعتراف بالدفعة
+## المشكلة الحالية
 
-### سبب المشكلة (تحليل البيانات)
-
-**باقة مثال:** `4af2980e-f019-4a02-9024-a52e328340ec`
-
-| الوثيقة | السعر | المدفوع | الحالة |
-|---------|-------|---------|--------|
-| ROAD_SERVICE | 300 | 1200 | ✅ مسدد + زيادة 900 |
-| ELZAMI | 1200 | 0 | ❌ غير مسدد |
-
-**ما يحدث في الكود:**
-
-1. **حساب العرض:**
-   - `fullPrice = 300 + 1200 = 1500`
-   - `paidTotal = 1200 + 0 = 1200`
-   - `remainingTotal = 1500 - 1200 = 300` ← **يُعرض 300₪**
-
-2. **حساب الوثائق القابلة للدفع:**
-   ```tsx
-   // سطر 357-358
-   const payablePolicies = componentsWithInternalRemaining.filter(
-     p => p.policyType !== 'ELZAMI' && p.remaining > 0
-   );
-   ```
-   - ROAD_SERVICE مسددة تماماً → **لا remaining**
-   - ELZAMI مستبعد من المنطق → **لا يمكن الدفع له**
-   - **النتيجة: payablePolicies = [] (فارغة!)**
-
-3. **عند محاولة الدفع 600₪:**
-   - `calculateSplitPayments(600)` تُرجع `[]` (لا وثائق تستقبل)
-   - لا تُسجل أي دفعة
-   - العرض يبقى "300 متبقي"
-
----
+عند الدفع عبر "تسديد ديون":
+- المستخدم يُدخل مبلغ واحد (مثلاً 2500 نقدي)
+- النظام يُقسم المبلغ على عدة وثائق (300, 400, 1500, 1200, 300)
+- سجل الدفعات يعرض **5 سجلات منفصلة** بدلاً من سجل واحد
 
 ## الحل المقترح
 
-### 1. تعديل حساب "المتبقي للعرض" ليستبعد ELZAMI
-
-**الفكرة:** عرض فقط الدين القابل للدفع (non-ELZAMI) بدلاً من كامل الباقة
-
-**الملف:** `src/components/debt/DebtPaymentModal.tsx`
-
-#### سطر 329-331 (حساب remainingTotal)
-
-**قبل:**
-```tsx
-const fullPrice = policyComponents.reduce((sum, p) => sum + p.price, 0);
-const paidTotal = policyComponents.reduce((sum, p) => sum + p.paid, 0);
-const remainingTotal = Math.max(0, fullPrice - paidTotal);
-```
-
-**بعد:**
-```tsx
-const fullPrice = policyComponents.reduce((sum, p) => sum + p.price, 0);
-const paidTotal = policyComponents.reduce((sum, p) => sum + p.paid, 0);
-const fullPackageRemaining = Math.max(0, fullPrice - paidTotal);
-
-// For debt display: only show non-ELZAMI portion that's actually payable
-// This follows the business rule: ELZAMI is excluded from wallet/debt
-const nonElzamiPrice = policyComponents
-  .filter(p => p.policyType !== 'ELZAMI')
-  .reduce((sum, p) => sum + p.price, 0);
-
-// Remaining debt = min(non-ELZAMI prices, total package remaining)
-// This ensures we don't show ELZAMI debt as client debt
-const remainingTotal = Math.max(0, Math.min(nonElzamiPrice, fullPackageRemaining));
-```
-
-### 2. تحديث فلتر الباقات بدون دين
-
-**سطر 362-374**
-
-تغيير الشرط من `remainingTotal > 0` إلى `payablePolicies.length > 0`:
-
-```tsx
-// Only include items that have payable policies (with actual debt to collect)
-if (payablePolicies.length > 0) {
-  items.push({
-    // ... existing code
-  });
-}
-```
+إضافة **حقل ربط (batch_id)** للدفعات المتعلقة ببعضها، ثم تجميعها في العرض.
 
 ---
 
-## النتيجة المتوقعة
+## التغييرات المطلوبة
 
-### قبل الإصلاح:
-| الباقة | العرض | القابل للدفع | المشكلة |
-|--------|-------|-------------|---------|
-| ELZAMI+ROAD | 300₪ | 0₪ | ❌ العميل يحاول دفع 300 لكن لا يوجد وثيقة تستقبل |
+### 1. إضافة حقل `batch_id` لجدول `policy_payments`
 
-### بعد الإصلاح:
-| الباقة | العرض | القابل للدفع | الحالة |
-|--------|-------|-------------|--------|
-| ELZAMI+ROAD | 0₪ | 0₪ | ✅ الباقة لا تظهر (مسددة فعلياً) |
+```sql
+ALTER TABLE policy_payments ADD COLUMN batch_id UUID DEFAULT NULL;
+CREATE INDEX idx_payments_batch_id ON policy_payments(batch_id);
+```
+
+### 2. تعديل `DebtPaymentModal.tsx` لإنشاء `batch_id` مشترك
+
+عند تسجيل دفعة واحدة تُقسم على عدة وثائق:
+- إنشاء `batch_id` واحد
+- تعيينه لكل سجل دفعة في نفس العملية
+
+```tsx
+// قبل إنشاء الدفعات
+const batchId = crypto.randomUUID();
+
+// عند إنشاء كل دفعة
+const paymentsToInsert = splits.map(split => ({
+  policy_id: split.policyId,
+  amount: split.amount,
+  payment_type: paymentLine.paymentType,
+  payment_date: paymentLine.paymentDate,
+  batch_id: batchId, // ← ربط الدفعات معاً
+  // ... باقي الحقول
+}));
+```
+
+### 3. تعديل عرض سجل الدفعات في `ClientDetails.tsx`
+
+تجميع الدفعات بـ `batch_id` وعرضها كسجل واحد:
+
+```tsx
+// تجميع الدفعات
+const groupedPayments = useMemo(() => {
+  const groups = new Map();
+  
+  for (const payment of payments) {
+    const key = payment.batch_id || payment.id; // استخدام batch_id أو id الفردي
+    
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        payments: [],
+        total_amount: 0,
+        payment_type: payment.payment_type,
+        payment_date: payment.payment_date,
+        // ... باقي الحقول المشتركة
+      });
+    }
+    
+    const group = groups.get(key);
+    group.payments.push(payment);
+    group.total_amount += payment.amount;
+  }
+  
+  return Array.from(groups.values());
+}, [payments]);
+```
+
+### 4. تحديث عرض الجدول
+
+| قبل | بعد |
+|-----|-----|
+| ₪300 - نقدي - خدمات الطريق | ₪2,500 - نقدي - (ثالث/شامل, خدمات الطريق, إلزامي) |
+| ₪400 - نقدي - ثالث/شامل | |
+| ₪1,500 - نقدي - ثالث/شامل | |
+| ₪1,200 - نقدي - إلزامي | |
+| ₪300 - نقدي - خدمات الطريق | |
+
+---
+
+## تفاصيل العرض الجديد
+
+### عمود "نوع التأمين" للدفعات المجمعة
+
+عرض كل أنواع التأمين المشمولة:
+
+```tsx
+<TableCell>
+  <div className="flex flex-wrap gap-1">
+    {uniquePolicyTypes.map(type => (
+      <Badge key={type}>{policyTypeLabels[type]}</Badge>
+    ))}
+  </div>
+</TableCell>
+```
+
+### خيار توسيع التفاصيل (اختياري)
+
+إضافة سهم صغير لتوسيع الصف وعرض تفاصيل التوزيع:
+
+```
+▼ ₪2,500 - نقدي - 06/02/2026
+    ├─ ₪300 → خدمات الطريق
+    ├─ ₪400 → ثالث/شامل  
+    ├─ ₪1,500 → ثالث/شامل
+    └─ ₪300 → خدمات الطريق
+```
 
 ---
 
 ## ملخص التغييرات
 
-| الملف | السطور | التغيير |
-|-------|--------|---------|
-| `DebtPaymentModal.tsx` | 329-331 | حساب `remainingTotal` بناءً على non-ELZAMI فقط |
-| `DebtPaymentModal.tsx` | 362 | تغيير شرط العرض من `remainingTotal > 0` إلى `payablePolicies.length > 0` |
+| الملف | التغيير |
+|-------|---------|
+| Migration SQL | إضافة حقل `batch_id` |
+| `DebtPaymentModal.tsx` | إنشاء وتعيين `batch_id` للدفعات المرتبطة |
+| `ClientDetails.tsx` | تجميع الدفعات بـ `batch_id` وعرضها كصف واحد |
+| (اختياري) | إضافة توسيع لعرض تفاصيل التوزيع |
 
 ---
 
-## التوافق مع قواعد العمل
+## الفائدة
 
-هذا الإصلاح يتوافق مع:
-- **ELZAMI-wallet-exclusion-rule:** ELZAMI لا يدخل في الدين
-- **debt-tracking-management-v6:** Agency Debt = non-ELZAMI portion only
-- **customer-wallet-model:** المدفوعات تُسجل فقط للوثائق غير ELZAMI
+- **للمستخدم**: رؤية واضحة - "دفعت 2500 نقدي" بدلاً من 5 سجلات منفصلة
+- **للمحاسبة**: البيانات الداخلية تبقى كما هي (كل وثيقة بدفعتها)
+- **للتقارير**: يمكن عرض الإجمالي أو التفصيل حسب الحاجة
 

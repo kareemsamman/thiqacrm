@@ -125,9 +125,13 @@ async function uploadToBunny(
   const BUNNY_CDN_URL = Deno.env.get("BUNNY_CDN_URL") || "https://cdn.basheer-ab.com";
   
   if (!BUNNY_API_KEY) {
-    console.error("BUNNY_API_KEY not configured");
+    console.error("[Bunny] BUNNY_API_KEY not configured - using data URL fallback");
     return null;
   }
+
+  console.log(`[Bunny] Starting upload: ${fileName}`);
+  console.log(`[Bunny] Storage zone: ${BUNNY_STORAGE_ZONE}`);
+  console.log(`[Bunny] CDN URL base: ${BUNNY_CDN_URL}`);
 
   try {
     // Clean base64 data
@@ -136,28 +140,35 @@ async function uploadToBunny(
     // Decode base64 to binary
     const binaryData = Uint8Array.from(atob(cleanBase64), c => c.charCodeAt(0));
     
+    console.log(`[Bunny] Binary size: ${binaryData.length} bytes`);
+    
     const uploadPath = `cheques/${fileName}`;
-    const response = await fetch(
-      `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${uploadPath}`,
-      {
-        method: "PUT",
-        headers: {
-          "AccessKey": BUNNY_API_KEY,
-          "Content-Type": "image/jpeg",
-        },
-        body: binaryData,
-      }
-    );
+    const uploadUrl = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${uploadPath}`;
+    console.log(`[Bunny] Upload URL: ${uploadUrl}`);
+    
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "AccessKey": BUNNY_API_KEY,
+        "Content-Type": "image/jpeg",
+      },
+      body: binaryData,
+    });
+
+    console.log(`[Bunny] Response status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Bunny upload error:", errorText);
+      console.error(`[Bunny] Upload failed: ${response.status} - ${errorText}`);
       return null;
     }
 
-    return `${BUNNY_CDN_URL}/${uploadPath}`;
+    const cdnUrl = `${BUNNY_CDN_URL}/${uploadPath}`;
+    console.log(`[Bunny] SUCCESS - CDN URL: ${cdnUrl}`);
+    
+    return cdnUrl;
   } catch (error) {
-    console.error("Error uploading to Bunny:", error);
+    console.error("[Bunny] Exception during upload:", error);
     return null;
   }
 }

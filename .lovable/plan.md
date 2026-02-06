@@ -1,126 +1,105 @@
 
 
-# إصلاح عدم التطابق بين رصيد العميل ونافذة تسديد الديون
+# تحسين بطاقات النشاط الأخير - اسم العميل قابل للنقر
 
-## المشكلة
+## المشاكل
+1. **اسم العميل غير قابل للنقر** - لا يمكن الانتقال لصفحة العميل مباشرة
+2. **نص "12 دفعات" غير ضروري** - المستخدم لا يريد رؤية عدد الدفعات
 
-### ما يحدث الآن:
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  بروفايل العميل (أشرف زياد ناصر):                               │
-│  ├─ إجمالي المتبقي = ₪12,000                                   │
-│  └─ يستخدم: policy_payments (الجدول القديم)                     │
-├─────────────────────────────────────────────────────────────────┤
-│  نافذة تسديد الديون:                                           │
-│  ├─ "لا توجد ديون مستحقة"                                       │
-│  └─ يستخدم: client_payments + client_debits (الجداول الجديدة)   │
-└─────────────────────────────────────────────────────────────────┘
+## التغييرات المطلوبة
+
+### الملف: `src/components/dashboard/RecentActivity.tsx`
+
+#### 1. إضافة استيراد `useNavigate`
+
+```tsx
+import { useNavigate } from "react-router-dom";
 ```
 
-### السبب الجذري:
-- **الـ Migration نُفذ جزئياً** - تم نقل البيانات للجداول الجديدة
-- **لكن `ClientDetails.tsx`** لا يزال يستخدم المنطق القديم (`policy_payments`)
-- **بينما `DebtPaymentModal.tsx`** يستخدم المنطق الجديد (`client_payments` + `client_debits`)
+#### 2. تمرير `navigate` للـ Component
 
-### أرقام العميل الفعلية:
-| المصدر | القيمة |
-|--------|--------|
-| `get_client_balance` (القديم) | إجمالي المتبقي = ₪12,000 |
-| `get_client_wallet_balance` (الجديد) | رصيد المحفظة = -₪45,699 (دفع أكثر!) |
-| `client_debits` (non-ELZAMI) | ₪64,600 |
-| `client_payments` | ₪110,299 |
+```tsx
+// داخل RecentActivity component
+const navigate = useNavigate();
 
----
+// تمرير للـ GroupedActivityCard
+<GroupedActivityCard 
+  key={group.clientId || group.clientName} 
+  group={group} 
+  compact 
+  onClientClick={() => navigate(`/clients?open=${group.clientId}`)}
+/>
+```
 
-## الحل المطلوب
+#### 3. تحديث `GroupedActivityCard` Component
 
-### تحديث `ClientDetails.tsx` ليستخدم نفس مصدر البيانات
-
-**الملف:** `src/components/clients/ClientDetails.tsx`
-
-#### 1. تحديث `fetchPaymentSummary()`
-
-**قبل:**
-```typescript
-const fetchPaymentSummary = async () => {
-  // ... يستخدم policies + policy_payments
-  const totalInsurance = policiesData.reduce(...);
-  const totalPaid = paymentsData.filter(...).reduce(...);
-  setPaymentSummary({
-    total_paid: totalPaid,
-    total_remaining: Math.max(0, totalInsurance - totalPaid),
-  });
-};
+**قبل (سطر 704-706):**
+```tsx
+<span className="font-semibold text-foreground truncate">
+  {group.clientName}
+</span>
 ```
 
 **بعد:**
-```typescript
-const fetchPaymentSummary = async () => {
-  try {
-    // استخدام get_client_wallet_balance للحصول على الرصيد الصحيح
-    const { data: walletData } = await supabase.rpc('get_client_wallet_balance', {
-      p_client_id: client.id
-    });
-    
-    // جلب الربح من الوثائق مباشرة (للمشرفين فقط)
-    const { data: policiesData } = await supabase
-      .from('policies')
-      .select('profit')
-      .eq('client_id', client.id)
-      .eq('cancelled', false)
-      .eq('transferred', false)
-      .is('deleted_at', null);
-    
-    const totalProfit = (policiesData || []).reduce((sum, p) => sum + (p.profit || 0), 0);
-    
-    if (walletData && walletData.length > 0) {
-      const wallet = walletData[0];
-      setPaymentSummary({
-        total_paid: wallet.total_credits + wallet.total_refunds,
-        total_remaining: Math.max(0, wallet.wallet_balance),
-        total_profit: totalProfit,
-      });
-    } else {
-      setPaymentSummary({ total_paid: 0, total_remaining: 0, total_profit: 0 });
-    }
-  } catch (error) {
-    console.error('Error fetching payment summary:', error);
-  }
-};
+```tsx
+<button
+  onClick={onClientClick}
+  className="font-semibold text-foreground truncate hover:text-primary hover:underline transition-colors"
+>
+  {group.clientName}
+</button>
+```
+
+#### 4. إزالة نص "X دفعات" (سطر 728-730)
+
+**قبل:**
+```tsx
+<span className="text-sm font-medium">
+  {group.payments.count} {group.payments.count === 1 ? "دفعة" : "دفعات"}
+</span>
+```
+
+**بعد:**
+```tsx
+{/* Removed payment count as per user request */}
+```
+
+أو إذا أردنا عرض معلومة مفيدة بديلة:
+```tsx
+<span className="text-sm font-medium text-muted-foreground">الدفعات</span>
 ```
 
 ---
 
 ## ملخص التغييرات
 
-| الموقع | التغيير |
-|--------|---------|
-| `ClientDetails.tsx` → `fetchPaymentSummary()` | استخدام `get_client_wallet_balance` بدلاً من الحساب اليدوي |
+| السطر | التغيير |
+|-------|---------|
+| أعلى الملف | إضافة `import { useNavigate }` |
+| 421 | إنشاء `const navigate = useNavigate()` |
+| 585 | إضافة prop `onClientClick` |
+| 669 | إضافة prop `onClientClick` |
+| 681 | تحديث signature: `onClientClick?: () => void` |
+| 704-706 | تحويل `span` لـ `button` قابل للنقر |
+| 728-730 | إزالة نص "X دفعات" |
 
 ---
 
 ## النتيجة المتوقعة
 
-بعد التحديث:
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  بروفايل العميل (أشرف زياد ناصر):                               │
-│  ├─ إجمالي المتبقي = ₪0 (أو القيمة الحقيقية من المحفظة)         │
-│  └─ يستخدم: get_client_wallet_balance                           │
-├─────────────────────────────────────────────────────────────────┤
-│  نافذة تسديد الديون:                                           │
-│  ├─ نفس القيمة = ₪0 (لا توجد ديون)                             │
-│  └─ يستخدم: get_client_wallet_balance (نفس المصدر!)             │
-└─────────────────────────────────────────────────────────────────┘
+### قبل:
+```
+[أيقونة] Kareem Test [F1019]          منذ أقل من دقيقة
+         12 دفعات                     ₪5,398
 ```
 
----
+### بعد:
+```
+[أيقونة] Kareem Test [F1019]          منذ أقل من دقيقة
+                                      ₪5,398
+```
 
-## ملاحظة مهمة
-
-لهذا العميل تحديداً، الرصيد الفعلي = **-₪45,699** (سالب = دفع أكثر من المطلوب)
-
-هذا يعني أن العميل ليس عليه ديون، بل له رصيد دائن!
-
-الـ Migration نقل الدفعات من `policy_payments` إلى `client_payments`، لكن `ClientDetails.tsx` لا يزال يقرأ من الجدول القديم.
+- **اسم العميل** يتحول للون الـ primary عند hover + underline
+- **الضغط على الاسم** ينقل مباشرة لصفحة `/clients?open=[client_id]`
+- **عدد الدفعات** تمت إزالته
 

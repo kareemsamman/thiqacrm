@@ -176,9 +176,16 @@ interface PaymentRecord {
   payment_type: string;
   cheque_number: string | null;
   cheque_image_url: string | null;
+  card_last_four: string | null;
   refused: boolean | null;
   notes: string | null;
-  client_id: string;
+  locked: boolean | null;
+  policy_id: string;
+  policy: {
+    id: string;
+    policy_type_parent: string;
+    insurance_price: number;
+  } | null;
 }
 
 interface ClientDetailsProps {
@@ -438,31 +445,47 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
 
   const fetchPaymentSummary = async () => {
     try {
-      // Use the new wallet-based source of truth
-      const [walletRes, policiesRes] = await Promise.all([
-        supabase.rpc('get_client_wallet_balance', { p_client_id: client.id }),
-        supabase
-          .from('policies')
-          .select('profit')
-          .eq('client_id', client.id)
-          .eq('cancelled', false)
-          .eq('transferred', false)
-          .is('deleted_at', null),
-      ]);
+      // Get ALL active policies for this client (including ELZAMI for complete view)
+      const { data: policiesData } = await supabase
+        .from('policies')
+        .select('id, insurance_price, profit, policy_type_parent, cancelled, transferred')
+        .eq('client_id', client.id)
+        .eq('cancelled', false)
+        .eq('transferred', false)
+        .is('deleted_at', null);
 
-      // Calculate total profit from policies (for admin view)
-      const totalProfit = (policiesRes.data || []).reduce((sum, p) => sum + (p.profit || 0), 0);
-
-      if (walletRes.data && walletRes.data.length > 0) {
-        const wallet = walletRes.data[0];
-        setPaymentSummary({
-          total_paid: (wallet.total_credits || 0) + (wallet.total_refunds || 0),
-          total_remaining: Math.max(0, wallet.wallet_balance || 0),
-          total_profit: totalProfit,
-        });
-      } else {
-        setPaymentSummary({ total_paid: 0, total_remaining: 0, total_profit: totalProfit });
+      if (!policiesData || policiesData.length === 0) {
+        setPaymentSummary({ total_paid: 0, total_remaining: 0, total_profit: 0 });
+        return;
       }
+
+      // Total insurance = ALL policies INCLUDING ELZAMI (for customer view)
+      const totalInsurance = policiesData.reduce((sum, p) => sum + (p.insurance_price || 0), 0);
+      
+      // Total profit from all policies (ELZAMI profit = 0 by design)
+      const totalProfit = policiesData.reduce((sum, p) => sum + (p.profit || 0), 0);
+
+      // Get ALL payments for ALL policies (including ELZAMI)
+      const allPolicyIds = policiesData.map(p => p.id);
+      let totalPaid = 0;
+      
+      if (allPolicyIds.length > 0) {
+        const { data: paymentsData } = await supabase
+          .from('policy_payments')
+          .select('amount, refused')
+          .in('policy_id', allPolicyIds);
+
+        totalPaid = (paymentsData || [])
+          .filter(p => !p.refused)
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+      }
+
+      // Remaining = Total Insurance - Total Paid (simple and clear)
+      setPaymentSummary({
+        total_paid: totalPaid,
+        total_remaining: Math.max(0, totalInsurance - totalPaid),
+        total_profit: totalProfit,
+      });
     } catch (error) {
       console.error('Error fetching payment summary:', error);
     }
@@ -504,15 +527,36 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
   const fetchPayments = async () => {
     setLoadingPayments(true);
     try {
-      // Get payments from client_payments (wallet-based)
-      const { data: paymentsData, error } = await supabase
-        .from('client_payments')
-        .select('id, amount, payment_date, payment_type, cheque_number, cheque_image_url, refused, notes, client_id')
+      // Get all policies for this client first
+      const { data: policiesData } = await supabase
+        .from('policies')
+        .select('id, policy_type_parent, insurance_price')
         .eq('client_id', client.id)
+        .is('deleted_at', null);
+
+      if (!policiesData || policiesData.length === 0) {
+        setPayments([]);
+        return;
+      }
+
+      const policyIds = policiesData.map(p => p.id);
+
+      // Get all payments for these policies
+      const { data: paymentsData, error } = await supabase
+        .from('policy_payments')
+        .select('id, amount, payment_date, payment_type, cheque_number, cheque_image_url, card_last_four, refused, notes, policy_id, locked')
+        .in('policy_id', policyIds)
         .order('payment_date', { ascending: false });
 
       if (error) throw error;
-      setPayments(paymentsData || []);
+
+      // Map payments with policy info
+      const paymentsWithPolicy = (paymentsData || []).map(payment => ({
+        ...payment,
+        policy: policiesData.find(p => p.id === payment.policy_id) || null,
+      }));
+
+      setPayments(paymentsWithPolicy);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
@@ -630,7 +674,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
     setDeletingPayment(true);
     try {
       const { error } = await supabase
-        .from('client_payments')
+        .from('policy_payments')
         .delete()
         .eq('id', deletePaymentId);
       
@@ -1586,6 +1630,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
                       <TableHead className="text-right">المبلغ</TableHead>
                       <TableHead className="text-right">التاريخ</TableHead>
                       <TableHead className="text-right">طريقة الدفع</TableHead>
+                      <TableHead className="text-right">نوع التأمين</TableHead>
                       <TableHead className="text-right">رقم الشيك</TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">ملفات</TableHead>
@@ -1612,11 +1657,26 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
                           <TableCell className="font-semibold">₪{payment.amount.toLocaleString()}</TableCell>
                           <TableCell>{formatDate(payment.payment_date)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">
-                              {payment.payment_type === 'cash' ? 'نقدي' :
-                               payment.payment_type === 'cheque' ? 'شيك' :
-                               payment.payment_type === 'transfer' ? 'تحويل' : payment.payment_type}
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline">
+                                {payment.payment_type === 'cash' ? 'نقدي' :
+                                 payment.payment_type === 'cheque' ? 'شيك' :
+                                 payment.payment_type === 'visa' ? 'بطاقة' :
+                                 payment.payment_type === 'transfer' ? 'تحويل' : payment.payment_type}
+                              </Badge>
+                              {payment.payment_type === 'visa' && payment.card_last_four && (
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  *{payment.card_last_four}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {payment.policy && (
+                              <Badge className={cn("border", policyTypeColors[payment.policy.policy_type_parent])}>
+                                {policyTypeLabels[payment.policy.policy_type_parent] || payment.policy.policy_type_parent}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="font-mono">{payment.cheque_number || '-'}</TableCell>
                           <TableCell>
@@ -1649,20 +1709,33 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => handleGeneratePaymentReceipt(payment.id)}
+                                  disabled={generatingReceipt === payment.id}
+                                >
+                                  {generatingReceipt === payment.id ? (
+                                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                                  ) : (
+                                    <Receipt className="h-4 w-4 ml-2" />
+                                  )}
+                                  إيصال
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
                                   <Edit className="h-4 w-4 ml-2" />
                                   تعديل
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => {
-                                    setDeletePaymentId(payment.id);
-                                    setDeletePaymentDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 ml-2" />
-                                  حذف
-                                </DropdownMenuItem>
+                                {!payment.locked && (
+                                  <DropdownMenuItem 
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => {
+                                      setDeletePaymentId(payment.id);
+                                      setDeletePaymentDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 ml-2" />
+                                    حذف
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>

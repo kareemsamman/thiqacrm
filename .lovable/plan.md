@@ -1,277 +1,141 @@
 
 
-# خطة إعادة تصميم صفحة الوثائق – نظام الوضعين (Mode-First)
+# خطة تحسين مسح الشيكات
 
-## فهم المتطلبات
+## المشاكل المكتشفة
 
-المستخدم يريد نظام **وضعين** (Modes) وليس تخطيطين:
+### 1. ترتيب الشيكات
+الشيكات تظهر بترتيب الاكتشاف وليس بترتيب التاريخ. المطلوب ترتيبها تصاعدياً حسب تاريخ الاستحقاق.
 
-| الوضع | الاستخدام | المحتوى |
-|-------|-----------|---------|
-| **Single Policy Mode** | مسح سريع، موبايل، استخدام يومي | معلومات أساسية فقط |
-| **Package Mode** | تحليل عميق، مقارنة المكونات | تفصيل كامل للباقة |
+### 2. مشكلة روابط الصور
+- الرابط يُبنى بـ `cdn.basheer-ab.com` ✅
+- لكن الصورة لا تُرفع بنجاح أو لا يتم انتظار الرفع قبل الإرجاع
+- يجب التحقق من نجاح الرفع وإضافة fallback للـ base64
 
----
+### 3. خطأ في قراءة المبلغ
+- AI يقرأ `18,007` بدلاً من `1,800`
+- السبب: الفاصلة الألفية والصورة المدورة
+- الحل: تحسين الـ prompt + استخدام نموذج أقوى
 
-## الوضع الأول: Single Policy Mode (الافتراضي)
-
-### الغرض
-قراءة سريعة، حمل معرفي منخفض، مسح سهل.
-
-### هيكل البطاقة (من الأعلى للأسفل)
-
-#### 1. صف الرأس (Header Row)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  [⋮]  [📤]              سارية  مدفوع  باقة ← (فقط إذا package)│
-└────────────────────────────────────────────────────────────────┘
-```
-- **يمين**: شرائح الحالة (سارية/منتهية/ملغاة + مدفوع/غير مدفوع + باقة)
-- **يسار**: الأكشنز (⋮ المزيد + 📤 إرسال)
-
-#### 2. صف المعلومات الرئيسي (خط بصري واحد)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  ₪2,400      02/02/2027 ← 03/02/2026      21212121      منورا  │
-│  (المبلغ)    (الفترة)                    (رقم السيارة) (الشركة)│
-└────────────────────────────────────────────────────────────────┘
-```
-- **المبلغ**: كبير، أساسي، بارز
-- الحقول **أفقياً متناسقة** عبر جميع البطاقات
-- على الموبايل فقط يُسمح بالتكديس
-
-#### 3. تذييل (اختياري)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  📝 تحويل من سيارة 21212121 - إضافة ضمن باقة                  │
-└────────────────────────────────────────────────────────────────┘
-```
-- سطر واحد فقط للملاحظات (muted)
-- إذا لا توجد ملاحظات: لا يُعرض شيء
-
-#### ❌ ما لا يُعرض في Single Mode
-- تفصيل الباقة
-- صفوف المكونات الفرعية
-- مبالغ متعددة
-- إذا كانت باقة → يُعرض فقط **المبلغ الإجمالي** + شريحة "باقة"
+### 4. الصور المدورة
+- الشيكات قد تكون مدورة مما يؤثر على OCR
+- الحل: إضافة تعليمات للـ AI للتعامل مع الصور المدورة
 
 ---
 
-## الوضع الثاني: Package Mode (موسّع)
+## التغييرات المطلوبة
 
-### التفعيل
-- **تلقائي**: عند الضغط على بطاقة باقة
-- **أو**: عبر "توسيع الباقة" في القائمة
+### ملف: `supabase/functions/process-cheque-scan/index.ts`
 
-### هيكل Package Mode
+#### 1. استخدام نموذج Gemini Pro
+```typescript
+// قبل
+model: "google/gemini-2.5-flash"
 
-#### 1. الرأس (نفس Single Mode)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  [⋮]  [📤]              سارية  مدفوع  باقة ⚡                  │
-└────────────────────────────────────────────────────────────────┘
-```
-للحفاظ على الاتساق.
-
-#### 2. قسم الملخص (Summary Section)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  ₪2,300                                                        │
-│  (المبلغ الإجمالي)                                              │
-│                                                                │
-│  ⚠️ متبقي ₪2,300                                               │
-│                                                                │
-│  02/02/2027 ← 03/02/2026    21212121    منورا                  │
-│                                                                │
-│  [ثالث] [إلزامي] [خدمات طريق] [باقة ⚡]                         │
-└────────────────────────────────────────────────────────────────┘
-```
-يجيب على: **"ما هذه الباقة بلمحة؟"**
-
-#### 3. قسم تفصيل الباقة (جدول داخل البطاقة)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  مكونات الباقة                                                 │
-├────────────────────────────────────────────────────────────────┤
-│  المبلغ     │ الفترة                    │ النوع  │ الشركة      │
-├────────────────────────────────────────────────────────────────┤
-│  ₪1,000    │ 02/02/27 ← 03/02/26       │ ثالث   │ أراضي مقدسة │
-│  ₪1,000    │ 02/02/27 ← 03/02/26       │ إلزامي │ منورا       │
-│  ₪300      │ 02/02/27 ← 03/02/26       │ سرفيس  │ شركة اكس    │
-└────────────────────────────────────────────────────────────────┘
-```
-**قواعد:**
-- نفس الأعمدة لكل الصفوف
-- محاذاة ثابتة
-- خلفية muted للفصل عن الملخص
-
-#### 4. قسم الملاحظات (أسفل)
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  📝 تحويل من سيارة 21212121 - إضافة ضمن باقة                  │
-│     ...ملاحظات كاملة قابلة للعرض                               │
-└────────────────────────────────────────────────────────────────┘
+// بعد
+model: "google/gemini-2.5-pro"
 ```
 
----
+#### 2. تحسين الـ Prompt للتعامل مع:
+- الصور المدورة (rotated images)
+- الفواصل في الأرقام
+- دقة أفضل في قراءة المبالغ
 
-## التغييرات التقنية المطلوبة
+```typescript
+const CHEQUE_DETECTION_PROMPT = `You are an expert OCR system analyzing scanned Israeli bank cheques.
 
-### ملف: `src/components/policies/PolicyCardsView.tsx`
+CRITICAL INSTRUCTIONS:
+1. Images may be ROTATED (90°, 180°, 270°) - rotate mentally to read correctly
+2. Amounts are in NIS - typical values range from 500-50,000
+3. NEVER confuse comma separators with decimal points
+   - "1,800" = one thousand eight hundred (1800)
+   - "18,007" would be unusual - verify carefully
+4. Cheque numbers are usually 6-8 digits without commas
 
-#### 1. إعادة هيكلة البطاقة
+For each cheque extract:
+- CHEQUE NUMBER (מספר שיק / رقم الشيك): 6-8 digit number
+- DATE (תאריך / التاريخ): payment due date
+- AMOUNT (סכום / المبلغ): monetary value in NIS (be careful with thousands separator)
+- BANK NAME (if visible)
+- ACCOUNT NUMBER (if visible)
+- BRANCH NUMBER (if visible)
 
-**المكون الجديد: `PolicyCard`**
-```tsx
-interface PolicyCardProps {
-  group: PolicyGroup;
-  paymentStatus: PaymentStatus;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  onPolicyClick: (id: string) => void;
-  onSendInvoice: (id: string) => void;
-  // ...
+DATE HANDLING:
+- Convert to YYYY-MM-DD format
+- Israeli dates: DD/MM/YY or DD/MM/YYYY
+- If year is 2 digits (e.g., 26), assume 2026
+
+AMOUNT HANDLING - CRITICAL:
+- Amounts use comma as THOUSANDS separator (e.g., 1,800 = 1800)
+- Common amounts: 500, 800, 1000, 1200, 1400, 1500, 1800, 2000, 2500, 3000
+- If you see something like 18,007 - double check, it's likely 1,800.7 or 1,800
+
+Output JSON only, no markdown:
+{
+  "cheques": [
+    {
+      "cheque_number": "80001254",
+      "payment_date": "2026-03-25",
+      "amount": 1800,
+      "bank_name": "דיסקונט",
+      "account_number": "",
+      "branch_number": "",
+      "bounding_box": {"x": 0, "y": 0, "width": 100, "height": 100},
+      "confidence": 95
+    }
+  ]
+}`;
+```
+
+#### 3. ترتيب الشيكات حسب التاريخ
+```typescript
+// بعد جمع كل الشيكات، قبل الإرجاع:
+allDetectedCheques.sort((a, b) => {
+  const dateA = new Date(a.payment_date);
+  const dateB = new Date(b.payment_date);
+  return dateA.getTime() - dateB.getTime();
+});
+```
+
+#### 4. إصلاح رفع الصور + Fallback
+```typescript
+// في الحلقة، تأكد من الرفع ثم أضف fallback
+const cdnUrl = await uploadToBunny(imageBase64, fileName);
+
+if (cdnUrl) {
+  cheque.image_url = cdnUrl;
+} else {
+  // Fallback: استخدم base64 مباشرة كـ data URL
+  cheque.image_url = `data:image/jpeg;base64,${imageBase64}`;
 }
 
-function PolicyCard({ group, isExpanded, ... }: PolicyCardProps) {
-  const isPackage = group.addons.length > 0;
-  
-  return (
-    <Card>
-      {/* Header: Status chips + Actions */}
-      <CardHeader />
-      
-      {/* Main Info Row - ALWAYS horizontal */}
-      <MainInfoRow />
-      
-      {/* Package Mode Content - Only when expanded */}
-      {isPackage && isExpanded && (
-        <>
-          <PackageSummary />
-          <PackageBreakdown />
-        </>
-      )}
-      
-      {/* Notes Footer */}
-      {notes && <NotesFooter />}
-    </Card>
-  );
-}
+// لا نحتاج cropped_base64 إذا الـ CDN يعمل
+// لكن نحتفظ به كـ fallback
+cheque.cropped_base64 = imageBase64;
 ```
 
-#### 2. تغييرات Header Row
+---
 
+### ملف: `src/components/payments/ChequeScannerDialog.tsx`
+
+#### 1. إصلاح عرض الصورة مع Fallback
 ```tsx
-// قبل: badges متناثرة + السعر على اليسار
-// بعد: Status chips مجمّعة + Actions منفصلة
-
-<div className="flex items-center justify-between">
-  {/* Right: Status Chips */}
-  <div className="flex flex-wrap gap-1.5">
-    <Badge variant={status.variant}>{status.label}</Badge>
-    {paymentStatus.isPaid ? (
-      <Badge variant="success">مدفوع</Badge>
-    ) : (
-      <Badge variant="destructive">غير مدفوع</Badge>
-    )}
-    {isPackage && (
-      <Badge variant="outline" className="bg-primary/5">
-        <Package className="h-3 w-3 mr-1" />
-        باقة
-      </Badge>
-    )}
+// في عرض صورة الشيك
+{(cheque.image_url || cheque.cropped_base64) && (
+  <div className="w-20 h-14 rounded overflow-hidden bg-muted shrink-0">
+    <img
+      src={cheque.image_url || `data:image/jpeg;base64,${cheque.cropped_base64}`}
+      alt={`شيك ${cheque.cheque_number}`}
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        // Fallback to base64 if CDN fails
+        if (cheque.cropped_base64 && e.currentTarget.src !== `data:image/jpeg;base64,${cheque.cropped_base64}`) {
+          e.currentTarget.src = `data:image/jpeg;base64,${cheque.cropped_base64}`;
+        }
+      }}
+    />
   </div>
-  
-  {/* Left: Actions */}
-  <div className="flex items-center gap-1">
-    <Button variant="ghost" size="icon" onClick={handleSend}>
-      <Send className="h-4 w-4" />
-    </Button>
-    <DropdownMenu>...</DropdownMenu>
-  </div>
-</div>
-```
-
-#### 3. تغييرات Main Info Row
-
-```tsx
-// قبل: grid مع أيقونات
-// بعد: خط أفقي واحد، المبلغ بارز
-
-<div className="flex items-center gap-4 mt-3">
-  {/* Amount - Primary, Large */}
-  <span className="text-xl font-bold shrink-0">
-    ₪{totalPrice.toLocaleString()}
-  </span>
-  
-  {/* Period */}
-  <span className="text-sm text-muted-foreground">
-    {formatDate(endDate)} ← {formatDate(startDate)}
-  </span>
-  
-  {/* Car Number */}
-  <span className="font-mono text-sm">{carNumber}</span>
-  
-  {/* Company */}
-  <span className="text-sm truncate">{companyName}</span>
-</div>
-```
-
-#### 4. إضافة Package Breakdown Table
-
-```tsx
-function PackageBreakdown({ policies }: { policies: PolicyRecord[] }) {
-  return (
-    <div className="border-t bg-muted/10">
-      <div className="p-2 text-xs font-medium text-muted-foreground">
-        مكونات الباقة ({policies.length})
-      </div>
-      
-      <table className="w-full text-sm">
-        <thead className="bg-muted/30">
-          <tr>
-            <th className="text-right p-2">المبلغ</th>
-            <th className="text-right p-2">الفترة</th>
-            <th className="text-right p-2">النوع</th>
-            <th className="text-right p-2">الشركة</th>
-          </tr>
-        </thead>
-        <tbody>
-          {policies.map((policy, idx) => (
-            <tr key={policy.id} className="border-t hover:bg-muted/20">
-              <td className="p-2 font-semibold">
-                ₪{policy.insurance_price.toLocaleString()}
-              </td>
-              <td className="p-2 text-xs">
-                {formatDate(policy.end_date)} ← {formatDate(policy.start_date)}
-              </td>
-              <td className="p-2">
-                <Badge className={policyTypeColors[policy.policy_type_parent]}>
-                  {getDisplayLabel(policy)}
-                </Badge>
-              </td>
-              <td className="p-2">
-                {policy.insurance_companies?.name_ar || '-'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-```
-
-#### 5. Responsive Rules
-
-```tsx
-// Desktop: Full width, breakdown expanded
-// Mobile: Cards stack, breakdown collapsible list
-
-<div className={cn(
-  "flex items-center gap-4",
-  "flex-wrap sm:flex-nowrap" // Wrap on mobile only
-)}>
+)}
 ```
 
 ---
@@ -280,62 +144,35 @@ function PackageBreakdown({ policies }: { policies: PolicyRecord[] }) {
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `src/components/policies/PolicyCardsView.tsx` | إعادة هيكلة كاملة |
+| `supabase/functions/process-cheque-scan/index.ts` | تحسين الـ prompt + النموذج + الترتيب + الرفع |
+| `src/components/payments/ChequeScannerDialog.tsx` | Fallback للصور |
 
 ---
 
-## مقارنة قبل/بعد
+## النتائج المتوقعة
 
-### Single Policy Card - قبل:
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  [باقة] [ثالث] [سارية] [متبقي ₪2,300]              ₪2,300     │
-│  👤 أحمد محمد                                                  │
-│  🚗 21212121 (Toyota)                                          │
-│  🏢 منورا                                                      │
-│  📅 02/02/2027 ← 03/02/2026                                    │
-│  📝 ملاحظات...                                                 │
-│                                          [📤] [👁] [⋮]         │
-└────────────────────────────────────────────────────────────────┘
-```
+1. **ترتيب صحيح**: الشيكات مرتبة حسب التاريخ تصاعدياً
+   - 25/02/26 → 25/03/26 → 25/04/26 → ...
 
-### Single Policy Card - بعد:
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  [سارية] [مدفوع] [باقة]                         [📤]  [⋮]     │
-├────────────────────────────────────────────────────────────────┤
-│  ₪2,300    02/02/27←03/02/26    21212121    منورا              │
-├────────────────────────────────────────────────────────────────┤
-│  📝 تحويل من سيارة...                                          │
-└────────────────────────────────────────────────────────────────┘
-```
+2. **صور ظاهرة**: إما من CDN أو base64 كـ fallback
 
-### Package Mode - بعد:
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  [سارية] [غير مدفوع] [باقة ⚡]                    [📤]  [⋮]    │
-├────────────────────────────────────────────────────────────────┤
-│  ₪2,300    ⚠️ متبقي ₪2,300                                     │
-│  02/02/27←03/02/26    21212121    منورا                        │
-│  [ثالث] [إلزامي] [خدمات طريق]                                  │
-├────────────────────────────────────────────────────────────────┤
-│  مكونات الباقة                                                 │
-│  ────────────────────────────────────────────────────────────  │
-│  ₪1,000  │ 02/02/27←03/02/26 │ ثالث   │ أراضي مقدسة           │
-│  ₪1,000  │ 02/02/27←03/02/26 │ إلزامي │ منورا                  │
-│  ₪300    │ 02/02/27←03/02/26 │ سرفيس  │ شركة اكس              │
-├────────────────────────────────────────────────────────────────┤
-│  📝 تحويل من سيارة 21212121 - إضافة ضمن باقة                  │
-└────────────────────────────────────────────────────────────────┘
-```
+3. **دقة أفضل في المبالغ**: 
+   - Gemini Pro أدق من Flash
+   - Prompt محسّن للتعامل مع الفواصل والدوران
+
+4. **تعامل مع الصور المدورة**: تعليمات واضحة للـ AI
 
 ---
 
-## القواعد الأساسية
+## التفاصيل التقنية
 
-1. **نفس الحقول دائماً في نفس المكان**
-2. **المبلغ دائماً بارز بصرياً**
-3. **شرائح الحالة مجمّعة (لا تتناثر)**
-4. **Single Mode لا يُظهر تفاصيل داخلية أبداً**
-5. **Package Mode = نفس البطاقة، عمق أكبر**
+### لماذا Gemini Pro بدلاً من Flash؟
+- Pro أفضل في OCR والتحليل البصري المعقد
+- أدق في قراءة الأرقام والتواريخ
+- يتعامل بشكل أفضل مع الصور ذات الجودة المنخفضة
+
+### لماذا الـ Fallback للصور؟
+- Bunny CDN قد يفشل أحياناً
+- الـ base64 موجود بالفعل، لذا نستخدمه كـ backup
+- يضمن ظهور الصورة دائماً
 

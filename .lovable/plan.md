@@ -1,140 +1,218 @@
 
 
-# إصلاح مشكلة ظهور Kareem Test في صفحة متابعة الديون
+# تحسين فلتر التاريخ في تقرير الوثائق المنشأة
 
-## المشكلة المكتشفة
+## الوضع الحالي
 
-**الأعراض:** العميل Kareem Test يظهر بمتبقي 2,200₪ في صفحة العميل، لكنه **لا يظهر** في صفحة `/debt-tracking`.
+في صفحة `/reports/policies` تحت تاب "الوثائق المنشأة":
+- يوجد dropdown للاختيار بين: اليوم، هذا الشهر، الشهر الماضي، مخصص
+- عند اختيار "مخصص" يظهر حقلين للتاريخ (من، إلى)
 
-## تحليل السبب الجذري
+## التحسين المقترح
 
-### مقارنة البيانات
+### 1. إضافة خيارات جديدة للفترات الشائعة
 
-| المصدر | عدد السجلات | المجموع |
-|--------|-------------|---------|
-| `policy_payments` (الدفعات الفعلية) | 5 | 3,700₪ |
-| `client_payments` (جدول المحفظة القديم) | 42 | 33,490₪ |
+توسيع قائمة الفترات المحددة مسبقاً:
 
-### تفاصيل الوثائق للعميل
+| الخيار الحالي | الخيارات الجديدة |
+|--------------|------------------|
+| اليوم | اليوم |
+| هذا الشهر | أمس |
+| الشهر الماضي | آخر 7 أيام |
+| مخصص | آخر 30 يوم |
+| | هذا الأسبوع |
+| | الأسبوع الماضي |
+| | هذا الشهر |
+| | الشهر الماضي |
+| | **نطاق مخصص** |
+| | **تاريخ محدد** |
 
-| نوع التأمين | السعر | المدفوع (policy_payments) | المتبقي |
-|-------------|-------|---------------------------|---------|
-| ELZAMI | 1,200₪ | 1,200₪ | 0 |
-| THIRD | 2,600₪ | 400₪ | **2,200₪** |
-| ROAD_SERVICE | 300₪ | 300₪ | 0 |
-| THIRD | 1,500₪ | 1,500₪ | 0 |
-| ROAD_SERVICE | 300₪ | 300₪ | 0 |
-| **المجموع** | **5,900₪** | **3,700₪** | **2,200₪** |
+### 2. تحسين عرض حقول التاريخ المخصص
 
-### المشكلة في الدالة
-
-الدالة `get_client_balance` المُنشرة حالياً تقرأ من جدول `client_payments`:
-
-```sql
--- الكود الحالي المُنشر (خاطئ)
-SELECT COALESCE(SUM(amount), 0) as total_pay
-FROM client_payments
-WHERE client_id = p_client_id
+عند اختيار "نطاق مخصص":
+```
+┌─────────────────────────────────────────────────────┐
+│  [من التاريخ 📅]    →    [إلى التاريخ 📅]         │
+└─────────────────────────────────────────────────────┘
 ```
 
-هذا يُرجع 33,490₪ بدلاً من 3,700₪، مما يجعل الرصيد المتبقي = 0.
+عند اختيار "تاريخ محدد":
+```
+┌─────────────────────────────────────────────────────┐
+│  [اختر التاريخ 📅]                                  │
+└─────────────────────────────────────────────────────┘
+```
 
----
+### 3. عرض التاريخ المختار بوضوح
 
-## الحل المقترح
+إضافة Badge تعرض نطاق التاريخ المحدد حالياً:
 
-### تحديث دالة `get_client_balance` لاستخدام `policy_payments`
-
-جدول `policy_payments` هو مصدر الحقيقة للدفعات الفعلية المرتبطة بالوثائق.
-
-```sql
-CREATE OR REPLACE FUNCTION get_client_balance(p_client_id uuid)
-RETURNS TABLE(
-  total_insurance numeric,
-  total_paid numeric,
-  total_refunds numeric,
-  total_remaining numeric
-)
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN QUERY
-  WITH 
-  -- All active policies (INCLUDING ELZAMI, EXCLUDING broker deals)
-  active_policies AS (
-    SELECT p.id, COALESCE(p.insurance_price, 0) AS insurance_price
-    FROM policies p
-    WHERE p.client_id = p_client_id
-      AND COALESCE(p.cancelled, FALSE) = FALSE
-      AND COALESCE(p.transferred, FALSE) = FALSE
-      AND p.deleted_at IS NULL
-      AND p.broker_id IS NULL
-  ),
-  -- Sum of all policy prices
-  policy_totals AS (
-    SELECT COALESCE(SUM(insurance_price), 0) AS total_ins
-    FROM active_policies
-  ),
-  -- All non-refused payments for these policies (from policy_payments)
-  payment_totals AS (
-    SELECT COALESCE(SUM(pp.amount), 0) AS total_pay
-    FROM policy_payments pp
-    JOIN active_policies ap ON ap.id = pp.policy_id
-    WHERE COALESCE(pp.refused, FALSE) = FALSE
-  ),
-  -- Wallet transactions (refunds reduce debt)
-  wallet_totals AS (
-    SELECT COALESCE(SUM(
-      CASE 
-        WHEN transaction_type IN ('refund', 'transfer_refund_owed', 'manual_refund') 
-        THEN amount
-        WHEN transaction_type = 'transfer_adjustment_due' 
-        THEN -amount
-        ELSE 0 
-      END
-    ), 0) AS total_ref
-    FROM customer_wallet_transactions
-    WHERE client_id = p_client_id
-  )
-  SELECT
-    pt.total_ins::numeric AS total_insurance,
-    pay.total_pay::numeric AS total_paid,
-    wt.total_ref::numeric AS total_refunds,
-    GREATEST(0, pt.total_ins - pay.total_pay - wt.total_ref)::numeric AS total_remaining
-  FROM policy_totals pt
-  CROSS JOIN payment_totals pay
-  CROSS JOIN wallet_totals wt;
-END;
-$$;
+```
+[اليوم ▼] [06/02/2026] [نوع ▼] [الشركة ▼] [بحث...]
 ```
 
 ---
 
-## التغييرات المطلوبة
+## التغييرات التقنية
+
+### الملف: `src/pages/PolicyReports.tsx`
+
+#### 1. توسيع خيارات الفترات
+
+```tsx
+// السطر 234 تقريباً - تحديث state
+const [createdDatePreset, setCreatedDatePreset] = useState('today');
+
+// إضافة خيارات جديدة في الـ Select (سطر 817-827)
+<SelectContent>
+  <SelectItem value="today">اليوم</SelectItem>
+  <SelectItem value="yesterday">أمس</SelectItem>
+  <SelectItem value="last_7_days">آخر 7 أيام</SelectItem>
+  <SelectItem value="last_30_days">آخر 30 يوم</SelectItem>
+  <SelectItem value="this_week">هذا الأسبوع</SelectItem>
+  <SelectItem value="last_week">الأسبوع الماضي</SelectItem>
+  <SelectItem value="this_month">هذا الشهر</SelectItem>
+  <SelectItem value="last_month">الشهر الماضي</SelectItem>
+  <SelectItem value="specific_date">تاريخ محدد</SelectItem>
+  <SelectItem value="custom">نطاق مخصص</SelectItem>
+</SelectContent>
+```
+
+#### 2. تحديث دالة حساب النطاق
+
+```tsx
+// تحديث getDateRange() (سطر 308-335)
+const getDateRange = () => {
+  const today = new Date();
+  let fromDate: string | null = null;
+  let toDate: string | null = null;
+  
+  switch (createdDatePreset) {
+    case 'today':
+      fromDate = toDate = today.toISOString().split('T')[0];
+      break;
+    case 'yesterday':
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      fromDate = toDate = yesterday.toISOString().split('T')[0];
+      break;
+    case 'last_7_days':
+      const d7 = new Date(today);
+      d7.setDate(today.getDate() - 6);
+      fromDate = d7.toISOString().split('T')[0];
+      toDate = today.toISOString().split('T')[0];
+      break;
+    case 'last_30_days':
+      const d30 = new Date(today);
+      d30.setDate(today.getDate() - 29);
+      fromDate = d30.toISOString().split('T')[0];
+      toDate = today.toISOString().split('T')[0];
+      break;
+    case 'this_week':
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay());
+      fromDate = weekStart.toISOString().split('T')[0];
+      toDate = today.toISOString().split('T')[0];
+      break;
+    case 'last_week':
+      const lastWeekEnd = new Date(today);
+      lastWeekEnd.setDate(today.getDate() - today.getDay() - 1);
+      const lastWeekStart = new Date(lastWeekEnd);
+      lastWeekStart.setDate(lastWeekEnd.getDate() - 6);
+      fromDate = lastWeekStart.toISOString().split('T')[0];
+      toDate = lastWeekEnd.toISOString().split('T')[0];
+      break;
+    case 'this_month':
+      fromDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      toDate = today.toISOString().split('T')[0];
+      break;
+    case 'last_month':
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      fromDate = lastMonth.toISOString().split('T')[0];
+      toDate = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+      break;
+    case 'specific_date':
+      fromDate = toDate = createdFromDate || null;
+      break;
+    case 'custom':
+      fromDate = createdFromDate || null;
+      toDate = createdToDate || null;
+      break;
+  }
+  
+  return { fromDate, toDate };
+};
+```
+
+#### 3. تحديث واجهة حقول التاريخ
+
+```tsx
+{/* حقل تاريخ واحد للتاريخ المحدد */}
+{createdDatePreset === 'specific_date' && (
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-muted-foreground">التاريخ:</span>
+    <ArabicDatePicker
+      value={createdFromDate}
+      onChange={(date) => {
+        setCreatedFromDate(date);
+        setCreatedToDate(date); // نفس التاريخ
+      }}
+    />
+  </div>
+)}
+
+{/* حقلين للنطاق المخصص */}
+{createdDatePreset === 'custom' && (
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-muted-foreground">من:</span>
+    <ArabicDatePicker
+      value={createdFromDate}
+      onChange={(date) => setCreatedFromDate(date)}
+      max={createdToDate}
+    />
+    <span className="text-sm text-muted-foreground">إلى:</span>
+    <ArabicDatePicker
+      value={createdToDate}
+      onChange={(date) => setCreatedToDate(date)}
+      min={createdFromDate}
+    />
+  </div>
+)}
+```
+
+#### 4. عرض النطاق المحدد كـ Badge
+
+```tsx
+{/* Badge لعرض التاريخ المحدد */}
+{(createdDatePreset !== 'custom' && createdDatePreset !== 'specific_date') && (
+  <Badge variant="outline" className="px-2 py-1 font-mono text-xs">
+    {formatDateRangeDisplay()}
+  </Badge>
+)}
+```
+
+---
+
+## ملخص التغييرات
 
 | الملف | التغيير |
 |-------|---------|
-| Migration SQL | تحديث دالة `get_client_balance` لاستخدام `policy_payments` بدلاً من `client_payments` |
+| `PolicyReports.tsx` | إضافة خيارات فترات جديدة (أمس، آخر 7 أيام، الخ) |
+| `PolicyReports.tsx` | تحديث `getDateRange()` لدعم الخيارات الجديدة |
+| `PolicyReports.tsx` | تحسين عرض حقول التاريخ (تاريخ محدد vs نطاق) |
+| `PolicyReports.tsx` | إضافة Badge لعرض التاريخ المحدد |
 
 ---
 
 ## النتيجة المتوقعة
 
-### قبل الإصلاح:
-- `get_client_balance` يُرجع: `total_paid = 33,490`, `total_remaining = 0`
-- Kareem Test **لا يظهر** في `/debt-tracking`
+### قبل:
+- 4 خيارات فقط
+- حقلين يظهران معاً عند اختيار "مخصص"
 
-### بعد الإصلاح:
-- `get_client_balance` يُرجع: `total_paid = 3,700`, `total_remaining = 2,200`
-- Kareem Test **يظهر** في `/debt-tracking` مع متبقي 2,200₪
-
----
-
-## ملاحظة مهمة
-
-جدول `client_payments` يحتوي على بيانات اختبارية/مكررة (42 سجل بمجموع 33,490₪). بعد تطبيق هذا الإصلاح، يمكن النظر في:
-1. حذف البيانات المكررة من `client_payments`
-2. أو إبقاء الجدول للرجوع إليه لاحقاً
+### بعد:
+- 10 خيارات للفترات الشائعة
+- خيار "تاريخ محدد" يظهر حقل واحد فقط
+- خيار "نطاق مخصص" يظهر حقلين مع labels واضحة
+- Badge تعرض النطاق المحدد حالياً
 

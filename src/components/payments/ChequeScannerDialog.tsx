@@ -860,11 +860,11 @@ export function ChequeScannerDialog({
                         <div className="flex gap-3">
                           {/* Cheque Image Thumbnail */}
                           {(cheque.image_url || cheque.cropped_base64) && (
-                            <div className="w-20 h-14 rounded overflow-hidden bg-muted shrink-0">
+                            <div className="w-28 h-20 rounded overflow-hidden bg-muted shrink-0">
                               <img
                                 src={cheque.image_url || `data:image/jpeg;base64,${cheque.cropped_base64}`}
                                 alt={`شيك ${cheque.cheque_number}`}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-contain"
                                 onError={(e) => {
                                   // Fallback to base64 if CDN fails
                                   const target = e.currentTarget;

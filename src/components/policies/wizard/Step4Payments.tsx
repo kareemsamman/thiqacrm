@@ -470,6 +470,16 @@ export function Step4Payments({
                             {payment.payment_type === 'cheque' ? 'صور الشيك (أمامي/خلفي)' : payment.payment_type === 'transfer' ? 'صور إيصال التحويل' : 'صور إيصال الدفع'}
                           </Label>
                           <div className="flex flex-wrap gap-2">
+                            {/* Display cheque image from scanner (CDN URL) */}
+                            {payment.cheque_image_url && (
+                              <div className="relative group">
+                                <img 
+                                  src={payment.cheque_image_url} 
+                                  alt="صورة الشيك" 
+                                  className="h-14 w-18 object-cover rounded border"
+                                />
+                              </div>
+                            )}
                             {/* Preview existing images */}
                             {getPreviewUrls(payment.id).map((url, imgIndex) => (
                               <div key={imgIndex} className="relative group">

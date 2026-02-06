@@ -1,88 +1,107 @@
 
-# خطة إضافة زر مسح الشيكات في جميع نقاط الدفع
 
-## الوضع الحالي
-زر "مسح شيكات" موجود **فقط** في Policy Wizard (الخطوة 4).
+# خطة تحسين رسالة SMS للديون
 
-## المطلوب
-إضافة الزر في **جميع** الأماكن التي يمكن فيها الدفع بالشيكات، بجانب زر "تقسيط".
+## المشكلة الحالية
+رسالة SMS الحالية للديون تعرض:
+```
+مرحباً Kareem Test، لديك مبلغ متبقي 5600 شيكل على وثيقة التأمين رقم {{policy_number}}. يرجى التواصل معنا لتسوية المبلغ.
+```
+
+**المشاكل:**
+1. `{{policy_number}}` لا يتم استبداله (لأن البيانات لا تحتوي على رقم الوثيقة في bulk SMS)
+2. لا يوجد نوع الوثيقة (شامل/ثالث/سرفيس)
+3. لا يوجد footer الشركة مع بيانات التواصل
 
 ---
 
-## الأماكن المطلوب التحديث (5 ملفات)
+## الحل المقترح
 
-| الملف | الموقع | الوصف |
-|-------|--------|-------|
-| `DebtPaymentModal.tsx` | صفحة متابعة الديون | دفع ديون العميل |
-| `PackagePaymentModal.tsx` | صفحة العميل - الباقات | دفع للباقة |
-| `SinglePolicyPaymentModal.tsx` | صفحة العميل - وثيقة فردية | دفع لوثيقة واحدة |
-| `PolicyPaymentsSection.tsx` | تفاصيل الوثيقة | إضافة دفعة للوثيقة |
-| `BrokerWallet.tsx` | محفظة الوسيط | دفع للوسيط |
+### 1. تحديث `send-bulk-debt-sms` Edge Function
 
----
+بدلاً من استخدام template بسيط، سنجعله يبني رسالة مفصلة تشبه `send-manual-reminder`:
 
-## التغييرات لكل ملف
+**الرسالة الجديدة:**
+```
+مرحباً {اسم العميل}،
 
-### لكل ملف سنضيف:
+لديك مبالغ متبقية:
+• شامل - سيارة 1234567: ₪2,000
+• سرفيس: ₪600
 
-1. **Import** للمكون:
-```tsx
-import { ChequeScannerDialog } from '@/components/payments/ChequeScannerDialog';
-import { Scan } from 'lucide-react';
+━━━━━━━━━━━━
+💰 المجموع المتبقي: ₪2,600
+
+AB للتأمين
+📍 بيت حنينا
+📞 026307377 | 0544494440
 ```
 
-2. **State** للـ dialog:
-```tsx
-const [showChequeScannerModal, setShowChequeScannerModal] = useState(false);
-```
+### 2. التغييرات المطلوبة
 
-3. **Function** لمعالجة الشيكات المكتشفة:
-```tsx
-const handleScannedCheques = (cheques: any[]) => {
-  const newPayments = cheques.map(cheque => ({
-    id: crypto.randomUUID(),
-    amount: cheque.amount || 0,
-    paymentType: 'cheque' as const,
-    paymentDate: cheque.payment_date || new Date().toISOString().split('T')[0],
-    chequeNumber: cheque.cheque_number || '',
-  }));
-  setPaymentLines(prev => [...prev, ...newPayments]);
-  toast.success(`تم إضافة ${newPayments.length} دفعة شيك`);
+#### ملف: `supabase/functions/send-bulk-debt-sms/index.ts`
+
+**التغييرات:**
+1. **إضافة دالة لأنواع الوثائق** - نفس الموجودة في `send-manual-reminder`:
+```typescript
+const POLICY_TYPE_LABELS: Record<string, string> = {
+  'THIRD_FULL': 'ثالث/شامل',
+  'ROAD_SERVICE': 'سرفيس',
+  'ACCIDENT_FEE_EXEMPTION': 'إعفاء رسوم الحادث',
 };
+
+function getPolicyTypeLabel(parent: string | null, child: string | null): string {
+  if (!parent) return '';
+  if (child && parent === 'THIRD_FULL') {
+    return child === 'FULL' ? 'شامل' : child === 'THIRD' ? 'ثالث' : child;
+  }
+  return POLICY_TYPE_LABELS[parent] || parent;
+}
 ```
 
-4. **زر** بجانب التقسيط:
-```tsx
-<Button
-  variant="outline"
-  size="sm"
-  onClick={() => setShowChequeScannerModal(true)}
->
-  <Scan className="h-4 w-4 ml-2" />
-  مسح شيكات
-</Button>
+2. **جلب تفاصيل الوثائق لكل عميل** - بدلاً من إرسال الرسالة مباشرة، نجلب وثائق كل عميل:
+```typescript
+// Get unpaid policies for this client
+const { data: policies } = await supabase
+  .from('policies')
+  .select(`
+    policy_type_parent,
+    policy_type_child,
+    insurance_price,
+    car:cars(car_number),
+    policy_payments(amount, refused)
+  `)
+  .eq('client_id', client.client_id)
+  .neq('policy_type_parent', 'ELZAMI')
+  .eq('cancelled', false)
+  .is('deleted_at', null);
 ```
 
-5. **Dialog** في نهاية الـ component:
-```tsx
-<ChequeScannerDialog
-  open={showChequeScannerModal}
-  onOpenChange={setShowChequeScannerModal}
-  onConfirm={handleScannedCheques}
-/>
+3. **بناء رسالة مفصلة مع footer الشركة**:
+```typescript
+// Get company footer info
+const companyLocation = smsSettings.company_location || '';
+const phoneLinks = smsSettings.company_phone_links || [];
+const phones = phoneLinks.map(p => p.phone).join(' | ');
+
+// Build policy lines
+const policyLines = unpaidPolicies.map(p => 
+  `• ${p.policyType}${p.carNumber ? ` - ${p.carNumber}` : ''}: ₪${p.remaining}`
+);
+
+// Build final message
+const message = `مرحباً ${clientName}،
+
+لديك مبالغ متبقية:
+${policyLines.join('\n')}
+
+━━━━━━━━━━━━
+💰 المجموع: ₪${totalRemaining}
+
+AB للتأمين
+📍 ${companyLocation}
+📞 ${phones}`;
 ```
-
----
-
-## موقع الزر في كل ملف
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ الدفعات                     [تقسيط] [مسح شيكات] [إضافة دفعة] │
-└─────────────────────────────────────────────────────────────┘
-```
-
-الزر سيكون بين "تقسيط" و "إضافة دفعة"
 
 ---
 
@@ -90,17 +109,34 @@ const handleScannedCheques = (cheques: any[]) => {
 
 | الملف | نوع التغيير |
 |-------|-------------|
-| `src/components/debt/DebtPaymentModal.tsx` | إضافة زر + dialog + handler |
-| `src/components/clients/PackagePaymentModal.tsx` | إضافة زر + dialog + handler |
-| `src/components/clients/SinglePolicyPaymentModal.tsx` | إضافة زر + dialog + handler |
-| `src/components/policies/PolicyPaymentsSection.tsx` | إضافة زر + dialog + handler |
-| `src/pages/BrokerWallet.tsx` | إضافة زر + dialog + handler |
+| `supabase/functions/send-bulk-debt-sms/index.ts` | تحديث - بناء رسالة مفصلة مع footer |
+
+---
+
+## شكل الرسالة النهائية
+
+```
+مرحباً أحمد محمد،
+
+لديك مبالغ متبقية:
+• شامل - 1234567: ₪3,000
+• سرفيس: ₪600
+• ثالث - 7654321: ₪2,000
+
+━━━━━━━━━━━━
+💰 المجموع: ₪5,600
+
+AB للتأمين
+📍 بيت حنينا
+📞 026307377 | 0544494440 | 0546060886
+```
 
 ---
 
 ## النتيجة المتوقعة
 
-1. **زر مسح شيكات** متاح في كل مكان يمكن الدفع فيه
-2. **العميل يمكنه المسح عدة مرات** - الشيكات الجديدة تُضاف للقائمة
-3. **تجربة موحدة** عبر كل النظام
-4. **تقليل وقت الإدخال** للدفعات بالشيكات
+1. **لا رقم وثيقة** - يُعرض نوع التأمين فقط (شامل/ثالث/سرفيس)
+2. **تفصيل لكل وثيقة** - العميل يعرف بالضبط ما عليه
+3. **Footer احترافي** - اسم الشركة + الموقع + أرقام التواصل
+4. **سطور منفصلة** - رسالة واضحة ومقروءة
+

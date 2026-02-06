@@ -704,7 +704,7 @@ export default function DebtTracking() {
             <div>
               <p className="text-sm text-muted-foreground mb-2">المبلغ المستحق</p>
               <p className="font-bold text-lg text-destructive">
-                {formatCurrency(selectedClient?.total_owed || 0)}
+                {formatCurrency(selectedClient?.total_remaining || 0)}
               </p>
             </div>
             <div className="space-y-2">

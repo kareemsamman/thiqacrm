@@ -1,44 +1,65 @@
-# خطة إصلاح قص صور الشيكات - تم التنفيذ ✅
 
-## ما تم تنفيذه
+# إصلاح مشكلة "فشل إرسال الطلب إلى Edge Function" - الرسائل الجماعية
 
-### 1. تحسين Edge Function (`process-cheque-scan`)
-- ✅ استخدام `gemini-2.5-pro` بدلاً من `gemini-2.5-flash` للدقة الأفضل
-- ✅ تحسين prompt مع chain-of-thought reasoning
-- ✅ إضافة دليل مرجعي لـ bounding box للشيكات المتعددة
-- ✅ التحقق من صحة وتقييد قيم bounding box
+## المشكلة المكتشفة
 
-### 2. تحسين ChequeScannerDialog
-- ✅ إضافة `base64ToBlob` helper function
-- ✅ تحسين `cropImageOnClient` مع التحقق من الصحة
-- ✅ إضافة كشف الصور السوداء (brightness check)
-- ✅ رفع الصور المقصوصة فوراً لـ CDN عبر `uploadChequeImageToCDN`
+عند النقر على "إرسال" في نافذة الرسائل الجماعية، يظهر خطأ:
+```
+خطأ - Failed to send a request to the Edge Function
+```
 
-### 3. إصلاح handleScannedCheques في جميع الملفات
-- ✅ `PolicyPaymentsSection.tsx` - إضافة صور للـ pendingImages
-- ✅ `PackagePaymentModal.tsx` - إضافة صور للـ pendingImages
-- ✅ `SinglePolicyPaymentModal.tsx` - إضافة صور للـ pendingImages
-- ✅ `DebtPaymentModal.tsx` - إضافة صور للـ pendingImages
-- ✅ `BrokerWallet.tsx` - حفظ CDN URL في cheque_image_url
+### دليل من السجلات:
+```
+OPTIONS | 404 | send-bulk-debt-sms
+```
+
+**السبب الجذري:**  
+الـ Edge Function `send-bulk-debt-sms` **موجودة في الكود** لكنها **غير منشورة (NOT DEPLOYED)** على الخادم.
 
 ---
 
-## التدفق بعد الإصلاح
+## الحل
 
+### نشر Edge Function
+
+الـ Function موجودة وصحيحة في:
+- `supabase/functions/send-bulk-debt-sms/index.ts` ✅
+- معرَّفة في `supabase/config.toml` ✅
+
+**لا يوجد تغييرات في الكود** - فقط يجب نشر الـ Function.
+
+---
+
+## التفاصيل التقنية
+
+### الـ Function تستخدم:
+- `verify_jwt = true` - تتطلب مصادقة المستخدم
+- تتصل بـ `sms_settings` للحصول على بيانات الـ SMS
+- تستخدم RPC `report_client_debts` للحصول على العملاء المدينين
+- ترسل رسائل عبر 019sms API
+
+### الكود موجود ويعمل:
+```typescript
+// CORS headers ✅
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, ..."
+};
+
+// OPTIONS handler ✅
+if (req.method === "OPTIONS") {
+  return new Response("ok", { headers: corsHeaders });
+}
+
+// Auth verification ✅
+const token = authHeader.replace("Bearer ", "");
+const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 ```
-1. المستخدم يمسح صفحة فيها شيكات
-              ↓
-2. AI (gemini-2.5-pro) يكتشف الشيكات + bounding_box دقيق
-              ↓
-3. المتصفح يقص كل شيك من الصورة الأصلية (مع التحقق من الجودة)
-              ↓
-4. الصورة المقصوصة تُرفع فوراً لـ Bunny CDN
-              ↓
-5. عرض الشيكات مع الصور المقصوصة + CDN URLs
-              ↓
-6. النقر على "إضافة كدفعات"
-              ↓
-7. الدفعات تُنشأ مع صور في pendingImages
-              ↓
-8. الصور تظهر في قسم "صور الشيك" فوراً
-```
+
+---
+
+## النتيجة المتوقعة بعد النشر
+
+- ✅ زر "إرسال" في الرسائل الجماعية يعمل
+- ✅ إرسال رسائل تذكير لجميع العملاء المدينين
+- ✅ تسجيل الرسائل في `sms_logs`

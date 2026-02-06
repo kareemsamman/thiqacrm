@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { 
   Printer, 
   Loader2, 
@@ -58,6 +59,13 @@ interface ChequeScannerDialogProps {
 
 type Stage = 'scanning' | 'processing' | 'results';
 
+// Helper to format elapsed time
+const formatElapsedTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 export function ChequeScannerDialog({
   open,
   onOpenChange,
@@ -72,6 +80,27 @@ export function ChequeScannerDialog({
   const [detectedCheques, setDetectedCheques] = useState<DetectedCheque[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Progress tracking state
+  const [processingProgress, setProcessingProgress] = useState({
+    totalImages: 0,
+    estimatedSeconds: 0,
+    elapsedSeconds: 0,
+  });
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup timer on unmount or stage change
+  useEffect(() => {
+    if (stage !== 'processing' && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [stage]);
 
   const checkScannerReady = useCallback((): boolean => {
     if (!window.scanner) {
@@ -221,6 +250,24 @@ export function ChequeScannerDialog({
     setIsProcessing(true);
     setStage('processing');
     setError(null);
+    
+    // Start progress tracking
+    const estimatedSecondsPerImage = 12; // ~12 seconds per image with Gemini 3 Pro
+    const totalEstimated = scannedImages.length * estimatedSecondsPerImage;
+    setProcessingProgress({
+      totalImages: scannedImages.length,
+      estimatedSeconds: totalEstimated,
+      elapsedSeconds: 0,
+    });
+    
+    // Start elapsed time counter
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setProcessingProgress(prev => ({
+        ...prev,
+        elapsedSeconds: prev.elapsedSeconds + 1
+      }));
+    }, 1000);
 
     try {
       // Remove data URL prefix for each image
@@ -262,6 +309,11 @@ export function ChequeScannerDialog({
       setError(err instanceof Error ? err.message : 'خطأ في معالجة الشيكات');
       setStage('scanning');
     } finally {
+      // Stop the timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       setIsProcessing(false);
     }
   }, [scannedImages]);
@@ -477,11 +529,44 @@ export function ChequeScannerDialog({
 
           {/* Stage: Processing */}
           {stage === 'processing' && (
-            <div className="py-12 text-center">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary mb-4" />
-              <p className="text-lg font-medium">جاري تحليل الشيكات...</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                يتم استخدام الذكاء الاصطناعي للكشف عن الشيكات واستخراج البيانات
+            <div className="py-8 text-center space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+              
+              <div>
+                <p className="text-lg font-medium">جاري تحليل الشيكات...</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  يتم استخدام الذكاء الاصطناعي للكشف عن الشيكات
+                </p>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="max-w-xs mx-auto">
+                <Progress 
+                  value={Math.min(
+                    (processingProgress.elapsedSeconds / processingProgress.estimatedSeconds) * 100, 
+                    95
+                  )} 
+                  className="h-2"
+                />
+              </div>
+              
+              {/* Time Info */}
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  الوقت المقدر: ~{processingProgress.estimatedSeconds < 60 
+                    ? `${processingProgress.estimatedSeconds} ثانية`
+                    : `${Math.ceil(processingProgress.estimatedSeconds / 60)} دقيقة`
+                  }
+                  {processingProgress.totalImages > 1 && ` (${processingProgress.totalImages} صور)`}
+                </p>
+                <p className="text-xs mt-1">
+                  انقضى: {formatElapsedTime(processingProgress.elapsedSeconds)}
+                </p>
+              </div>
+              
+              {/* Tip */}
+              <p className="text-xs text-muted-foreground/70">
+                💡 كلما كانت الصورة أوضح، كان التحليل أسرع وأدق
               </p>
             </div>
           )}

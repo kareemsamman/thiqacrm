@@ -1,40 +1,49 @@
 
 
-# Fix: Cheques Not Appearing After Adding from Cheques Page
+# Fix: فشل حفظ الشيكات - Trigger Validation Blocking
 
-## What Happened
+## Root Cause
 
-The cheques you just added for "اشرف زياد ناصر" (9 cheques) went to the wrong table (`client_payments`) because your browser was running the old code. The Cheques page only reads from `policy_payments`, so they don't appear.
+A database trigger (`trg_validate_policy_payment_total`) validates that the total payments for any single policy don't exceed the policy's insurance price. The current code assigns each full cheque (1,800) to one policy, stacking 4 cheques on a policy worth 6,524 -- the trigger sees 7,200 > 6,524 and blocks the insert.
 
-## What Will Be Done
+## Solution
 
-### 1. Delete the 9 orphan cheque records from `client_payments`
-- 9 records created today (2026-02-10) for اشرف زياد ناصر
-- Cheque numbers: 80001255 through 80001262 (including duplicate 80001258)
-- These are invisible and don't affect any balance
+Two changes are needed:
 
-### 2. Fix `AddCustomerChequeModal.tsx` to be more robust
-- Add `cheque_status: 'pending'` to every insert (currently missing)
-- Add better error logging with `console.error` so issues are visible in logs
-- Add a fallback: if no payable policies exist, still allow saving by assigning to the first active non-ELZAMI policy (even if fully paid) -- this prevents the "all paid" block for cases like this customer
+### 1. Modify the validation trigger to skip batch cheque entries
 
-### 3. After the fix
-- You will need to re-enter the 9 cheques for اشرف زياد ناصر from the Cheques page
-- They will save correctly to `policy_payments` and appear immediately
-- They will properly deduct from the customer's wallet/balance
+Add an exception for payments with `batch_id` that have the notes marker `'شيك من صفحة الشيكات'`. Since these are bulk cheque entries managed by the application logic and meant to reduce overall client debt, the per-policy cap should not apply. The trigger will still protect all other payment paths.
 
-## Technical Details
+```sql
+-- At the top of validate_policy_payment_total, add:
+IF NEW.batch_id IS NOT NULL AND NEW.notes = 'شيك من صفحة الشيكات' THEN
+  RETURN NEW;
+END IF;
+```
+
+### 2. Improve cheque distribution in `AddCustomerChequeModal.tsx`
+
+Change the distribution logic to split a single cheque across multiple policies when needed, instead of assigning the full cheque amount to one policy. This way each policy stays within its limit even if the trigger runs.
+
+Current behavior:
+- Cheque of 1,800 -> find ONE policy with enough space -> assign full amount
+- If no policy has enough space -> assign to last policy (trigger fails)
+
+New behavior:
+- Cheque of 1,800 -> fill first policy's remaining, then overflow to next policy
+- Each insert stays within the policy's limit
+- `cheque_number` and `cheque_image_url` are preserved on all split records
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/cheques/AddCustomerChequeModal.tsx` | Add `cheque_status: 'pending'` to insert object, improve error handling |
-| Database cleanup | Delete 9 orphan records from `client_payments` |
+| Database migration | Modify `validate_policy_payment_total` trigger to skip batch cheque entries |
+| `src/components/cheques/AddCustomerChequeModal.tsx` | Split cheques across policies instead of assigning whole cheque to one policy |
 
-### Insert object fix (line ~271):
-```typescript
-// Before (missing cheque_status)
-{ policy_id, amount, payment_type: 'cheque', ... }
+### Result
 
-// After
-{ policy_id, amount, payment_type: 'cheque', cheque_status: 'pending', ... }
-```
+- Cheques for اشرف زياد ناصر (and any future customer) will save successfully
+- Each cheque is distributed across policies respecting per-policy limits
+- The trigger still protects against overpayment in all other flows (debt modal, policy payments, etc.)
+

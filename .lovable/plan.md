@@ -1,115 +1,63 @@
 
-# خطة إصلاح مشكلة اختيار العميل الخاطئ عند إنشاء وثيقة جديدة
+# خطة إصلاح شيكات العملاء في صفحة الشيكات
 
 ## المشكلة
 
-عندما يفتح المستخدم نافذة إنشاء وثيقة جديدة من ملف عميل معين (مثل "Kareem Test")، ثم يغيّر العميل لآخر من القائمة، أحياناً يتم إنشاء الوثيقة للعميل الأصلي بدلاً من العميل الجديد.
+عند إضافة شيكات لعميل من صفحة `/cheques`، يتم حفظها في جدول `client_payments` الذي:
+1. **لا يظهر في صفحة الشيكات** - لأن الصفحة تقرأ فقط من `policy_payments`
+2. **لا يؤثر على رصيد العميل** - لأن دالة `get_client_balance` تقرأ فقط من `policy_payments` + `customer_wallet_transactions`
 
-## السبب الجذري
-
-**Race Condition في الـ async effect**:
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  1. المستخدم في ملف "كريم" → يضغط "وثيقة جديدة"                      │
-│  2. preselectedClientId = "كريم_ID"                                  │
-│  3. useEffect يبدأ fetchPreselectedClient() (async) ⏳               │
-│  4. المستخدم يضغط "تغيير" → يختار "محمد" من القائمة ✓                │
-│  5. selectedClient = "محمد" (صحيح حتى الآن)                          │
-│  6. الـ async call ينتهي → setSelectedClient("كريم") ❌              │
-│  7. النتيجة: العميل "كريم" بدلاً من "محمد" ❌                         │
-└─────────────────────────────────────────────────────────────────────┘
-```
+الشيكات موجودة فعلاً في `client_payments` مع الصور (9 شيكات لأشرف زياد ناصر)، لكنها "ضائعة" ولا تظهر في أي مكان.
 
 ## الحل
 
-### التغيير المطلوب في `usePolicyWizardState.ts`
+تغيير `AddCustomerChequeModal` ليحفظ الشيكات كـ `policy_payments` بدلاً من `client_payments`. بما أن هذه شيكات عامة للعميل (غير مرتبطة بوثيقة محددة)، سنربطها بأول وثيقة نشطة للعميل ونوزع المبالغ تلقائياً على وثائقه غير المدفوعة - بنفس المنطق المستخدم في `DebtPaymentModal`.
 
-إضافة آلية إلغاء (cleanup) للـ effect الـ async لمنع تعيين العميل القديم إذا تغيّر:
+### التغييرات المطلوبة:
 
-**قبل (السطور 79-100):**
-```typescript
-// Auto-select preselected client
-useEffect(() => {
-  if (!preselectedClientId || !open) return;
-  if (selectedClient?.id === preselectedClientId) return;
+### 1. تعديل `AddCustomerChequeModal.tsx` - منطق الحفظ
 
-  const fetchPreselectedClient = async () => {
-    setLoadingClients(true);
-    const { data, error } = await supabase
-      .from('clients')
-      .select('...')
-      .eq('id', preselectedClientId)
-      .single();
-    
-    setLoadingClients(false);
-    if (!error && data) {
-      setSelectedClient(data as Client);  // ❌ Race condition هنا!
-      setCreateNewClient(false);
-    }
-  };
+**تغيير الـ `handleSave`** ليعمل بنفس طريقة `DebtPaymentModal`:
+- جلب وثائق العميل غير المدفوعة بالكامل
+- حساب المبلغ المتبقي لكل وثيقة
+- توزيع كل شيك على الوثائق (بالترتيب) حتى يتم تغطية المبلغ
+- حفظ في `policy_payments` مع `batch_id` لربط الشيكات ببعضها
+- حذف أي سجلات سابقة في `client_payments` إذا وُجدت
 
-  fetchPreselectedClient();
-}, [preselectedClientId, open]);
+### 2. حذف الشيكات القديمة من `client_payments`
+
+الـ 9 شيكات الموجودة حالياً لأشرف زياد ناصر في `client_payments` يجب حذفها لأنها لا تؤثر على أي حساب.
+
+---
+
+## التفاصيل التقنية
+
+### منطق التوزيع في `handleSave`:
+
+```text
+1. جلب وثائق العميل النشطة (غير الملغاة، غير المحولة، بدون وسيط)
+2. لكل وثيقة: حساب المتبقي = insurance_price - مجموع policy_payments
+3. ترتيب الوثائق بالمتبقي الأكبر أولاً
+4. لكل شيك:
+   - توزيع المبلغ على الوثائق التي لديها رصيد متبقي
+   - إنشاء سجل policy_payments لكل جزء
+   - تضمين cheque_image_url و cheque_number و batch_id
+5. إذا تبقى مبلغ بعد تغطية كل الوثائق → تحذير المستخدم
 ```
 
-**بعد:**
-```typescript
-// Auto-select preselected client
-useEffect(() => {
-  if (!preselectedClientId || !open) return;
-  if (selectedClient?.id === preselectedClientId) return;
+### الملفات المتأثرة:
 
-  let cancelled = false;  // Flag لإلغاء الـ async call
+| الملف | التغيير |
+|-------|---------|
+| `src/components/cheques/AddCustomerChequeModal.tsx` | تغيير handleSave ليحفظ في policy_payments مع توزيع على الوثائق |
 
-  const fetchPreselectedClient = async () => {
-    setLoadingClients(true);
-    const { data, error } = await supabase
-      .from('clients')
-      .select('...')
-      .eq('id', preselectedClientId)
-      .single();
-    
-    setLoadingClients(false);
-    
-    // ✅ تحقق: لا تعيّن العميل إذا تم الإلغاء أو إذا تغيّر العميل
-    if (cancelled) return;
-    
-    if (!error && data) {
-      setSelectedClient(data as Client);
-      setCreateNewClient(false);
-    }
-  };
+### بيانات يجب تنظيفها:
 
-  fetchPreselectedClient();
-  
-  // ✅ Cleanup: إلغاء إذا تغيّر preselectedClientId أو أُغلق الـ dialog
-  return () => {
-    cancelled = true;
-  };
-}, [preselectedClientId, open]);
-```
-
-## ملخص التغييرات
-
-| الملف | السطر | التغيير |
-|-------|-------|---------|
-| `usePolicyWizardState.ts` | 79-100 | إضافة `cancelled` flag و cleanup function |
-
-## التحسين الإضافي (اختياري)
-
-لمنع المشكلة بشكل أكثر صرامة، يمكن إضافة تحقق إضافي عند انتهاء الـ async call:
-
-```typescript
-// ✅ لا تعيّن إذا تم تغيير العميل يدوياً خلال فترة التحميل
-if (cancelled || (selectedClient && selectedClient.id !== preselectedClientId)) return;
-```
-
-لكن هذا يتطلب جعل `selectedClient` جزءاً من الـ dependencies مما قد يسبب إعادة تشغيل غير مرغوبة. لذلك الحل الأول (cancelled flag) هو الأفضل.
+حذف 9 سجلات أشرف زياد ناصر من `client_payments` (client_id: `79342964-cef5-46c2-9113-a97cedb5155b`) لأنها لا تظهر في أي مكان ولا تؤثر على الحسابات.
 
 ## النتيجة المتوقعة
 
-بعد التنفيذ:
-- ✅ عند فتح النافذة من ملف عميل، سيتم اختياره تلقائياً
-- ✅ إذا غيّر المستخدم العميل قبل انتهاء التحميل، لن يتم استبدال اختياره
-- ✅ لا race condition بين الـ async fetch واختيار المستخدم
+- الشيكات المضافة من صفحة `/cheques` ستظهر مباشرة في الصفحة
+- الشيكات ستخصم فعلياً من رصيد العميل المتبقي
+- صور الشيكات ستظهر بشكل صحيح
+- يمكن تغيير حالة الشيك (تم صرفه / مرتجع) من الصفحة

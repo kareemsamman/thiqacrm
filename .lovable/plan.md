@@ -1,23 +1,86 @@
 
+# تحويل صفحة المصاريف إلى نظام سندات قبض وصرف
 
-# Rename "صغير" Car Type to "اوتوبس زعير"
+## الفكرة
+تحويل صفحة "المصاريف" الحالية إلى نظام محاسبي كامل يتتبع كل حركة مالية:
+- **سند صرف** (Payment Voucher): أي مبلغ يخرج من AB (إيجار، رواتب، دفع لشركة تأمين، إلخ)
+- **سند قبض** (Receipt Voucher): أي مبلغ يدخل إلى AB (قسط تأمين من عميل، عمولة، إلخ)
 
-Replace all occurrences of the `small` car type label from "صغير" / "صغيرة" to "اوتوبس زعير" across all files.
+كل شهر يظهر ملخص: كم دخل، كم خرج، والفرق (صافي الشهر).
 
-## Files to Update
+## التغييرات
 
-| File | Current Label | New Label |
-|------|--------------|-----------|
-| `src/components/cars/CarDrawer.tsx` | `دراجة نارية` | `اوتوبس زعير` |
-| `src/pages/Cars.tsx` | `صغير` | `اوتوبس زعير` |
-| `src/pages/CompanySettlementDetail.tsx` | `صغيرة` | `اوتوبس زعير` |
-| `src/components/policies/PolicyDetailsDrawer.tsx` | `صغير` | `اوتوبس زعير` |
-| `src/components/clients/ClientDetails.tsx` | `صغير` | `اوتوبس زعير` |
-| `src/components/clients/ClientReportModal.tsx` | `صغير` | `اوتوبس زعير` |
-| `src/components/policies/wizard/types.ts` | `صغير` | `اوتوبس زعير` |
-| `supabase/functions/generate-invoice-pdf/index.ts` | `صغيرة` | `اوتوبس زعير` |
-| `supabase/functions/send-invoice-sms/index.ts` | `صغيرة` | `اوتوبس زعير` |
-| `supabase/functions/send-package-invoice-sms/index.ts` | `صغيرة` | `اوتوبس زعير` |
+### 1. تعديل جدول `expenses` في قاعدة البيانات
+- إضافة عمود `voucher_type` (نوع السند): `receipt` (قبض) أو `payment` (صرف)
+- إضافة عمود `payment_method`: cash / cheque / bank_transfer / visa
+- إضافة عمود `reference_number` (رقم مرجعي اختياري)
+- إضافة عمود `contact_name` (اسم الجهة - من دفع أو لمن دفعت)
+- تحديث القيم الافتراضية: `voucher_type` = `payment` للتوافق مع البيانات القديمة
 
-All changes are simple label replacements for the `small` key in car type mappings. No logic changes needed. The edge functions will be redeployed automatically.
+### 2. إعادة بناء صفحة `Expenses.tsx` بالكامل
+**الشريط العلوي (Summary Cards)**:
+- بطاقة "إجمالي سندات القبض" (أخضر) - كل ما دخل هذا الشهر
+- بطاقة "إجمالي سندات الصرف" (أحمر) - كل ما خرج هذا الشهر
+- بطاقة "صافي الشهر" (أزرق) - الفرق بينهم
 
+**الفلاتر (احترافية)**:
+- تبويبات: الكل | سند قبض | سند صرف
+- فلتر حسب التصنيف (category)
+- فلتر حسب طريقة الدفع
+- بحث نصي في الوصف/الملاحظات
+- تنقل بين الأشهر (موجود حاليا)
+
+**الجدول**:
+- عمود "نوع السند" مع badge ملون (أخضر لقبض، أحمر لصرف)
+- التاريخ
+- التصنيف
+- الوصف
+- الجهة (contact_name)
+- طريقة الدفع
+- المبلغ (أخضر إذا قبض، أحمر إذا صرف)
+- رقم مرجعي
+- إجراءات (تعديل/حذف)
+
+**نموذج الإضافة/التعديل**:
+- اختيار نوع السند (سند قبض / سند صرف) - زرين كبيرين واضحين
+- التصنيف (تصنيفات مختلفة حسب النوع)
+- الوصف
+- اسم الجهة
+- المبلغ
+- طريقة الدفع
+- التاريخ
+- رقم مرجعي (اختياري)
+- ملاحظات
+
+### 3. تحديث تصنيفات المصاريف
+**تصنيفات سند الصرف**:
+- إيجار المكتب
+- معاشات الموظفين
+- طعام المكتب
+- فواتير (كهرباء/ماء/إنترنت)
+- دفع لشركة تأمين
+- مصاريف أخرى
+
+**تصنيفات سند القبض**:
+- قسط تأمين
+- عمولة
+- تحصيل دين
+- إيرادات أخرى
+
+### 4. تحديث `FinancialReports.tsx`
+- تعديل حساب المصاريف ليأخذ بعين الاعتبار `voucher_type`
+- عرض سندات القبض والصرف بشكل منفصل
+
+## الملفات المتأثرة
+
+| ملف | تغيير |
+|-----|--------|
+| DB Migration | إضافة أعمدة `voucher_type`, `payment_method`, `reference_number`, `contact_name` |
+| `src/pages/Expenses.tsx` | إعادة بناء كاملة مع نظام السندات والفلاتر |
+| `src/pages/FinancialReports.tsx` | تعديل حسابات المصاريف لتفريق قبض/صرف |
+
+## التفاصيل التقنية
+- البيانات القديمة تبقى كما هي مع `voucher_type = 'payment'` كقيمة افتراضية
+- الفلترة server-side عبر Supabase queries
+- التنقل بين الأشهر يبقى كما هو
+- RLS policies موجودة أصلا على جدول expenses

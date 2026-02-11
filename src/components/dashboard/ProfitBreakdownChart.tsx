@@ -68,7 +68,7 @@ export function ProfitBreakdownChart({ elzamiCommission, otherProfit, loading }:
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`₪${value.toLocaleString('ar-EG')}`, '']}
+                formatter={(value: number) => [`₪${value.toLocaleString('en-US')}`, '']}
                 contentStyle={{ 
                   direction: 'rtl', 
                   textAlign: 'right',
@@ -84,12 +84,12 @@ export function ProfitBreakdownChart({ elzamiCommission, otherProfit, loading }:
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[0] }} />
             <span className="text-muted-foreground">عمولة إلزامي:</span>
-            <span className="font-medium">₪{elzamiCommission.toLocaleString('ar-EG')}</span>
+            <span className="font-medium">₪{elzamiCommission.toLocaleString('en-US')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[1] }} />
             <span className="text-muted-foreground">أرباح أخرى:</span>
-            <span className="font-medium">₪{otherProfit.toLocaleString('ar-EG')}</span>
+            <span className="font-medium">₪{otherProfit.toLocaleString('en-US')}</span>
           </div>
         </div>
       </CardContent>

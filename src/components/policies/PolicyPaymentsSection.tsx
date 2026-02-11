@@ -583,7 +583,7 @@ export function PolicyPaymentsSection({
     
     if (newTotal > insurancePrice) {
       const maxAllowed = insurancePrice - otherPaymentsTotal;
-      setEditValidationError(`المبلغ يتجاوز سعر التأمين! الحد الأقصى المسموح: ₪${maxAllowed.toLocaleString('ar-EG')}`);
+      setEditValidationError(`المبلغ يتجاوز سعر التأمين! الحد الأقصى المسموح: ₪${maxAllowed.toLocaleString('en-US')}`);
       return false;
     }
     

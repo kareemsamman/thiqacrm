@@ -361,7 +361,7 @@ export default function CompanySettlement() {
           <TabsList>
             <TabsTrigger value="with-company" className="gap-2">
               <Building2 className="h-4 w-4" />
-              الوثائق مع شركات ({summary.totalPolicies.toLocaleString('ar-EG')})
+              الوثائق مع شركات ({summary.totalPolicies.toLocaleString('en-US')})
             </TabsTrigger>
             <TabsTrigger value="no-company" className="gap-2">
               <AlertTriangle className="h-4 w-4" />
@@ -500,7 +500,7 @@ export default function CompanySettlement() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">عدد الوثائق</p>
-                      <p className="text-2xl font-bold">{summary.totalPolicies.toLocaleString('ar-EG')}</p>
+                      <p className="text-2xl font-bold">{summary.totalPolicies.toLocaleString('en-US')}</p>
                     </div>
                     <div className="rounded-xl bg-primary/10 p-3">
                       <FileText className="h-6 w-6 text-primary" />
@@ -514,7 +514,7 @@ export default function CompanySettlement() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">إجمالي المحصل</p>
-                      <p className="text-2xl font-bold">₪{summary.totalInsurancePrice.toLocaleString('ar-EG')}</p>
+                      <p className="text-2xl font-bold">₪{summary.totalInsurancePrice.toLocaleString('en-US')}</p>
                     </div>
                     <div className="rounded-xl bg-blue-500/10 p-3">
                       <Wallet className="h-6 w-6 text-blue-500" />
@@ -528,7 +528,7 @@ export default function CompanySettlement() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">المستحق للشركات</p>
-                      <p className="text-2xl font-bold text-destructive">₪{summary.totalCompanyPayment.toLocaleString('ar-EG')}</p>
+                      <p className="text-2xl font-bold text-destructive">₪{summary.totalCompanyPayment.toLocaleString('en-US')}</p>
                     </div>
                     <div className="rounded-xl bg-destructive/10 p-3">
                       <Building2 className="h-6 w-6 text-destructive" />
@@ -586,10 +586,10 @@ export default function CompanySettlement() {
                                 <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                               </div>
                             </TableCell>
-                            <TableCell>{item.policy_count.toLocaleString('ar-EG')}</TableCell>
-                            <TableCell>₪{item.total_insurance_price.toLocaleString('ar-EG')}</TableCell>
+                            <TableCell>{item.policy_count.toLocaleString('en-US')}</TableCell>
+                            <TableCell>₪{item.total_insurance_price.toLocaleString('en-US')}</TableCell>
                             <TableCell className="text-destructive font-medium">
-                              ₪{item.total_company_payment.toLocaleString('ar-EG')}
+                              ₪{item.total_company_payment.toLocaleString('en-US')}
                             </TableCell>
                           </TableRow>
                         ))
@@ -666,7 +666,7 @@ export default function CompanySettlement() {
                             </TableCell>
                             <TableCell>{formatDate(policy.start_date)}</TableCell>
                             <TableCell className="font-mono">
-                              ₪{Number(policy.insurance_price).toLocaleString('ar-EG')}
+                              ₪{Number(policy.insurance_price).toLocaleString('en-US')}
                             </TableCell>
                             <TableCell>
                               {policy.cancelled ? (
@@ -709,15 +709,15 @@ export default function CompanySettlement() {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="border p-4 text-center">
               <p className="text-sm text-muted-foreground">عدد الوثائق</p>
-              <p className="text-xl font-bold">{summary.totalPolicies.toLocaleString('ar-EG')}</p>
+              <p className="text-xl font-bold">{summary.totalPolicies.toLocaleString('en-US')}</p>
             </div>
             <div className="border p-4 text-center">
               <p className="text-sm text-muted-foreground">إجمالي المحصل</p>
-              <p className="text-xl font-bold">₪{summary.totalInsurancePrice.toLocaleString('ar-EG')}</p>
+              <p className="text-xl font-bold">₪{summary.totalInsurancePrice.toLocaleString('en-US')}</p>
             </div>
             <div className="border p-4 text-center">
               <p className="text-sm text-muted-foreground">المستحق للشركات</p>
-              <p className="text-xl font-bold">₪{summary.totalCompanyPayment.toLocaleString('ar-EG')}</p>
+              <p className="text-xl font-bold">₪{summary.totalCompanyPayment.toLocaleString('en-US')}</p>
             </div>
           </div>
 
@@ -735,9 +735,9 @@ export default function CompanySettlement() {
               {data.map((item, index) => (
                 <tr key={index}>
                   <td className="border p-2">{item.company_name_ar || item.company_name}</td>
-                  <td className="border p-2">{item.policy_count.toLocaleString('ar-EG')}</td>
-                  <td className="border p-2">₪{item.total_insurance_price.toLocaleString('ar-EG')}</td>
-                  <td className="border p-2">₪{item.total_company_payment.toLocaleString('ar-EG')}</td>
+                  <td className="border p-2">{item.policy_count.toLocaleString('en-US')}</td>
+                  <td className="border p-2">₪{item.total_insurance_price.toLocaleString('en-US')}</td>
+                  <td className="border p-2">₪{item.total_company_payment.toLocaleString('en-US')}</td>
                 </tr>
               ))}
             </tbody>

@@ -341,7 +341,7 @@ export function RoadServicePricingDrawer({ open, onOpenChange, company }: RoadSe
                       </TableCell>
                       <TableCell>
                         <span className={price.selling_price - price.company_cost >= 0 ? 'text-success font-medium' : 'text-destructive font-medium'}>
-                          ₪{(price.selling_price - price.company_cost).toLocaleString('ar-EG')}
+                          ₪{(price.selling_price - price.company_cost).toLocaleString('en-US')}
                         </span>
                       </TableCell>
                       <TableCell>

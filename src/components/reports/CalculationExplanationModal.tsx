@@ -407,7 +407,7 @@ export function CalculationExplanationModal({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">قيمة السيارة:</span>
-                    <span className="font-medium font-mono">₪{(policy.car.car_value || 0).toLocaleString('ar-EG')}</span>
+                    <span className="font-medium font-mono">₪{(policy.car.car_value || 0).toLocaleString('en-US')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">سنة الصنع:</span>
@@ -432,15 +432,15 @@ export function CalculationExplanationModal({
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">سعر التأمين:</span>
-                  <p className="font-bold font-mono text-lg">₪{insurancePrice.toLocaleString('ar-EG')}</p>
+                  <p className="font-bold font-mono text-lg">₪{insurancePrice.toLocaleString('en-US')}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">المستحق للشركة:</span>
-                  <p className="font-bold font-mono text-lg text-destructive">₪{companyPayment.toLocaleString('ar-EG')}</p>
+                  <p className="font-bold font-mono text-lg text-destructive">₪{companyPayment.toLocaleString('en-US')}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">الربح:</span>
-                  <p className="font-bold font-mono text-lg text-success">₪{profit.toLocaleString('ar-EG')}</p>
+                  <p className="font-bold font-mono text-lg text-success">₪{profit.toLocaleString('en-US')}</p>
                 </div>
               </div>
             </div>
@@ -460,12 +460,12 @@ export function CalculationExplanationModal({
               </div>
               <div className="text-sm font-mono space-y-1">
                 <p>سعر التأمين = الربح + المستحق للشركة</p>
-                <p>₪{insurancePrice.toLocaleString('ar-EG')} = ₪{profit.toLocaleString('ar-EG')} + ₪{companyPayment.toLocaleString('ar-EG')}</p>
-                <p>₪{insurancePrice.toLocaleString('ar-EG')} = ₪{calculatedSum.toLocaleString('ar-EG')}</p>
+                <p>₪{insurancePrice.toLocaleString('en-US')} = ₪{profit.toLocaleString('en-US')} + ₪{companyPayment.toLocaleString('en-US')}</p>
+                <p>₪{insurancePrice.toLocaleString('en-US')} = ₪{calculatedSum.toLocaleString('en-US')}</p>
                 {isValid ? (
                   <p className="text-success font-semibold">✓ الحسبة صحيحة</p>
                 ) : (
-                  <p className="text-destructive font-semibold">✗ يوجد خطأ في الحسبة (فرق: ₪{Math.abs(calculatedSum - insurancePrice).toLocaleString('ar-EG')})</p>
+                  <p className="text-destructive font-semibold">✗ يوجد خطأ في الحسبة (فرق: ₪{Math.abs(calculatedSum - insurancePrice).toLocaleString('en-US')})</p>
                 )}
               </div>
             </div>

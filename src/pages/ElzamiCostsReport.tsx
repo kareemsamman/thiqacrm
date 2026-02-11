@@ -112,7 +112,7 @@ export default function ElzamiCostsReport() {
   }, [fetchData]);
 
   const formatCurrency = (amount: number) => {
-    return `₪${amount.toLocaleString('ar-EG', { maximumFractionDigits: 0 })}`;
+    return `₪${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   };
 
   const handleClearFilters = () => {

@@ -215,10 +215,10 @@ export function ClientsTable() {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    ₪{client.totalDue.toLocaleString('ar-EG')}
+                    ₪{client.totalDue.toLocaleString('en-US')}
                   </TableCell>
                   <TableCell className="font-medium text-success">
-                    ₪{client.totalPaid.toLocaleString('ar-EG')}
+                    ₪{client.totalPaid.toLocaleString('en-US')}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusConfig[client.status as keyof typeof statusConfig].variant}>

@@ -1,82 +1,42 @@
 
 
-# تحسينات صفحة تفاصيل تسوية الشركة + تحديث تقرير HTML
+# إصلاحات صفحة تسوية الشركة + تقرير HTML
 
-## 1. تسريع التعديل المباشر (Inline Edit)
-حاليا عند الحفظ يتم إعادة جلب كل البيانات من السيرفر (`fetchCompanyAndPolicies`) مما يسبب بطء. سيتم تحويله إلى **تحديث متفائل (optimistic update)**: تحديث البيانات في الذاكرة فورا ثم إرسال التعديل للسيرفر في الخلفية بدون إعادة تحميل.
+## 1. تعديل قيمة السيارة لأي بوليصة (وليس فقط شامل)
+حاليا خانة "قيمة السيارة" تظهر فقط كحقل قابل للتعديل عند بوالص الشامل. سيتم تعديلها لتكون قابلة للتعديل لأي بوليصة عند الضغط على زر التعديل، حتى لو لم يكن هناك سعر مسبق.
 
-## 2. اسم العميل كرابط لصفحة العميل
-الضغط على اسم العميل في الجدول سينقل المستخدم إلى `/clients` مع فتح تفاصيل العميل مباشرة (navigate to client page).
+## 2. إضافة حالة "محولة" في تقرير HTML
+حاليا تقرير HTML يعرض فقط "ملغية" أو "فعالة". سيتم:
+- إضافة حقلي `transferred` و `transferred_to_car_number` في استعلام البيانات
+- تحديث عمود الحالة ليعرض 3 حالات: فعالة / ملغية / محولة (مع رقم السيارة المحولة إليها)
 
-## 3. قيمة السيارة قابلة للتعديل المباشر
-إضافة `car_value` إلى حقول التعديل المباشر. عند الحفظ يتم تحديث جدول `cars` بالإضافة لجدول `policies`.
+## 3. إضافة زر بحث في فلاتر صفحة CompanySettlement الرئيسية
+حاليا حقل البحث موجود لكنه يبحث فورا أثناء الكتابة. المستخدم يريد زر بحث واضح بجانب حقل البحث.
 
-## 4. تحديث تقرير HTML (Edge Function)
-تحديث `generate-settlement-report` ليشمل الأعمدة الجديدة:
-- الشركة المصنعة (manufacturer_name)
-- تصنيف السيارة (car_type)
-- قيمة السيارة (للشامل فقط)
-
-استعلام الـ cars سيتغير من `cars (car_number)` إلى `cars (car_number, manufacturer_name, car_type, car_value)`.
-
-## 5. إضافة زر بحث في صفحة CompanySettlement الرئيسية
-إضافة حقل بحث في منطقة الفلاتر بصفحة `/reports/company-settlement`.
-
-## 6. إزالة زر الطباعة من شريط الفلاتر
-إزالة زر الطابعة (Printer) من الفلاتر في `CompanySettlementDetail.tsx` (السطر 650-652).
+## 4. إزالة زر الطباعة (Printer) من فلاتر CompanySettlementDetail
+الزر غير موجود حاليا في الكود (تم حذفه سابقا) - لا حاجة لتغيير.
 
 ## التفاصيل التقنية
 
 ### ملف: `src/pages/CompanySettlementDetail.tsx`
-
-**تسريع التعديل:**
-- بدلا من `fetchCompanyAndPolicies()` بعد الحفظ، تحديث `policies` state مباشرة:
-```typescript
-setPolicies(prev => prev.map(p => 
-  p.id === editingPolicyId 
-    ? { ...p, insurance_price: editValues.insurance_price, ... } 
-    : p
-));
-```
-
-**رابط العميل:**
-- تغيير خلية اسم العميل ليصبح رابط قابل للنقر:
-```typescript
-<span className="text-primary cursor-pointer hover:underline"
-  onClick={() => navigate(`/clients?clientId=${policy.client?.id}`)}>
-  {policy.client?.full_name}
-</span>
-```
-
-**تعديل قيمة السيارة:**
-- إضافة `car_value` في `editValues` state
-- إضافة Input في خلية قيمة السيارة عند التعديل
-- عند الحفظ: تحديث `supabase.from('cars').update({ car_value }).eq('id', carId)` بالإضافة للبوليصة
-
-**إزالة زر الطباعة:**
-- حذف السطور 650-652 (زر Printer)
+- **السطر 852-864**: تعديل شرط عرض input قيمة السيارة ليكون متاحا لكل البوالص وليس فقط `isFullPolicy`
+- عند عدم التعديل: إذا كانت القيمة 0 أو null تظهر "-" بدلا من "₪0"
 
 ### ملف: `supabase/functions/generate-settlement-report/index.ts`
-
-**تحديث الاستعلام:**
-```sql
-cars (car_number, manufacturer_name, car_type, car_value)
+- **السطر 80-91**: إضافة `transferred, transferred_to_car_number` في الاستعلام
+- **السطر 276**: تحديث عمود الحالة:
+```
+cancelled ? "ملغية" : transferred ? "محولة ← رقم_السيارة" : "فعالة"
 ```
 
-**أعمدة جديدة في جدول HTML:**
-- بعد "رقم السيارة": الشركة المصنعة، تصنيف السيارة
-- بعد "النوع": قيمة السيارة (تظهر فقط للشامل)
-- إضافة labels عربية لـ car_type
-- colspan يتحدث من 10 إلى 13
-
 ### ملف: `src/pages/CompanySettlement.tsx`
-- إضافة حقل بحث يفلتر الشركات بالاسم
+- **السطور 544-552**: إضافة زر بحث بجانب حقل البحث
 
 ### الملفات المتأثرة
 
 | ملف | تغيير |
 |------|--------|
-| `src/pages/CompanySettlementDetail.tsx` | تسريع edit، رابط عميل، تعديل car_value، إزالة زر طباعة |
-| `supabase/functions/generate-settlement-report/index.ts` | أعمدة جديدة في HTML |
-| `src/pages/CompanySettlement.tsx` | إضافة حقل بحث |
+| `src/pages/CompanySettlementDetail.tsx` | car_value قابل للتعديل لكل البوالص |
+| `supabase/functions/generate-settlement-report/index.ts` | إضافة حالة محولة في التقرير |
+| `src/pages/CompanySettlement.tsx` | زر بحث في الفلاتر |
 

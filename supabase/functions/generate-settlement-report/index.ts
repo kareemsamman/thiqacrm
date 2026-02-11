@@ -87,7 +87,7 @@ serve(async (req) => {
         end_date,
         cancelled,
         clients (full_name),
-        cars (car_number)
+        cars (car_number, manufacturer_name, car_type, car_value)
       `)
       .eq("company_id", company_id)
       .is("deleted_at", null);
@@ -225,6 +225,15 @@ const POLICY_TYPE_LABELS: Record<string, string> = {
   OTHER: "أخرى",
 };
 
+const CAR_TYPE_LABELS: Record<string, string> = {
+  car: "خصوصي",
+  cargo: "شحن",
+  small: "اوتوبس زعير",
+  taxi: "تاكسي",
+  tjeradown4: "تجاري < 4 طن",
+  tjeraup4: "تجاري > 4 طن",
+};
+
 function generateReportHtml(
   company: any,
   policies: any[],
@@ -248,12 +257,17 @@ function generateReportHtml(
     filterDesc += " | شامل الملغية";
   }
 
+  const isFullPolicy = (p: any) => p.policy_type_parent === 'THIRD_FULL' && p.policy_type_child === 'FULL';
+
   const policyRows = policies.map((p: any, index: number) => `
     <tr>
       <td style="text-align: center; border: 1px solid #e2e8f0; padding: 8px;">${index + 1}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px;">${p.clients?.full_name || "-"}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px; direction: ltr; text-align: center;">${p.cars?.car_number || "-"}</td>
+      <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">${p.cars?.manufacturer_name || "-"}</td>
+      <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">${p.cars?.car_type ? (CAR_TYPE_LABELS[p.cars.car_type] || p.cars.car_type) : "-"}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center;">${POLICY_TYPE_LABELS[p.policy_type_parent] || p.policy_type_parent}</td>
+      <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; direction: ltr;">${isFullPolicy(p) ? `₪${formatNumber(p.cars?.car_value || 0)}` : "-"}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; direction: ltr;">${formatDateShort(p.start_date)}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: center; direction: ltr;">${formatDateShort(p.end_date)}</td>
       <td style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; direction: ltr;">₪${formatNumber(p.insurance_price || 0)}</td>
@@ -459,12 +473,15 @@ function generateReportHtml(
       <h2 class="section-title">تفاصيل الوثائق (${formatNumber(policies.length)} وثيقة)</h2>
       <div style="overflow-x: auto;">
         <table>
-          <thead>
+           <thead>
             <tr>
               <th style="width: 40px;">#</th>
               <th>العميل</th>
               <th>رقم السيارة</th>
+              <th>الشركة المصنعة</th>
+              <th>تصنيف السيارة</th>
               <th>النوع</th>
+              <th>قيمة السيارة</th>
               <th>بداية</th>
               <th>نهاية</th>
               <th>سعر التأمين</th>
@@ -474,7 +491,7 @@ function generateReportHtml(
             </tr>
           </thead>
           <tbody>
-            ${policyRows || '<tr><td colspan="10" style="text-align: center; padding: 30px;">لا توجد وثائق</td></tr>'}
+            ${policyRows || '<tr><td colspan="13" style="text-align: center; padding: 30px;">لا توجد وثائق</td></tr>'}
           </tbody>
         </table>
       </div>

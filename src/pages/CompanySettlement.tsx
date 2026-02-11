@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, Download, Wallet, FileText, ChevronLeft, Calendar, RotateCcw, AlertCircle, Printer, AlertTriangle, Eye, Pencil } from 'lucide-react';
+import { Building2, Download, Wallet, FileText, ChevronLeft, Calendar, RotateCcw, AlertCircle, Printer, AlertTriangle, Eye, Pencil, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -68,6 +68,7 @@ export default function CompanySettlement() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<CompanySettlementData[]>([]);
   const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [companySearch, setCompanySearch] = useState('');
   const [filteredCompanies, setFilteredCompanies] = useState<CompanyOption[]>([]);
   
   // Policies without company
@@ -485,9 +486,6 @@ export default function CompanySettlement() {
                       <Download className="h-4 w-4 ml-2" />
                       CSV
                     </Button>
-                    <Button variant="outline" onClick={handlePrint}>
-                      <Printer className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -541,7 +539,18 @@ export default function CompanySettlement() {
             {/* Data Table */}
             <Card>
               <CardHeader>
-                <CardTitle>تفاصيل التسوية حسب الشركة</CardTitle>
+                <div className="flex items-center justify-between gap-4">
+                  <CardTitle>تفاصيل التسوية حسب الشركة</CardTitle>
+                  <div className="relative w-64">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="بحث باسم الشركة..."
+                      value={companySearch}
+                      onChange={(e) => setCompanySearch(e.target.value)}
+                      className="pr-10"
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border">
@@ -570,8 +579,20 @@ export default function CompanySettlement() {
                             لا توجد بيانات للفترة المحددة
                           </TableCell>
                         </TableRow>
-                      ) : (
-                        data.map((item, index) => (
+                      ) : (() => {
+                        const filtered = companySearch.trim()
+                          ? data.filter(item => 
+                              (item.company_name_ar || '').includes(companySearch) || 
+                              item.company_name.toLowerCase().includes(companySearch.toLowerCase())
+                            )
+                          : data;
+                        return filtered.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                              لا توجد نتائج للبحث
+                            </TableCell>
+                          </TableRow>
+                        ) : filtered.map((item, index) => (
                           <TableRow 
                             key={index}
                             onClick={() => navigate(`/reports/company-settlement/${item.company_id}`)}
@@ -592,8 +613,8 @@ export default function CompanySettlement() {
                               ₪{item.total_company_payment.toLocaleString('en-US')}
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </TableBody>
                   </Table>
                 </div>

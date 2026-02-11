@@ -104,7 +104,7 @@ export default function CompanySettlementDetail() {
   
   // Inline edit
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState({ insurance_price: 0, payed_for_company: 0, profit: 0 });
+  const [editValues, setEditValues] = useState({ insurance_price: 0, payed_for_company: 0, profit: 0, car_value: 0 });
   const [savingEdit, setSavingEdit] = useState(false);
   
   // Cheques
@@ -371,6 +371,7 @@ export default function CompanySettlementDetail() {
       insurance_price: Number(policy.insurance_price) || 0,
       payed_for_company: Number(policy.payed_for_company) || 0,
       profit: Number(policy.profit) || 0,
+      car_value: Number(policy.car?.car_value) || 0,
     });
   };
 
@@ -381,7 +382,27 @@ export default function CompanySettlementDetail() {
   const handleSaveEdit = async () => {
     if (!editingPolicyId) return;
     setSavingEdit(true);
+    
+    const editedPolicy = policies.find(p => p.id === editingPolicyId);
+    
     try {
+      // Optimistic update
+      setPolicies(prev => prev.map(p => 
+        p.id === editingPolicyId 
+          ? { 
+              ...p, 
+              insurance_price: editValues.insurance_price, 
+              payed_for_company: editValues.payed_for_company, 
+              profit: editValues.profit,
+              car: p.car ? { ...p.car, car_value: editValues.car_value } : p.car,
+            } 
+          : p
+      ));
+      
+      const savedEditingId = editingPolicyId;
+      setEditingPolicyId(null);
+
+      // Update policy in background
       const { error } = await supabase
         .from('policies')
         .update({
@@ -389,16 +410,26 @@ export default function CompanySettlementDetail() {
           payed_for_company: editValues.payed_for_company,
           profit: editValues.profit,
         })
-        .eq('id', editingPolicyId);
+        .eq('id', savedEditingId);
 
       if (error) throw error;
 
+      // Update car_value if car exists
+      if (editedPolicy?.car?.id) {
+        const { error: carError } = await supabase
+          .from('cars')
+          .update({ car_value: editValues.car_value })
+          .eq('id', editedPolicy.car.id);
+        
+        if (carError) throw carError;
+      }
+
       toast.success('تم تحديث البوليصة بنجاح');
-      setEditingPolicyId(null);
-      fetchCompanyAndPolicies();
     } catch (error) {
       console.error('Error saving edit:', error);
       toast.error('فشل في حفظ التعديلات');
+      // Revert on error
+      fetchCompanyAndPolicies();
     } finally {
       setSavingEdit(false);
     }
@@ -647,9 +678,6 @@ export default function CompanySettlementDetail() {
                 <Button variant="outline" onClick={exportToCSV}>
                   <Download className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" onClick={handlePrint}>
-                  <Printer className="h-4 w-4" />
-                </Button>
               </div>
 
               <div className="flex items-end">
@@ -789,7 +817,15 @@ export default function CompanySettlementDetail() {
                           )}
                         >
                           <TableCell className="font-medium">
-                            {policy.client?.full_name || '-'}
+                            <span 
+                              className="text-primary cursor-pointer hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (policy.client?.id) navigate(`/clients?clientId=${policy.client.id}`);
+                              }}
+                            >
+                              {policy.client?.full_name || '-'}
+                            </span>
                             {policy.cancelled && (
                               <Badge variant="destructive" className="mr-2 text-xs">ملغية</Badge>
                             )}
@@ -814,7 +850,18 @@ export default function CompanySettlementDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell className="font-mono">
-                            {isFullPolicy(policy) ? `₪${(policy.car?.car_value || 0).toLocaleString('en-US')}` : '-'}
+                            {isFullPolicy(policy) ? (
+                              isEditing ? (
+                                <Input
+                                  type="number"
+                                  value={editValues.car_value}
+                                  onChange={(e) => setEditValues(v => ({ ...v, car_value: Number(e.target.value) }))}
+                                  className="w-24 h-8 text-sm"
+                                />
+                              ) : (
+                                `₪${(policy.car?.car_value || 0).toLocaleString('en-US')}`
+                              )
+                            ) : '-'}
                           </TableCell>
                           <TableCell>{formatDate(policy.start_date)}</TableCell>
                           

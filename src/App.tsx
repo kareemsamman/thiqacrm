@@ -248,9 +248,9 @@ const App = () => (
                 </AdminRoute>
               } />
               <Route path="/expenses" element={
-                <AdminRoute>
+                <ProtectedRoute>
                   <Expenses />
-                </AdminRoute>
+                </ProtectedRoute>
               } />
               <Route path="/reports/elzami-costs" element={
                 <AdminRoute>

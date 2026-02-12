@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Navigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -64,7 +65,6 @@ const paymentCategories: Record<string, string> = {
   utilities: 'فواتير (كهرباء/ماء/إنترنت)',
   insurance_company: 'دفع لشركة تأمين',
   insurance_company_due: 'مستحق لشركة تأمين',
-  elzami_company_commission: 'عمولة إلزامي لشركة',
   other: 'مصاريف أخرى',
 };
 
@@ -84,8 +84,10 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   visa: { label: 'فيزا', icon: CreditCard },
 };
 
+const EXPENSES_ALLOWED_EMAIL = 'raghda@basheer-ab.com';
+
 export default function Expenses() {
-  const { profile } = useAuth();
+  const { profile, isAdmin, user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -299,26 +301,6 @@ export default function Expenses() {
           } as Expense);
         }
         
-        // Company elzami commission → payment voucher (AB pays to company)
-        const companyCommission = Number(p.insurance_companies?.elzami_commission || 0);
-        if (companyCommission > 0) {
-          results.push({
-            id: `ec_${p.id}`,
-            category: 'elzami_company_commission',
-            description: desc,
-            amount: companyCommission,
-            expense_date: p.start_date,
-            notes: null,
-            receipt_url: null,
-            created_at: p.start_date,
-            voucher_type: 'payment',
-            payment_method: 'bank_transfer',
-            reference_number: null,
-            contact_name: companyName,
-            is_policy_payment: true,
-            is_elzami_commission: true,
-          } as Expense);
-        }
         
         return results;
       });
@@ -381,10 +363,9 @@ export default function Expenses() {
       (policyTotalsResult.data || []).forEach(pp => {
         receipts += Number(pp.amount);
       });
-      // Add ELZAMI office commissions to receipts, company commissions to payments
+      // Add ELZAMI office commissions to receipts
       elzamiVouchers.forEach(v => {
         if (v.voucher_type === 'receipt') receipts += v.amount;
-        else payments += v.amount;
       });
       // Company dues total
       (companyDuesTotalsResult.data || []).forEach(p => {
@@ -516,6 +497,10 @@ export default function Expenses() {
   const currentCategories = formData.voucher_type === 'receipt' ? receiptCategories : paymentCategories;
   const allCategories = { ...paymentCategories, ...receiptCategories };
   const netMonth = totalReceipts - totalPayments - totalCompanyDues;
+
+  // Access control: only admin or specific email
+  const canAccess = isAdmin || user?.email === EXPENSES_ALLOWED_EMAIL;
+  if (!canAccess) return <Navigate to="/" replace />;
 
   return (
     <MainLayout>

@@ -90,7 +90,7 @@ serve(async (req) => {
     let query = supabase
       .from("policies")
       .select(`
-        id, policy_number, policy_type_parent, start_date, end_date, 
+        id, policy_number, policy_type_parent, policy_type_child, start_date, end_date, 
         insurance_price, profit, broker_direction,
         client:clients(full_name),
         car:cars(car_number)
@@ -210,6 +210,14 @@ serve(async (req) => {
   }
 });
 
+function getDisplayLabel(parent: string, child: string | null): string {
+  if (parent === 'THIRD_FULL' && child) {
+    const childLabels: Record<string, string> = { THIRD: 'ثالث', FULL: 'شامل' };
+    return childLabels[child] || child;
+  }
+  return policyTypeLabels[parent] || parent;
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -260,7 +268,7 @@ function generateReportHtml(
       <td>${direction}</td>
       <td>${policy.client?.full_name || '-'}</td>
       <td class="ltr">${policy.car?.car_number ? `<span class="car-plate">${policy.car.car_number}</span>` : '-'}</td>
-      <td>${policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}</td>
+      <td>${getDisplayLabel(policy.policy_type_parent, policy.policy_type_child)}</td>
       <td class="price">₪${policy.insurance_price.toLocaleString()}</td>
       <td class="ltr">${formatDateShort(policy.start_date)}</td>
       <td class="ltr">${formatDateShort(policy.end_date)}</td>

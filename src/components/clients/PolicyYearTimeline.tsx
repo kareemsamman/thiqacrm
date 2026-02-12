@@ -823,11 +823,11 @@ function PolicyPackageCard({
   // Build combined type label for packages
   const getTypeLabel = () => {
     if (isPkg && pkg.mainPolicy) {
-      const mainLabel = policyTypeLabels[pkg.mainPolicy.policy_type_parent] || pkg.mainPolicy.policy_type_parent;
-      const addonLabels = pkg.addons.map(a => policyTypeLabels[a.policy_type_parent] || a.policy_type_parent);
+      const mainLabel = getDisplayLabel(pkg.mainPolicy);
+      const addonLabels = pkg.addons.map(a => getDisplayLabel(a));
       return `${mainLabel} + ${addonLabels.join(' + ')}`;
     }
-    return policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent;
+    return getDisplayLabel(policy);
   };
 
   return (

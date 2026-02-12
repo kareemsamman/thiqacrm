@@ -17,6 +17,7 @@ import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from '@/lib/chequeUtil
 import { useToast } from '@/hooks/use-toast';
 import type { Enums } from "@/integrations/supabase/types";
 import { ArabicDatePicker } from '@/components/ui/arabic-date-picker';
+import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
 
 interface PaymentLine {
   id: string;
@@ -36,6 +37,7 @@ interface PreviewUrls {
 interface PolicyPaymentInfo {
   policyId: string;
   policyType: string;
+  policyTypeChild: string | null;
   price: number;
   paid: number;
   remaining: number;
@@ -191,7 +193,7 @@ export function PackagePaymentModal({
       // Fetch policies
       const { data: policiesData, error: policiesError } = await supabase
         .from('policies')
-        .select('id, policy_type_parent, insurance_price, office_commission')
+        .select('id, policy_type_parent, policy_type_child, insurance_price, office_commission')
         .in('id', policyIds);
 
       if (policiesError) throw policiesError;
@@ -217,6 +219,7 @@ export function PackagePaymentModal({
         return {
           policyId: p.id,
           policyType: p.policy_type_parent,
+          policyTypeChild: p.policy_type_child || null,
           price: effectivePrice,
           paid: policyPayments[p.id] || 0,
           remaining: effectivePrice - (policyPayments[p.id] || 0),
@@ -540,7 +543,7 @@ export function PackagePaymentModal({
               {policies.map(policy => (
                 <div key={policy.policyId} className="flex items-center justify-between p-2 text-sm">
                   <Badge variant="outline" className="text-xs">
-                    {policyTypeLabels[policy.policyType] || policy.policyType}
+                    {getInsuranceTypeLabel(policy.policyType as any, policy.policyTypeChild as any)}
                   </Badge>
                   <div className="flex items-center gap-3">
                     <span className="text-muted-foreground">₪{policy.price.toLocaleString()}</span>

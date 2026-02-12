@@ -37,6 +37,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
 
 interface PolicyFile {
   id: string;
@@ -173,7 +174,7 @@ function FileGalleryPopup({ open, onOpenChange, files, policyNumber, policyType 
           <div className="flex items-center gap-2">
             <Paperclip className="h-4 w-4" />
             <div>
-              <p className="text-sm font-medium">{policyTypeLabels[policyType]}</p>
+              <p className="text-sm font-medium">{policyTypeLabels[policyType] || policyType}</p>
               <p className="text-xs opacity-80">{policyNumber || 'ملفات البوليصة'}</p>
             </div>
           </div>
@@ -700,7 +701,7 @@ export function ClientReportModal({
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline" className="text-xs">
-                                  {policyTypeLabels[policy.policy_type_parent]}
+                                  {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                                 </Badge>
                                 <Badge className={cn("gap-1 text-[10px]", status.bg, status.color, "border-0")}>
                                   <StatusIcon className="h-3 w-3" />
@@ -756,7 +757,7 @@ export function ClientReportModal({
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className="text-xs">
-                              {policyTypeLabels[policy.policy_type_parent]}
+                              {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                             </Badge>
                             <Badge className={cn("gap-1 text-[10px]", status.bg, status.color, "border-0")}>
                               <StatusIcon className="h-3 w-3" />

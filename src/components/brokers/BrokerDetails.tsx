@@ -43,6 +43,7 @@ import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { BrokerSmsModal } from "./BrokerSmsModal";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { getInsuranceTypeLabel } from "@/lib/insuranceTypes";
 
 interface Broker {
   id: string;
@@ -64,6 +65,7 @@ interface Client {
 interface Policy {
   id: string;
   policy_type_parent: string;
+  policy_type_child: string | null;
   insurance_price: number;
   broker_buy_price: number | null;
   profit: number;
@@ -130,7 +132,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
       let query = supabase
         .from("policies")
         .select(`
-          id, policy_type_parent, insurance_price, broker_buy_price, profit, start_date, end_date, broker_direction,
+          id, policy_type_parent, policy_type_child, insurance_price, broker_buy_price, profit, start_date, end_date, broker_direction,
           clients!policies_client_id_fkey(full_name),
           cars!policies_car_id_fkey(car_number)
         `)
@@ -563,8 +565,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
                             </TableCell>
                             <TableCell className="print:text-xs">
                               <Badge variant="outline" className="print:border">
-                                {policyTypeLabels[policy.policy_type_parent] ||
-                                  policy.policy_type_parent}
+                                {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                               </Badge>
                             </TableCell>
                             <TableCell className="print:text-xs ltr-nums">

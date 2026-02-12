@@ -89,6 +89,7 @@ import { AccidentReportWizard } from '@/components/accident-reports/AccidentRepo
 import { ClientAccidentsTab } from '@/components/clients/ClientAccidentsTab';
 import { useClientAccidentInfo } from '@/hooks/useClientAccidentInfo';
 import { cn } from '@/lib/utils';
+import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
 import { ChequeImageGallery } from '@/components/shared/ChequeImageGallery';
 import { useBranches } from '@/hooks/useBranches';
 import { useAuth } from '@/hooks/useAuth';
@@ -990,7 +991,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
           (policy.company?.name?.toLowerCase().includes(search)) ||
           (policy.company?.name_ar?.toLowerCase().includes(search)) ||
           (policy.car?.car_number?.toLowerCase().includes(search)) ||
-          (policyTypeLabels[policy.policy_type_parent]?.toLowerCase().includes(search));
+          (getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)?.toLowerCase().includes(search));
         if (!matchesSearch) return false;
       }
       
@@ -1762,7 +1763,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
                           <div className="flex flex-wrap gap-1">
                             {group.policyTypes.map(type => (
                               <Badge key={type} className={cn("border", policyTypeColors[type])}>
-                                {policyTypeLabels[type] || type}
+                                {getInsuranceTypeLabel(type as any, null)}
                               </Badge>
                             ))}
                           </div>
@@ -1833,7 +1834,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
                                       className="text-sm"
                                     >
                                       <Edit className="h-3 w-3 ml-2" />
-                                      تعديل: ₪{payment.amount} - {policyTypeLabels[payment.policy?.policy_type_parent || ''] || 'غير محدد'}
+                                      تعديل: ₪{payment.amount} - {getInsuranceTypeLabel(payment.policy?.policy_type_parent as any || '', null)}
                                     </DropdownMenuItem>
                                   ))}
                                 </>

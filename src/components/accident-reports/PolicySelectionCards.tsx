@@ -18,6 +18,7 @@ import {
   Car as CarIcon 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
 
 interface PolicyRecord {
   id: string;
@@ -236,8 +237,7 @@ export function PolicySelectionCards({
                       key={p.id} 
                       className={cn("text-xs", policyTypeColors[p.policy_type_parent])}
                     >
-                      {policyTypeLabels[p.policy_type_parent] || p.policy_type_parent}
-                      {p.policy_type_child && ` - ${p.policy_type_child === 'FULL' ? 'شامل' : 'ثالث'}`}
+                      {getInsuranceTypeLabel(p.policy_type_parent as any, p.policy_type_child as any)}
                     </Badge>
                   ))}
                 </div>
@@ -288,12 +288,7 @@ export function PolicySelectionCards({
                     {group.policies.map(policy => (
                       <SelectItem key={policy.id} value={policy.id}>
                         <div className="flex items-center gap-2">
-                          <span>{policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}</span>
-                          {policy.policy_type_child && (
-                            <span className="text-muted-foreground">
-                              ({policy.policy_type_child === 'FULL' ? 'شامل' : 'ثالث'})
-                            </span>
-                          )}
+                          <span>{getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}</span>
                           {policy.company && (
                             <span className="text-muted-foreground text-xs">
                               - {policy.company.name_ar || policy.company.name}

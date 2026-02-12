@@ -13,6 +13,14 @@ const POLICY_TYPE_LABELS: Record<string, string> = {
   ACCIDENT_FEE_EXEMPTION: 'إعفاء رسوم حادث',
 };
 
+function getDisplayLabel(parent: string, child: string | null): string {
+  if (parent === 'THIRD_FULL' && child) {
+    const childLabels: Record<string, string> = { THIRD: 'ثالث', FULL: 'شامل' };
+    return childLabels[child] || child;
+  }
+  return POLICY_TYPE_LABELS[parent] || parent;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -84,6 +92,7 @@ serve(async (req) => {
         id,
         end_date,
         policy_type_parent,
+        policy_type_child,
         client:clients(id, full_name, phone_number),
         car:cars(car_number)
       `)
@@ -100,6 +109,7 @@ serve(async (req) => {
         id,
         end_date,
         policy_type_parent,
+        policy_type_child,
         client:clients(id, full_name, phone_number),
         car:cars(car_number)
       `)
@@ -146,7 +156,7 @@ serve(async (req) => {
       const endDate = new Date(policy.end_date).toLocaleDateString('en-GB', { 
         year: 'numeric', month: '2-digit', day: '2-digit'
       });
-      const policyType = POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent;
+      const policyType = getDisplayLabel(policy.policy_type_parent, policy.policy_type_child);
 
       const message = template
         .replace(/{client_name}/g, client.full_name || 'عميل')

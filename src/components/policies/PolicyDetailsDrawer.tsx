@@ -656,11 +656,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   // Get display name for policy type with child
   const getPolicyTypeName = () => {
     if (!policy) return "";
-    let name = policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent;
-    if (policy.policy_type_child) {
-      name += ` - ${policyChildLabels[policy.policy_type_child] || policy.policy_type_child}`;
+    if (policy.policy_type_parent === 'THIRD_FULL' && policy.policy_type_child) {
+      return policyChildLabels[policy.policy_type_child] || policy.policy_type_child;
     }
-    return name;
+    return policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent;
   };
 
   // Get service name for display

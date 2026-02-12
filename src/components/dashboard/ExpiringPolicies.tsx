@@ -7,11 +7,13 @@ import { AlertTriangle, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { ExpiryBadge } from "@/components/shared/ExpiryBadge";
+import { getInsuranceTypeLabel } from "@/lib/insuranceTypes";
 
 interface ExpiringPolicy {
   id: string;
   end_date: string;
   policy_type_parent: string;
+  policy_type_child: string | null;
   insurance_price: number;
   client: { full_name: string } | null;
   car: { car_number: string } | null;
@@ -27,12 +29,6 @@ const renewalStatusLabels: Record<string, { label: string; color: string }> = {
   not_interested: { label: "غير مهتم", color: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
-const policyTypeLabels: Record<string, string> = {
-  ELZAMI: "إلزامي",
-  THIRD_FULL: "ثالث/شامل",
-  ROAD_SERVICE: "طريق",
-  ACCIDENT_FEE_EXEMPTION: "إعفاء",
-};
 
 export function ExpiringPolicies() {
   const navigate = useNavigate();
@@ -52,7 +48,7 @@ export function ExpiringPolicies() {
       const { data, error } = await supabase
         .from("policies")
         .select(`
-          id, end_date, policy_type_parent, insurance_price,
+          id, end_date, policy_type_parent, policy_type_child, insurance_price,
           client:clients(full_name),
           car:cars(car_number),
           company:insurance_companies(name, name_ar),
@@ -137,7 +133,7 @@ export function ExpiringPolicies() {
                 </div>
                 <div className="text-left flex flex-col items-end gap-1">
                   <Badge variant="outline" className="text-xs">
-                    {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+                    {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                   </Badge>
                   {statusInfo && (
                     <Badge variant="outline" className={`text-xs ${statusInfo.color}`}>

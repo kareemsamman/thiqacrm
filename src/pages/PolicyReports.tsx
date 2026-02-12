@@ -63,6 +63,7 @@ import { cn } from '@/lib/utils';
 import { ArabicDatePicker } from '@/components/ui/arabic-date-picker';
 import { useAuth } from '@/hooks/useAuth';
 import { ClickablePhone } from '@/components/shared/ClickablePhone';
+import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
 
 const policyTypeLabels: Record<string, string> = {
   ELZAMI: 'إلزامي',
@@ -1060,7 +1061,7 @@ export default function PolicyReports() {
                                 </div>
                               ) : (
                                 <Badge variant="secondary" className="text-xs">
-                                  {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+                                {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                                 </Badge>
                               )}
                             </TableCell>
@@ -1552,7 +1553,7 @@ export default function PolicyReports() {
                                           <div>
                                             <p className="text-xs text-muted-foreground">النوع</p>
                                             <Badge variant="secondary" className="text-xs">
-                                              {policyTypeLabels[policy.policy_type_parent] || policy.policy_type_parent}
+                                              {getInsuranceTypeLabel(policy.policy_type_parent as any, policy.policy_type_child as any)}
                                             </Badge>
                                           </div>
                                           <div>

@@ -1,60 +1,58 @@
 
 
-# إصلاح حساب إجمالي المبلغ في الفاتورة الضريبية
+# إصلاح تكامل Rivhit API حسب التوثيق الرسمي
 
-## المشكلة
-المبلغ الإجمالي ₪97,042 غير صحيح. السبب: عند حساب مبالغ الباقات (packages)، الكود يجلب كل مكونات الباقة بدون تطبيق نفس الفلاتر (ملغاة، تواريخ) المطبقة على الاستعلام الرئيسي.
+## المشكلة المكتشفة
 
-## السبب التقني
+بعد مقارنة الكود الحالي مع توثيق Rivhit API الرسمي (PDF)، وجدت خطأ في قراءة الاستجابة (Response parsing).
+
+### بنية الاستجابة حسب التوثيق الرسمي:
 
 ```text
-الاستعلام الرئيسي (policies):
-  ✅ يفلتر الملغاة (cancelled = false)
-  ✅ يفلتر حسب التاريخ (start_date >= X, start_date <= Y)
-
-استعلام مكونات الباقات (allGroupPolicies):
-  ❌ لا يفلتر الملغاة
-  ❌ لا يفلتر حسب التاريخ
-  → يجمع أسعار وثائق ملغاة أو خارج الفترة في المجموع
+{
+  "error_code": 0,
+  "client_message": "",
+  "debug_message": "",
+  "data": {
+    "document_type": 1,
+    "document_number": 12345,
+    "document_link": "https://...",
+    "print_status": 0,
+    "customer_id": 101
+  }
+}
 ```
 
-## الحل
-
-### تعديل: `supabase/functions/generate-tax-invoice/index.ts`
-
-1. إضافة فلتر `cancelled = false` على استعلام `allGroupPolicies` (إذا `include_cancelled` = false)
-2. إضافة فلتر التواريخ على `allGroupPolicies`
-3. هذا يضمن أن مكونات الباقة المحسوبة تطابق نفس شروط الاستعلام الرئيسي
-
-### التغيير المطلوب (سطر 108-117)
-
-**قبل:**
+### الكود الحالي (خاطئ):
 ```typescript
-const { data: groupData } = await supabase
-  .from("policies")
-  .select(`...`)
-  .in("group_id", groupIds)
-  .neq("policy_type_parent", "ELZAMI")
-  .is("deleted_at", null);
+// يقرأ document_number من المستوى الأول - خطأ!
+result.document_number
 ```
 
-**بعد:**
+### الكود الصحيح:
 ```typescript
-let groupQuery = supabase
-  .from("policies")
-  .select(`...`)
-  .in("group_id", groupIds)
-  .neq("policy_type_parent", "ELZAMI")
-  .is("deleted_at", null);
-
-if (!include_cancelled) groupQuery = groupQuery.eq("cancelled", false);
-if (start_date) groupQuery = groupQuery.gte("start_date", start_date);
-if (end_date) groupQuery = groupQuery.lte("start_date", end_date);
-
-const { data: groupData } = await groupQuery;
+// يجب قراءته من داخل data
+result.data.document_number
 ```
 
-| ملف | تغيير |
-|------|--------|
-| `supabase/functions/generate-tax-invoice/index.ts` | إضافة فلاتر cancelled + تواريخ على استعلام مكونات الباقات |
+## التغييرات المطلوبة
+
+### ملف: `supabase/functions/send-to-rivhit/index.ts`
+
+| سطر | قبل | بعد |
+|------|------|------|
+| 104 | `result.error_code`, `result.document_number` | `result.error_code`, `result.data.document_number` |
+| 106-111 | يقرأ `document_number` مباشرة | يقرأ من `result.data` |
+| 116 | `result.error_description` | `result.debug_message` (حسب التوثيق) |
+
+### التغييرات التفصيلية:
+
+1. إصلاح قراءة رقم المستند من `result.data.document_number`
+2. إصلاح قراءة رسالة الخطأ من `result.debug_message` بدل `result.error_description`
+3. إضافة log لـ `result.data` و `result.debug_message` للتشخيص
+4. إرجاع `document_link` (رابط PDF) في النتيجة أيضا
+
+### بعد الإصلاح: اختبار مباشر
+
+سأقوم بإرسال طلب تجريبي للتحقق من أن الاتصال يعمل بشكل صحيح مع التوكن المحدّث.
 

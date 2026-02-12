@@ -1,42 +1,45 @@
 
+# إزالة عمولة إلزامي لشركة + تقييد الوصول لصفحة المصاريف
 
-# إصلاحات صفحة تسوية الشركة + تقرير HTML
+## 1. إزالة "عمولة إلزامي لشركة" من صفحة المصاريف
 
-## 1. تعديل قيمة السيارة لأي بوليصة (وليس فقط شامل)
-حاليا خانة "قيمة السيارة" تظهر فقط كحقل قابل للتعديل عند بوالص الشامل. سيتم تعديلها لتكون قابلة للتعديل لأي بوليصة عند الضغط على زر التعديل، حتى لو لم يكن هناك سعر مسبق.
+سيتم إزالة سطور "عمولة إلزامي لشركة" (elzami_company_commission) بالكامل من صفحة المصاريف. هذا يشمل:
 
-## 2. إضافة حالة "محولة" في تقرير HTML
-حاليا تقرير HTML يعرض فقط "ملغية" أو "فعالة". سيتم:
-- إضافة حقلي `transferred` و `transferred_to_car_number` في استعلام البيانات
-- تحديث عمود الحالة ليعرض 3 حالات: فعالة / ملغية / محولة (مع رقم السيارة المحولة إليها)
+- حذف `elzami_company_commission: 'عمولة إلزامي لشركة'` من قاموس `paymentCategories` (سطر 67)
+- حذف الكود الذي ينشئ سندات صرف للعمولة الإلزامية للشركة (سطور 302-321) - فقط الجزء الخاص بـ `ec_` (payment voucher)، مع الإبقاء على عمولة المكتب (receipt voucher `oc_`)
+- تحديث حساب إجمالي سندات الصرف ليستثني عمولة الإلزامي للشركة (سطور 385-388) - فقط إضافة receipts من الإلزامي وليس payments
+- تحديث حساب صافي الشهر (Net Balance) بعد إزالة هذا المكون
 
-## 3. إضافة زر بحث في فلاتر صفحة CompanySettlement الرئيسية
-حاليا حقل البحث موجود لكنه يبحث فورا أثناء الكتابة. المستخدم يريد زر بحث واضح بجانب حقل البحث.
+## 2. تقييد الوصول لصفحة المصاريف
 
-## 4. إزالة زر الطباعة (Printer) من فلاتر CompanySettlementDetail
-الزر غير موجود حاليا في الكود (تم حذفه سابقا) - لا حاجة لتغيير.
+حاليا الصفحة محمية بـ `AdminRoute` (للأدمن فقط). المطلوب إضافة وصول لـ `raghda@basheer-ab.com` حتى لو لم تكن أدمن.
+
+- تعديل ملف `src/App.tsx`: تغيير الحماية من `AdminRoute` إلى `ProtectedRoute` مع إضافة فحص داخلي
+- إضافة فحص في `src/pages/Expenses.tsx`: إذا المستخدم ليس أدمن وليس `raghda@basheer-ab.com` يتم إعادة توجيهه إلى الصفحة الرئيسية
 
 ## التفاصيل التقنية
 
-### ملف: `src/pages/CompanySettlementDetail.tsx`
-- **السطر 852-864**: تعديل شرط عرض input قيمة السيارة ليكون متاحا لكل البوالص وليس فقط `isFullPolicy`
-- عند عدم التعديل: إذا كانت القيمة 0 أو null تظهر "-" بدلا من "₪0"
+### ملف: `src/pages/Expenses.tsx`
 
-### ملف: `supabase/functions/generate-settlement-report/index.ts`
-- **السطر 80-91**: إضافة `transferred, transferred_to_car_number` في الاستعلام
-- **السطر 276**: تحديث عمود الحالة:
-```
-cancelled ? "ملغية" : transferred ? "محولة ← رقم_السيارة" : "فعالة"
+**إزالة عمولة إلزامي لشركة:**
+- سطر 67: حذف `elzami_company_commission: 'عمولة إلزامي لشركة'`
+- سطور 302-321: حذف كود إنشاء `ec_` vouchers (company elzami commission payment)
+- سطور 385-388: تعديل حلقة `elzamiVouchers.forEach` لإضافة receipts فقط وليس payments
+
+**تقييد الوصول:**
+- إضافة فحص في بداية الصفحة:
+```typescript
+const EXPENSES_ALLOWED_EMAIL = 'raghda@basheer-ab.com';
+const canAccessExpenses = isAdmin || user?.email === EXPENSES_ALLOWED_EMAIL;
+if (!canAccessExpenses) return <Navigate to="/" replace />;
 ```
 
-### ملف: `src/pages/CompanySettlement.tsx`
-- **السطور 544-552**: إضافة زر بحث بجانب حقل البحث
+### ملف: `src/App.tsx`
+- تغيير route `/expenses` من `AdminRoute` إلى `ProtectedRoute` (لأن الفحص التفصيلي سيكون داخل الصفحة نفسها)
 
 ### الملفات المتأثرة
 
 | ملف | تغيير |
 |------|--------|
-| `src/pages/CompanySettlementDetail.tsx` | car_value قابل للتعديل لكل البوالص |
-| `supabase/functions/generate-settlement-report/index.ts` | إضافة حالة محولة في التقرير |
-| `src/pages/CompanySettlement.tsx` | زر بحث في الفلاتر |
-
+| `src/pages/Expenses.tsx` | إزالة عمولة إلزامي لشركة + فحص صلاحية الوصول |
+| `src/App.tsx` | تغيير من AdminRoute إلى ProtectedRoute |

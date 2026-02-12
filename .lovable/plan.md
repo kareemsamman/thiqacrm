@@ -1,62 +1,53 @@
 
-# Fix: عرض "شامل" او "ثالث" بدل "ثالث/شامل" في كل مكان
+
+# إخفاء/اختصار تفاصيل الوثائق الملغاة في تقرير العميل
 
 ## المشكلة
-عند إنشاء وثيقة من نوع THIRD_FULL مع child type (مثلا FULL = شامل)، يعرض النظام "ثالث/شامل" في كل مكان بدل عرض "شامل" فقط. السبب هو أن أغلب المكونات تستخدم `policyTypeLabels[policy.policy_type_parent]` مباشرة بدون فحص الـ child type.
+عند إرسال تقرير للزبون، تظهر تفاصيل كاملة للوثائق الملغاة (شركة، تواريخ، سعر، ملفات، سائقين إضافيين) وهذا غير مطلوب.
 
 ## الحل
 
-### 1. إنشاء دالة مركزية واحدة
-توجد بالفعل دالة `getInsuranceTypeLabel` في `src/lib/insuranceTypes.ts` تعمل بشكل صحيح، لكن لا يستخدمها أحد تقريبا. سيتم تحديث كل المكونات لاستخدامها.
+### تعديل: `supabase/functions/generate-client-report/index.ts`
 
-### 2. المكونات المطلوب تعديلها (Frontend - 13 ملف)
+1. **الوثائق الملغاة**: تظهر بسطر واحد مختصر فقط (نوع + "ملغاة") بدون تفاصيل كاملة (بدون سعر، ملفات، سائقين، تواريخ مفصلة)
+2. **المركبة بالكامل ملغاة**: إذا كل وثائق مركبة ملغاة، يتم اختصار قسم المركبة بالكامل (عرض رقم المركبة فقط مع ملاحظة "جميع الوثائق ملغاة")
+3. **الإحصائيات**: الوثائق الملغاة لا تدخل في حساب المجموع المعروض للعميل
 
-| ملف | المشكلة |
-|------|---------|
-| `src/components/clients/ClientDetails.tsx` | عدة أماكن تستخدم `policyTypeLabels[type]` بدون child check |
-| `src/components/clients/PackagePaymentModal.tsx` | يعرض `policyTypeLabels[policy.policyType]` |
-| `src/components/clients/ClientReportModal.tsx` | عدة أماكن |
-| `src/components/clients/PaymentEditDialog.tsx` | يعرض `policyTypeLabels[payment.policy.policy_type_parent]` |
-| `src/components/clients/PolicyYearTimeline.tsx` | `getTypeLabel()` لا يستخدم child types |
-| `src/components/policies/PolicyDetailsDrawer.tsx` | dictionary محلي بدون child check |
-| `src/components/policies/PackageComponentsTable.tsx` | dictionary محلي بدون child check |
-| `src/components/policies/PackagePolicyEditModal.tsx` | dictionary محلي بدون child check |
-| `src/components/policies/PolicyEditDrawer.tsx` | label ثابت |
-| `src/components/dashboard/ExpiringPolicies.tsx` | dictionary محلي بدون child check |
-| `src/components/brokers/BrokerDetails.tsx` | dictionary محلي |
-| `src/components/debt/DebtPaymentModal.tsx` | dictionary محلي |
-| `src/components/accident-reports/PolicySelectionCards.tsx` | dictionary محلي |
+### التغييرات التقنية
 
-### 3. Edge Functions (4 ملفات)
+في دالة `renderPolicyCard`:
+- إذا `policy.cancelled === true`: يرجع HTML مختصر (سطر واحد: نوع الوثيقة + badge "ملغاة")
+- بدون عرض: السعر، التواريخ، الشركة، الملفات، السائقين الإضافيين
+
+في قسم المركبات `carsHtml`:
+- إذا كل وثائق المركبة ملغاة: عرض المركبة بشكل مختصر
+- حساب `totalPrice` يستثني الملغاة
+- حساب عدد الوثائق المعروض يستثني الملغاة
+
+في الإحصائيات العامة:
+- `totalInsurance` و `activePolicies` تستثني الملغاة (هذا موجود جزئيا)
 
 | ملف | تغيير |
 |------|--------|
-| `supabase/functions/generate-broker-report/index.ts` | استخدام child label |
-| `supabase/functions/generate-client-payments-invoice/index.ts` | استخدام child label |
-| `supabase/functions/send-invoice-sms/index.ts` | استخدام child label |
-| `supabase/functions/cron-renewal-reminders/index.ts` | استخدام child label |
+| `supabase/functions/generate-client-report/index.ts` | اختصار الوثائق الملغاة + اختصار المركبات بدون وثائق سارية |
 
-### التغيير التقني
+### مثال النتيجة
 
-في كل مكان يعرض نوع الوثيقة، بدل:
-```text
-policyTypeLabels[policy.policy_type_parent]
-// النتيجة: "ثالث/شامل"
+**قبل (ملغاة):**
+```
+┌─────────────────────────────┐
+│ شامل                  ❌ ملغاة │
+│ شركة: أورينت                  │
+│ 01/01/2024 - 01/01/2025       │
+│ ₪3,500                        │
+│ 📎 ملفات (2)                  │
+│ 👥 سائقين (1)                 │
+└─────────────────────────────┘
 ```
 
-سيصبح:
-```text
-// إذا كان THIRD_FULL مع child type → عرض child label فقط
-// وإلا → عرض parent label
-getDisplayLabel(policy.policy_type_parent, policy.policy_type_child)
-// النتيجة: "شامل" او "ثالث"
+**بعد (ملغاة):**
 ```
-
-### ملاحظة مهمة
-الأماكن التالية يجب أن تبقى "ثالث/شامل" لأنها تعرض **فئة** وليس وثيقة محددة:
-- فلاتر البحث (PolicyFilters)
-- نموذج إنشاء وثيقة (PolicyDrawer/Wizard) 
-- إعدادات الشركات (CompanyDrawer)
-- قائمة أنواع التأمين (Companies page)
-
-هذه أماكن يختار فيها المستخدم الفئة العامة قبل تحديد النوع الفرعي.
+┌─────────────────────────────┐
+│ شامل                  ❌ ملغاة │
+└─────────────────────────────┘
+```

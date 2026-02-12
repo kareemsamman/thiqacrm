@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, FileImage, ExternalLink } from "lucide-react";
 import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from "@/lib/chequeUtils";
+import { getInsuranceTypeLabel } from "@/lib/insuranceTypes";
 
 interface PaymentRecord {
   id: string;
@@ -39,6 +40,7 @@ interface PaymentRecord {
   policy: {
     id: string;
     policy_type_parent: string;
+    policy_type_child?: string | null;
     insurance_price: number;
   } | null;
 }
@@ -164,7 +166,7 @@ export function PaymentEditDialog({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>الوثيقة:</span>
               <Badge variant="outline">
-                {policyTypeLabels[payment.policy.policy_type_parent] || payment.policy.policy_type_parent}
+                {getInsuranceTypeLabel(payment.policy.policy_type_parent as any, (payment.policy.policy_type_child || null) as any)}
               </Badge>
               <span className="text-xs">
                 (سعر الوثيقة: ₪{payment.policy.insurance_price.toLocaleString()})

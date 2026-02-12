@@ -28,6 +28,14 @@ const POLICY_TYPE_LABELS: Record<string, string> = {
   OTHER: 'أخرى',
 };
 
+function getDisplayLabel(parent: string, child: string | null): string {
+  if (parent === 'THIRD_FULL' && child) {
+    const childLabels: Record<string, string> = { THIRD: 'ثالث', FULL: 'شامل' };
+    return childLabels[child] || child;
+  }
+  return POLICY_TYPE_LABELS[parent] || parent;
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -64,7 +72,7 @@ function buildComprehensiveInvoiceHtml(
   const paymentRows = payments.map(payment => {
     const paymentTypeLabel = PAYMENT_TYPE_LABELS[payment.payment_type] || payment.payment_type;
     const policyType = payment.policy?.policy_type_parent 
-      ? (POLICY_TYPE_LABELS[payment.policy.policy_type_parent] || payment.policy.policy_type_parent)
+      ? getDisplayLabel(payment.policy.policy_type_parent, payment.policy.policy_type_child)
       : '-';
     const carNumber = payment.policy?.car?.car_number || '-';
     

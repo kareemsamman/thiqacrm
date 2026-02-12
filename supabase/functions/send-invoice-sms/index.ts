@@ -435,11 +435,11 @@ function formatDate(dateStr: string): string {
 }
 
 function getInsuranceTypeLabel(parent: string, child: string | null): string {
-  const parentLabel = POLICY_TYPE_LABELS[parent] || parent;
-  if (child && POLICY_TYPE_LABELS[child]) {
-    return `${parentLabel} - ${POLICY_TYPE_LABELS[child]}`;
+  if (parent === 'THIRD_FULL' && child) {
+    const childLabels: Record<string, string> = { THIRD: 'ثالث', FULL: 'شامل' };
+    return childLabels[child] || child;
   }
-  return parentLabel;
+  return POLICY_TYPE_LABELS[parent] || parent;
 }
 
 function buildAbInvoiceHtml(

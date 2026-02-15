@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, X, Search } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { cn } from '@/lib/utils';
 
 interface MultiSelectOption {
@@ -115,7 +115,7 @@ export function MultiSelectFilter({
             مسح
           </button>
         </div>
-        <ScrollArea className="max-h-[220px]">
+        <div className="max-h-[220px] overflow-y-auto">
           <div className="p-1">
             {filtered.length === 0 ? (
               <div className="text-center text-sm text-muted-foreground py-4">
@@ -136,7 +136,7 @@ export function MultiSelectFilter({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

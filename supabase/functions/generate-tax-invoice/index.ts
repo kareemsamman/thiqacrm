@@ -8,9 +8,12 @@ const corsHeaders = {
 
 interface TaxInvoiceParams {
   company_id?: string | null;
+  company_ids?: string[] | null;
   start_date?: string | null;
   end_date?: string | null;
   policy_type?: string | null;
+  policy_types?: string[] | null;
+  broker_ids?: string[] | null;
   include_cancelled?: boolean;
   profit_percent: number;
 }
@@ -48,29 +51,32 @@ serve(async (req) => {
     }
 
     const body: TaxInvoiceParams = await req.json();
-    const { company_id, start_date, end_date, policy_type, include_cancelled, profit_percent } = body;
+    const { company_id, company_ids, start_date, end_date, policy_type, policy_types, broker_ids, include_cancelled, profit_percent } = body;
 
-    console.log(`[generate-tax-invoice] company: ${company_id || 'ALL'}, profit: ${profit_percent}%`);
+    // Resolve effective arrays (support both legacy single and new array params)
+    const effectiveCompanyIds = company_ids?.length ? company_ids : (company_id ? [company_id] : null);
+    const effectivePolicyTypes = policy_types?.length ? policy_types : (policy_type && policy_type !== 'all' ? [policy_type] : null);
 
-    // Fetch company name if specific company
+    console.log(`[generate-tax-invoice] companies: ${effectiveCompanyIds?.length || 'ALL'}, types: ${effectivePolicyTypes || 'ALL'}, brokers: ${broker_ids?.length || 'ALL'}, profit: ${profit_percent}%`);
+
+    // Fetch company names
     let companyName = "جميع الشركات";
-    if (company_id) {
-      const { data: company, error: companyError } = await supabase
+    if (effectiveCompanyIds && effectiveCompanyIds.length > 0) {
+      const { data: companies, error: companyError } = await supabase
         .from("insurance_companies")
         .select("id, name, name_ar")
-        .eq("id", company_id)
-        .single();
+        .in("id", effectiveCompanyIds);
 
-      if (companyError || !company) {
+      if (companyError || !companies || companies.length === 0) {
         return new Response(JSON.stringify({ error: "Company not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      companyName = company.name_ar || company.name;
+      companyName = companies.map(c => c.name_ar || c.name).join(" + ");
     }
 
-    // Fetch policies for this company, excluding ELZAMI
+    // Fetch policies, excluding ELZAMI
     let query = supabase
       .from("policies")
       .select(`
@@ -82,11 +88,12 @@ serve(async (req) => {
       .neq("policy_type_parent", "ELZAMI")
       .is("deleted_at", null);
 
-    if (company_id) query = query.eq("company_id", company_id);
+    if (effectiveCompanyIds) query = query.in("company_id", effectiveCompanyIds);
+    if (effectivePolicyTypes) query = query.in("policy_type_parent", effectivePolicyTypes);
+    if (broker_ids?.length) query = query.in("broker_id", broker_ids);
 
     if (start_date) query = query.gte("start_date", start_date);
     if (end_date) query = query.lte("start_date", end_date);
-    if (policy_type && policy_type !== "all") query = query.eq("policy_type_parent", policy_type);
     if (!include_cancelled) query = query.eq("cancelled", false);
 
     const { data: policies, error: policiesError } = await query.order("start_date", { ascending: true });

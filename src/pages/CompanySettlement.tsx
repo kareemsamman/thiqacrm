@@ -32,6 +32,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { POLICY_TYPE_LABELS, getInsuranceTypeBadgeClass, POLICY_CHILD_LABELS } from '@/lib/insuranceTypes';
 import { PolicyDetailsDrawer } from '@/components/policies/PolicyDetailsDrawer';
+import { MultiSelectFilter } from '@/components/shared/MultiSelectFilter';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 
 type Broker = Tables<'brokers'>;
@@ -92,9 +93,9 @@ export default function CompanySettlement() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedCompany, setSelectedCompany] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedBroker, setSelectedBroker] = useState<string>('all');
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedBrokers, setSelectedBrokers] = useState<string[]>([]);
   const [includeCancelled, setIncludeCancelled] = useState(false);
 
   // Summary totals
@@ -111,11 +112,11 @@ export default function CompanySettlement() {
 
   useEffect(() => {
     fetchFilteredCompanies();
-  }, [selectedMonth, selectedCategory, selectedBroker, showAllTime]);
+  }, [selectedMonth, selectedCategories, selectedBrokers, showAllTime]);
 
   useEffect(() => {
     fetchSettlementData();
-  }, [selectedMonth, selectedCompany, selectedCategory, selectedBroker, includeCancelled, showAllTime]);
+  }, [selectedMonth, selectedCompanies, selectedCategories, selectedBrokers, includeCancelled, showAllTime]);
 
   const fetchBrokers = async () => {
     try {
@@ -191,8 +192,10 @@ export default function CompanySettlement() {
       const { data: companies, error } = await supabase.rpc('report_company_settlement_company_options', {
         p_start_date: startDate,
         p_end_date: endDate,
-        p_policy_type_parent: selectedCategory !== 'all' ? selectedCategory as Enums<'policy_type_parent'> : null,
-        p_broker_id: selectedBroker !== 'all' ? selectedBroker : null,
+        p_policy_type_parent: null,
+        p_broker_id: null,
+        p_policy_types: selectedCategories.length > 0 ? selectedCategories : null,
+        p_broker_ids: selectedBrokers.length > 0 ? selectedBrokers : null,
       });
 
       if (error) throw error;
@@ -205,11 +208,12 @@ export default function CompanySettlement() {
 
       setFilteredCompanies(options);
 
-      // Clear selected company if it's no longer valid
-      if (selectedCompany !== 'all') {
-        const stillValid = options.some(c => c.company_id === selectedCompany);
-        if (!stillValid) {
-          setSelectedCompany('all');
+      // Clear selected companies if they're no longer valid
+      if (selectedCompanies.length > 0) {
+        const validIds = new Set(options.map(c => c.company_id));
+        const stillValid = selectedCompanies.filter(id => validIds.has(id));
+        if (stillValid.length !== selectedCompanies.length) {
+          setSelectedCompanies(stillValid);
         }
       }
     } catch (error) {
@@ -226,10 +230,13 @@ export default function CompanySettlement() {
       const { data: result, error } = await supabase.rpc('report_company_settlement', {
         p_start_date: startDate,
         p_end_date: endDate,
-        p_company_id: selectedCompany !== 'all' ? selectedCompany : null,
-        p_policy_type_parent: selectedCategory !== 'all' ? selectedCategory as Enums<'policy_type_parent'> : null,
-        p_broker_id: selectedBroker !== 'all' ? selectedBroker : null,
+        p_company_id: null,
+        p_policy_type_parent: null,
+        p_broker_id: null,
         p_include_cancelled: includeCancelled,
+        p_company_ids: selectedCompanies.length > 0 ? selectedCompanies : null,
+        p_policy_types: selectedCategories.length > 0 ? selectedCategories : null,
+        p_broker_ids: selectedBrokers.length > 0 ? selectedBrokers : null,
       });
 
       if (error) throw error;
@@ -271,9 +278,9 @@ export default function CompanySettlement() {
   const handleResetFilters = () => {
     const now = new Date();
     setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-    setSelectedCompany('all');
-    setSelectedCategory('all');
-    setSelectedBroker('all');
+    setSelectedCompanies([]);
+    setSelectedCategories([]);
+    setSelectedBrokers([]);
     setIncludeCancelled(false);
     setShowAllTime(true);
   };
@@ -328,10 +335,11 @@ export default function CompanySettlement() {
       const { startDate, endDate } = getDateRange();
       const response = await supabase.functions.invoke('generate-tax-invoice', {
         body: {
-          company_id: selectedCompany !== 'all' ? selectedCompany : null,
+          company_ids: selectedCompanies.length > 0 ? selectedCompanies : null,
           start_date: startDate,
           end_date: endDate,
-          policy_type: selectedCategory !== 'all' ? selectedCategory : null,
+          policy_types: selectedCategories.length > 0 ? selectedCategories : null,
+          broker_ids: selectedBrokers.length > 0 ? selectedBrokers : null,
           include_cancelled: includeCancelled,
           profit_percent: profitPercent,
         },
@@ -455,53 +463,38 @@ export default function CompanySettlement() {
 
                   <div className="space-y-2">
                     <Label>الوسيط</Label>
-                    <Select value={selectedBroker} onValueChange={setSelectedBroker}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="جميع الوسطاء" />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="all">جميع الوسطاء</SelectItem>
-                        {brokers.map((broker) => (
-                          <SelectItem key={broker.id} value={broker.id}>
-                            {broker.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MultiSelectFilter
+                      options={brokers.map((b) => ({ value: b.id, label: b.name }))}
+                      selected={selectedBrokers}
+                      onChange={setSelectedBrokers}
+                      placeholder="جميع الوسطاء"
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label>الشركة</Label>
-                    <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="جميع الشركات" />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="all">جميع الشركات ({filteredCompanies.length})</SelectItem>
-                        {filteredCompanies.map((company) => (
-                          <SelectItem key={company.company_id} value={company.company_id}>
-                            {company.company_name_ar || company.company_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MultiSelectFilter
+                      options={filteredCompanies.map((c) => ({
+                        value: c.company_id,
+                        label: c.company_name_ar || c.company_name,
+                      }))}
+                      selected={selectedCompanies}
+                      onChange={setSelectedCompanies}
+                      placeholder={`جميع الشركات (${filteredCompanies.length})`}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label>نوع الوثيقة</Label>
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="جميع الأنواع" />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="all">جميع الأنواع</SelectItem>
-                        {Object.entries(POLICY_TYPE_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MultiSelectFilter
+                      options={Object.entries(POLICY_TYPE_LABELS).map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                      selected={selectedCategories}
+                      onChange={setSelectedCategories}
+                      placeholder="جميع الأنواع"
+                    />
                   </div>
 
                   <div className="space-y-2">

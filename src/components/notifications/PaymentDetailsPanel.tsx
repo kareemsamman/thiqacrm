@@ -158,7 +158,7 @@ export function PaymentDetailsPanel({ metadata, className }: PaymentDetailsPanel
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs gap-1"
-                  onClick={() => handleNavigate(`/clients?id=${details.client_id}`)}
+                  onClick={() => handleNavigate(`/clients/${details.client_id}`)}
                 >
                   <User className="h-3 w-3" />
                   فتح العميل

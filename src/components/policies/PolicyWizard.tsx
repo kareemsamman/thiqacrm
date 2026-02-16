@@ -1713,7 +1713,7 @@ export function PolicyWizard({
             
             // Navigate to client page
             if (successPolicyData.clientId) {
-              window.location.href = `/clients?open=${successPolicyData.clientId}`;
+              navigate(`/clients/${successPolicyData.clientId}`);
             } else {
               onSaved?.();
             }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate, useParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
@@ -63,6 +63,7 @@ export default function Clients() {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const { clientId: urlClientId } = useParams<{ clientId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,12 +85,11 @@ export default function Clients() {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Handle URL param to open client directly
+  // Handle URL param to open client directly (supports both /clients/:id and ?open=id)
   useEffect(() => {
-    const openClientId = searchParams.get('open');
+    const openClientId = urlClientId || searchParams.get('open');
     const carId = searchParams.get('car');
     if (openClientId && !viewingClient) {
-      // Fetch the client and open their details
       supabase
         .from('clients')
         .select('*, broker:brokers(id, name), branch:branches(id, name, name_ar), created_by:profiles!clients_created_by_admin_id_fkey(full_name, email)')
@@ -100,12 +100,14 @@ export default function Clients() {
           if (data && !error) {
             setViewingClient(data);
             setInitialCarFilter(carId || null);
-            // Clear the URL param
-            setSearchParams({});
+            // Clear legacy query params if present
+            if (searchParams.get('open')) {
+              setSearchParams({});
+            }
           }
         });
     }
-  }, [searchParams, setSearchParams, viewingClient]);
+  }, [urlClientId, searchParams, setSearchParams, viewingClient]);
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
@@ -226,6 +228,7 @@ export default function Clients() {
           } else {
             setViewingClient(null);
             setInitialCarFilter(null);
+            navigate('/clients');
           }
         }}
         onRefresh={() => {
@@ -332,7 +335,7 @@ export default function Clients() {
                         "hover:bg-secondary/50 animate-fade-in"
                       )}
                       style={{ animationDelay: `${index * 30}ms` }}
-                      onClick={() => setViewingClient(client)}
+                      onClick={() => navigate(`/clients/${client.id}`)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -423,7 +426,7 @@ export default function Clients() {
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <RowActionsMenu
-                          onView={() => setViewingClient(client)}
+                          onView={() => navigate(`/clients/${client.id}`)}
                           onEdit={() => {
                             setSelectedClient(client);
                             setDrawerOpen(true);

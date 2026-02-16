@@ -1,35 +1,28 @@
 
+# Fix: Search crashes page with white screen
 
-# نقل شريط البحث إلى داخل جدول الوثائق
+## Problem
+When you type in the search box on the settlement detail page, the page goes completely white.
 
-## المشكلة
-شريط البحث موجود حاليا خارج بطاقة جدول الوثائق (منفصل عنها)، والمستخدم يبحث لكنه لا يرى أنه مرتبط بالجدول. يجب نقله إلى داخل header الجدول بجانب عنوان "الوثائق".
-
-## التغييرات
-
-### ملف: `src/pages/CompanySettlementDetail.tsx`
-
-**1. حذف شريط البحث المنفصل (سطور 623-634)**
-إزالة كامل الـ `div` الذي يحتوي على البحث الحالي الموجود بين زر العودة والفلاتر.
-
-**2. إضافة البحث داخل CardHeader للجدول (سطر ~826-838)**
-نقل حقل البحث إلى داخل header بطاقة الوثائق، بجانب العنوان وزر الترتيب:
-
+## Root Cause
+In the search filter (line 159), the code calls:
 ```
-<CardHeader>
-  <div className="flex items-center justify-between flex-wrap gap-3">
-    <CardTitle>الوثائق ({filteredPolicies.length})</CardTitle>
-    <div className="flex items-center gap-2 flex-1 max-w-md">
-      <div className="relative flex-1">
-        <Search icon />
-        <Input placeholder="بحث..." />
-      </div>
-      <Button>ترتيب</Button>
-    </div>
-  </div>
-</CardHeader>
+getInsuranceTypeLabelLocal(policy).toLowerCase()
+```
+This function (line 351) returns `POLICY_TYPE_LABELS[policy.policy_type_parent]` which can be `undefined` if a policy has an unexpected type. Calling `.toLowerCase()` on `undefined` throws an error and crashes the entire component.
+
+## Fix
+
+### File: `src/pages/CompanySettlementDetail.tsx`
+
+**1. Line 351** - Add fallback to prevent undefined return:
+```typescript
+return POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent || '';
 ```
 
-هذا يضع البحث مباشرة فوق الجدول ومرتبط بصريا به، مما يجعل واضحا أن البحث يفلتر هذا الجدول تحديدا.
+**2. Line 159** - Add safety net in the search filter:
+```typescript
+const insuranceLabel = (getInsuranceTypeLabelLocal(policy) || '').toLowerCase();
+```
 
-لا تغيير على منطق البحث (useMemo) - هو يعمل بشكل صحيح، فقط نقل موقع الـ Input.
+Two small one-line changes that prevent the crash completely.

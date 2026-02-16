@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,8 @@ import { PackagePolicyEditModal } from "./PackagePolicyEditModal";
 
 import { CancelPolicyModal } from "./CancelPolicyModal";
 import { TransferPolicyModal } from "./TransferPolicyModal";
+import { recalculatePolicyProfit } from "@/lib/pricingCalculator";
+import { RefreshCw } from "lucide-react";
 
 interface PolicyDetailsDrawerProps {
   open: boolean;
@@ -1352,6 +1354,25 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                               <p className="font-bold text-lg text-emerald-700 ltr-nums">{formatCurrency(policy.profit)}</p>
                             </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full mt-3 text-xs text-muted-foreground hover:text-primary"
+                            onClick={async () => {
+                              if (!policyId) return;
+                              const result = await recalculatePolicyProfit(policyId);
+                              if (result) {
+                                toast({ title: "تم", description: `الربح: ${result.profit}₪ | للشركة: ${result.companyPayment}₪` });
+                                fetchPolicyDetails();
+                                onUpdated?.();
+                              } else {
+                                toast({ title: "لا تغيير", description: "لا توجد قواعد تسعير لهذه الوثيقة" });
+                              }
+                            }}
+                          >
+                            <RefreshCw className="ml-1 h-3 w-3" />
+                            إعادة حساب الربح
+                          </Button>
                         </div>
                       </Section>
                     )}

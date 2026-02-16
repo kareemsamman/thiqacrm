@@ -1,32 +1,45 @@
 
-# إضافة تاريخ الإصدار في شاشة تعديل/عرض الوثيقة
+
+# إضافة تاريخ الإصدار في 3 أماكن
 
 ## المشكلة
-حقل "تاريخ الإصدار" (issue_date) موجود فقط في معالج إنشاء الوثيقة (Wizard) لكنه غير موجود في:
-1. شاشة تعديل الوثيقة (PolicyEditDrawer) - لا يمكن تعديله
-2. شاشة عرض تفاصيل الوثيقة (PolicyDetailsDrawer) - يظهر فقط إذا كان مختلفاً عن تاريخ البداية
+1. **معالج إنشاء الوثيقة (Step3)**: حقل تاريخ الإصدار موجود فقط لنوع `THIRD_FULL`، المطلوب إظهاره لجميع الأنواع وتحريكه ليكون قبل تواريخ البداية/النهاية
+2. **تعديل الباقة (PackagePolicyEditModal)**: لا يوجد حقل تاريخ الإصدار. المطلوب إضافته لكل مكون في الباقة، والقيمة الافتراضية = تاريخ البدء
+3. **تعديل وثيقة مفردة (PolicyEditDrawer)**: الحقل حالياً يظهر فقط لـ `THIRD_FULL`، المطلوب إظهاره لجميع الأنواع
 
-## الحل
+## التعديلات
 
-### 1. PolicyEditDrawer (تعديل الوثيقة)
-- إضافة `issue_date` لحالة النموذج (formData)
-- جلب `issue_date` من قاعدة البيانات عند فتح المحرر
-- إضافة حقل ArabicDatePicker لتاريخ الإصدار بعد حقول التواريخ (يظهر فقط لنوع THIRD_FULL)
-- حفظ `issue_date` عند الضغط على حفظ
+### 1. Step3PolicyDetails.tsx - نقل الحقل وجعله لجميع الأنواع
+- نقل حقل "تاريخ الإصدار" من بعد التواريخ إلى **قبل** حقول البداية/النهاية
+- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` ليظهر لجميع الأنواع
+- الافتراضي يبقى = تاريخ البداية
 
-### 2. PolicyDetailsDrawer (عرض التفاصيل)
-- عرض تاريخ الإصدار دائماً لوثائق ثالث/شامل (وليس فقط عندما يختلف عن تاريخ البداية)
-- إضافة `issue_date` لاستعلام جلب البيانات
+### 2. PackagePolicyEditModal.tsx - إضافة issue_date لكل مكون
+- إضافة `issueDate` في `EditState` interface
+- جلب `issue_date` من DB عند تحميل الباقة
+- عرض حقل ArabicDatePicker لتاريخ الإصدار في كل مكون (بعد تاريخ البدء وقبل السعر)
+- القيمة الافتراضية = `startDate` لكل مكون
+- حفظ `issue_date` عند الضغط على "حفظ جميع التغييرات"
+
+### 3. PolicyEditDrawer.tsx - إزالة شرط THIRD_FULL
+- حقل تاريخ الإصدار يظهر لجميع أنواع الوثائق وليس فقط `THIRD_FULL`
 
 ## التفاصيل التقنية
 
+### ملف `src/components/policies/wizard/Step3PolicyDetails.tsx`
+- سطر 850-863: نقل block تاريخ الإصدار إلى قبل سطر 827 (قبل تواريخ البداية/النهاية)
+- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` من الحقل
+
+### ملف `src/components/policies/PackagePolicyEditModal.tsx`
+- سطر 99-103: إضافة `issueDate: string` في `EditState`
+- سطر 161-178: إضافة `issue_date` في select query وتعبئة `issueDate` في `EditState`
+- سطر 611-638: إضافة حقل ArabicDatePicker لتاريخ الإصدار بين start/end dates والسعر (يتحول إلى grid-cols-4)
+- سطر 512-523: إضافة `issue_date` في استعلام التحديث
+
 ### ملف `src/components/policies/PolicyEditDrawer.tsx`
-- إضافة `issue_date` في `formData` state (سطر 112-129)
-- جلب `issue_date` من DB مع `office_commission` (سطر 169-179)
-- إضافة حقل UI بعد تواريخ البدء/الانتهاء (بعد سطر 475)، يظهر فقط عندما `policy_type_parent === 'THIRD_FULL'`
-- إضافة `issue_date` في استعلام التحديث (سطر 286-306)
+- إزالة شرط `formData.policy_type_parent === 'THIRD_FULL'` من حقل تاريخ الإصدار ليظهر لجميع الأنواع
+- تحديث منطق الحفظ ليرسل `issue_date` لجميع الأنواع
 
 ### ملف `src/components/policies/PolicyDetailsDrawer.tsx`
-- إضافة `issue_date` في استعلام select
-- إضافة `issue_date` في واجهة PolicyDetails
-- عرض تاريخ الإصدار دائماً لوثائق THIRD_FULL (وليس فقط عند الاختلاف)
+- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` لعرض تاريخ الإصدار لجميع الأنواع
+

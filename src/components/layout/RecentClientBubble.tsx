@@ -24,7 +24,7 @@ export function RecentClientBubble({ currentlyViewingClientId }: RecentClientBub
   if (isOnClientsPage) return null;
 
   const handleClick = () => {
-    navigate(`/clients?open=${recentClient.id}`);
+    navigate(`/clients/${recentClient.id}`);
   };
 
   const handleClose = (e: React.MouseEvent) => {

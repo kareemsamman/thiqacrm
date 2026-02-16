@@ -113,6 +113,11 @@ const App = () => (
                   <Clients />
                 </ProtectedRoute>
               } />
+              <Route path="/clients/:clientId" element={
+                <ProtectedRoute>
+                  <Clients />
+                </ProtectedRoute>
+              } />
               <Route path="/cars" element={
                 <ProtectedRoute>
                   <Cars />

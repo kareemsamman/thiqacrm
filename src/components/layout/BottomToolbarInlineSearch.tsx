@@ -176,9 +176,9 @@ export function BottomToolbarInlineSearch({ className }: BottomToolbarInlineSear
     clearSearch();
     // Navigate with car filter if a car was matched
     const url = matchedCarId 
-      ? `/clients?open=${clientId}&car=${matchedCarId}`
-      : `/clients?open=${clientId}`;
-    window.location.href = url;
+      ? `/clients/${clientId}?car=${matchedCarId}`
+      : `/clients/${clientId}`;
+    navigate(url);
   };
 
   const handleFocus = () => {

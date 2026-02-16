@@ -536,7 +536,7 @@ ${policyDetails}
                             className="font-medium text-primary cursor-pointer hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.location.href = `/clients?open=${client.client_id}`;
+                              window.location.href = `/clients/${client.client_id}`;
                             }}
                           >
                             {client.client_name}

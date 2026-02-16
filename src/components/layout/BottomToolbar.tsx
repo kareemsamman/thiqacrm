@@ -104,7 +104,7 @@ export function BottomToolbar({ onPolicyComplete }: BottomToolbarProps) {
                   "flex items-center gap-2 h-9 px-3 rounded-full border border-border/50",
                   "bg-secondary/40 hover:bg-secondary/60 transition-colors"
                 )}
-                onClick={() => navigate(`/clients?open=${recentClient.id}`)}
+                onClick={() => navigate(`/clients/${recentClient.id}`)}
                 title={`العودة لملف ${recentClient.name}`}
               >
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary font-bold text-xs">

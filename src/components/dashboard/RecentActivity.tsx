@@ -588,7 +588,7 @@ export function RecentActivity() {
                     key={group.clientId || group.clientName} 
                     group={group} 
                     compact 
-                    onClientClick={() => group.clientId && navigate(`/clients?open=${group.clientId}`)}
+                    onClientClick={() => group.clientId && navigate(`/clients/${group.clientId}`)}
                   />
                 ))
               )}
@@ -676,7 +676,7 @@ export function RecentActivity() {
                   <GroupedActivityCard 
                     key={group.clientId || group.clientName} 
                     group={group}
-                    onClientClick={() => group.clientId && navigate(`/clients?open=${group.clientId}`)}
+                    onClientClick={() => group.clientId && navigate(`/clients/${group.clientId}`)}
                   />
                 ))
               )}

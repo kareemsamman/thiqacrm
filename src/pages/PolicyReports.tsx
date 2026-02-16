@@ -1415,7 +1415,7 @@ export default function PolicyReports() {
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <div>
                                 <button
-                                  onClick={() => navigate(`/clients?open=${client.client_id}`, { 
+                                  onClick={() => navigate(`/clients/${client.client_id}`, { 
                                     state: { from: '/reports/policies', tab: 'renewals' }
                                   })}
                                   className="font-medium hover:text-primary hover:underline transition-colors text-right"
@@ -1718,7 +1718,7 @@ export default function PolicyReports() {
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <div>
                                 <button
-                                  onClick={() => navigate(`/clients?open=${client.client_id}`, { 
+                                  onClick={() => navigate(`/clients/${client.client_id}`, { 
                                     state: { from: '/reports/policies', tab: 'renewed' }
                                   })}
                                   className="font-medium hover:text-primary hover:underline transition-colors text-right"

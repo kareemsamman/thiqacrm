@@ -175,11 +175,10 @@ export function GlobalPolicySearch({ open, onOpenChange }: GlobalPolicySearchPro
 
   const handleSelectClient = (clientId: string, matchedCarId?: string) => {
     onOpenChange(false);
-    // Navigate to client details page with car filter if matched
     const url = matchedCarId 
-      ? `/clients?open=${clientId}&car=${matchedCarId}`
-      : `/clients?open=${clientId}`;
-    window.location.href = url;
+      ? `/clients/${clientId}?car=${matchedCarId}`
+      : `/clients/${clientId}`;
+    navigate(url);
   };
 
   return (

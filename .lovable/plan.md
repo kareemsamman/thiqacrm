@@ -1,28 +1,41 @@
 
-# Fix: Search crashes page with white screen
+# إصلاح البحث - حماية كاملة من الأعطال
 
-## Problem
-When you type in the search box on the settlement detail page, the page goes completely white.
+## المشكلة
+البحث في صفحة تفاصيل تسوية الشركة يسبب شاشة بيضاء عند الكتابة.
 
-## Root Cause
-In the search filter (line 159), the code calls:
-```
-getInsuranceTypeLabelLocal(policy).toLowerCase()
-```
-This function (line 351) returns `POLICY_TYPE_LABELS[policy.policy_type_parent]` which can be `undefined` if a policy has an unexpected type. Calling `.toLowerCase()` on `undefined` throws an error and crashes the entire component.
+## الحل
+سنضيف حماية كاملة للبحث بطريقتين:
 
-## Fix
+### ملف: `src/pages/CompanySettlementDetail.tsx`
 
-### File: `src/pages/CompanySettlementDetail.tsx`
+**1. لف فلتر البحث بالكامل في try-catch**
+بدلاً من الاعتماد على فحص كل حقل على حدة، سنلف عملية الفلترة كاملة في `try-catch` بحيث لو أي حقل غير متوقع سبب خطأ، لن تنهار الصفحة:
 
-**1. Line 351** - Add fallback to prevent undefined return:
 ```typescript
-return POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent || '';
+// Search filter
+if (searchQuery.trim()) {
+  const q = searchQuery.toLowerCase();
+  result = result.filter(policy => {
+    try {
+      const clientName = (policy.client?.full_name || '').toLowerCase();
+      const carNumber = (policy.car?.car_number || '').toLowerCase();
+      const manufacturer = (policy.car?.manufacturer_name || '').toLowerCase();
+      const insuranceLabel = (getInsuranceTypeLabelLocal(policy) || '').toLowerCase();
+      const priceStr = String(policy.insurance_price || 0);
+      const companyPayStr = String(policy.payed_for_company || 0);
+      const profitStr = String(policy.profit || 0);
+      
+      return clientName.includes(q) || carNumber.includes(q) || manufacturer.includes(q) ||
+        insuranceLabel.includes(q) || priceStr.includes(q) || companyPayStr.includes(q) || profitStr.includes(q);
+    } catch {
+      return true; // لو حصل خطأ، اعرض الوثيقة بدل ما تختفي
+    }
+  });
+}
 ```
 
-**2. Line 159** - Add safety net in the search filter:
-```typescript
-const insuranceLabel = (getInsuranceTypeLabelLocal(policy) || '').toLowerCase();
-```
+**2. إضافة Error Boundary حول الجدول**
+لف محتوى الجدول في try-catch في الـ render بحيث لو حصل أي خطأ في عرض صف، لا تنهار الصفحة كلها بل يظهر رسالة خطأ بسيطة.
 
-Two small one-line changes that prevent the crash completely.
+هذا يضمن أن البحث لن يسبب شاشة بيضاء أبداً مهما كانت البيانات.

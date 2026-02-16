@@ -1,59 +1,31 @@
 
 
-# إصلاح حساب المستحق للشركة لأنواع السيارات غير المعرّفة
+# إصلاح البيانات المحفوظة لوثيقة جودت سدر
 
 ## المشكلة
-سيارة جودت سدر (4306931) نوعها `tjeradown4` (تجاري > 4 طن)، لكن قواعد التسعير لشركة "اراضي مقدسة" معرّفة فقط لنوع `car`. الدالة `getRuleValue` تطلب تطابق نوع السيارة بالضبط، فلا تجد أي قاعدة → المستحق للشركة = 0 والربح = كامل السعر.
-
-**النتيجة الصحيحة:** المستحق للشركة = 900₪ (سعر الطرف الثالث) والربح = 3,400₪
+تعديل الكود السابق يعمل فقط على الحسابات الجديدة. البيانات المحفوظة في قاعدة البيانات لا تزال تحتوي على `payed_for_company = 0` و `profit = 4300` لأنها حُسبت قبل الإصلاح.
 
 ## الحل
 
-### ملف `src/lib/pricingCalculator.ts` - تعديل دالة `getRuleValue`
-
-إضافة **fallback**: إذا لم يُوجد قاعدة تطابق نوع السيارة بالضبط، يتم البحث مرة أخرى بدون فلتر نوع السيارة (أي استخدام القواعد العامة كافتراضي).
+### 1. تحديث مباشر لقاعدة البيانات (SQL Migration)
+تحديث وثيقة جودت سدر (اراضي مقدسة - ثالث - `tjeradown4`) مع القيمة الصحيحة:
+- المستحق للشركة: 900₪ (THIRD_PRICE من قواعد اراضي مقدسة)
+- الربح: 4300 - 900 = 3400₪
 
 ```text
-// المنطق الحالي (سطر 82-101):
-const getRuleValue = (...) => {
-  const matchingRules = rules?.filter(r => {
-    if (matchCarType && r.car_type && r.car_type !== carType) return false;
-    ...
-  });
-  return matchingRules[0]?.value ?? 0;
-};
-
-// بعد الإصلاح:
-const getRuleValue = (...) => {
-  // 1. محاولة أولى: تطابق دقيق مع نوع السيارة
-  const exactMatch = rules?.filter(r => {
-    if (r.rule_type !== ruleType) return false;
-    if (matchCarType && r.car_type && r.car_type !== carType) return false;
-    if (matchAgeBand && r.age_band && r.age_band !== 'ANY' && r.age_band !== ageBand) return false;
-    return true;
-  }) || [];
-  
-  // ترتيب حسب الدقة
-  exactMatch.sort(...);
-  if (exactMatch.length > 0) return exactMatch[0].value ?? 0;
-  
-  // 2. fallback: تجاهل نوع السيارة (استخدام القواعد العامة)
-  if (matchCarType) {
-    const fallback = rules?.filter(r => {
-      if (r.rule_type !== ruleType) return false;
-      if (matchAgeBand && r.age_band && r.age_band !== 'ANY' && r.age_band !== ageBand) return false;
-      return true;
-    }) || [];
-    fallback.sort(...);
-    if (fallback.length > 0) return fallback[0].value ?? 0;
-  }
-  
-  return 0;
-};
+UPDATE policies
+SET payed_for_company = 900,
+    profit = insurance_price - 900
+WHERE id = '548c8b17-22bd-40a1-a052-ebf8edfbb9d0';
 ```
 
-### النتيجة
-- سيارة `tjeradown4` ستستخدم قواعد `car` كافتراضي (900₪ للطرف الثالث)
-- أي نوع سيارة جديد بدون قواعد خاصة سيستخدم القواعد الموجودة بدل إرجاع 0
-- لا حاجة لإضافة قواعد تسعير لكل نوع سيارة
+### 2. إضافة زر "إعادة حساب" في صفحة الوثائق
+إضافة زر في صفحة تفاصيل الوثيقة يتيح إعادة حساب الربح والمستحق للشركة باستخدام الدالة `recalculatePolicyProfit` الموجودة بالفعل. هذا يمكّن المستخدمين من إصلاح أي وثيقة أخرى مستقبلاً بدون تدخل في قاعدة البيانات.
 
+التعديل في ملف `src/components/policies/PolicyDetailsDrawer.tsx`:
+- إضافة زر "إعادة حساب الربح" بجانب معلومات الربح
+- عند الضغط: استدعاء `recalculatePolicyProfit(policyId)` وتحديث البيانات
+
+## التحقق
+- 7 وثائق أخرى بنفس المشكلة (سيارات تجارية) لكن شركاتها ليس لديها قواعد تسعير أصلاً، فقيمة 0 صحيحة لها
+- الوثيقة الوحيدة المتأثرة فعلياً هي وثيقة جودت سدر مع شركة اراضي مقدسة

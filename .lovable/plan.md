@@ -1,34 +1,44 @@
 
-# Fix: Marketing SMS shows "failed" even though it sends successfully
+# إصلاح تخطيط "كل الفترات" + زر إعادة احتساب الأرباح
 
-## Problem
-The SMS actually sends successfully (confirmed in logs), but the edge function crashes AFTER sending because lines 210 and 216-217 reference `sentCount` and `failedCount` variables that were removed in the previous fix but their references were left behind.
+## المشكلة 1: "كل الفترات" خارج الإطار
+الأزرار في أسفل شريط الفلاتر (CSV، فاتورة ضريبية، كل الفترات) تخرج من حدود الـ Card لأن الـ grid به 6 أعمدة والأزرار لا تتناسب مع المساحة المتاحة.
 
-The error from logs:
-```
-ReferenceError: sentCount is not defined
-```
+### الحل
+- في `CompanySettlement.tsx`: تغيير الـ grid من `md:grid-cols-6` إلى `md:grid-cols-5` وتجميع الأزرار (CSV + فاتورة ضريبية + كل الفترات) في صف منفصل أسفل الفلاتر بدلاً من داخل الـ grid
+- في `CompanySettlementDetail.tsx`: نفس المعالجة - تجميع أزرار (تقرير PDF + CSV + فاتورة ضريبية + كل الفترات) في صف منفصل تحت الفلاتر
 
-## Fix
+## المشكلة 2: زر "إعادة احتساب الأرباح"
 
-### File: `supabase/functions/send-marketing-sms/index.ts`
+### المتطلبات
+- يظهر في صفحة `CompanySettlementDetail` (تفاصيل تسوية شركة معينة)
+- يعمل على الوثائق المعروضة حالياً (حسب الفلتر المحدد: من تاريخ - إلى تاريخ)
+- يستخدم `recalculatePolicyProfit` من `src/lib/pricingCalculator.ts` لإعادة حساب كل وثيقة
+- يعرض تقدم العملية (progress bar)
+- بعد الانتهاء يُعيد تحميل البيانات
 
-**Line 210** - Replace undefined variables with actual values:
-```typescript
-console.log(`Campaign completed: ${recipients.length} sent, 0 failed`);
-```
+### التنفيذ
+- إضافة زر "إعادة احتساب الأرباح" بجانب أزرار التقارير في `CompanySettlementDetail.tsx`
+- عند الضغط: يظهر تأكيد (عدد الوثائق التي سيتم إعادة حسابها)
+- يمر على كل وثيقة في `filteredPolicies` ويستدعي `recalculatePolicyProfit(policy.id)`
+- يعرض عداد التقدم أثناء العملية
+- بعد الانتهاء: يعيد تحميل البيانات ويعرض toast بالنتيجة
 
-**Lines 212-219** - Replace undefined variables in response:
-```typescript
-return new Response(
-  JSON.stringify({
-    success: true,
-    campaignId: campaign.id,
-    sentCount: recipients.length,
-    failedCount: 0,
-  }),
-  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-);
-```
+## التفاصيل التقنية
 
-Two lines changed - replaces undefined variable references with `recipients.length` and `0`.
+### ملف: `src/pages/CompanySettlement.tsx`
+- تغيير grid الفلاتر من 6 أعمدة إلى صفين: الفلاتر في الأعلى (5 أعمدة) والأزرار في صف منفصل تحتها
+- نقل أزرار CSV وفاتورة ضريبية وكل الفترات إلى `div` منفصل مع `flex-wrap`
+
+### ملف: `src/pages/CompanySettlementDetail.tsx`
+- نفس إصلاح التخطيط للفلاتر
+- إضافة state جديد: `recalculating` (boolean) و `recalcProgress` ({current, total})
+- إضافة دالة `handleRecalculateProfits`:
+  - تأخذ `filteredPolicies` (الوثائق المعروضة حالياً)
+  - تستبعد الملغية والمحولة
+  - تمر على كل وثيقة وتستدعي `recalculatePolicyProfit`
+  - تحدث progress bar
+  - في النهاية تستدعي `fetchCompanyAndPolicies()` لإعادة التحميل
+- إضافة زر "إعادة احتساب الأرباح" مع أيقونة Calculator
+- إضافة AlertDialog للتأكيد قبل البدء (يعرض عدد الوثائق)
+- إضافة progress bar يظهر أثناء العملية

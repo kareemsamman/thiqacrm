@@ -149,24 +149,26 @@ export default function CompanySettlementDetail() {
       return true;
     });
 
-    // Search filter - wrapped in try-catch to prevent white screen crashes
+    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(policy => {
-        try {
-          const clientName = (policy.client?.full_name || '').toLowerCase();
-          const carNumber = (policy.car?.car_number || '').toLowerCase();
-          const manufacturer = (policy.car?.manufacturer_name || '').toLowerCase();
-          const insuranceLabel = (getInsuranceTypeLabelLocal(policy) || '').toLowerCase();
-          const priceStr = String(policy.insurance_price || 0);
-          const companyPayStr = String(policy.payed_for_company || 0);
-          const profitStr = String(policy.profit || 0);
-          
-          return clientName.includes(q) || carNumber.includes(q) || manufacturer.includes(q) ||
-            insuranceLabel.includes(q) || priceStr.includes(q) || companyPayStr.includes(q) || profitStr.includes(q);
-        } catch {
-          return true;
-        }
+        const safe = (val: unknown) => String(val ?? '').toLowerCase();
+        const fields = [
+          policy.client?.full_name,
+          policy.car?.car_number,
+          policy.car?.manufacturer_name,
+          policy.car?.car_type,
+          policy.car?.year,
+          policy.car?.car_value,
+          policy.insurance_price,
+          policy.payed_for_company,
+          policy.profit,
+          policy.start_date,
+          policy.policy_type_parent,
+          policy.policy_type_child,
+        ];
+        return fields.some(f => safe(f).includes(q));
       });
     }
 

@@ -1,53 +1,34 @@
 
+# Fix: Marketing SMS shows "failed" even though it sends successfully
 
-# تعديلات رسائل SMS التسويقية
+## Problem
+The SMS actually sends successfully (confirmed in logs), but the edge function crashes AFTER sending because lines 210 and 216-217 reference `sentCount` and `failedCount` variables that were removed in the previous fix but their references were left behind.
 
-## 1. دائما إظهار الرسائل كـ "تم الإرسال بنجاح"
-
-لا يمكن التحقق فعلا من وصول الرسالة - API الـ 019sms يرد فقط "سيتم الإرسال" وليس "وصلت". لذلك سنعتبر كل رسالة تم إرسالها بنجاح.
-
-### ملف: `supabase/functions/send-marketing-sms/index.ts`
-
-- تغيير المنطق بحيث كل رسالة تسجل كـ `sent` بغض النظر عن رد الـ API
-- إزالة فحص `<status>0</status>` - كل رسالة ترسل تعتبر ناجحة
-- حذف عداد `failedCount` - كل الرسائل ستكون sent
-- تحديث الحملة في النهاية: `sent_count = recipients.length`, `failed_count = 0`
-
-### ملف: `src/pages/MarketingSms.tsx`
-
-- في سجل الحملات: إزالة عرض عدد الفشل `failed_count`
-- في تفاصيل الحملة: إزالة بطاقة "فشل" الحمراء
-- في قائمة المستلمين: كل المستلمين يظهرون كـ "تم الإرسال" (أخضر)
-
-## 2. بخصوص إرفاق صورة
-
-بعد مراجعة توثيق 019sms الرسمي بالكامل:
-- الـ API يدعم **SMS نصي فقط** - لا يوجد دعم لـ MMS أو إرفاق صور
-- المعاملات المتاحة: username, source, destinations, phone, message, timing, links
-- **لا يوجد معامل لإرفاق صور أو ملفات**
-- الحل الحالي (إرسال رابط الصورة كنص) هو أفضل ما يمكن عمله مع هذا الـ API
-
-## التفاصيل التقنية
-
-### Edge Function - تبسيط المنطق:
+The error from logs:
 ```
-// بدلا من فحص النجاح/الفشل
-// كل رسالة ترسل = ناجحة
-for (const recipient of recipients) {
-  // إرسال SMS
-  await fetch('https://019sms.co.il/api', ...);
-  
-  // دائما نسجل كـ sent
-  sentCount++;
-  await supabase.from('marketing_sms_recipients')
-    .update({ status: 'sent', sent_at: new Date().toISOString() })
-    ...
-}
-
-// النتيجة: sent_count = total, failed_count = 0
+ReferenceError: sentCount is not defined
 ```
 
-### الواجهة - إزالة مؤشرات الفشل:
-- حذف عرض `failed_count` من جدول الحملات
-- حذف بطاقة "فشل" من تفاصيل الحملة
-- كل المستلمين يظهرون بشارة خضراء "تم الإرسال"
+## Fix
+
+### File: `supabase/functions/send-marketing-sms/index.ts`
+
+**Line 210** - Replace undefined variables with actual values:
+```typescript
+console.log(`Campaign completed: ${recipients.length} sent, 0 failed`);
+```
+
+**Lines 212-219** - Replace undefined variables in response:
+```typescript
+return new Response(
+  JSON.stringify({
+    success: true,
+    campaignId: campaign.id,
+    sentCount: recipients.length,
+    failedCount: 0,
+  }),
+  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+);
+```
+
+Two lines changed - replaces undefined variable references with `recipients.length` and `0`.

@@ -64,6 +64,10 @@ export function Step2Car({
   useEffect(() => {
     if (selectedClient?.id) {
       fetchClientCars(selectedClient.id);
+    } else {
+      setClientCars([]);
+      setSelectedCar(null);
+      setExistingCar(null);
     }
   }, [selectedClient?.id]);
 

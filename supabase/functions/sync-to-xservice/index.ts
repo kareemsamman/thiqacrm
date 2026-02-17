@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       .from("policies")
       .select(`
         id, policy_type_parent, policy_number, start_date, end_date,
-        sell_price, notes, car_id, client_id,
+        insurance_price, notes, car_id, client_id,
         road_service_id, accident_fee_service_id
       `)
       .eq("id", policy_id)
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
         service_type: serviceType,
         start_date: policy.start_date,
         end_date: policy.end_date,
-        sell_price: policy.sell_price,
+        sell_price: policy.insurance_price,
         notes: policy.notes || "",
       },
     };

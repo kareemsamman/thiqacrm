@@ -47,7 +47,7 @@ import { SidebarClaimsBadge } from "./SidebarClaimsBadge";
 import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
-import { Palette } from "lucide-react";
+import { Palette, Link2 } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface NavItem {
@@ -148,6 +148,7 @@ export const navigationGroups: NavGroup[] = [
       { name: "استيراد WordPress", href: "/admin/wordpress-import", icon: Upload },
       { name: "إعلانات النظام", href: "/admin/announcements", icon: Megaphone, superAdminOnly: true },
       { name: "العلامة التجارية", href: "/admin/branding", icon: Palette },
+      { name: "إعدادات X-Service", href: "/admin/xservice", icon: Link2 },
     ],
   },
 ];

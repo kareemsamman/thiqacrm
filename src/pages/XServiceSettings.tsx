@@ -1,0 +1,335 @@
+import { useState, useEffect } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Save, TestTube, Trash2, RefreshCw, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+
+interface XServiceSettingsData {
+  id: string;
+  api_url: string;
+  api_key: string;
+  agent_name: string;
+  xservice_agent_id: string | null;
+  is_enabled: boolean;
+  sync_road_service: boolean;
+  sync_accident_fee: boolean;
+  updated_at: string;
+}
+
+interface SyncLogEntry {
+  id: string;
+  policy_id: string;
+  status: string;
+  xservice_policy_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  retried_at: string | null;
+}
+
+export default function XServiceSettings() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [settings, setSettings] = useState<XServiceSettingsData | null>(null);
+  const [logs, setLogs] = useState<SyncLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSettings();
+    fetchLogs();
+  }, []);
+
+  const fetchSettings = async () => {
+    const { data, error } = await supabase
+      .from("xservice_settings")
+      .select("*")
+      .limit(1)
+      .single();
+    if (error) {
+      console.error("Failed to fetch xservice_settings:", error);
+    } else {
+      setSettings(data as unknown as XServiceSettingsData);
+    }
+    setLoading(false);
+  };
+
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    const { data, error } = await supabase
+      .from("xservice_sync_log")
+      .select("id, policy_id, status, xservice_policy_id, error_message, created_at, retried_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!error && data) {
+      setLogs(data as unknown as SyncLogEntry[]);
+    }
+    setLogsLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("xservice_settings")
+      .update({
+        api_url: settings.api_url,
+        api_key: settings.api_key,
+        agent_name: settings.agent_name,
+        is_enabled: settings.is_enabled,
+        sync_road_service: settings.sync_road_service,
+        sync_accident_fee: settings.sync_accident_fee,
+      })
+      .eq("id", settings.id);
+
+    setSaving(false);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "تم الحفظ بنجاح" });
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!settings?.api_url) {
+      toast({ title: "أدخل رابط API أولاً", variant: "destructive" });
+      return;
+    }
+    setTesting(true);
+    try {
+      const apiUrl = settings.api_url.replace(/\/+$/, "");
+      const res = await fetch(`${apiUrl}/functions/v1/ab-sync-receive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: settings.api_key, test: true }),
+      });
+      if (res.ok) {
+        toast({ title: "✅ الاتصال ناجح" });
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast({ title: "❌ فشل الاتصال", description: body?.error || `HTTP ${res.status}`, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في الاتصال", description: err.message, variant: "destructive" });
+    }
+    setTesting(false);
+  };
+
+  const handleClearData = async () => {
+    if (!settings?.api_url || !settings?.api_key) return;
+    setClearing(true);
+    try {
+      const apiUrl = settings.api_url.replace(/\/+$/, "");
+      const res = await fetch(`${apiUrl}/functions/v1/ab-sync-clear`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: settings.api_key }),
+      });
+      if (res.ok) {
+        toast({ title: "✅ تم مسح البيانات بنجاح" });
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast({ title: "❌ فشل المسح", description: body?.error || `HTTP ${res.status}`, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "❌ خطأ", description: err.message, variant: "destructive" });
+    }
+    setClearing(false);
+    setShowClearConfirm(false);
+  };
+
+  const handleRetry = async (logEntry: SyncLogEntry) => {
+    toast({ title: "جاري إعادة المحاولة..." });
+    const { error } = await supabase.functions.invoke("sync-to-xservice", {
+      body: { policy_id: logEntry.policy_id },
+    });
+    if (error) {
+      toast({ title: "فشل", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "تم إرسال طلب إعادة المزامنة" });
+      // Update retried_at
+      await supabase
+        .from("xservice_sync_log")
+        .update({ retried_at: new Date().toISOString() })
+        .eq("id", logEntry.id);
+      fetchLogs();
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === "success") return <Badge variant="default" className="bg-green-600"><CheckCircle className="h-3 w-3 ml-1" />نجح</Badge>;
+    if (status === "failed") return <Badge variant="destructive"><XCircle className="h-3 w-3 ml-1" />فشل</Badge>;
+    return <Badge variant="secondary"><Clock className="h-3 w-3 ml-1" />قيد الانتظار</Badge>;
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="p-4 md:p-6 space-y-6" dir="rtl">
+        <h1 className="text-2xl font-bold">إعدادات X-Service</h1>
+
+        {/* Settings Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>إعدادات الاتصال</CardTitle>
+            <CardDescription>ربط AB مع نظام X-Service لمزامنة الوثائق تلقائياً</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>رابط API</Label>
+                <Input
+                  placeholder="https://your-xservice.supabase.co"
+                  value={settings?.api_url || ""}
+                  onChange={(e) => setSettings(s => s ? { ...s, api_url: e.target.value } : s)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>مفتاح API</Label>
+                <Input
+                  type="password"
+                  placeholder="مفتاح المصادقة"
+                  value={settings?.api_key || ""}
+                  onChange={(e) => setSettings(s => s ? { ...s, api_key: e.target.value } : s)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>اسم الوكيل</Label>
+                <Input
+                  placeholder="AB"
+                  value={settings?.agent_name || ""}
+                  onChange={(e) => setSettings(s => s ? { ...s, agent_name: e.target.value } : s)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-6 pt-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={settings?.is_enabled || false}
+                  onCheckedChange={(v) => setSettings(s => s ? { ...s, is_enabled: v } : s)}
+                />
+                <Label>تفعيل المزامنة</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={settings?.sync_road_service || false}
+                  onCheckedChange={(v) => setSettings(s => s ? { ...s, sync_road_service: v } : s)}
+                />
+                <Label>خدمات الطريق</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={settings?.sync_accident_fee || false}
+                  onCheckedChange={(v) => setSettings(s => s ? { ...s, sync_accident_fee: v } : s)}
+                />
+                <Label>إعفاء رسوم الحوادث</Label>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-4">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                حفظ
+              </Button>
+              <Button variant="outline" onClick={handleTestConnection} disabled={testing}>
+                {testing ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <TestTube className="h-4 w-4 ml-2" />}
+                اختبار الاتصال
+              </Button>
+              <Button variant="destructive" onClick={() => setShowClearConfirm(true)} disabled={clearing}>
+                {clearing ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Trash2 className="h-4 w-4 ml-2" />}
+                مسح بيانات X-Service
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sync Log */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>سجل المزامنة</CardTitle>
+              <CardDescription>آخر 50 عملية مزامنة</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={fetchLogs}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {logsLoading ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : logs.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">لا توجد عمليات مزامنة بعد</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الحالة</TableHead>
+                    <TableHead>التاريخ</TableHead>
+                    <TableHead>معرف X-Service</TableHead>
+                    <TableHead>الخطأ</TableHead>
+                    <TableHead>إجراء</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>{statusBadge(log.status)}</TableCell>
+                      <TableCell className="text-xs">
+                        {format(new Date(log.created_at), "dd/MM/yyyy HH:mm", { locale: ar })}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">{log.xservice_policy_id || "-"}</TableCell>
+                      <TableCell className="text-xs text-destructive max-w-[200px] truncate">{log.error_message || "-"}</TableCell>
+                      <TableCell>
+                        {log.status === "failed" && (
+                          <Button variant="ghost" size="sm" onClick={() => handleRetry(log)}>
+                            <RefreshCw className="h-3 w-3 ml-1" />
+                            إعادة
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <DeleteConfirmDialog
+          open={showClearConfirm}
+          onOpenChange={setShowClearConfirm}
+          onConfirm={handleClearData}
+          loading={clearing}
+          title="مسح بيانات X-Service"
+          description="سيتم حذف جميع الوثائق والسيارات والعملاء المرتبطين بهذا الوكيل في X-Service. لن يتم حذف الوكيل نفسه أو الخدمات أو الإعدادات. هل أنت متأكد؟"
+        />
+      </div>
+    </MainLayout>
+  );
+}

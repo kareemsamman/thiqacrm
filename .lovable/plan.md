@@ -1,47 +1,31 @@
 
-# إصلاح: النص العربي غير مقروء في عارض PDF + التحميل المباشر
 
-## المشكلتان
+# إصلاح: النص العربي غير مقروء في عارض PDF
 
-### 1. النص العربي غير مقروء
-pdf.js يحتاج إلى ملفات CMap (Character Maps) لعرض النصوص غير اللاتينية (العربية، العبرية). حالياً `getDocument` يُستدعى بدون تحديد `cMapUrl` و `cMapPacked`، فيفشل في عرض الحروف العربية بشكل صحيح.
-
-### 2. زر التحميل يفتح في تبويب جديد بدلاً من التحميل المباشر
-خاصية `download` في `<a>` لا تعمل مع روابط cross-origin (CDN خارجي). المتصفح يتجاهلها ويفتح الرابط في تبويب جديد.
+## المشكلة
+رغم إضافة CMap، النص العربي لا يزال غير مقروء. السبب هو أن pdf.js عند الرسم على canvas لا يدعم بشكل كامل تشكيل الحروف العربية (الربط بين الحروف، الاتجاه RTL). هذه مشكلة معروفة في pdf.js canvas rendering.
 
 ## الحل
+استبدال عارض pdf.js (canvas) بعارض المتصفح الأصلي (native PDF viewer) عبر `<iframe>` مع blob URL. المتصفح يعرض العربية بشكل مثالي.
+
+### كيف يعمل:
+1. جلب ملف PDF عبر proxy-cdn-file (كما هو الآن)
+2. تحويله إلى blob URL
+3. عرضه في `<iframe>` بدلاً من canvas
 
 ### ملف `src/components/policies/PdfJsViewer.tsx`
-- إضافة `cMapUrl` و `cMapPacked: true` في `getDocument()` لتحميل خرائط الأحرف العربية من unpkg CDN
-- التعديل في السطر 53:
+- إزالة كل كود pdf.js (import، canvas، page navigation، zoom)
+- استبداله بـ:
+  - fetch PDF via proxy -> blob -> `URL.createObjectURL`
+  - عرض في `<iframe src={blobUrl} />` بملء الحاوية
+- المتصفح الأصلي يوفر تلقائياً: تكبير/تصغير، تنقل بين الصفحات، بحث في النص
+- النتيجة: كود أبسط بكثير + عرض عربي مثالي
 
 ```text
-const loadingTask = pdfjsLib.getDocument({
-  data: arrayBuffer,
-  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
-  cMapPacked: true,
-});
+// الشكل الجديد المبسط:
+fetch(proxy-cdn-file) -> blob -> blobUrl
+<iframe src={blobUrl} className="w-full h-full" />
 ```
 
-### ملف `src/components/policies/FilePreviewGallery.tsx`
-- استبدال `<a target="_blank">` بزر يجلب الملف عبر proxy-cdn-file ثم يُنشئ blob URL ويُحمّل مباشرة
-- إضافة دالة `handleDownload` تستخدم fetch + blob + createElement('a') + click()
-- إظهار حالة تحميل أثناء جلب الملف
-
-```text
-const handleDownload = async () => {
-  setDownloading(true);
-  try {
-    const response = await fetch(proxy-cdn-file URL, { method: 'POST', body: { url } });
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = file.original_name;
-    a.click();
-    URL.revokeObjectURL(blobUrl);
-  } finally {
-    setDownloading(false);
-  }
-};
-```
+- يبقى: حالة التحميل (loading spinner) وحالة الخطأ
+- يُحذف: canvas، pdf.js import، أزرار zoom/navigation (المتصفح يوفرها)

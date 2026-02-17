@@ -1,45 +1,72 @@
 
 
-# إضافة تاريخ الإصدار في 3 أماكن
+# إصلاح: العميل لا يُحدد تلقائياً عند فتح معالج الوثيقة من صفحة العميل
 
 ## المشكلة
-1. **معالج إنشاء الوثيقة (Step3)**: حقل تاريخ الإصدار موجود فقط لنوع `THIRD_FULL`، المطلوب إظهاره لجميع الأنواع وتحريكه ليكون قبل تواريخ البداية/النهاية
-2. **تعديل الباقة (PackagePolicyEditModal)**: لا يوجد حقل تاريخ الإصدار. المطلوب إضافته لكل مكون في الباقة، والقيمة الافتراضية = تاريخ البدء
-3. **تعديل وثيقة مفردة (PolicyEditDrawer)**: الحقل حالياً يظهر فقط لـ `THIRD_FULL`، المطلوب إظهاره لجميع الأنواع
+عند فتح معالج إنشاء وثيقة جديدة من صفحة العميل (`/clients/:id`)، لا يتم تحديد العميل تلقائياً رغم تمرير `preselectedClientId` بشكل صحيح.
 
-## التعديلات
+## السبب المحتمل
+دالة `useEffect` المسؤولة عن التحديد المسبق للعميل في `usePolicyWizardState.ts` تحتوي على شرط `selectedClient?.id === preselectedClientId` الذي قد يُرجع `true` في حالات معينة (مثل فتح/إغلاق المعالج عدة مرات لنفس العميل بدون `resetForm`). أيضاً، لا يوجد نمط `cancelled` flag لمنع تعارض العمليات المتزامنة.
 
-### 1. Step3PolicyDetails.tsx - نقل الحقل وجعله لجميع الأنواع
-- نقل حقل "تاريخ الإصدار" من بعد التواريخ إلى **قبل** حقول البداية/النهاية
-- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` ليظهر لجميع الأنواع
-- الافتراضي يبقى = تاريخ البداية
+## الحل
 
-### 2. PackagePolicyEditModal.tsx - إضافة issue_date لكل مكون
-- إضافة `issueDate` في `EditState` interface
-- جلب `issue_date` من DB عند تحميل الباقة
-- عرض حقل ArabicDatePicker لتاريخ الإصدار في كل مكون (بعد تاريخ البدء وقبل السعر)
-- القيمة الافتراضية = `startDate` لكل مكون
-- حفظ `issue_date` عند الضغط على "حفظ جميع التغييرات"
+### ملف `src/components/policies/wizard/usePolicyWizardState.ts`
 
-### 3. PolicyEditDrawer.tsx - إزالة شرط THIRD_FULL
-- حقل تاريخ الإصدار يظهر لجميع أنواع الوثائق وليس فقط `THIRD_FULL`
+**التعديل 1: تحسين useEffect للتحديد المسبق**
+- إعادة كتابة effect التحديد المسبق للعميل (سطر 79-100)
+- إضافة `cancelled` flag لمنع تعارض الطلبات المتزامنة
+- إزالة guard `selectedClient?.id === preselectedClientId` لأنه يمنع إعادة التحديد بعد إغلاق/فتح المعالج
+- إضافة cleanup function تلغي الطلب إذا تغيرت المعطيات
 
-## التفاصيل التقنية
+**التعديل 2: إعادة تعيين العميل عند إغلاق المعالج**
+- إضافة useEffect جديد يُعيد تعيين `selectedClient` عند `!open` (لضمان حالة نظيفة عند إعادة الفتح)
+- هذا يعمل مع effect التحديد المسبق: عند إغلاق يُمسح، عند فتح يُعاد التحديد
 
-### ملف `src/components/policies/wizard/Step3PolicyDetails.tsx`
-- سطر 850-863: نقل block تاريخ الإصدار إلى قبل سطر 827 (قبل تواريخ البداية/النهاية)
-- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` من الحقل
+### التفاصيل التقنية
 
-### ملف `src/components/policies/PackagePolicyEditModal.tsx`
-- سطر 99-103: إضافة `issueDate: string` في `EditState`
-- سطر 161-178: إضافة `issue_date` في select query وتعبئة `issueDate` في `EditState`
-- سطر 611-638: إضافة حقل ArabicDatePicker لتاريخ الإصدار بين start/end dates والسعر (يتحول إلى grid-cols-4)
-- سطر 512-523: إضافة `issue_date` في استعلام التحديث
+```text
+// سطر 79-100 - تعديل effect التحديد المسبق
+useEffect(() => {
+  if (!preselectedClientId || !open) return;
+  let cancelled = false;
 
-### ملف `src/components/policies/PolicyEditDrawer.tsx`
-- إزالة شرط `formData.policy_type_parent === 'THIRD_FULL'` من حقل تاريخ الإصدار ليظهر لجميع الأنواع
-- تحديث منطق الحفظ ليرسل `issue_date` لجميع الأنواع
+  const fetchPreselectedClient = async () => {
+    setLoadingClients(true);
+    const { data, error } = await supabase
+      .from('clients')
+      .select('...')
+      .eq('id', preselectedClientId)
+      .single();
 
-### ملف `src/components/policies/PolicyDetailsDrawer.tsx`
-- إزالة شرط `policy.policy_type_parent === 'THIRD_FULL'` لعرض تاريخ الإصدار لجميع الأنواع
+    if (cancelled) return; // لا نُحدّث الحالة إذا تم الإلغاء
+    setLoadingClients(false);
+    if (!error && data) {
+      setSelectedClient(data as Client);
+      setCreateNewClient(false);
+    }
+  };
+
+  // فقط نجلب إذا لم يكن العميل محدداً بالفعل
+  if (selectedClient?.id !== preselectedClientId) {
+    fetchPreselectedClient();
+  }
+
+  return () => { cancelled = true; };
+}, [preselectedClientId, open]);
+
+// إضافة effect لتنظيف الحالة عند الإغلاق
+useEffect(() => {
+  if (!open) {
+    setSelectedClient(null);
+    setCreateNewClient(false);
+    setClientSearch("");
+    setClients([]);
+  }
+}, [open]);
+```
+
+هذا يضمن:
+1. عند إغلاق المعالج: يُمسح العميل المحدد
+2. عند فتح المعالج: إذا كان `preselectedClientId` موجوداً، يُجلب ويُحدد تلقائياً
+3. نمط `cancelled` يمنع تعارض الطلبات المتزامنة (مثلاً إذا اختار المستخدم عميلاً يدوياً أثناء التحميل)
 

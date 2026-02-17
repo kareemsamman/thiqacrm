@@ -1,35 +1,47 @@
 
-# إصلاح: فلتر السيارة لا يعمل عند البحث والانتقال لعميل آخر
+# إصلاح: النص العربي غير مقروء في عارض PDF + التحميل المباشر
 
-## المشكلة
-عند البحث عن رقم سيارة (مثل 43126201) من شريط البحث السفلي والنقر على النتيجة، يتم الانتقال للعميل الصحيح مع فلتر السيارة في URL (`?car=carId`). لكن الفلتر لا يعمل -- يظهر "لا توجد وثائق تطابق معايير البحث" رغم وجود وثائق.
+## المشكلتان
 
-## السبب
-`ClientDetails` يستخدم `useState(initialCarFilter || 'all')` لتهيئة فلتر السيارة. لكن `useState` يستخدم القيمة الأولية فقط عند **أول render**. عند الانتقال من عميل لآخر (المكون لا يُعاد تركيبه)، تتغير قيمة `initialCarFilter` لكن الـ state لا يتحدث.
+### 1. النص العربي غير مقروء
+pdf.js يحتاج إلى ملفات CMap (Character Maps) لعرض النصوص غير اللاتينية (العربية، العبرية). حالياً `getDocument` يُستدعى بدون تحديد `cMapUrl` و `cMapPacked`، فيفشل في عرض الحروف العربية بشكل صحيح.
+
+### 2. زر التحميل يفتح في تبويب جديد بدلاً من التحميل المباشر
+خاصية `download` في `<a>` لا تعمل مع روابط cross-origin (CDN خارجي). المتصفح يتجاهلها ويفتح الرابط في تبويب جديد.
 
 ## الحل
 
-### ملف `src/components/clients/ClientDetails.tsx`
-إضافة `useEffect` لمزامنة `initialCarFilter` مع `policyCarFilter`:
+### ملف `src/components/policies/PdfJsViewer.tsx`
+- إضافة `cMapUrl` و `cMapPacked: true` في `getDocument()` لتحميل خرائط الأحرف العربية من unpkg CDN
+- التعديل في السطر 53:
 
 ```text
-useEffect(() => {
-  setPolicyCarFilter(initialCarFilter || 'all');
-}, [initialCarFilter]);
+const loadingTask = pdfjsLib.getDocument({
+  data: arrayBuffer,
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
+  cMapPacked: true,
+});
 ```
 
-هذا يضمن أنه عند تغيير `initialCarFilter` (مثلاً عند البحث عن سيارة والانتقال لعميل جديد)، يتم تحديث فلتر السيارة تلقائياً.
-
-### ملف `src/pages/Clients.tsx` (تحسين إضافي)
-إضافة `key={viewingClient.id}` على مكون `ClientDetails` لإعادة تركيبه بالكامل عند تغيير العميل:
+### ملف `src/components/policies/FilePreviewGallery.tsx`
+- استبدال `<a target="_blank">` بزر يجلب الملف عبر proxy-cdn-file ثم يُنشئ blob URL ويُحمّل مباشرة
+- إضافة دالة `handleDownload` تستخدم fetch + blob + createElement('a') + click()
+- إظهار حالة تحميل أثناء جلب الملف
 
 ```text
-<ClientDetails
-  key={viewingClient.id}
-  client={viewingClient}
-  initialCarFilter={initialCarFilter}
-  ...
-/>
+const handleDownload = async () => {
+  setDownloading(true);
+  try {
+    const response = await fetch(proxy-cdn-file URL, { method: 'POST', body: { url } });
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = file.original_name;
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  } finally {
+    setDownloading(false);
+  }
+};
 ```
-
-هذا يضمن إعادة تعيين جميع الحالات الداخلية (فلاتر، بحث، تبويبات) عند الانتقال لعميل مختلف.

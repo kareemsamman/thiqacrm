@@ -1,36 +1,28 @@
 
-# إصلاح المزامنة الجماعية — مشكلة اسم العمود
+
+# إصلاح سعر المزامنة — إرسال سعر الخدمة بدل سعر العميل
 
 ## المشكلة
-المزامنة تظهر "نجح 0، فشل 0" لأن كلا الدالتين (`sync-to-xservice` و `bulk-sync-to-xservice`) تحاولان جلب عمود اسمه `sell_price` من جدول `policies`، لكن هذا العمود غير موجود.
+حالياً المزامنة ترسل `insurance_price` (السعر الذي يدفعه العميل لـ AB) كـ `sell_price` إلى X-Service. لكن المطلوب إرسال **سعر الخدمة** (ما يدفعه AB لمزود الخدمة) — وهو المخزن في `payed_for_company` على الوثيقة.
 
-الاسم الصحيح للعمود هو **`insurance_price`** وليس `sell_price`.
-
-هذا يسبب فشل الاستعلام بالكامل في `bulk-sync-to-xservice` (سطر 55) فيعود `policies = null` → يرجع الخطأ "Failed to fetch policies" → الدورة تنتهي بـ 0/0.
-
-نفس المشكلة موجودة في `sync-to-xservice` (سطر 59) مما يفسر لماذا المزامنة التلقائية عند إنشاء وثيقة جديدة لا تعمل أيضاً.
-
----
+مثال: إذا العميل يدفع ₪500 لـ AB، و AB يدفع ₪250 لشركة خدمات الطريق، المطلوب إرسال ₪250 وليس ₪500.
 
 ## التغييرات المطلوبة
 
 ### 1. ملف `supabase/functions/bulk-sync-to-xservice/index.ts`
-- سطر 55: تغيير `sell_price` إلى `insurance_price` في الـ select
-- سطر 119: تغيير `policy.sell_price` إلى `policy.insurance_price` في payload
+- إضافة `payed_for_company` إلى الـ select (سطر 55)
+- تغيير `sell_price: policy.insurance_price` إلى `sell_price: policy.payed_for_company || 0` (سطر 118)
 
 ### 2. ملف `supabase/functions/sync-to-xservice/index.ts`
-- سطر 59: تغيير `sell_price` إلى `insurance_price` في الـ select
-- سطر 130: تغيير `policy.sell_price` إلى `policy.insurance_price` في payload
+- إضافة `payed_for_company` إلى الـ select (سطر 59-60)
+- تغيير `sell_price: policy.insurance_price` إلى `sell_price: policy.payed_for_company || 0` (سطر 129)
 
 ### 3. إعادة نشر الدالتين
-بعد التعديل سيتم نشر `sync-to-xservice` و `bulk-sync-to-xservice` تلقائياً.
 
 ---
 
 ## القسم التقني
 
-السبب الجذري: الدالتان تستخدمان `.select("... sell_price ...")` لكن العمود الفعلي في جدول `policies` هو `insurance_price`. قاعدة Supabase ترجع خطأ عند طلب عمود غير موجود، فتفشل الاستعلامات.
+العمود `payed_for_company` في جدول `policies` يحتوي على المبلغ الذي يدفعه AB لمزود الخدمة (شركة خدمات الطريق أو إعفاء رسوم الحادث). هذا هو نفس السعر الذي يضعه مدير X-Service في نظامه لكل خدمة.
 
-التعديل بسيط — تغيير اسم العمود في مكانين لكل دالة (الـ select والـ payload).
-
-كذلك في payload المرسل إلى X-Service سيبقى اسم الحقل `sell_price` (لأنه هكذا يتوقعه X-Service)، لكن القيمة ستأتي من `policy.insurance_price`.
+التعديل بسيط: إضافة العمود للـ select واستخدامه بدل `insurance_price` في الـ payload.

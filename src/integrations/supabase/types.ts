@@ -4413,6 +4413,93 @@ export type Database = {
           },
         ]
       }
+      xservice_settings: {
+        Row: {
+          agent_name: string
+          api_key: string
+          api_url: string
+          id: string
+          is_enabled: boolean
+          sync_accident_fee: boolean
+          sync_road_service: boolean
+          updated_at: string
+          xservice_agent_id: string | null
+        }
+        Insert: {
+          agent_name?: string
+          api_key?: string
+          api_url?: string
+          id?: string
+          is_enabled?: boolean
+          sync_accident_fee?: boolean
+          sync_road_service?: boolean
+          updated_at?: string
+          xservice_agent_id?: string | null
+        }
+        Update: {
+          agent_name?: string
+          api_key?: string
+          api_url?: string
+          id?: string
+          is_enabled?: boolean
+          sync_accident_fee?: boolean
+          sync_road_service?: boolean
+          updated_at?: string
+          xservice_agent_id?: string | null
+        }
+        Relationships: []
+      }
+      xservice_sync_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          policy_id: string
+          request_payload: Json
+          response_payload: Json | null
+          retried_at: string | null
+          status: string
+          xservice_policy_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          policy_id: string
+          request_payload?: Json
+          response_payload?: Json | null
+          retried_at?: string | null
+          status?: string
+          xservice_policy_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          policy_id?: string
+          request_payload?: Json
+          response_payload?: Json | null
+          retried_at?: string | null
+          status?: string
+          xservice_policy_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "xservice_sync_log_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "xservice_sync_log_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "v_worker_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_worker_brokers: {

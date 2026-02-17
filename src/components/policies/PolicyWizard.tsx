@@ -1399,6 +1399,39 @@ export function PolicyWizard({
         dialogClientId = policyData?.client_id || null;
       }
 
+      // === X-Service sync (fire-and-forget) ===
+      const xserviceTypes: string[] = ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'];
+      const mainType = policy.policy_type_parent as string;
+      const policyIdsToSync: string[] = [];
+      
+      if (xserviceTypes.includes(mainType)) {
+        policyIdsToSync.push(policyIdToUse);
+      }
+      // Also check package addons
+      if (packageMode && packageAddons) {
+        packageAddons.forEach((addon: any) => {
+          if (!addon.enabled) return;
+          const addonTypeMap: Record<string, string> = {
+            'road_service': 'ROAD_SERVICE',
+            'accident_fee_exemption': 'ACCIDENT_FEE_EXEMPTION',
+          };
+          if (addonTypeMap[addon.type] && addon._savedPolicyId) {
+            policyIdsToSync.push(addon._savedPolicyId);
+          }
+        });
+      }
+      
+      if (policyIdsToSync.length > 0) {
+        // Fire-and-forget — don't block the user
+        policyIdsToSync.forEach(pid => {
+          supabase.functions.invoke('sync-to-xservice', { body: { policy_id: pid } })
+            .then(({ error }) => {
+              if (error) console.error('[PolicyWizard] X-Service sync error:', error);
+              else console.log('[PolicyWizard] X-Service sync sent for', pid);
+            });
+        });
+      }
+
       // Show success dialog instead of closing immediately
       setSuccessPolicyData({
         policyId: policyIdToUse,

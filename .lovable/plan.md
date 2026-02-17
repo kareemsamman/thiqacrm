@@ -1,105 +1,36 @@
 
-# إصلاح مزامنة X-Service + إضافة مزامنة جماعية
+# إصلاح المزامنة الجماعية — مشكلة اسم العمود
 
-## المشاكل الحالية
+## المشكلة
+المزامنة تظهر "نجح 0، فشل 0" لأن كلا الدالتين (`sync-to-xservice` و `bulk-sync-to-xservice`) تحاولان جلب عمود اسمه `sell_price` من جدول `policies`، لكن هذا العمود غير موجود.
 
-### 1. المزامنة التلقائية لا تعمل (خطأ في رابط API)
-السبب: حقل `رابط API` في الإعدادات يحتوي على الرابط الكامل:
-`https://ikwslbhjinlzsfrwyjom.supabase.co/functions/v1/ab-sync-receive`
+الاسم الصحيح للعمود هو **`insurance_price`** وليس `sell_price`.
 
-لكن الكود يضيف `/functions/v1/ab-sync-receive` مرة ثانية، فيصبح الرابط النهائي:
-`https://...supabase.co/functions/v1/ab-sync-receive/functions/v1/ab-sync-receive` (خطأ)
+هذا يسبب فشل الاستعلام بالكامل في `bulk-sync-to-xservice` (سطر 55) فيعود `policies = null` → يرجع الخطأ "Failed to fetch policies" → الدورة تنتهي بـ 0/0.
 
-نفس المشكلة موجودة في:
-- Edge Function `sync-to-xservice` (السطر 136)
-- زر "اختبار الاتصال" في الصفحة (السطر 114)
-- زر "مسح بيانات" في الصفحة (السطر 136)
-
-### 2. الصفحة لا تنتقل لملف العميل بعد الحفظ
-الكود الحالي يفعل ذلك فعلاً (السطر 1752: `navigate(/clients/${clientId})`) -- لكن فقط عند إغلاق نافذة النجاح. سأتحقق إذا كان هناك خطأ في التنفيذ.
-
-### 3. لا توجد طريقة لمزامنة الوثائق الموجودة (1342 وثيقة خدمات)
-يجب إضافة زر "مزامنة جماعية" في صفحة إعدادات X-Service.
+نفس المشكلة موجودة في `sync-to-xservice` (سطر 59) مما يفسر لماذا المزامنة التلقائية عند إنشاء وثيقة جديدة لا تعمل أيضاً.
 
 ---
 
 ## التغييرات المطلوبة
 
-### 1. إصلاح رابط API في كل مكان
+### 1. ملف `supabase/functions/bulk-sync-to-xservice/index.ts`
+- سطر 55: تغيير `sell_price` إلى `insurance_price` في الـ select
+- سطر 119: تغيير `policy.sell_price` إلى `policy.insurance_price` في payload
 
-**الحل**: تغيير المنطق ليستخدم `api_url` كقاعدة فقط (بدون مسار الدالة)، وتحديث الـ placeholder والتسمية لتوضيح ذلك. أيضاً تحديث القيمة المخزنة في قاعدة البيانات.
+### 2. ملف `supabase/functions/sync-to-xservice/index.ts`
+- سطر 59: تغيير `sell_price` إلى `insurance_price` في الـ select
+- سطر 130: تغيير `policy.sell_price` إلى `policy.insurance_price` في payload
 
-**ملف `supabase/functions/sync-to-xservice/index.ts`**:
-- تغيير ليقبل `api_url` كاملاً أو كقاعدة: إذا كان الرابط يحتوي على `/functions/v1/` نستخدمه مباشرة، وإلا نضيف المسار.
-
-**ملف `src/pages/XServiceSettings.tsx`**:
-- نفس الإصلاح لزر الاختبار وزر المسح.
-- تغيير الـ placeholder ليوضح: `https://xxxxx.supabase.co`
-- إضافة ملاحظة توضيحية تحت الحقل.
-
-### 2. إضافة مزامنة جماعية (Bulk Sync)
-
-**ملف `src/pages/XServiceSettings.tsx`**:
-- إضافة كارد جديد "مزامنة جماعية" مع:
-  - عرض عدد الوثائق المؤهلة (ROAD_SERVICE + ACCIDENT_FEE_EXEMPTION)
-  - زر "بدء المزامنة الجماعية"
-  - شريط تقدم (Progress bar)
-  - عداد: تم X من Y
-
-**ملف `supabase/functions/sync-to-xservice/index.ts`** (أو دالة جديدة `bulk-sync-to-xservice`):
-- إنشاء Edge Function جديد `bulk-sync-to-xservice` يقبل قائمة `policy_ids` أو يجلب كل الوثائق المؤهلة
-- يعالج بدفعات (batches of 10) لتجنب timeout
-- يسجل النتائج في `xservice_sync_log`
-
-**المنطق**: 
-- الصفحة تجلب عدد الوثائق المؤهلة أولاً
-- عند الضغط، ترسل دفعات من 20 وثيقة كل مرة عبر استدعاءات متتالية
-- كل دفعة تُحدّث شريط التقدم
-- في النهاية تعرض ملخص: نجح X، فشل Y
-
-### 3. إصلاح التنقل بعد حفظ الوثيقة
-
-الكود الحالي يبدو صحيحاً -- سأتأكد من أن `onSaved` يُنفذ بشكل صحيح وأن الـ navigate يعمل. إذا كان المستخدم يقصد أن الصفحة لا تتحدث (refresh) بعد الحفظ، سأضيف invalidation للبيانات.
+### 3. إعادة نشر الدالتين
+بعد التعديل سيتم نشر `sync-to-xservice` و `bulk-sync-to-xservice` تلقائياً.
 
 ---
 
 ## القسم التقني
 
-### ملفات سيتم تعديلها:
-1. **`supabase/functions/sync-to-xservice/index.ts`** -- إصلاح بناء الرابط (يكتشف تلقائياً إذا كان الرابط كاملاً أو قاعدة)
-2. **`src/pages/XServiceSettings.tsx`** -- إصلاح أزرار الاختبار والمسح + إضافة كارد المزامنة الجماعية مع شريط تقدم
+السبب الجذري: الدالتان تستخدمان `.select("... sell_price ...")` لكن العمود الفعلي في جدول `policies` هو `insurance_price`. قاعدة Supabase ترجع خطأ عند طلب عمود غير موجود، فتفشل الاستعلامات.
 
-### ملفات جديدة:
-3. **`supabase/functions/bulk-sync-to-xservice/index.ts`** -- يقبل `{ offset, limit }` ويعالج دفعة من الوثائق، يعيد `{ synced, failed, total, done }`
+التعديل بسيط — تغيير اسم العمود في مكانين لكل دالة (الـ select والـ payload).
 
-### تدفق المزامنة الجماعية:
-
-```text
-XServiceSettings (UI)
-  |-- GET count of eligible policies
-  |-- User clicks "بدء المزامنة الجماعية"  
-  |-- Loop:
-      |-- POST bulk-sync-to-xservice { offset: 0, limit: 20 }
-      |-- Update progress bar
-      |-- POST bulk-sync-to-xservice { offset: 20, limit: 20 }
-      |-- Update progress bar
-      |-- ... until done
-  |-- Show summary toast
-```
-
-### إصلاح الرابط:
-
-```text
-// Before (broken):
-syncUrl = apiUrl + "/functions/v1/ab-sync-receive"
-// If apiUrl = "https://x.supabase.co/functions/v1/ab-sync-receive"
-// Result: "https://x.supabase.co/functions/v1/ab-sync-receive/functions/v1/ab-sync-receive" (WRONG)
-
-// After (fixed):
-// Detect if apiUrl already contains the function path
-if (apiUrl.includes("/functions/v1/")) {
-  syncUrl = apiUrl; // use as-is
-} else {
-  syncUrl = apiUrl + "/functions/v1/ab-sync-receive"; // append path
-}
-```
+كذلك في payload المرسل إلى X-Service سيبقى اسم الحقل `sell_price` (لأنه هكذا يتوقعه X-Service)، لكن القيمة ستأتي من `policy.insurance_price`.

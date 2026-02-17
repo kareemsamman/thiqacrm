@@ -1,162 +1,105 @@
 
-# ربط AB Insurance CRM مع X-Service — مزامنة تلقائية
+# إصلاح مزامنة X-Service + إضافة مزامنة جماعية
 
-## الهدف
-عند إنشاء وثيقة من نوع **خدمات الطريق** (ROAD_SERVICE) أو **إعفاء رسوم حوادث** (ACCIDENT_FEE_EXEMPTION) في AB، يتم إرسال البيانات تلقائياً إلى X-Service لإنشاء العميل والسيارة والبوليصة هناك.
+## المشاكل الحالية
+
+### 1. المزامنة التلقائية لا تعمل (خطأ في رابط API)
+السبب: حقل `رابط API` في الإعدادات يحتوي على الرابط الكامل:
+`https://ikwslbhjinlzsfrwyjom.supabase.co/functions/v1/ab-sync-receive`
+
+لكن الكود يضيف `/functions/v1/ab-sync-receive` مرة ثانية، فيصبح الرابط النهائي:
+`https://...supabase.co/functions/v1/ab-sync-receive/functions/v1/ab-sync-receive` (خطأ)
+
+نفس المشكلة موجودة في:
+- Edge Function `sync-to-xservice` (السطر 136)
+- زر "اختبار الاتصال" في الصفحة (السطر 114)
+- زر "مسح بيانات" في الصفحة (السطر 136)
+
+### 2. الصفحة لا تنتقل لملف العميل بعد الحفظ
+الكود الحالي يفعل ذلك فعلاً (السطر 1752: `navigate(/clients/${clientId})`) -- لكن فقط عند إغلاق نافذة النجاح. سأتحقق إذا كان هناك خطأ في التنفيذ.
+
+### 3. لا توجد طريقة لمزامنة الوثائق الموجودة (1342 وثيقة خدمات)
+يجب إضافة زر "مزامنة جماعية" في صفحة إعدادات X-Service.
 
 ---
 
-## التغييرات في مشروع AB (هذا المشروع)
+## التغييرات المطلوبة
 
-### 1. جدول `xservice_settings` (singleton)
-يحفظ إعدادات الاتصال مع X-Service:
+### 1. إصلاح رابط API في كل مكان
 
-| العمود | النوع | الوصف |
-|--------|-------|-------|
-| id | uuid PK | |
-| api_url | text | رابط API لنظام X-Service (قابل للتعديل) |
-| api_key | text | مفتاح المصادقة |
-| agent_name | text | اسم الوكيل في X-Service |
-| xservice_agent_id | uuid nullable | معرّف الوكيل بعد التسجيل |
-| is_enabled | boolean | تفعيل/إيقاف المزامنة |
-| sync_road_service | boolean | مزامنة خدمات الطريق |
-| sync_accident_fee | boolean | مزامنة إعفاء حوادث |
-| updated_at | timestamptz | |
+**الحل**: تغيير المنطق ليستخدم `api_url` كقاعدة فقط (بدون مسار الدالة)، وتحديث الـ placeholder والتسمية لتوضيح ذلك. أيضاً تحديث القيمة المخزنة في قاعدة البيانات.
 
-- RLS: قراءة للمسجلين، تعديل للمسؤولين فقط
+**ملف `supabase/functions/sync-to-xservice/index.ts`**:
+- تغيير ليقبل `api_url` كاملاً أو كقاعدة: إذا كان الرابط يحتوي على `/functions/v1/` نستخدمه مباشرة، وإلا نضيف المسار.
 
-### 2. جدول `xservice_sync_log`
-سجل كل عملية مزامنة:
+**ملف `src/pages/XServiceSettings.tsx`**:
+- نفس الإصلاح لزر الاختبار وزر المسح.
+- تغيير الـ placeholder ليوضح: `https://xxxxx.supabase.co`
+- إضافة ملاحظة توضيحية تحت الحقل.
 
-| العمود | النوع | الوصف |
-|--------|-------|-------|
-| id | uuid PK | |
-| policy_id | uuid FK -> policies | |
-| status | text | pending / success / failed |
-| xservice_policy_id | text nullable | معرف البوليصة في X-Service |
-| error_message | text nullable | |
-| request_payload | jsonb | |
-| response_payload | jsonb nullable | |
-| created_at | timestamptz | |
+### 2. إضافة مزامنة جماعية (Bulk Sync)
 
-### 3. Edge Function: `sync-to-xservice`
-- يستقبل `policy_id`
-- يجلب بيانات الوثيقة + العميل + السيارة من AB
-- يجلب إعدادات X-Service من `xservice_settings`
-- يتحقق من التفعيل ونوع الوثيقة
-- يرسل POST إلى `{api_url}/functions/v1/ab-sync-receive`
-- يسجل النتيجة في `xservice_sync_log`
+**ملف `src/pages/XServiceSettings.tsx`**:
+- إضافة كارد جديد "مزامنة جماعية" مع:
+  - عرض عدد الوثائق المؤهلة (ROAD_SERVICE + ACCIDENT_FEE_EXEMPTION)
+  - زر "بدء المزامنة الجماعية"
+  - شريط تقدم (Progress bar)
+  - عداد: تم X من Y
 
-البيانات المرسلة:
+**ملف `supabase/functions/sync-to-xservice/index.ts`** (أو دالة جديدة `bulk-sync-to-xservice`):
+- إنشاء Edge Function جديد `bulk-sync-to-xservice` يقبل قائمة `policy_ids` أو يجلب كل الوثائق المؤهلة
+- يعالج بدفعات (batches of 10) لتجنب timeout
+- يسجل النتائج في `xservice_sync_log`
+
+**المنطق**: 
+- الصفحة تجلب عدد الوثائق المؤهلة أولاً
+- عند الضغط، ترسل دفعات من 20 وثيقة كل مرة عبر استدعاءات متتالية
+- كل دفعة تُحدّث شريط التقدم
+- في النهاية تعرض ملخص: نجح X، فشل Y
+
+### 3. إصلاح التنقل بعد حفظ الوثيقة
+
+الكود الحالي يبدو صحيحاً -- سأتأكد من أن `onSaved` يُنفذ بشكل صحيح وأن الـ navigate يعمل. إذا كان المستخدم يقصد أن الصفحة لا تتحدث (refresh) بعد الحفظ، سأضيف invalidation للبيانات.
+
+---
+
+## القسم التقني
+
+### ملفات سيتم تعديلها:
+1. **`supabase/functions/sync-to-xservice/index.ts`** -- إصلاح بناء الرابط (يكتشف تلقائياً إذا كان الرابط كاملاً أو قاعدة)
+2. **`src/pages/XServiceSettings.tsx`** -- إصلاح أزرار الاختبار والمسح + إضافة كارد المزامنة الجماعية مع شريط تقدم
+
+### ملفات جديدة:
+3. **`supabase/functions/bulk-sync-to-xservice/index.ts`** -- يقبل `{ offset, limit }` ويعالج دفعة من الوثائق، يعيد `{ synced, failed, total, done }`
+
+### تدفق المزامنة الجماعية:
 
 ```text
-{
-  api_key: "...",
-  customer: { full_name, id_number, phone1, phone2, birth_date },
-  car: { car_number, car_type, manufacturer, model, year, color },
-  policy: {
-    service_type: "road_service" | "accident_fee",
-    start_date, end_date,
-    sell_price,
-    notes
-  }
+XServiceSettings (UI)
+  |-- GET count of eligible policies
+  |-- User clicks "بدء المزامنة الجماعية"  
+  |-- Loop:
+      |-- POST bulk-sync-to-xservice { offset: 0, limit: 20 }
+      |-- Update progress bar
+      |-- POST bulk-sync-to-xservice { offset: 20, limit: 20 }
+      |-- Update progress bar
+      |-- ... until done
+  |-- Show summary toast
+```
+
+### إصلاح الرابط:
+
+```text
+// Before (broken):
+syncUrl = apiUrl + "/functions/v1/ab-sync-receive"
+// If apiUrl = "https://x.supabase.co/functions/v1/ab-sync-receive"
+// Result: "https://x.supabase.co/functions/v1/ab-sync-receive/functions/v1/ab-sync-receive" (WRONG)
+
+// After (fixed):
+// Detect if apiUrl already contains the function path
+if (apiUrl.includes("/functions/v1/")) {
+  syncUrl = apiUrl; // use as-is
+} else {
+  syncUrl = apiUrl + "/functions/v1/ab-sync-receive"; // append path
 }
-```
-
-### 4. صفحة إعدادات X-Service
-ملف جديد: `src/pages/XServiceSettings.tsx`
-- حقل رابط API (قابل للتعديل)
-- حقل مفتاح API
-- حقل اسم الوكيل
-- تبديل تفعيل/إيقاف المزامنة
-- اختيار أنواع الوثائق للمزامنة (خدمات طريق / إعفاء حوادث)
-- زر اختبار الاتصال
-- جدول سجل آخر عمليات المزامنة مع حالاتها
-- زر إعادة المحاولة للفاشلة
-- زر مسح بيانات X-Service (مع تأكيد مزدوج)
-- رابط جديد في Sidebar تحت الإعدادات + Route جديد في App.tsx
-
-### 5. تعديل PolicyWizard.tsx
-بعد نجاح الحفظ (قبل `setShowSuccessDialog`) وبعد السطر ~1408:
-- التحقق من نوع الوثيقة (ROAD_SERVICE أو ACCIDENT_FEE_EXEMPTION) -- سواء الرئيسية أو addons
-- Fire-and-forget: استدعاء `sync-to-xservice` بدون حجب المستخدم
-- تشمل أيضاً الـ package addons إذا كان أحدها road_service أو accident_fee
-
----
-
-## التغييرات المطلوبة في مشروع X-Service (للتنفيذ هناك)
-
-سأوفر لك النص الكامل لنسخه إلى المشروع الآخر:
-
-### 1. Edge Function: `ab-sync-receive`
-- يستقبل POST مع البيانات
-- يتحقق من `api_key` مقابل جدول `agents`
-- Upsert العميل (بناءً على `id_number` + `agent_id`)
-- Upsert السيارة (بناءً على `car_number` + `customer_id`)
-- إنشاء البوليصة مع ربط الخدمة المناسبة
-- يعيد المعرّفات الجديدة
-
-### 2. Edge Function: `ab-sync-clear`
-- يستقبل `api_key`
-- يحذف جميع policies -> cars -> customers للوكيل المرتبط
-- يحتفظ بالوكلاء والخدمات والإعدادات
-
-### 3. جدول `agent_api_keys`
-يضاف لـ X-Service لتخزين مفتاح API لكل وكيل:
-
-```text
-agent_api_keys:
-  id (uuid PK)
-  agent_id (uuid FK -> agents, UNIQUE)
-  api_key (text, UNIQUE)
-  created_at (timestamptz)
-```
-
-### 4. التعليمات لنسخها إلى X-Service
-
-```text
-أنشئ نظام استقبال بيانات من وكيل خارجي (AB Insurance CRM):
-
-1. أنشئ جدول agent_api_keys يربط مفتاح API بكل وكيل
-2. أنشئ Edge Function اسمه ab-sync-receive:
-   - يستقبل POST مع api_key + customer + car + policy
-   - يبحث عن الوكيل بالـ api_key
-   - Upsert العميل بناءً على id_number + agent_id
-   - Upsert السيارة بناءً على car_number + customer_id
-   - يبحث عن الـ service بناءً على service_type (road_service أو accident_fee)
-   - ينشئ بوليصة جديدة
-   - يعيد { customer_id, car_id, policy_id, policy_number }
-3. أنشئ Edge Function اسمه ab-sync-clear:
-   - يستقبل POST مع api_key فقط
-   - يحذف كل policies ثم cars ثم customers لهذا الوكيل
-   - لا يحذف الوكيل نفسه أو الخدمات أو الإعدادات
-4. أضف صفحة في إعدادات الوكيل لعرض/إنشاء مفتاح API
-```
-
----
-
-## ترتيب التنفيذ
-
-1. إنشاء جداول `xservice_settings` و `xservice_sync_log` (migration)
-2. إنشاء Edge Function `sync-to-xservice`
-3. إنشاء صفحة `XServiceSettings.tsx` + Route + رابط Sidebar
-4. تعديل `PolicyWizard.tsx` لاستدعاء المزامنة بعد الحفظ
-
----
-
-## القسم التقني -- تدفق المزامنة
-
-```text
-PolicyWizard.handleSave() completes
-  |-- Check: is ROAD_SERVICE or ACCIDENT_FEE_EXEMPTION (main or addon)?
-  |-- Check: xservice_settings.is_enabled?
-  |-- Fire-and-forget for each matching policy:
-      supabase.functions.invoke('sync-to-xservice', { body: { policy_id } })
-  
-sync-to-xservice:
-  |-- Fetch xservice_settings (api_url, api_key, is_enabled)
-  |-- Fetch policy + client + car from AB DB
-  |-- Map policy_type_parent to X-Service service_type
-  |-- POST {api_url}/functions/v1/ab-sync-receive
-  |-- Log result to xservice_sync_log
 ```

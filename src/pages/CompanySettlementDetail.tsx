@@ -1198,7 +1198,13 @@ export default function CompanySettlementDetail() {
                     })
                   )}
                   {/* Supplement Rows */}
-                  {supplements.map((s) => (
+                   {supplements.filter(s => {
+                     if (!searchQuery.trim()) return true;
+                     const q = searchQuery.toLowerCase();
+                     return (s.description || '').toLowerCase().includes(q) 
+                       || String(s.company_payment).includes(q)
+                       || String(s.insurance_price).includes(q);
+                   }).map((s) => (
                     <TableRow key={`supp-${s.id}`} className="bg-amber-50/50 border-amber-200">
                       <TableCell className="font-medium">
                         <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">ملحق</Badge>

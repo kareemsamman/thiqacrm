@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // 4. Fetch batch
     const { data: policies, error: pErr } = await supabase
       .from("policies")
-      .select("id, policy_type_parent, policy_number, start_date, end_date, sell_price, notes, car_id, client_id")
+      .select("id, policy_type_parent, policy_number, start_date, end_date, insurance_price, notes, car_id, client_id")
       .in("policy_type_parent", types)
       .order("created_at", { ascending: true })
       .range(offset, offset + limit - 1);
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
             service_type: serviceType,
             start_date: policy.start_date,
             end_date: policy.end_date,
-            sell_price: policy.sell_price,
+            sell_price: policy.insurance_price,
             notes: policy.notes || "",
           },
         };

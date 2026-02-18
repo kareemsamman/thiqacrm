@@ -1,69 +1,32 @@
 
 
-# توسيع ملحقات التسوية — إضافة صفوف يدوية كاملة
+# Fix X-Service Sync — Send service_id in Payload
 
-## ماذا يتغير؟
+## The Problem
+When syncing a ROAD_SERVICE policy to X-Service, the system sends `sell_price` (company cost) to identify the service. For "زجاج" (glass only), `payed_for_company = 0`, so X-Service receives `sell_price=0` which doesn't match any of its services [250, 500, 600, 250, 150]. It asks for `policy.service_id` to resolve the ambiguity.
 
-حالياً نموذج "ملحق التسوية" يحتوي فقط على: وصف، سعر التأمين، المستحق للشركة، الربح، التاريخ.
+## The Fix
+Add `service_id` to the `policy` object in the sync payload. This is a one-line addition.
 
-التعديل يضيف حقول جديدة لتبدو الصفوف اليدوية مثل صفوف الوثائق الحقيقية في الجدول:
-- **اسم العميل** (customer_name)
-- **رقم السيارة** (car_number)
-- **قيمة السيارة** (car_value)
-- **نوع التأمين** (policy_type — ثالث/شامل/إلزامي...)
-- **حالة الوثيقة** (is_cancelled — ملغاة أم لا)
-- **تاريخ البداية والنهاية** (start_date, end_date)
+### File: `supabase/functions/sync-to-xservice/index.ts`
 
-هذه الصفوف ستظهر في جدول الوثائق نفسه بنفس التنسيق، مع علامة "يدوي" للتمييز.
+Change the `requestPayload.policy` object (around line 126-132) to include:
 
----
+```
+policy: {
+  service_type: serviceType,
+  service_id: policy.road_service_id || policy.accident_fee_service_id || null,  // NEW
+  start_date: policy.start_date,
+  end_date: policy.end_date,
+  sell_price: policy.payed_for_company || 0,
+  notes: policy.notes || "",
+},
+```
 
-## التغييرات
+This sends our internal `road_service_id` (or `accident_fee_service_id`) so X-Service can identify the exact service without relying on price matching.
 
-### 1. تحديث قاعدة البيانات
-إضافة أعمدة جديدة لجدول `settlement_supplements`:
-
-| العمود | النوع | افتراضي |
-|--------|-------|---------|
-| customer_name | text | NULL |
-| car_number | text | NULL |
-| car_value | numeric | NULL |
-| policy_type | text | NULL |
-| is_cancelled | boolean | false |
-| start_date | date | NULL |
-| end_date | date | NULL |
-
-جميع الأعمدة اختيارية (nullable) حتى لا تتأثر الملحقات الموجودة.
-
-### 2. تحديث نموذج الإدخال
-في `CompanySettlementDetail.tsx`، توسيع نموذج الملحق ليشمل:
-- حقل اسم العميل
-- حقل رقم السيارة
-- حقل قيمة السيارة
-- قائمة منسدلة لنوع التأمين (إلزامي / ثالث / شامل / خدمة طريق / إعفاء...)
-- مفتاح تبديل (switch) "ملغاة"
-- حقول تاريخ البداية والنهاية
-
-### 3. عرض الصفوف اليدوية في الجدول
-بدل عرض الملحقات في قسم منفصل أسفل الجدول، ستُدمج في جدول الوثائق الرئيسي:
-- تظهر بنفس الأعمدة (العميل، رقم السيارة، النوع، الأسعار، الحالة...)
-- بادج "يدوي" بلون مميز للتمييز
-- أيقونات تعديل وحذف على كل صف يدوي
-- الملحقات التي ليس فيها بيانات عميل/سيارة تبقى تظهر بالطريقة الحالية
-
-### 4. تحديث الحسابات الإجمالية
-الحسابات الحالية تدمج الملحقات بالفعل — لا تغيير مطلوب هنا.
-
----
-
-## القسم التقني
-
-### الملفات المعدلة:
-1. **Migration SQL** — إضافة 7 أعمدة جديدة لجدول `settlement_supplements`
-2. **`src/pages/CompanySettlementDetail.tsx`**:
-   - توسيع `supplementForm` state بالحقول الجديدة
-   - تحديث `handleSaveSupplement` لإرسال الحقول الجديدة
-   - تحديث `handleEditSupplement` لتعبئة الحقول الجديدة
-   - تعديل جدول الوثائق لدمج الملحقات الغنية كصفوف عادية
-   - تحديث نموذج الإدخال (AlertDialog) بالحقول الإضافية
+### No other changes needed
+- No database changes
+- No frontend changes
+- The policy already fetches `road_service_id` and `accident_fee_service_id` (line 61)
 

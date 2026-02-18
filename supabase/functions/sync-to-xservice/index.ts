@@ -124,6 +124,7 @@ Deno.serve(async (req) => {
       },
       policy: {
         service_type: serviceType,
+        service_id: policy.road_service_id || policy.accident_fee_service_id || null,
         start_date: policy.start_date,
         end_date: policy.end_date,
         sell_price: policy.payed_for_company || 0,

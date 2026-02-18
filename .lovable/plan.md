@@ -1,38 +1,61 @@
 
 
-# تحسين أداء نموذج الملحقات + إضافة زر نسخ
+# Fix X-Service Sync — Send Service Name for Matching
 
 ## المشكلة
-1. **تجمد عند الكتابة**: كل حرف يُعيد رسم الصفحة بالكامل (1465 سطر) بما فيها حسابات `useMemo` الثقيلة
-2. **لا يوجد زر نسخ**: عند إضافة عدة صفوف يدوية متشابهة، يجب ملء النموذج من الصفر كل مرة
+نظامنا يرسل `service_id` المحلي (UUID خاص بنا) لكن X-Service عنده UUIDs مختلفة لنفس الخدمات. الأسماء متطابقة على الطرفين.
 
 ## الحل
+إرسال `service_name` بالإضافة إلى `service_id` في الـ payload حتى يستطيع X-Service المطابقة بالاسم.
 
-### 1. فصل نموذج الملحق إلى مكون مستقل
-نقل `AlertDialog` الخاص بنموذج الملحق إلى مكون جديد `SupplementFormDialog.tsx`. هذا يمنع إعادة رسم الجدول الرئيسي عند كل ضغطة مفتاح.
+## التغييرات
 
-### 2. إضافة زر "نسخ" (Duplicate) بجانب أزرار التعديل والحذف
-على كل صف يدوي (manual supplement)، يُضاف زر نسخ يملأ النموذج بنفس البيانات ويفتحه للإضافة كصف جديد.
+### 1. `supabase/functions/sync-to-xservice/index.ts`
+- الاستعلام عن اسم الخدمة من `road_services` أو `accident_fee_services`
+- إضافة `service_name` إلى `requestPayload.policy`
 
----
+### 2. `supabase/functions/bulk-sync-to-xservice/index.ts`
+- نفس التعديل: جلب اسم الخدمة وإرساله في الـ payload
+
+### 3. `supabase/functions/notify-xservice-change/index.ts`
+- نفس التعديل
 
 ## التفاصيل التقنية
 
-### ملف جديد: `src/components/reports/SupplementFormDialog.tsx`
-- يستقبل: `open`, `onOpenChange`, `editingSupplement`, `companyId`, `onSaved`
-- يحتوي على كل الـ state الخاص بالنموذج (`supplementForm`, `savingSupplement`)
-- نفس الحقول والمنطق الموجود حالياً، لكن معزول عن الصفحة الرئيسية
-- الكتابة لن تؤثر على أداء الجدول
+في كل edge function، بعد جلب بيانات البوليصة:
 
-### تعديل: `src/pages/CompanySettlementDetail.tsx`
-- حذف كل الـ state المتعلق بنموذج الملحق (`supplementForm`, `savingSupplement`)
-- استبدال `AlertDialog` بالمكون الجديد `SupplementFormDialog`
-- إضافة state: `duplicatingSupplement` لتمرير بيانات النسخ
-- إضافة زر Copy بجانب Edit/Delete على صفوف الملحقات:
-  ```
-  [نسخ] [تعديل] [حذف]
-  ```
-- عند الضغط على "نسخ":
-  - يملأ النموذج بنفس بيانات الصف (اسم العميل، رقم السيارة، النوع، التواريخ...)
-  - يفتح النموذج بوضع "إضافة جديد" (وليس تعديل)
-  - المستخدم يغيّر ما يريد ويحفظ
+```
+// Fetch service name
+let serviceName = null;
+if (policy.road_service_id) {
+  const { data: svc } = await supabase
+    .from("road_services")
+    .select("name_ar, name")
+    .eq("id", policy.road_service_id)
+    .single();
+  serviceName = svc?.name_ar || svc?.name || null;
+}
+if (!serviceName && policy.accident_fee_service_id) {
+  const { data: svc } = await supabase
+    .from("accident_fee_services")
+    .select("name_ar, name")
+    .eq("id", policy.accident_fee_service_id)
+    .single();
+  serviceName = svc?.name_ar || svc?.name || null;
+}
+```
+
+ثم في الـ payload:
+```
+policy: {
+  service_type: serviceType,
+  service_id: policy.road_service_id || policy.accident_fee_service_id || null,
+  service_name: serviceName,  // جديد
+  start_date: ...
+}
+```
+
+هذا يسمح لـ X-Service بمطابقة الخدمة بالاسم إذا لم يتعرف على الـ ID.
+
+- لا تغييرات في قاعدة البيانات
+- لا تغييرات في الواجهة

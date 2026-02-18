@@ -97,6 +97,13 @@ interface SettlementSupplement {
   profit: number;
   settlement_date: string;
   created_at: string;
+  customer_name?: string | null;
+  car_number?: string | null;
+  car_value?: number | null;
+  policy_type?: string | null;
+  is_cancelled?: boolean | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 interface CompanyInfo {
@@ -142,7 +149,7 @@ export default function CompanySettlementDetail() {
   const [supplements, setSupplements] = useState<SettlementSupplement[]>([]);
   const [showSupplementForm, setShowSupplementForm] = useState(false);
   const [editingSupplement, setEditingSupplement] = useState<SettlementSupplement | null>(null);
-  const [supplementForm, setSupplementForm] = useState({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0] });
+  const [supplementForm, setSupplementForm] = useState({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' });
   const [savingSupplement, setSavingSupplement] = useState(false);
   
   // Calculation modal
@@ -270,13 +277,20 @@ export default function CompanySettlementDetail() {
     if (!companyId) return;
     setSavingSupplement(true);
     try {
-      const payload = {
+      const payload: any = {
         company_id: companyId,
         description: supplementForm.description || 'ملحق',
         insurance_price: parseFloat(supplementForm.insurance_price) || 0,
         company_payment: parseFloat(supplementForm.company_payment) || 0,
         profit: parseFloat(supplementForm.profit) || 0,
         settlement_date: supplementForm.settlement_date,
+        customer_name: supplementForm.customer_name || null,
+        car_number: supplementForm.car_number || null,
+        car_value: supplementForm.car_value ? parseFloat(supplementForm.car_value) : null,
+        policy_type: supplementForm.policy_type || null,
+        is_cancelled: supplementForm.is_cancelled,
+        start_date: supplementForm.start_date || null,
+        end_date: supplementForm.end_date || null,
       };
       if (editingSupplement) {
         await supabase.from('settlement_supplements').update(payload).eq('id', editingSupplement.id);
@@ -285,7 +299,7 @@ export default function CompanySettlementDetail() {
       }
       setShowSupplementForm(false);
       setEditingSupplement(null);
-      setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0] });
+      setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' });
       fetchSupplements();
       toast.success(editingSupplement ? 'تم تحديث الملحق' : 'تم إضافة الملحق');
     } catch (e) {
@@ -310,6 +324,13 @@ export default function CompanySettlementDetail() {
       company_payment: s.company_payment.toString(),
       profit: s.profit.toString(),
       settlement_date: s.settlement_date,
+      customer_name: s.customer_name || '',
+      car_number: s.car_number || '',
+      car_value: s.car_value ? s.car_value.toString() : '',
+      policy_type: s.policy_type || '',
+      is_cancelled: s.is_cancelled || false,
+      start_date: s.start_date || '',
+      end_date: s.end_date || '',
     });
     setShowSupplementForm(true);
   };
@@ -971,7 +992,7 @@ export default function CompanySettlementDetail() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <CardTitle>الوثائق ({filteredPolicies.length})</CardTitle>
               <div className="flex items-center gap-2 flex-1 max-w-md print:hidden">
-                <Button size="sm" variant="outline" onClick={() => { setEditingSupplement(null); setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0] }); setShowSupplementForm(true); }}>
+                <Button size="sm" variant="outline" onClick={() => { setEditingSupplement(null); setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' }); setShowSupplementForm(true); }}>
                   <Plus className="h-4 w-4 ml-1" />
                   ملحق
                 </Button>
@@ -1197,23 +1218,49 @@ export default function CompanySettlementDetail() {
                       );
                     })
                   )}
-                  {/* Supplement Rows */}
+                  {/* Supplement Rows - Rich ones look like policy rows */}
                    {supplements.filter(s => {
                      if (!searchQuery.trim()) return true;
                      const q = searchQuery.toLowerCase();
                      return (s.description || '').toLowerCase().includes(q) 
+                       || (s.customer_name || '').toLowerCase().includes(q)
+                       || (s.car_number || '').toLowerCase().includes(q)
                        || String(s.company_payment).includes(q)
                        || String(s.insurance_price).includes(q);
-                   }).map((s) => (
-                    <TableRow key={`supp-${s.id}`} className="bg-amber-50/50 border-amber-200">
+                   }).map((s) => {
+                    const isRich = !!(s.customer_name || s.car_number);
+                    return (
+                    <TableRow key={`supp-${s.id}`} className={cn("border-amber-200", s.is_cancelled && "opacity-50 bg-muted/30", !s.is_cancelled && "bg-amber-50/50")}>
                       <TableCell className="font-medium">
-                        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">ملحق</Badge>
+                        {isRich ? (
+                          <span>{s.customer_name || '-'}</span>
+                        ) : (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">ملحق</Badge>
+                        )}
+                        {isRich && (
+                          <Badge variant="outline" className="mr-2 text-xs bg-amber-100 text-amber-800 border-amber-300">يدوي</Badge>
+                        )}
+                        {s.is_cancelled && (
+                          <Badge variant="destructive" className="mr-2 text-xs">ملغية</Badge>
+                        )}
                       </TableCell>
-                      <TableCell colSpan={3}>{s.description}</TableCell>
-                      <TableCell><Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">ملحق</Badge></TableCell>
-                      <TableCell>-</TableCell>
-                      <TableCell>{formatDate(s.settlement_date)}</TableCell>
-                      <TableCell>-</TableCell>
+                      <TableCell className="font-mono">
+                        {isRich ? <bdi>{s.car_number || '-'}</bdi> : '-'}
+                      </TableCell>
+                      <TableCell>{isRich ? '-' : ''}</TableCell>
+                      <TableCell>{isRich ? '-' : ''}</TableCell>
+                      <TableCell>
+                        {s.policy_type ? (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">{s.policy_type}</Badge>
+                        ) : isRich ? '-' : (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">ملحق</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {s.car_value ? `₪${Number(s.car_value).toLocaleString('en-US')}` : '-'}
+                      </TableCell>
+                      <TableCell>{s.start_date ? formatDate(s.start_date) : formatDate(s.settlement_date)}</TableCell>
+                      <TableCell>{s.end_date ? formatDate(s.end_date) : '-'}</TableCell>
                       <TableCell className="font-mono">₪{Number(s.insurance_price).toLocaleString('en-US')}</TableCell>
                       <TableCell className="font-mono text-destructive">₪{Number(s.company_payment).toLocaleString('en-US')}</TableCell>
                       <TableCell className="font-mono text-success">₪{Number(s.profit).toLocaleString('en-US')}</TableCell>
@@ -1224,7 +1271,8 @@ export default function CompanySettlementDetail() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -1333,7 +1381,54 @@ export default function CompanySettlementDetail() {
           <AlertDialogHeader>
             <AlertDialogTitle>{editingSupplement ? 'تعديل ملحق' : 'إضافة ملحق'}</AlertDialogTitle>
           </AlertDialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>اسم العميل</Label>
+                <Input value={supplementForm.customer_name} onChange={(e) => setSupplementForm({ ...supplementForm, customer_name: e.target.value })} placeholder="اسم العميل" />
+              </div>
+              <div className="space-y-2">
+                <Label>رقم السيارة</Label>
+                <Input value={supplementForm.car_number} onChange={(e) => setSupplementForm({ ...supplementForm, car_number: e.target.value })} placeholder="رقم السيارة" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>قيمة السيارة</Label>
+                <Input type="number" value={supplementForm.car_value} onChange={(e) => setSupplementForm({ ...supplementForm, car_value: e.target.value })} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>نوع التأمين</Label>
+                <Select value={supplementForm.policy_type} onValueChange={(v) => setSupplementForm({ ...supplementForm, policy_type: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر النوع" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="إلزامي">إلزامي</SelectItem>
+                    <SelectItem value="ثالث">ثالث</SelectItem>
+                    <SelectItem value="شامل">شامل</SelectItem>
+                    <SelectItem value="خدمة طريق">خدمة طريق</SelectItem>
+                    <SelectItem value="إعفاء رسوم">إعفاء رسوم</SelectItem>
+                    <SelectItem value="أخرى">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>تاريخ البداية</Label>
+                <ArabicDatePicker value={supplementForm.start_date} onChange={(d) => setSupplementForm({ ...supplementForm, start_date: d })} />
+              </div>
+              <div className="space-y-2">
+                <Label>تاريخ النهاية</Label>
+                <ArabicDatePicker value={supplementForm.end_date} onChange={(d) => setSupplementForm({ ...supplementForm, end_date: d })} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label>ملغاة</Label>
+              <input type="checkbox" checked={supplementForm.is_cancelled} onChange={(e) => setSupplementForm({ ...supplementForm, is_cancelled: e.target.checked })} className="h-4 w-4" />
+            </div>
+            <hr className="border-border" />
             <div className="space-y-2">
               <Label>الوصف</Label>
               <Input value={supplementForm.description} onChange={(e) => setSupplementForm({ ...supplementForm, description: e.target.value })} placeholder="ملحق" />

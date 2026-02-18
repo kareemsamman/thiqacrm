@@ -3954,39 +3954,60 @@ export type Database = {
       }
       settlement_supplements: {
         Row: {
+          car_number: string | null
+          car_value: number | null
           company_id: string
           company_payment: number
           created_at: string
           created_by_admin_id: string | null
+          customer_name: string | null
           description: string
+          end_date: string | null
           id: string
           insurance_price: number
+          is_cancelled: boolean | null
+          policy_type: string | null
           profit: number
           settlement_date: string
+          start_date: string | null
           updated_at: string
         }
         Insert: {
+          car_number?: string | null
+          car_value?: number | null
           company_id: string
           company_payment?: number
           created_at?: string
           created_by_admin_id?: string | null
+          customer_name?: string | null
           description?: string
+          end_date?: string | null
           id?: string
           insurance_price?: number
+          is_cancelled?: boolean | null
+          policy_type?: string | null
           profit?: number
           settlement_date?: string
+          start_date?: string | null
           updated_at?: string
         }
         Update: {
+          car_number?: string | null
+          car_value?: number | null
           company_id?: string
           company_payment?: number
           created_at?: string
           created_by_admin_id?: string | null
+          customer_name?: string | null
           description?: string
+          end_date?: string | null
           id?: string
           insurance_price?: number
+          is_cancelled?: boolean | null
+          policy_type?: string | null
           profit?: number
           settlement_date?: string
+          start_date?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -34,12 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowRight, Building2, Download, TrendingUp, Wallet, FileText, Calculator, Printer, Eye, Pencil, RotateCcw, Loader2, CreditCard, Plus, Search, ArrowUpDown, Check, X, Receipt, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowRight, Building2, Download, TrendingUp, Wallet, FileText, Calculator, Printer, Eye, Pencil, RotateCcw, Loader2, CreditCard, Plus, Search, ArrowUpDown, Check, X, Receipt, RefreshCw, Trash2, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ArabicDatePicker } from '@/components/ui/arabic-date-picker';
 import { CalculationExplanationModal } from '@/components/reports/CalculationExplanationModal';
+import { SupplementFormDialog } from '@/components/reports/SupplementFormDialog';
 import { PolicyDetailsDrawer } from '@/components/policies/PolicyDetailsDrawer';
 import { recalculatePolicyProfit } from '@/lib/pricingCalculator';
 import { 
@@ -149,8 +150,6 @@ export default function CompanySettlementDetail() {
   const [supplements, setSupplements] = useState<SettlementSupplement[]>([]);
   const [showSupplementForm, setShowSupplementForm] = useState(false);
   const [editingSupplement, setEditingSupplement] = useState<SettlementSupplement | null>(null);
-  const [supplementForm, setSupplementForm] = useState({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' });
-  const [savingSupplement, setSavingSupplement] = useState(false);
   
   // Calculation modal
   const [selectedPolicyForCalc, setSelectedPolicyForCalc] = useState<PolicyDetail | null>(null);
@@ -273,40 +272,9 @@ export default function CompanySettlementDetail() {
     setSupplements(data || []);
   };
 
-  const handleSaveSupplement = async () => {
-    if (!companyId) return;
-    setSavingSupplement(true);
-    try {
-      const payload: any = {
-        company_id: companyId,
-        description: supplementForm.description || 'ملحق',
-        insurance_price: parseFloat(supplementForm.insurance_price) || 0,
-        company_payment: parseFloat(supplementForm.company_payment) || 0,
-        profit: parseFloat(supplementForm.profit) || 0,
-        settlement_date: supplementForm.settlement_date,
-        customer_name: supplementForm.customer_name || null,
-        car_number: supplementForm.car_number || null,
-        car_value: supplementForm.car_value ? parseFloat(supplementForm.car_value) : null,
-        policy_type: supplementForm.policy_type || null,
-        is_cancelled: supplementForm.is_cancelled,
-        start_date: supplementForm.start_date || null,
-        end_date: supplementForm.end_date || null,
-      };
-      if (editingSupplement) {
-        await supabase.from('settlement_supplements').update(payload).eq('id', editingSupplement.id);
-      } else {
-        await supabase.from('settlement_supplements').insert(payload);
-      }
-      setShowSupplementForm(false);
-      setEditingSupplement(null);
-      setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' });
-      fetchSupplements();
-      toast.success(editingSupplement ? 'تم تحديث الملحق' : 'تم إضافة الملحق');
-    } catch (e) {
-      toast.error('فشل في حفظ الملحق');
-    } finally {
-      setSavingSupplement(false);
-    }
+  const handleSupplementSaved = () => {
+    setEditingSupplement(null);
+    fetchSupplements();
   };
 
   const handleDeleteSupplement = async (id: string) => {
@@ -317,21 +285,13 @@ export default function CompanySettlementDetail() {
   };
 
   const handleEditSupplement = (s: SettlementSupplement) => {
-    setEditingSupplement(s);
-    setSupplementForm({
-      description: s.description,
-      insurance_price: s.insurance_price.toString(),
-      company_payment: s.company_payment.toString(),
-      profit: s.profit.toString(),
-      settlement_date: s.settlement_date,
-      customer_name: s.customer_name || '',
-      car_number: s.car_number || '',
-      car_value: s.car_value ? s.car_value.toString() : '',
-      policy_type: s.policy_type || '',
-      is_cancelled: s.is_cancelled || false,
-      start_date: s.start_date || '',
-      end_date: s.end_date || '',
-    });
+    setEditingSupplement({ ...s, _isEdit: true } as any);
+    setShowSupplementForm(true);
+  };
+
+  const handleDuplicateSupplement = (s: SettlementSupplement) => {
+    // Pre-fill with same data but open as "add new" (no _isEdit flag)
+    setEditingSupplement({ ...s, id: '', _isEdit: false } as any);
     setShowSupplementForm(true);
   };
 
@@ -992,7 +952,7 @@ export default function CompanySettlementDetail() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <CardTitle>الوثائق ({filteredPolicies.length})</CardTitle>
               <div className="flex items-center gap-2 flex-1 max-w-md print:hidden">
-                <Button size="sm" variant="outline" onClick={() => { setEditingSupplement(null); setSupplementForm({ description: 'ملحق', insurance_price: '0', company_payment: '', profit: '0', settlement_date: new Date().toISOString().split('T')[0], customer_name: '', car_number: '', car_value: '', policy_type: '', is_cancelled: false, start_date: '', end_date: '' }); setShowSupplementForm(true); }}>
+                <Button size="sm" variant="outline" onClick={() => { setEditingSupplement(null); setShowSupplementForm(true); }}>
                   <Plus className="h-4 w-4 ml-1" />
                   ملحق
                 </Button>
@@ -1266,8 +1226,9 @@ export default function CompanySettlementDetail() {
                       <TableCell className="font-mono text-success">₪{Number(s.profit).toLocaleString('en-US')}</TableCell>
                       <TableCell className="print:hidden">
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleEditSupplement(s)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDeleteSupplement(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDuplicateSupplement(s)} title="نسخ"><Copy className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleEditSupplement(s)} title="تعديل"><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteSupplement(s.id)} title="حذف"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1376,90 +1337,13 @@ export default function CompanySettlementDetail() {
       </AlertDialog>
 
       {/* Supplement Form Dialog */}
-      <AlertDialog open={showSupplementForm} onOpenChange={setShowSupplementForm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{editingSupplement ? 'تعديل ملحق' : 'إضافة ملحق'}</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>اسم العميل</Label>
-                <Input value={supplementForm.customer_name} onChange={(e) => setSupplementForm({ ...supplementForm, customer_name: e.target.value })} placeholder="اسم العميل" />
-              </div>
-              <div className="space-y-2">
-                <Label>رقم السيارة</Label>
-                <Input value={supplementForm.car_number} onChange={(e) => setSupplementForm({ ...supplementForm, car_number: e.target.value })} placeholder="رقم السيارة" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>قيمة السيارة</Label>
-                <Input type="number" value={supplementForm.car_value} onChange={(e) => setSupplementForm({ ...supplementForm, car_value: e.target.value })} placeholder="0" />
-              </div>
-              <div className="space-y-2">
-                <Label>نوع التأمين</Label>
-                <Select value={supplementForm.policy_type} onValueChange={(v) => setSupplementForm({ ...supplementForm, policy_type: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر النوع" />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="إلزامي">إلزامي</SelectItem>
-                    <SelectItem value="ثالث">ثالث</SelectItem>
-                    <SelectItem value="شامل">شامل</SelectItem>
-                    <SelectItem value="خدمة طريق">خدمة طريق</SelectItem>
-                    <SelectItem value="إعفاء رسوم">إعفاء رسوم</SelectItem>
-                    <SelectItem value="أخرى">أخرى</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>تاريخ البداية</Label>
-                <ArabicDatePicker value={supplementForm.start_date} onChange={(d) => setSupplementForm({ ...supplementForm, start_date: d })} />
-              </div>
-              <div className="space-y-2">
-                <Label>تاريخ النهاية</Label>
-                <ArabicDatePicker value={supplementForm.end_date} onChange={(d) => setSupplementForm({ ...supplementForm, end_date: d })} />
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Label>ملغاة</Label>
-              <input type="checkbox" checked={supplementForm.is_cancelled} onChange={(e) => setSupplementForm({ ...supplementForm, is_cancelled: e.target.checked })} className="h-4 w-4" />
-            </div>
-            <hr className="border-border" />
-            <div className="space-y-2">
-              <Label>الوصف</Label>
-              <Input value={supplementForm.description} onChange={(e) => setSupplementForm({ ...supplementForm, description: e.target.value })} placeholder="ملحق" />
-            </div>
-            <div className="space-y-2">
-              <Label>تاريخ التسوية</Label>
-              <ArabicDatePicker value={supplementForm.settlement_date} onChange={(d) => setSupplementForm({ ...supplementForm, settlement_date: d })} />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label>سعر التأمين</Label>
-                <Input type="number" value={supplementForm.insurance_price} onChange={(e) => setSupplementForm({ ...supplementForm, insurance_price: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>المستحق للشركة *</Label>
-                <Input type="number" value={supplementForm.company_payment} onChange={(e) => setSupplementForm({ ...supplementForm, company_payment: e.target.value })} placeholder="+ أو -" />
-              </div>
-              <div className="space-y-2">
-                <Label>الربح</Label>
-                <Input type="number" value={supplementForm.profit} onChange={(e) => setSupplementForm({ ...supplementForm, profit: e.target.value })} />
-              </div>
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveSupplement} disabled={savingSupplement || !supplementForm.company_payment}>
-              {savingSupplement ? 'جاري الحفظ...' : 'حفظ'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SupplementFormDialog
+        open={showSupplementForm}
+        onOpenChange={setShowSupplementForm}
+        editingSupplement={editingSupplement}
+        companyId={companyId || ''}
+        onSaved={handleSupplementSaved}
+      />
     </MainLayout>
   );
 }

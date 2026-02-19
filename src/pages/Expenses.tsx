@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import { 
   Plus, 
@@ -734,7 +735,20 @@ export default function Expenses() {
                           </TableCell>
                           <TableCell className="text-sm">{formatDate(expense.expense_date)}</TableCell>
                           <TableCell className="text-sm">{catLabel}</TableCell>
-                          <TableCell className="text-sm max-w-[200px] truncate">{expense.description || '-'}</TableCell>
+                          <TableCell className="text-sm max-w-[200px]">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block truncate cursor-default">{expense.description || '-'}</span>
+                                </TooltipTrigger>
+                                {expense.description && (
+                                  <TooltipContent side="top" className="max-w-xs text-right">
+                                    <p>{expense.description}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
                           <TableCell className="text-sm">{expense.contact_name || '-'}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1 text-sm">

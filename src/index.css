@@ -226,6 +226,24 @@
     scrollbar-width: thin;
     scrollbar-color: hsl(174, 72%, 40%) hsl(210, 20%, 96%);
   }
+
+  /* Grey scrollbar variant */
+  .scrollbar-always-visible-grey::-webkit-scrollbar {
+    height: 10px;
+    width: 8px;
+  }
+  .scrollbar-always-visible-grey::-webkit-scrollbar-track {
+    background: hsl(210 20% 96%);
+    border-radius: 5px;
+  }
+  .scrollbar-always-visible-grey::-webkit-scrollbar-thumb {
+    background: hsl(215 16% 75%);
+    border-radius: 5px;
+  }
+  .scrollbar-always-visible-grey {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(215, 16%, 75%) hsl(210, 20%, 96%);
+  }
 }
 
 /* Print styles for professional reports */

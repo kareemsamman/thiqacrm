@@ -1,20 +1,29 @@
-# إصلاح: ترتيب المصروفات بالأحدث أولاً + عرض وقت الإنشاء
 
-## المشكلة
+# إصلاح 3 مشاكل في صفحة المصروفات (سندات القبض والصرف)
 
-الترتيب الحالي يعتمد على `expense_date` فقط. عندما يكون هناك عدة سندات بنفس التاريخ (مثل 19/02)، لا يوجد ترتيب ثانوي بحسب وقت الإنشاء. كذلك لا يُعرض وقت إنشاء السند في الجدول.
+## المشاكل
+
+1. **عمود "بواسطة" يعرض "-" دائماً** للسندات المولّدة من بوليصات/دفعات: السبب أن الاستعلام لا يجلب `created_by_admin_id` ولا يربطه بجدول `profiles` للحصول على اسم المستخدم.
+
+2. **لا يوجد فلتر بتاريخ محدد**: حالياً يمكن فقط التنقل بين الأشهر، لكن لا يمكن اختيار نطاق تاريخ محدد (من - إلى).
+
+3. **الترتيب والتاريخ خاطئ**: عمود "التاريخ" يعرض `expense_date` (تاريخ الدفع) وعمود "وقت الإنشاء" يعرض نفس القيمة لأن السندات المولّدة تستخدم `payment_date` كقيمة `created_at`. يجب استخدام `created_at` الحقيقي من قاعدة البيانات والترتيب بحسبه.
 
 ## الحل
 
-### 1. ترتيب ثانوي بوقت الإنشاء
+### 1. جلب اسم المنشئ لكل أنواع السندات
 
-تعديل الترتيب في سطر 319 ليشمل `created_at` كمعيار ثانوي:
+- **دفعات البوليصات (`policy_payments`)**: إضافة `created_at, created_by_admin_id, creator:profiles!policy_payments_created_by_admin_id_fkey(full_name)` للاستعلام
+- **مستحقات الشركات (`policies`)**: إضافة `created_at, creator:profiles!policies_created_by_admin_id_fkey(full_name)` للاستعلام  
+- **عمولات إلزامي (`policies`)**: نفس الإضافة
 
-- عند تساوي `expense_date`، يُرتب بحسب `created_at` تنازلياً (الأحدث أولاً)
+### 2. استخدام `created_at` الحقيقي من قاعدة البيانات
 
-### 2. إضافة عمود "وقت الإنشاء" في الجدول
+بدل `created_at: pp.payment_date` يصبح `created_at: pp.created_at` للدفعات، وبدل `created_at: p.start_date` يصبح `created_at: p.created_at` للبوليصات.
 
-إضافة عمود جديد بعد عمود "التاريخ" يعرض تاريخ ووقت الإنشاء بصيغة `DD/MM/YYYY HH:mm`
+### 3. إضافة فلتر تاريخ (من - إلى)
+
+إضافة حقلين `ArabicDatePicker` للتاريخ (من / إلى) في منطقة الفلاتر. عند اختيار تاريخ، يتم تصفية النتائج على مستوى العميل (client-side) بناءً على `created_at`.
 
 ---
 
@@ -22,33 +31,56 @@
 
 ### ملف: `src/pages/Expenses.tsx`
 
-**1. تعديل الترتيب (سطر 319):**
+**1. تعديل استعلام `policy_payments` (سطر ~183):**
+
+اضافة `created_at` و `creator:profiles!policy_payments_created_by_admin_id_fkey(full_name)` في الـ select
+
+**2. تعديل استعلام `policies` للمستحقات (سطر ~193):**
+
+اضافة `created_at, creator:profiles!policies_created_by_admin_id_fkey(full_name)` في الـ select
+
+**3. تعديل استعلام `policies` للإلزامي (سطر ~204):**
+
+نفس الإضافة
+
+**4. تعديل تحويل `policyExpenses` (سطر ~245):**
 
 ```js
-allExpenses.sort((a, b) => {
-  const dateDiff = new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime();
-  if (dateDiff !== 0) return dateDiff;
-  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-});
+created_at: pp.created_at,  // بدل pp.payment_date
+created_by_name: pp.creator?.full_name || null,
 ```
 
-**2. إضافة عمود "وقت الإنشاء" في TableHeader (بعد سطر 685 "التاريخ"):**
+**5. تعديل تحويل `companyDueExpenses` (سطر ~271):**
 
-```jsx
-<TableHead>وقت الإنشاء</TableHead>
+```js
+created_at: p.created_at,  // بدل p.start_date
+created_by_name: p.creator?.full_name || null,
 ```
 
-**3. إضافة خلية الوقت في TableBody (بعد سطر 736 خلية التاريخ):**
+**6. تعديل تحويل `elzamiVouchers` (سطر ~299):**
 
-```jsx
-<TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-  {format(new Date(expense.created_at), 'dd/MM/yyyy HH:mm')}
-</TableCell>
+```js
+created_at: p.created_at,  // بدل p.start_date
+created_by_name: p.creator?.full_name || null,
 ```
 
-**4. ضمان أن `created_at` للسندات المولّدة من بوليصات تأخذ القيمة الفعلية:**
-حالياً السندات المحوّلة من `policy_payments` و`policies` تستخدم `payment_date`/`start_date` كقيمة `created_at`. هذا غير دقيق. لكن بما أن هذه السندات لا تحتوي على `created_at` حقيقي في الاستعلام، سنبقيها كما هي (التاريخ نفسه) لأنها بيانات مولّدة وليست مدخلة يدوياً.
+**7. إضافة متغيرات حالة لفلتر التاريخ (بعد سطر ~106):**
 
-### لا تغييرات في قاعدة البيانات  
-  
-the ab want a way to see who also did that which worker or admin name and  he want to add start date to end date also 
+```js
+const [dateFrom, setDateFrom] = useState<string>('');
+const [dateTo, setDateTo] = useState<string>('');
+```
+
+**8. إضافة حقول التاريخ في منطقة الفلاتر (بعد سطر ~658):**
+
+إضافة صف جديد بحقلين `ArabicDatePicker` (من / إلى) مع زر "مسح" لإعادة تعيين الفلتر.
+
+**9. تعديل فلترة النتائج (سطر ~329):**
+
+إضافة فلتر client-side يصفي بحسب `created_at` عندما يكون `dateFrom` أو `dateTo` محددين.
+
+**10. تحديث الترتيب:**
+
+الترتيب الرئيسي يصبح بحسب `created_at` تنازلياً (الأحدث أولاً) لأن هذا ما يريده المستخدم.
+
+### لا تغييرات في قاعدة البيانات

@@ -1,68 +1,38 @@
 
-# إضافة عمود تاريخ النهاية + تعديل بيانات البوليصة من الجدول
 
-## ما سيتغير
+# Fix: Inline Edit Row — Columns and Buttons Not Visible
 
-### 1. إضافة عمود "تاريخ النهاية" في الجدول
-عمود جديد بعد "تاريخ البداية" يعرض `end_date` للبوليصة.
+## Problem
+When editing a row, the inline edit controls (Select, DatePicker, Input) expand the row width beyond the visible area. The Save/Cancel buttons are in the last column which gets pushed off-screen, and there's no way to scroll to them easily.
 
-### 2. تعديل الحقول التالية بالضغط عليها مباشرة (inline edit)
-عند الضغط على زر التعديل (القلم) الموجود حالياً، ستصبح هذه الحقول قابلة للتعديل أيضاً:
+## Solution
+Two changes to fix this:
 
-| الحقل | طريقة التعديل | يحفظ في |
-|-------|-------------|---------|
-| **نوع التأمين** | Select (ثالث / شامل / إلزامي...) | `policies.policy_type_parent` + `policy_type_child` |
-| **تصنيف السيارة** | Select (خصوصي / شحن / تاكسي...) | `cars.car_type` |
-| **اسم العميل** | Input نصي | `clients.full_name` |
-| **تاريخ الإصدار** | ArabicDatePicker | `policies.issue_date` |
-| **تاريخ البداية** | ArabicDatePicker | `policies.start_date` |
-| **تاريخ النهاية** | ArabicDatePicker | `policies.end_date` |
-| **الشركة** | Select (قائمة شركات التأمين) | `policies.company_id` |
+### 1. Make the Actions column sticky
+Pin the "Actions" column to the left side of the table so Save/Cancel buttons are always visible during editing, regardless of horizontal scroll position.
 
-### 3. لا تغيير على رقم السيارة (كما طلبت)
+### 2. Make inline edit controls more compact
+Reduce widths of all inline edit inputs to prevent excessive row expansion:
+- Client name input: `w-28` (keep)
+- Car type select: `w-24` instead of `w-28`
+- Insurance type select: `w-24`
+- Company select: `w-28` instead of `w-32`
+- Number inputs: `w-20` (keep)
+- Date pickers: already `compact`
 
 ---
 
-## التفاصيل التقنية
+## Technical Details
 
-### ملف: `src/pages/CompanySettlementDetail.tsx`
+### File: `src/pages/CompanySettlementDetail.tsx`
 
-**1. توسيع `editValues` state:**
-```typescript
-const [editValues, setEditValues] = useState({
-  insurance_price: 0,
-  payed_for_company: 0,
-  profit: 0,
-  car_value: 0,
-  // New fields:
-  policy_type_parent: '' as string,
-  policy_type_child: '' as string | null,
-  car_type: '' as string,
-  client_name: '',
-  issue_date: '' as string | null,
-  start_date: '',
-  end_date: '',
-  company_id: '' as string | null,
-});
-```
+**1. Sticky Actions column (header + cells):**
+- `TableHead` for Actions: add `sticky left-0 bg-background z-10`
+- `TableCell` for Actions: add `sticky left-0 bg-background z-10`
 
-**2. جلب قائمة شركات التأمين** عند فتح الصفحة (لاستخدامها في Select الشركة).
+This ensures Save/Cancel are always visible on the left side (RTL layout means `left-0` is the trailing edge).
 
-**3. إضافة عمود "تاريخ النهاية"** في TableHeader و TableBody.
+**2. Reduce input widths** slightly to minimize horizontal overflow.
 
-**4. تحويل الخلايا إلى مكونات تعديل** عند `isEditing`:
-- نوع التأمين: `Select` مع خيارات من `POLICY_TYPE_LABELS`، وإذا اختار `THIRD_FULL` يظهر select ثاني (ثالث/شامل)
-- تصنيف السيارة: `Select` مع الخيارات (خصوصي، شحن، تاكسي...)
-- اسم العميل: `Input` نصي
-- التواريخ: `ArabicDatePicker` مصغر (`compact`)
-- الشركة: `Select` مع قائمة الشركات
+**3. No database changes, no new files.**
 
-**5. تحديث `handleSaveEdit`** ليحفظ الحقول الجديدة:
-- `policies` table: `policy_type_parent`, `policy_type_child`, `issue_date`, `start_date`, `end_date`, `company_id`
-- `cars` table: `car_type`, `car_value`
-- `clients` table: `full_name`
-
-**6. ملاحظة مهمة**: إذا غيّر المستخدم الشركة، البوليصة ستختفي من هذا التقرير لأنها لم تعد تنتمي لنفس الشركة. سيظهر تنبيه قبل الحفظ.
-
-### لا تغييرات في قاعدة البيانات
-### لا ملفات جديدة

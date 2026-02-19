@@ -232,11 +232,11 @@ export default function FormTemplates() {
 
     try {
       const rows = uploadedFiles.map((f) => {
-        const isPdf = f.mime_type === "application/pdf" || f.file_name?.toLowerCase().endsWith(".pdf");
+        const isPdf = f.mime_type === "application/pdf" || f.original_name?.toLowerCase().endsWith(".pdf");
         return {
           folder_id: currentFolderId,
-          name: f.file_name || "ملف",
-          file_url: f.url,
+          name: f.original_name || "ملف",
+          file_url: f.cdn_url,
           file_type: isPdf ? "pdf" : "image",
           mime_type: f.mime_type || null,
           overlay_fields: [],

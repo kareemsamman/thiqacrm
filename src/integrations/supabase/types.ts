@@ -2648,9 +2648,12 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by_admin_id: string | null
+          delivered_count: number | null
+          dlr_failed_count: number | null
           failed_count: number
           id: string
           image_url: string | null
+          last_dlr_check_at: string | null
           message: string
           recipients_count: number
           sent_count: number
@@ -2662,9 +2665,12 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by_admin_id?: string | null
+          delivered_count?: number | null
+          dlr_failed_count?: number | null
           failed_count?: number
           id?: string
           image_url?: string | null
+          last_dlr_check_at?: string | null
           message: string
           recipients_count?: number
           sent_count?: number
@@ -2676,9 +2682,12 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by_admin_id?: string | null
+          delivered_count?: number | null
+          dlr_failed_count?: number | null
           failed_count?: number
           id?: string
           image_url?: string | null
+          last_dlr_check_at?: string | null
           message?: string
           recipients_count?: number
           sent_count?: number
@@ -2707,6 +2716,10 @@ export type Database = {
           campaign_id: string
           client_id: string
           created_at: string
+          dlr_checked_at: string | null
+          dlr_id: string | null
+          dlr_message: string | null
+          dlr_status: string | null
           error_message: string | null
           id: string
           phone_number: string
@@ -2717,6 +2730,10 @@ export type Database = {
           campaign_id: string
           client_id: string
           created_at?: string
+          dlr_checked_at?: string | null
+          dlr_id?: string | null
+          dlr_message?: string | null
+          dlr_status?: string | null
           error_message?: string | null
           id?: string
           phone_number: string
@@ -2727,6 +2744,10 @@ export type Database = {
           campaign_id?: string
           client_id?: string
           created_at?: string
+          dlr_checked_at?: string | null
+          dlr_id?: string | null
+          dlr_message?: string | null
+          dlr_status?: string | null
           error_message?: string | null
           id?: string
           phone_number?: string

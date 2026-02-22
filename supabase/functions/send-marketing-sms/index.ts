@@ -132,8 +132,8 @@ Deno.serve(async (req) => {
 
     await supabase.from('marketing_sms_recipients').insert(recipientRecords);
 
-    // Send SMS to each recipient - always mark as sent
-    // (019sms API only confirms "will send", not delivery)
+    // Send SMS to each recipient and track DLR IDs
+    let failedCount = 0;
     for (const recipient of recipients) {
       try {
         // Normalize phone number
@@ -156,9 +156,9 @@ Deno.serve(async (req) => {
         const dlr = crypto.randomUUID();
         const xmlPayload = `<?xml version="1.0" encoding="UTF-8"?><sms><user><username>${escapeXml(smsSettings.sms_user)}</username></user><source>${escapeXml(smsSettings.sms_source)}</source><destinations><phone id="${dlr}">${escapeXml(phone)}</phone></destinations><message>${escapeXml(message)}</message></sms>`;
 
-        console.log(`Sending SMS to ${phone}`);
+        console.log(`Sending SMS to ${phone} with dlr_id=${dlr}`);
 
-        await fetch('https://019sms.co.il/api', {
+        const smsResponse = await fetch('https://019sms.co.il/api', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/xml',
@@ -167,10 +167,25 @@ Deno.serve(async (req) => {
           body: xmlPayload,
         });
 
-        // Always mark as sent
+        // Parse response to check for immediate errors
+        const responseText = await smsResponse.text();
+        console.log(`019 response for ${phone}: ${responseText}`);
+
+        // Check if response contains error status
+        const statusMatch = responseText.match(/<status>(\d+)<\/status>/);
+        const responseStatus = statusMatch ? parseInt(statusMatch[1]) : -1;
+        const isAccepted = responseStatus === 0;
+
+        // Store dlr_id and mark as sent (pending delivery confirmation)
         await supabase
           .from('marketing_sms_recipients')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .update({ 
+            status: isAccepted ? 'sent' : 'failed',
+            sent_at: new Date().toISOString(),
+            dlr_id: dlr,
+            dlr_status: isAccepted ? 'pending' : 'rejected',
+            dlr_message: isAccepted ? null : responseText.slice(0, 500),
+          })
           .eq('campaign_id', campaign.id)
           .eq('client_id', recipient.clientId);
 
@@ -187,34 +202,41 @@ Deno.serve(async (req) => {
         await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`Error sending to ${recipient.phone}:`, error);
-        // Still mark as sent - we can't verify delivery anyway
+        failedCount++;
         await supabase
           .from('marketing_sms_recipients')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .update({ 
+            status: 'failed', 
+            dlr_status: 'send_error',
+            dlr_message: error instanceof Error ? error.message : 'Unknown error',
+          })
           .eq('campaign_id', campaign.id)
           .eq('client_id', recipient.clientId);
       }
     }
 
-    // Update campaign - all sent
+    const sentCount = recipients.length - failedCount;
+
+    // Update campaign
     await supabase
       .from('marketing_sms_campaigns')
       .update({
         status: 'completed',
-        sent_count: recipients.length,
-        failed_count: 0,
+        sent_count: sentCount,
+        failed_count: failedCount,
         completed_at: new Date().toISOString(),
       })
       .eq('id', campaign.id);
 
-    console.log(`Campaign completed: ${recipients.length} sent, 0 failed`);
+    const sentCount = recipients.length - failedCount;
+    console.log(`Campaign completed: ${sentCount} sent, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
         campaignId: campaign.id,
-        sentCount: recipients.length,
-        failedCount: 0,
+        sentCount,
+        failedCount,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Send, Image, Users, CheckCircle, XCircle, Clock, Loader2, Upload, Link, History, Copy, Eye, Video } from 'lucide-react';
+import { Search, Send, Image, Users, CheckCircle, XCircle, Clock, Loader2, Upload, Link, History, Copy, Eye, Video, RefreshCw, AlertTriangle, Phone, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,6 +33,9 @@ interface Campaign {
   recipients_count: number;
   sent_count: number;
   failed_count: number;
+  delivered_count: number;
+  dlr_failed_count: number;
+  last_dlr_check_at: string | null;
   status: string;
   created_at: string;
   completed_at: string | null;
@@ -45,6 +48,9 @@ interface CampaignRecipient {
   status: string;
   error_message: string | null;
   sent_at: string | null;
+  dlr_status: string | null;
+  dlr_message: string | null;
+  dlr_checked_at: string | null;
   clients: { full_name: string } | null;
 }
 
@@ -76,6 +82,7 @@ export default function MarketingSms() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaignRecipients, setCampaignRecipients] = useState<CampaignRecipient[]>([]);
   const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
+  const [isCheckingDlr, setIsCheckingDlr] = useState(false);
 
   // Fetch clients
   useEffect(() => {
@@ -169,17 +176,46 @@ export default function MarketingSms() {
     try {
       const { data, error } = await supabase
         .from('marketing_sms_recipients')
-        .select('id, client_id, phone_number, status, error_message, sent_at, clients(full_name)')
+        .select('id, client_id, phone_number, status, error_message, sent_at, dlr_status, dlr_message, dlr_checked_at, clients(full_name)')
         .eq('campaign_id', campaignId)
         .order('status', { ascending: true });
 
       if (error) throw error;
-      setCampaignRecipients(data || []);
+      setCampaignRecipients((data as CampaignRecipient[]) || []);
     } catch (error) {
       console.error('Error fetching recipients:', error);
       toast.error('فشل تحميل المستلمين');
     } finally {
       setIsLoadingRecipients(false);
+    }
+  }
+
+
+  async function handleCheckDelivery(campaignId: string) {
+    setIsCheckingDlr(true);
+    try {
+      const response = await supabase.functions.invoke('check-sms-delivery', {
+        body: { campaign_id: campaignId },
+      });
+
+      if (response.error) throw response.error;
+      const data = response.data;
+      
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success(`تم الفحص: ${data.delivered || 0} وصلت، ${data.failed || 0} فشلت`);
+      
+      // Refresh recipients and campaign
+      fetchCampaignRecipients(campaignId);
+      fetchCampaigns();
+    } catch (error) {
+      console.error('Error checking delivery:', error);
+      toast.error('فشل فحص التسليم');
+    } finally {
+      setIsCheckingDlr(false);
     }
   }
 
@@ -325,13 +361,58 @@ export default function MarketingSms() {
   function getStatusBadge(status: string) {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-500">مكتمل</Badge>;
+        return <Badge className="bg-emerald-600 text-white">مكتمل</Badge>;
       case 'sending':
-        return <Badge className="bg-blue-500">جاري الإرسال</Badge>;
+        return <Badge className="bg-blue-500 text-white">جاري الإرسال</Badge>;
       case 'failed':
         return <Badge variant="destructive">فشل</Badge>;
       default:
         return <Badge variant="secondary">مسودة</Badge>;
+    }
+  }
+
+  function getRecipientSendBadge(status: string) {
+    switch (status) {
+      case 'sent':
+      case 'delivered':
+        return <Badge className="bg-emerald-600 text-white">تم الإرسال</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">فشل الإرسال</Badge>;
+      case 'pending':
+        return <Badge variant="secondary"><Clock className="h-3 w-3 ml-1 inline" />قيد الإرسال</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  }
+
+  function getRecipientDlrBadge(dlrStatus: string | null) {
+    if (!dlrStatus) return <Badge variant="outline" className="text-muted-foreground">لم يُفحص</Badge>;
+    
+    switch (dlrStatus) {
+      case 'delivered':
+        return <Badge className="bg-emerald-600 text-white"><CheckCircle className="h-3 w-3 ml-1 inline" />وصلت</Badge>;
+      case 'pending':
+      case 'sent_no_confirmation':
+        return <Badge className="bg-amber-500 text-white"><Clock className="h-3 w-3 ml-1 inline" />بانتظار التأكيد</Badge>;
+      case 'failed':
+      case 'failed_cellular':
+      case 'not_delivered':
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 ml-1 inline" />لم تصل</Badge>;
+      case 'timeout':
+        return <Badge variant="destructive">انتهت المهلة</Badge>;
+      case 'expired':
+        return <Badge variant="destructive">منتهية</Badge>;
+      case 'blocked_marketing':
+        return <Badge variant="destructive">محظور تسويقي</Badge>;
+      case 'kosher_number':
+        return <Badge variant="destructive">رقم كشر</Badge>;
+      case 'rejected':
+      case 'send_error':
+        return <Badge variant="destructive">مرفوض</Badge>;
+      case 'out_of_coverage':
+        return <Badge variant="destructive">خارج التغطية</Badge>;
+      default:
+        return <Badge variant="outline">{dlrStatus}</Badge>;
     }
   }
 
@@ -633,9 +714,20 @@ export default function MarketingSms() {
                           <TableCell className="font-medium">{campaign.title}</TableCell>
                           <TableCell className="max-w-xs truncate">{campaign.message}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <span className="text-green-600">{campaign.recipients_count} تم الإرسال</span>
+                            <div className="flex items-center gap-3 text-sm">
+                              <span className="flex items-center gap-1 text-blue-500">
+                                <Send className="h-3 w-3" />{campaign.sent_count}
+                              </span>
+                              {(campaign.delivered_count || 0) > 0 && (
+                                <span className="flex items-center gap-1 text-emerald-500">
+                                  <CheckCircle className="h-3 w-3" />{campaign.delivered_count}
+                                </span>
+                              )}
+                              {(campaign.dlr_failed_count || 0) > 0 && (
+                                <span className="flex items-center gap-1 text-destructive">
+                                  <XCircle className="h-3 w-3" />{campaign.dlr_failed_count}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>{getStatusBadge(campaign.status)}</TableCell>
@@ -666,24 +758,65 @@ export default function MarketingSms() {
 
         {/* Campaign Details Modal */}
         <Dialog open={!!selectedCampaign} onOpenChange={() => setSelectedCampaign(null)}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle>تفاصيل الحملة: {selectedCampaign?.title}</DialogTitle>
+              <div className="flex items-center justify-between">
+                <DialogTitle>تفاصيل الحملة: {selectedCampaign?.title}</DialogTitle>
+                {selectedCampaign && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCheckDelivery(selectedCampaign.id)}
+                    disabled={isCheckingDlr}
+                    className="mr-4"
+                  >
+                    {isCheckingDlr ? (
+                      <Loader2 className="h-4 w-4 ml-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 ml-1" />
+                    )}
+                    فحص التسليم
+                  </Button>
+                )}
+              </div>
             </DialogHeader>
             
             {selectedCampaign && (
               <div className="space-y-4 overflow-hidden flex flex-col flex-1">
-                {/* Campaign Summary */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-muted rounded-lg text-center">
-                    <p className="text-2xl font-bold text-green-600">{selectedCampaign.recipients_count}</p>
-                    <p className="text-xs text-muted-foreground">تم الإرسال</p>
-                  </div>
+                {/* Campaign Summary Cards */}
+                <div className="grid grid-cols-4 gap-3">
                   <div className="p-3 bg-muted rounded-lg text-center">
                     <p className="text-2xl font-bold">{selectedCampaign.recipients_count}</p>
                     <p className="text-xs text-muted-foreground">إجمالي</p>
                   </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Send className="h-4 w-4 text-blue-500" />
+                      <p className="text-2xl font-bold text-blue-500">{selectedCampaign.sent_count}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">أُرسلت</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-emerald-500" />
+                      <p className="text-2xl font-bold text-emerald-500">{selectedCampaign.delivered_count || 0}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">وصلت</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                      <p className="text-2xl font-bold text-destructive">{selectedCampaign.dlr_failed_count || 0}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">فشلت</p>
+                  </div>
                 </div>
+
+                {selectedCampaign.last_dlr_check_at && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    آخر فحص: {format(new Date(selectedCampaign.last_dlr_check_at), 'dd/MM/yyyy HH:mm', { locale: ar })}
+                  </p>
+                )}
 
                 {/* Message Preview */}
                 <div className="p-3 bg-muted rounded-lg">
@@ -693,30 +826,46 @@ export default function MarketingSms() {
 
                 {/* Recipients List */}
                 <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-medium mb-2">المستلمين:</p>
+                  <p className="text-sm font-medium mb-2">المستلمين ({campaignRecipients.length}):</p>
                   <ScrollArea className="h-[300px] border rounded-lg">
                     {isLoadingRecipients ? (
                       <div className="p-4 space-y-2">
                         {[...Array(5)].map((_, i) => (
-                          <Skeleton key={i} className="h-10 w-full" />
+                          <Skeleton key={i} className="h-12 w-full" />
                         ))}
                       </div>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-8">#</TableHead>
                             <TableHead>الاسم</TableHead>
                             <TableHead>الهاتف</TableHead>
-                            <TableHead>الحالة</TableHead>
+                            <TableHead>حالة الإرسال</TableHead>
+                            <TableHead>حالة التسليم</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {campaignRecipients.map(recipient => (
+                          {campaignRecipients.map((recipient, index) => (
                             <TableRow key={recipient.id}>
-                              <TableCell>{recipient.clients?.full_name || '-'}</TableCell>
-                              <TableCell dir="ltr">{recipient.phone_number}</TableCell>
+                              <TableCell className="text-muted-foreground text-xs">{index + 1}</TableCell>
                               <TableCell>
-                                <Badge className="bg-green-500">تم الإرسال</Badge>
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{recipient.clients?.full_name || '-'}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1" dir="ltr">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-sm">{recipient.phone_number}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {getRecipientSendBadge(recipient.status)}
+                              </TableCell>
+                              <TableCell>
+                                {getRecipientDlrBadge(recipient.dlr_status)}
                               </TableCell>
                             </TableRow>
                           ))}

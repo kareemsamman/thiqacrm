@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.get-xservice-invoice]
 verify_jwt = true
+
+[functions.check-sms-delivery]
+verify_jwt = false

@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Send, Image, Users, CheckCircle, XCircle, Clock, Loader2, Upload, Link, History, Copy, Eye } from 'lucide-react';
+import { Search, Send, Image, Users, CheckCircle, XCircle, Clock, Loader2, Upload, Link, History, Copy, Eye, Video } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,7 +55,8 @@ export default function MarketingSms() {
   // Compose state
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | ''>('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   
@@ -214,12 +215,16 @@ export default function MarketingSms() {
     setSelectAll(false);
   }
 
-  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleMediaUpload(event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (type === 'image' && !file.type.startsWith('image/')) {
       toast.error('يرجى اختيار صورة فقط');
+      return;
+    }
+    if (type === 'video' && !file.type.startsWith('video/')) {
+      toast.error('يرجى اختيار فيديو فقط');
       return;
     }
 
@@ -231,7 +236,6 @@ export default function MarketingSms() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('entity_type', 'marketing_sms');
-      // Don't send entity_id - it must be a valid UUID or null
 
       const response = await supabase.functions.invoke('upload-media', {
         body: formData,
@@ -241,14 +245,15 @@ export default function MarketingSms() {
       
       const cdnUrl = response.data?.file?.cdn_url;
       if (cdnUrl) {
-        setImageUrl(cdnUrl);
-        toast.success('تم رفع الصورة بنجاح');
+        setMediaUrl(cdnUrl);
+        setMediaType(type);
+        toast.success(type === 'image' ? 'تم رفع الصورة بنجاح' : 'تم رفع الفيديو بنجاح');
       } else {
         throw new Error('No CDN URL returned');
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('فشل رفع الصورة');
+      console.error('Error uploading media:', error);
+      toast.error('فشل رفع الملف');
     } finally {
       setIsUploading(false);
     }
@@ -285,8 +290,8 @@ export default function MarketingSms() {
       const response = await supabase.functions.invoke('send-marketing-sms', {
         body: {
           title,
-          message: imageUrl ? `${message}\n${imageUrl}` : message,
-          imageUrl,
+          message: mediaUrl ? `${message}\n${mediaUrl}` : message,
+          imageUrl: mediaUrl,
           recipients: selectedClients.map(c => ({
             clientId: c.id,
             phone: c.phone_number,
@@ -302,7 +307,8 @@ export default function MarketingSms() {
       // Reset form
       setTitle('');
       setMessage('');
-      setImageUrl('');
+      setMediaUrl('');
+      setMediaType('');
       setSelectedClientIds(new Set());
       setSelectAll(false);
       
@@ -413,23 +419,58 @@ export default function MarketingSms() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handleImageUpload}
+                        onChange={e => handleMediaUpload(e, 'image')}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <label className="cursor-pointer">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isUploading}
+                        asChild
+                      >
+                        <span>
+                          {isUploading ? (
+                            <Loader2 className="h-4 w-4 ml-1 animate-spin" />
+                          ) : (
+                            <Video className="h-4 w-4 ml-1" />
+                          )}
+                          رفع فيديو
+                        </span>
+                      </Button>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm"
+                        onChange={e => handleMediaUpload(e, 'video')}
                         className="hidden"
                       />
                     </label>
                   </div>
 
-                  {imageUrl && (
+                  {mediaUrl && (
                     <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-sm font-medium mb-2">الصورة المرفقة:</p>
+                      <p className="text-sm font-medium mb-2">
+                        {mediaType === 'video' ? 'الفيديو المرفق:' : 'الصورة المرفقة:'}
+                      </p>
                       <div className="flex items-center gap-2">
-                        <img
-                          src={imageUrl}
-                          alt="Uploaded"
-                          className="h-16 w-16 object-cover rounded"
-                        />
+                        {mediaType === 'video' ? (
+                          <video
+                            src={mediaUrl}
+                            className="h-16 w-24 object-cover rounded"
+                            muted
+                          />
+                        ) : (
+                          <img
+                            src={mediaUrl}
+                            alt="Uploaded"
+                            className="h-16 w-16 object-cover rounded"
+                          />
+                        )}
                         <Input
-                          value={imageUrl}
+                          value={mediaUrl}
                           readOnly
                           className="text-xs flex-1"
                         />
@@ -437,7 +478,7 @@ export default function MarketingSms() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => copyToClipboard(imageUrl)}
+                          onClick={() => copyToClipboard(mediaUrl)}
                           title="نسخ الرابط"
                         >
                           <Copy className="h-4 w-4" />
@@ -446,7 +487,7 @@ export default function MarketingSms() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setImageUrl('')}
+                          onClick={() => { setMediaUrl(''); setMediaType(''); }}
                         >
                           <XCircle className="h-4 w-4" />
                         </Button>

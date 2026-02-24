@@ -702,7 +702,13 @@ export default function PolicyReports() {
 
       if (error) throw error;
       
-      toast.success(`تم إرسال ${data?.sent_count || 0} رسالة تذكير`);
+      const remaining = data?.remaining || 0;
+      const sentSoFar = data?.sent_count || 0;
+      if (remaining > 0) {
+        toast.success(`تم إرسال ${sentSoFar} رسالة حتى الآن، يتم إرسال ${remaining} رسالة إضافية تلقائياً...`);
+      } else {
+        toast.success(`تم إرسال ${sentSoFar} رسالة تذكير`);
+      }
       fetchRenewals();
     } catch (error: any) {
       console.error('Error sending reminders:', error);

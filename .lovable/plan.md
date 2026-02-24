@@ -1,44 +1,59 @@
 
-# Fix Marketing SMS - Batch Sending + Bug Fix
+
+# Fix Renewal Reminders - Batch Processing (Same as Marketing SMS Fix)
 
 ## Problem
-The campaigns with 1087 recipients are stuck at "sending" because:
-1. **Bug**: Duplicate `const sentCount` on lines 218 and 231 causes a compilation error
-2. **Timeout**: Sending 1087 SMS sequentially (100ms delay each = ~109 seconds) exceeds the edge function timeout (~60s)
-3. Both campaigns only sent ~300 messages before timing out, leaving ~750 recipients as "pending"
+The `send-renewal-reminders` edge function processes ALL policies in a single invocation, sending SMS one by one with no batching. With 100+ policies, it hits the 60-second edge function timeout and stops after only ~14 messages.
 
 ## Solution
+Apply the same batch processing pattern already used in `send-marketing-sms`:
 
-### 1. Fix `send-marketing-sms` Edge Function
-- Remove duplicate `const sentCount` declaration (line 231)
-- Change approach: send in batches of **200 recipients per invocation**
-- If there are more than 200 recipients, send the first 200, then trigger itself again for the next batch
-- Campaign stays in "sending" status until all batches complete
+### 1. Refactor `send-renewal-reminders` Edge Function
+- Process a maximum of **200 policies per invocation**
+- After processing a batch, if more policies remain, the function **triggers itself** to handle the next batch
+- Track progress using a `batch_id` stored in a lightweight tracking mechanism
 
-### 2. Add batch continuation logic
-- New flow: `send-marketing-sms` accepts optional `batch_offset` parameter
-- First call: creates campaign, inserts all recipients, sends first 200
-- After sending 200: if more remain, invoke itself with `batch_offset` for next batch
-- Last batch: marks campaign as "completed"
+### 2. How It Works
 
-### 3. Fix stuck campaigns
-- The two stuck campaigns (f0122170... and fa0edb77...) have 785 and 749 recipients still "pending"
-- Add a "retry pending" feature in the UI to re-send unsent recipients from stuck campaigns
+**First call (from UI):**
+1. Fetch all matching policies
+2. Store the full list of policy IDs in a temporary batch record (or pass via self-invocation)
+3. Send SMS for the first 200 policies
+4. If more remain, call itself with the remaining policy IDs
 
-### Technical Details
+**Continuation calls:**
+1. Receive remaining policy IDs
+2. Send SMS for the next 200
+3. Repeat until done
+4. Return final totals
 
-**File: `supabase/functions/send-marketing-sms/index.ts`**
+### 3. Implementation Details
 
-- Remove duplicate `const sentCount` (line 231)
-- Add `batch_offset` and `campaign_id` to request body for continuation
-- Process max 200 recipients per invocation
-- After batch completes:
-  - If more recipients remain: call self with next offset
-  - If all done: update campaign to "completed"
-- Add resume mode: if `campaign_id` is provided (continuation), skip campaign creation and recipient insertion
+**File: `supabase/functions/send-renewal-reminders/index.ts`**
 
-**File: `src/pages/MarketingSms.tsx`**
+- Add `BATCH_SIZE = 200` constant
+- Accept optional `continuation_policy_ids` and `running_sent_count` / `running_skipped_count` in request body
+- On first call: fetch policies, filter by cooldown, collect IDs to process
+- Process up to 200 policies per invocation
+- If more remain after batch: fire-and-forget `fetch()` to self with remaining IDs and accumulated counts
+- Return immediately with batch results (sent/skipped so far + remaining count)
+- On final batch: return complete totals
 
-- Add "إعادة إرسال المعلقين" (Retry Pending) button for stuck campaigns (status = "sending")
-- This button calls the edge function with the existing campaign_id to resume sending to "pending" recipients
-- Show clearer status: "جاري الإرسال (302/1087)" instead of just "جاري الإرسال"
+**File: `src/pages/PolicyReports.tsx`**
+
+- Update `handleSendReminders` to show a more informative toast: include "remaining" count if returned
+- No major UI changes needed since the function handles continuation automatically
+
+### 4. Key Code Changes
+
+The function will:
+- Split policy processing: first 200 go in current batch, rest passed to self-invocation
+- Use `fetch(selfUrl, { method: 'POST', body: ... })` (fire-and-forget) to trigger next batch, same pattern as marketing SMS
+- Keep the auth token forwarded to continuation calls
+- Accumulate sent/skipped/error counts across batches
+
+### 5. Safety
+- Each invocation processes at most 200 policies (~20-40 seconds)
+- Self-invocation ensures all policies get processed even with 1000+ recipients
+- If a batch fails mid-way, remaining policies simply don't get sent (no data corruption)
+- Cooldown check prevents duplicate sends on retry

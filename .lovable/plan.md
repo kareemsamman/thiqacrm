@@ -1,47 +1,62 @@
 
 
-# Fix: X-Service Invoice Files Should Open in New Tab
+# Fix: Workers Can't See X-Service Invoice Files
 
-## Problem
+## Root Cause
 
-The sync saves the X-Service invoice URL as `mime_type: "application/pdf"`, but the URL (`https://x-service.lovable.app/invoice/...`) is actually a web page, not a PDF file. When clicked, the `PdfJsViewer` tries to proxy-fetch it as a PDF binary, which fails with "Failed to load PDF".
-
-## Solution
-
-Detect **external links** (files where `storage_path` is null and `size` is 0) and handle them differently:
-- Instead of opening in the PDF viewer, open them directly in a new tab
-- Show a distinct visual indicator (link icon instead of PDF icon) so users know it's an external link
-
-## Changes
-
-### File: `src/components/policies/PolicyFilesSection.tsx`
-
-In the `renderFileGrid` function, add a check before the PDF case: if the file has no `storage_path` (external link), open it directly in a new tab instead of trying to render it in the viewer.
-
+The RLS (row-level security) policy on `media_files` for reading requires:
 ```
-// Before the isPdf check, add:
-if (!file.storage_path && file.size === 0) {
-  // External link - open directly
-  window.open(file.cdn_url, '_blank');
-  return;
-}
+can_access_branch(auth.uid(), branch_id) AND deleted_at IS NULL
 ```
 
-Specifically:
-1. In the grid rendering (around line 523), before the `isPdf` branch, check if `storage_path` is null -- if so, render it with a "link" icon and open in new tab on click
-2. In the `FilePreviewGallery` component, external links should also just open in a new tab
+X-Service invoice records are inserted by the backend with `branch_id = NULL` and `uploaded_by = NULL`. When `branch_id` is NULL, the `can_access_branch()` check fails, blocking all non-admin workers from seeing these files.
 
-### File: `src/components/policies/FilePreviewGallery.tsx`
+## Fix
 
-No changes needed -- external link files won't reach the gallery since they'll open in a new tab directly.
+Two changes needed:
+
+### 1. Update the `sync-to-xservice` edge function
+
+When inserting the invoice record into `media_files`, include the `branch_id` from the policy being synced. The policy already has a `branch_id` field available in the query.
+
+### 2. Backfill existing records
+
+Run a migration to set `branch_id` on existing X-Service invoice records by looking up the linked policy's branch.
 
 ## Technical Details
 
-| What | Detail |
+| File | Change |
 |---|---|
-| Detection | `file.storage_path === null && file.size === 0` = external link |
-| Action on click | `window.open(file.cdn_url, '_blank')` |
-| Visual | Show an external link icon with "X-Service" label instead of "PDF" |
-| Download button | Opens URL in new tab (user can print-to-PDF from the invoice page) |
+| `supabase/functions/sync-to-xservice/index.ts` | Pass `branch_id` from the policy row when inserting the media file |
+| Database migration | Backfill `branch_id` on existing X-Service invoice records |
 
-This is a frontend-only change -- no edge function or database changes needed.
+### Edge Function Change
+
+```typescript
+// When inserting the invoice media_files record, include branch_id from the policy
+await supabase.from("media_files").insert({
+  original_name: "فاتورة X-Service.pdf",
+  mime_type: "application/pdf",
+  cdn_url: invoiceUrl,
+  storage_path: null,
+  entity_type: "policy_insurance",
+  entity_id: policy_id,
+  size: 0,
+  branch_id: policy.branch_id,  // <-- ADD THIS
+});
+```
+
+### Backfill Migration
+
+```sql
+UPDATE media_files mf
+SET branch_id = p.branch_id
+FROM policies p
+WHERE mf.entity_id = p.id::text
+  AND mf.entity_type = 'policy_insurance'
+  AND mf.storage_path IS NULL
+  AND mf.size = 0
+  AND mf.branch_id IS NULL;
+```
+
+This ensures both existing and future X-Service invoice files are visible to workers who have branch access.

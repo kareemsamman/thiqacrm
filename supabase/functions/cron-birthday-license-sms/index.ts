@@ -166,11 +166,12 @@ Deno.serve(async (req) => {
           // Also log to sms_logs
           await supabase.from('sms_logs').insert({
             phone_number: client.phone_number,
-            message_content: message.slice(0, 500),
+            message: message.slice(0, 500),
             status: success ? 'sent' : 'failed',
             sms_type: 'birthday',
             entity_type: 'client',
             entity_id: client.id,
+            client_id: client.id,
           });
 
           if (success) {
@@ -263,11 +264,12 @@ Deno.serve(async (req) => {
           // Also log to sms_logs
           await supabase.from('sms_logs').insert({
             phone_number: client.phone_number,
-            message_content: message.slice(0, 500),
+            message: message.slice(0, 500),
             status: success ? 'sent' : 'failed',
             sms_type: 'license_expiry',
             entity_type: 'car',
             entity_id: car.id,
+            client_id: client.id,
           });
 
           if (success) {

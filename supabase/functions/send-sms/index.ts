@@ -65,7 +65,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { phone, message }: SmsRequest = await req.json();
+    const { phone, message, client_id }: SmsRequest & { client_id?: string } = await req.json();
 
     if (!phone || !message) {
       return new Response(
@@ -172,6 +172,8 @@ serve(async (req) => {
       sms_type: 'manual',
       status: 'sent',
       sent_at: new Date().toISOString(),
+      client_id: client_id || null,
+      created_by: user.id,
     });
 
     if (logError) {

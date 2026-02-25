@@ -245,15 +245,30 @@ ${letterUrl}`;
 
     const isSuccess = responseText.includes('<status>0</status>');
 
+    // Look up client by letter's client_id or recipient phone
+    let letterClientId = letter.client_id || null;
+    if (!letterClientId && phone) {
+      const { data: matchedClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('phone_number', phone)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle();
+      if (matchedClient) letterClientId = matchedClient.id;
+    }
+
     // Log SMS
     await supabase.from('sms_logs').insert({
       phone_number: phone,
-      message_content: message.slice(0, 500),
+      message: message.slice(0, 500),
       status: isSuccess ? 'sent' : 'failed',
       error_message: isSuccess ? null : responseText.slice(0, 500),
       sms_type: 'correspondence',
       entity_type: 'correspondence',
       entity_id: letter.id,
+      client_id: letterClientId,
+      created_by: user.id,
     });
 
     if (!isSuccess) {

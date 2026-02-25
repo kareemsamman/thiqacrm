@@ -1,78 +1,50 @@
-# Dashboard & Financial Reports Fixes
 
-## Issue 1: Company Debts Table - Number Alignment
+# Financial Reports - Complete 2026 Filter Fix
 
-The amounts in the "ديون شركات التأمين" table are centered (`text-center`) but should be left-aligned under the "المبلغ المستحق" header to match the screenshot style.
+## What's Already Done
+The `fetchFinancialData` function in `FinancialReports.tsx` already has all the `.gte('created_at', '2026-01-01')` filters applied from the previous edit. The `get_company_balance` RPC also accepts `p_from_date`.
 
-**Fix**: Change `text-center` to `text-left` for the amount column cells and header in the company debts table.
+## What's Still Missing
 
-## Issue 2: Financial Reports - Start from 2026
+### 1. `useProfitSummary.ts` - Not filtered to 2026
+The "ربح AB الإجمالي" (Total AB Profit) card on the Financial Reports page uses `useProfitSummary()`, which fetches policies starting from `yearStart` (dynamic current year start). This needs to be hardcoded to `2026-01-01` so profit data also starts from 2026.
 
-The admin wants all financial data on `/reports/financial` (wallets, cheques, company debts, everything) to start from January 1, 2026 only. Currently the page fetches ALL historical data with no date filter.
+Additionally, the `broker_settlements` query inside this hook has NO date filter at all.
 
-**Changes needed:**
+**Changes:**
+- Change the policies query from `.gte('start_date', yearStart)` to `.gte('start_date', '2026-01-01')`
+- Add `.gte('created_at', '2026-01-01')` to the broker settlements query
+- Keep the today/month/year breakdowns working within 2026+ data
 
-### Database
+### 2. localStorage Cache Serving Old Data
+The Financial Reports page caches data in `localStorage` for 5 minutes. Even after the code changes, the user might see old cached data. We need to bust the cache by changing the cache key.
 
-- Update `dashboard_company_debts` RPC to accept optional `p_from_date` and `p_to_date` parameters and pass them to `get_company_wallet_balance()`.
-
-### Financial Reports Page (`src/pages/FinancialReports.tsx`)
-
-- Add `p_from_date: '2026-01-01'` to all `get_company_balance` and `get_company_wallet_balance` RPC calls.
-- Filter `policy_payments` query with `.gte('created_at', '2026-01-01')`.
-- Filter `policies` query with `.gte('created_at', '2026-01-01')`.
-- Filter `company_settlements` with `.gte('created_at', '2026-01-01')`.
-- Filter `broker_settlements` with `.gte('created_at', '2026-01-01')`.
-- Filter `customer_wallet_transactions` with `.gte('created_at', '2026-01-01')`.
-- Filter `expenses` with `.gte('expense_date', '2026-01-01')`.
-- Filter `ab_ledger` with `.gte('transaction_date', '2026-01-01')`.
-
-This means the "AB Wallet" summary, company balances, profit totals, and all ledger entries will reflect from  2026 data only.
-
-### Dashboard Company Debts
-
-- Update the `dashboard_company_debts` RPC to pass `'2026-01-01'` as `p_from_date` to `get_company_wallet_balance`, so dashboard debts also reflect 2026 only.
+**Change:**
+- Update `CACHE_KEY` from `"ab_financial_reports_cache"` to `"ab_financial_reports_cache_2026"` to invalidate old cached data
 
 ## Files to Change
 
-
-| File                             | Change                                                                 |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| `src/pages/Dashboard.tsx`        | Fix amount alignment in company debts table (text-center to text-left) |
-| `src/pages/FinancialReports.tsx` | Add `2026-01-01` date filter to all data queries                       |
-| Database migration               | Update `dashboard_company_debts` to pass `p_from_date = '2026-01-01'`  |
-
+| File | Change |
+|---|---|
+| `src/hooks/useProfitSummary.ts` | Filter policies to `>= 2026-01-01` instead of dynamic year start; add date filter to broker settlements |
+| `src/pages/FinancialReports.tsx` | Update cache key to bust old cached data |
 
 ## Technical Details
 
-### Dashboard alignment fix
+### useProfitSummary.ts
+```typescript
+// Line 80: Change from:
+.gte('start_date', yearStart);
+// To:
+.gte('start_date', '2026-01-01');
 
-```tsx
-// Change from text-center to text-left for amount cells
-<TableHead className="text-left">المبلغ المستحق</TableHead>
-<TableCell className="text-left ltr-nums">...</TableCell>
+// Line 88: Add date filter to broker settlements:
+.eq('status', 'completed')
+.gte('created_at', '2026-01-01');
 ```
 
-### Financial Reports date filter
-
-All queries in `fetchFinancialData` will be filtered to `>= 2026-01-01`:
-
-- Payments, policies, settlements, expenses, ledger entries
-- Company balance RPCs called with `p_from_date: '2026-01-01'`  
-`all the data will start from 2026 yeah not only for 2026 got me?`
-
-### Dashboard company debts RPC
-
-```sql
-CREATE OR REPLACE FUNCTION dashboard_company_debts()
-RETURNS TABLE(company_id uuid, company_name text, outstanding numeric) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT ic.id, COALESCE(ic.name_ar, ic.name)::text, w.outstanding
-  FROM insurance_companies ic
-  CROSS JOIN LATERAL get_company_wallet_balance(ic.id, '2026-01-01'::date) w
-  WHERE w.outstanding > 0
-  ORDER BY w.outstanding DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public';
+### FinancialReports.tsx
+```typescript
+// Line 32: Change cache key
+const CACHE_KEY = "ab_financial_reports_cache_2026";
 ```

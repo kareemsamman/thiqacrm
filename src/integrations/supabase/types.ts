@@ -5241,6 +5241,7 @@ export type Database = {
           package_companies: string[]
           package_count: number
           package_policy_ids: string[]
+          package_service_names: string[]
           package_types: string[]
           payment_status: string
           policy_number: string

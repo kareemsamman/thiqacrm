@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Shield, Car, Truck, FileCheck, Pencil } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface PackagePolicy {
   id: string;
@@ -47,6 +48,7 @@ interface PackageComponentsTableProps {
   policies: PackagePolicy[];
   isAdmin: boolean;
   onEditPolicy?: (policy: PackagePolicy) => void;
+  syncStatuses?: Record<string, 'success' | 'failed' | 'pending' | null>;
 }
 
 const policyTypeLabels: Record<string, string> = {
@@ -74,7 +76,27 @@ const policyTypeConfig: Record<string, { icon: React.ElementType; bg: string; te
   ACCIDENT_FEE_EXEMPTION: { icon: FileCheck, bg: "bg-emerald-50", text: "text-emerald-700" },
 };
 
-export function PackageComponentsTable({ policies, isAdmin, onEditPolicy }: PackageComponentsTableProps) {
+const syncableTypes = ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'];
+
+const SyncDot = ({ status }: { status: 'success' | 'failed' | 'pending' | null }) => {
+  if (!status) return null;
+  const config = {
+    success: { color: 'bg-emerald-500', tooltip: 'تمت المزامنة مع X-Service' },
+    failed: { color: 'bg-red-500', tooltip: 'فشلت المزامنة مع X-Service' },
+    pending: { color: 'bg-amber-500', tooltip: 'في انتظار المزامنة مع X-Service' },
+  };
+  const { color, tooltip } = config[status];
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={cn("inline-block w-2 h-2 rounded-full shrink-0", color)} />
+      </TooltipTrigger>
+      <TooltipContent side="top"><p>{tooltip}</p></TooltipContent>
+    </Tooltip>
+  );
+};
+
+export function PackageComponentsTable({ policies, isAdmin, onEditPolicy, syncStatuses }: PackageComponentsTableProps) {
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-GB");
   };
@@ -120,6 +142,7 @@ const getTypeName = (p: PackagePolicy) => {
   const totalProfit = policies.reduce((sum, p) => sum + (p.profit || 0), 0);
 
   return (
+    <TooltipProvider>
     <div className="border rounded-xl overflow-hidden bg-card">
       <div className="bg-gradient-to-l from-primary/5 to-primary/10 px-4 py-3 border-b">
         <h3 className="font-bold text-foreground flex items-center gap-2">
@@ -148,9 +171,16 @@ const getTypeName = (p: PackagePolicy) => {
             return (
               <TableRow key={policy.id} className="hover:bg-muted/20">
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bg)}>
-                      <Icon className={cn("h-4 w-4", config.text)} />
+                    <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bg)}>
+                        <Icon className={cn("h-4 w-4", config.text)} />
+                      </div>
+                      {syncStatuses && syncableTypes.includes(policy.policy_type_parent) && (
+                        <span className="absolute -top-0.5 -right-0.5">
+                          <SyncDot status={syncStatuses[policy.id] ?? null} />
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="font-semibold">{getTypeName(policy)}</p>
@@ -226,5 +256,6 @@ const getTypeName = (p: PackagePolicy) => {
         </TableFooter>
       </Table>
     </div>
+    </TooltipProvider>
   );
 }

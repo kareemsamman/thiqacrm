@@ -270,6 +270,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
   const [policyChildren, setPolicyChildren] = useState<{ id: string; child: { id: string; full_name: string; id_number: string; relation: string | null; phone: string | null } | null }[]>([]);
   const [packagePayments, setPackagePayments] = useState<Payment[]>([]);
   const [packageEditGroupId, setPackageEditGroupId] = useState<string | null>(null);
+  const [syncStatuses, setSyncStatuses] = useState<Record<string, 'success' | 'failed' | 'pending' | null>>({});
 
   const handleSendSignatureSms = async () => {
     if (!policy || !policy.clients.phone_number) {
@@ -538,6 +539,44 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
         .in("policy_id", policyIdsForChildren);
       
       setPolicyChildren(childrenData || []);
+
+      // Fetch X-Service sync statuses for service-type policies in the package
+      if (policyData.group_id) {
+        const allPkgPolicyIds = [policyId, ...relatedData.map(rp => rp.id)];
+        // Filter to only service-type policy IDs
+        const servicePolicyIds = allPkgPolicyIds.filter(pid => {
+          if (pid === policyId) return ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'].includes(policyData.policy_type_parent);
+          const rp = relatedData.find(r => r.id === pid);
+          return rp && ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'].includes(rp.policy_type_parent);
+        });
+
+        if (servicePolicyIds.length > 0) {
+          const { data: syncLogs } = await supabase
+            .from('xservice_sync_log')
+            .select('policy_id, status')
+            .in('policy_id', servicePolicyIds)
+            .order('created_at', { ascending: false });
+          
+          if (syncLogs) {
+            const statusMap: Record<string, 'success' | 'failed' | 'pending' | null> = {};
+            // DISTINCT ON equivalent: take first (latest) per policy_id
+            for (const log of syncLogs) {
+              if (!statusMap[log.policy_id]) {
+                statusMap[log.policy_id] = log.status as 'success' | 'failed';
+              }
+            }
+            // Mark service policies with no log as 'pending'
+            for (const pid of servicePolicyIds) {
+              if (!statusMap[pid]) statusMap[pid] = 'pending';
+            }
+            setSyncStatuses(statusMap);
+          }
+        } else {
+          setSyncStatuses({});
+        }
+      } else {
+        setSyncStatuses({});
+      }
 
     } catch (error) {
       console.error("Error fetching policy details:", error);
@@ -1240,6 +1279,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         ]}
                         isAdmin={isAdmin}
                         onEditPolicy={(p) => setPackageEditGroupId(p.group_id || null)}
+                        syncStatuses={syncStatuses}
                       />
                     )}
 

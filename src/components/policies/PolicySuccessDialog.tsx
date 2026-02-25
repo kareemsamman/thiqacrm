@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Printer, MessageSquare, X, Loader2, Check, AlertCircle } from "lucide-react";
+import { Printer, MessageSquare, X, Loader2, Check, AlertCircle, Receipt } from "lucide-react";
 
 interface PolicySuccessDialogProps {
   open: boolean;
@@ -35,20 +36,61 @@ export function PolicySuccessDialog({
   const [smsSent, setSmsSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Receipt states
+  const [paymentIds, setPaymentIds] = useState<string[]>([]);
+  const [printingReceipt, setPrintingReceipt] = useState(false);
+  const [sendingReceiptSms, setSendingReceiptSms] = useState(false);
+  const [receiptSmsSent, setReceiptSmsSent] = useState(false);
+
+  // Fetch payment IDs when dialog opens
+  useEffect(() => {
+    if (!open || !policyId) return;
+
+    const fetchPayments = async () => {
+      try {
+        let policyIds = [policyId];
+
+        if (isPackage) {
+          const { data: mainPolicy } = await supabase
+            .from('policies')
+            .select('group_id')
+            .eq('id', policyId)
+            .single();
+
+          if (mainPolicy?.group_id) {
+            const { data: groupPolicies } = await supabase
+              .from('policies')
+              .select('id')
+              .eq('group_id', mainPolicy.group_id);
+            if (groupPolicies) {
+              policyIds = groupPolicies.map(p => p.id);
+            }
+          }
+        }
+
+        const { data: payments } = await supabase
+          .from('policy_payments')
+          .select('id')
+          .in('policy_id', policyIds);
+
+        if (payments && payments.length > 0) {
+          setPaymentIds(payments.map(p => p.id));
+        }
+      } catch (err) {
+        console.error('Error fetching payment IDs:', err);
+      }
+    };
+
+    fetchPayments();
+  }, [open, policyId, isPackage]);
+
   const extractErrorMessage = async (result: { data: any; error: any }): Promise<string> => {
-    // Handle function invoke error
     if (result.error) {
-      // Try to extract error message from the error object
       if (typeof result.error === 'string') return result.error;
       if (result.error.message) return result.error.message;
       return 'حدث خطأ غير متوقع';
     }
-    
-    // Handle error in response data
-    if (result.data?.error) {
-      return result.data.error;
-    }
-    
+    if (result.data?.error) return result.data.error;
     return 'حدث خطأ غير متوقع';
   };
 
@@ -60,7 +102,6 @@ export function PolicySuccessDialog({
       let result;
       
       if (isPackage) {
-        // First: fetch the actual group_id from the main policy
         const { data: mainPolicy, error: mainPolicyError } = await supabase
           .from('policies')
           .select('group_id')
@@ -68,37 +109,29 @@ export function PolicySuccessDialog({
           .single();
         
         if (mainPolicyError) throw mainPolicyError;
-        
         const groupId = mainPolicy?.group_id;
         
         if (!groupId) {
-          // No package group found - treat as single policy
           result = await supabase.functions.invoke('send-invoice-sms', {
             body: { policy_id: policyId, skip_sms: true }
           });
         } else {
-          // Fetch all policies in the package group
           const { data: groupPolicies, error: fetchError } = await supabase
             .from('policies')
             .select('id')
             .eq('group_id', groupId);
-          
           if (fetchError) throw fetchError;
-          
           const policyIds = groupPolicies?.map(p => p.id) || [policyId];
-          
           result = await supabase.functions.invoke('send-package-invoice-sms', {
             body: { policy_ids: policyIds, skip_sms: true }
           });
         }
       } else {
-        // Single policy
         result = await supabase.functions.invoke('send-invoice-sms', {
           body: { policy_id: policyId, skip_sms: true }
         });
       }
 
-      // Check for errors
       if (result.error || result.data?.error) {
         const errorMsg = await extractErrorMessage(result);
         setErrorMessage(errorMsg);
@@ -106,7 +139,6 @@ export function PolicySuccessDialog({
         return;
       }
 
-      // Open the invoice URL in a new tab
       const invoiceUrl = result.data?.package_invoice_url || result.data?.ab_invoice_url || result.data?.invoice_url;
       if (invoiceUrl) {
         window.open(invoiceUrl, '_blank');
@@ -138,33 +170,25 @@ export function PolicySuccessDialog({
       let result;
       
       if (isPackage) {
-        // First: fetch the actual group_id from the main policy
         const { data: mainPolicy, error: mainPolicyError } = await supabase
           .from('policies')
           .select('group_id')
           .eq('id', policyId)
           .single();
-        
         if (mainPolicyError) throw mainPolicyError;
-        
         const groupId = mainPolicy?.group_id;
         
         if (!groupId) {
-          // No package group found - treat as single policy
           result = await supabase.functions.invoke('send-invoice-sms', {
             body: { policy_id: policyId, force_resend: true }
           });
         } else {
-          // Fetch all policies in the package group
           const { data: groupPolicies, error: fetchError } = await supabase
             .from('policies')
             .select('id')
             .eq('group_id', groupId);
-          
           if (fetchError) throw fetchError;
-          
           const policyIds = groupPolicies?.map(p => p.id) || [policyId];
-          
           result = await supabase.functions.invoke('send-package-invoice-sms', {
             body: { policy_ids: policyIds }
           });
@@ -175,7 +199,6 @@ export function PolicySuccessDialog({
         });
       }
 
-      // Check for errors
       if (result.error || result.data?.error) {
         const errorMsg = await extractErrorMessage(result);
         setErrorMessage(errorMsg);
@@ -195,6 +218,97 @@ export function PolicySuccessDialog({
     }
   };
 
+  const handlePrintReceipt = async () => {
+    if (paymentIds.length === 0) return;
+    setPrintingReceipt(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await supabase.functions.invoke('generate-payment-receipt', {
+        body: { payment_id: paymentIds[0] }
+      });
+
+      if (result.error || result.data?.error) {
+        const errorMsg = await extractErrorMessage(result);
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+
+      const receiptUrl = result.data?.receipt_url;
+      if (receiptUrl) {
+        window.open(receiptUrl, '_blank');
+        toast.success("تم فتح إيصال الدفع");
+      } else {
+        setErrorMessage("لم يتم العثور على رابط الإيصال");
+        toast.error("لم يتم العثور على رابط الإيصال");
+      }
+    } catch (error) {
+      console.error('Print receipt error:', error);
+      const errorMsg = error instanceof Error ? error.message : "فشل في تحميل الإيصال";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setPrintingReceipt(false);
+    }
+  };
+
+  const handleSendReceiptSms = async () => {
+    if (!clientPhone || paymentIds.length === 0) {
+      toast.error("لا يوجد رقم هاتف أو دفعات");
+      return;
+    }
+
+    setSendingReceiptSms(true);
+    setErrorMessage(null);
+
+    try {
+      // First generate the receipt to get URL
+      const receiptResult = await supabase.functions.invoke('generate-payment-receipt', {
+        body: { payment_id: paymentIds[0] }
+      });
+
+      if (receiptResult.error || receiptResult.data?.error) {
+        const errorMsg = await extractErrorMessage(receiptResult);
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+
+      const receiptUrl = receiptResult.data?.receipt_url;
+      if (!receiptUrl) {
+        setErrorMessage("لم يتم العثور على رابط الإيصال");
+        toast.error("لم يتم العثور على رابط الإيصال");
+        return;
+      }
+
+      // Send via SMS
+      const smsResult = await supabase.functions.invoke('send-sms', {
+        body: {
+          phone: clientPhone,
+          message: `إيصال الدفع الخاص بك:\n${receiptUrl}`
+        }
+      });
+
+      if (smsResult.error || smsResult.data?.error) {
+        const errorMsg = await extractErrorMessage(smsResult);
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
+        return;
+      }
+
+      setReceiptSmsSent(true);
+      toast.success("تم إرسال إيصال الدفع عبر SMS");
+    } catch (error) {
+      console.error('Send receipt SMS error:', error);
+      const errorMsg = error instanceof Error ? error.message : "فشل في إرسال الإيصال";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setSendingReceiptSms(false);
+    }
+  };
+
   const handleClose = () => {
     setErrorMessage(null);
     onOpenChange(false);
@@ -210,7 +324,7 @@ export function PolicySuccessDialog({
             تم إنشاء الوثيقة بنجاح
           </DialogTitle>
           <DialogDescription>
-            يمكنك طباعة الفاتورة أو إرسالها للعميل عبر SMS
+            يمكنك طباعة الفاتورة أو إيصال الدفع أو إرسالها للعميل عبر SMS
           </DialogDescription>
         </DialogHeader>
 
@@ -222,6 +336,8 @@ export function PolicySuccessDialog({
         )}
 
         <div className="flex flex-col gap-3 mt-4">
+          {/* Invoice Section */}
+          <p className="text-xs font-semibold text-muted-foreground">الفاتورة</p>
           <Button
             variant="outline"
             className="w-full gap-2 h-12"
@@ -249,14 +365,54 @@ export function PolicySuccessDialog({
             ) : (
               <MessageSquare className="h-5 w-5" />
             )}
-            {smsSent ? "تم إرسال SMS" : "إرسال SMS للعميل"}
+            {smsSent ? "تم إرسال الفاتورة SMS" : "إرسال الفاتورة SMS"}
           </Button>
+
+          {/* Receipt Section - only show if payments exist */}
+          {paymentIds.length > 0 && (
+            <>
+              <Separator className="my-1" />
+              <p className="text-xs font-semibold text-muted-foreground">إيصال الدفع</p>
+
+              <Button
+                variant="outline"
+                className="w-full gap-2 h-12"
+                onClick={handlePrintReceipt}
+                disabled={printingReceipt}
+              >
+                {printingReceipt ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Receipt className="h-5 w-5" />
+                )}
+                طباعة إيصال الدفع
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full gap-2 h-12"
+                onClick={handleSendReceiptSms}
+                disabled={sendingReceiptSms || receiptSmsSent || !clientPhone}
+              >
+                {sendingReceiptSms ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : receiptSmsSent ? (
+                  <Check className="h-5 w-5 text-success" />
+                ) : (
+                  <MessageSquare className="h-5 w-5" />
+                )}
+                {receiptSmsSent ? "تم إرسال الإيصال SMS" : "إرسال إيصال الدفع SMS"}
+              </Button>
+            </>
+          )}
 
           {!clientPhone && (
             <p className="text-xs text-muted-foreground text-center">
               لا يوجد رقم هاتف للعميل لإرسال SMS
             </p>
           )}
+
+          <Separator className="my-1" />
 
           <Button
             variant="ghost"

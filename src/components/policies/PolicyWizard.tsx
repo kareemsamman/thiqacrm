@@ -1749,9 +1749,9 @@ export function PolicyWizard({
             onOpenChange(false);
             resetForm();
             
-            // Navigate to client page
+            // Force full page reload to show new policy data
             if (clientIdToNavigate) {
-              navigate(`/clients/${clientIdToNavigate}`);
+              window.location.href = `/clients/${clientIdToNavigate}`;
             } else {
               onSaved?.();
             }

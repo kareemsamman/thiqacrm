@@ -429,7 +429,7 @@ export default function Dashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-right">الشركة</TableHead>
-                  <TableHead className="text-center">المبلغ المستحق</TableHead>
+                  <TableHead className="text-left">المبلغ المستحق</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -451,12 +451,12 @@ export default function Dashboard() {
                     {companyDebts.map((row) => (
                       <TableRow key={row.company_id}>
                         <TableCell className="font-medium">{row.company_name}</TableCell>
-                        <TableCell className="text-center ltr-nums">₪{Number(row.outstanding).toLocaleString('en-US')}</TableCell>
+                        <TableCell className="text-left ltr-nums">₪{Number(row.outstanding).toLocaleString('en-US')}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>المجموع الكلي</TableCell>
-                      <TableCell className="text-center ltr-nums">₪{companyDebtsTotal.toLocaleString('en-US')}</TableCell>
+                      <TableCell className="text-left ltr-nums">₪{companyDebtsTotal.toLocaleString('en-US')}</TableCell>
                     </TableRow>
                   </>
                 )}

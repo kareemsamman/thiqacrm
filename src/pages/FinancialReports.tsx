@@ -141,16 +141,16 @@ const fetchFinancialData = async () => {
     ledgerRes,
   ] = await Promise.all([
     // Get payments with policy info to filter out deleted policies AND ELZAMI
-    supabase.from('policy_payments').select('amount, refused, policies(deleted_at, policy_type_parent)').neq('refused', true),
-    supabase.from('customer_wallet_transactions').select('amount, transaction_type').eq('transaction_type', 'refund'),
-    supabase.from('policies').select('payed_for_company, profit, company_id, cancelled, transferred, policy_type_parent, insurance_companies!policies_company_id_fkey(broker_id)').is('deleted_at', null),
-    supabase.from('company_settlements').select('total_amount, refused').eq('status', 'completed').neq('refused', true),
-    supabase.from('broker_settlements').select('total_amount, direction, status').eq('status', 'completed'),
-    supabase.from('policies').select('broker_buy_price, insurance_price, broker_direction').is('deleted_at', null).eq('cancelled', false).eq('broker_direction', 'from_broker'),
-    supabase.from('expenses').select('amount, voucher_type'),
+    supabase.from('policy_payments').select('amount, refused, policies(deleted_at, policy_type_parent)').neq('refused', true).gte('created_at', '2026-01-01'),
+    supabase.from('customer_wallet_transactions').select('amount, transaction_type').eq('transaction_type', 'refund').gte('created_at', '2026-01-01'),
+    supabase.from('policies').select('payed_for_company, profit, company_id, cancelled, transferred, policy_type_parent, insurance_companies!policies_company_id_fkey(broker_id)').is('deleted_at', null).gte('created_at', '2026-01-01'),
+    supabase.from('company_settlements').select('total_amount, refused').eq('status', 'completed').neq('refused', true).gte('created_at', '2026-01-01'),
+    supabase.from('broker_settlements').select('total_amount, direction, status').eq('status', 'completed').gte('created_at', '2026-01-01'),
+    supabase.from('policies').select('broker_buy_price, insurance_price, broker_direction').is('deleted_at', null).eq('cancelled', false).eq('broker_direction', 'from_broker').gte('created_at', '2026-01-01'),
+    supabase.from('expenses').select('amount, voucher_type').gte('expense_date', '2026-01-01'),
     supabase.from('expenses').select('amount, voucher_type').gte('expense_date', monthStart).lte('expense_date', monthEnd),
     supabase.from('insurance_companies').select('id, name, name_ar, broker_id').eq('active', true).is('broker_id', null),
-    supabase.from('ab_ledger').select('*').eq('status', 'posted').order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(50),
+    supabase.from('ab_ledger').select('*').eq('status', 'posted').gte('transaction_date', '2026-01-01').order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(50),
   ]);
 
   // Calculate totals - exclude ELZAMI and deleted policies from customer payments
@@ -217,7 +217,7 @@ const fetchFinancialData = async () => {
 
   // Fetch company balances in parallel
   const balancePromises = (companiesRes.data || []).map(async (company) => {
-    const { data: balanceData } = await supabase.rpc('get_company_balance', { p_company_id: company.id });
+    const { data: balanceData } = await supabase.rpc('get_company_balance', { p_company_id: company.id, p_from_date: '2026-01-01' });
     if (balanceData && balanceData.length > 0) {
       const b = balanceData[0];
       if (Number(b.total_payable) > 0 || Number(b.outstanding) > 0) {

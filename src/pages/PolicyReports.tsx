@@ -152,6 +152,7 @@ interface CreatedPolicy {
   branch_name: string | null;
   total_count: number;
   package_companies: string[] | null;
+  package_service_names: string[] | null;
 }
 
 // Matches new report_renewals return type - grouped by client
@@ -1074,12 +1075,28 @@ export default function PolicyReports() {
                                     <Package className="h-3 w-3" />
                                     باقة ({policy.package_count})
                                   </Badge>
-                                  <div className="flex flex-wrap gap-0.5">
-                                    {policy.package_types?.map(type => (
-                                      <span key={type} className="text-[10px] text-muted-foreground">
-                                        {policyTypeLabels[type] || type}
-                                      </span>
-                                    ))}
+                                  <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                    {(() => {
+                                      const serviceTypes = ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'];
+                                      const mainTypes = (policy.package_types || []).filter(t => !serviceTypes.includes(t));
+                                      const hasServices = (policy.package_types || []).some(t => serviceTypes.includes(t));
+                                      const serviceNames = policy.package_service_names?.filter(Boolean) || [];
+                                      
+                                      const parts = mainTypes.map(t => policyTypeLabels[t] || t);
+                                      
+                                      if (hasServices) {
+                                        if (serviceNames.length > 0) {
+                                          parts.push(`خدمات الطريق (${serviceNames.join(' + ')})`);
+                                        } else {
+                                          // fallback to generic labels
+                                          (policy.package_types || []).filter(t => serviceTypes.includes(t)).forEach(t => {
+                                            parts.push(policyTypeLabels[t] || t);
+                                          });
+                                        }
+                                      }
+                                      
+                                      return parts.join(' + ');
+                                    })()}
                                   </div>
                                 </div>
                               ) : (

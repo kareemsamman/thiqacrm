@@ -1,62 +1,70 @@
 
 
-# Fix: Workers Can't See X-Service Invoice Files
+# Fix: Client Name Missing in SMS History
 
-## Root Cause
+## Problem
 
-The RLS (row-level security) policy on `media_files` for reading requires:
-```
-can_access_branch(auth.uid(), branch_id) AND deleted_at IS NULL
-```
+The SMS history page joins `sms_logs.client_id` to `clients.full_name` to show the client name. However, most edge functions that insert into `sms_logs` don't set `client_id` -- only signature and some invoice functions do. This is why names appear only for some rows.
 
-X-Service invoice records are inserted by the backend with `branch_id = NULL` and `uploaded_by = NULL`. When `branch_id` is NULL, the `can_access_branch()` check fails, blocking all non-admin workers from seeing these files.
+From the database: out of the last 20 SMS logs, only 6 have `client_id` set (all signature type). The rest are NULL.
 
-## Fix
+## Affected Edge Functions
 
-Two changes needed:
+| Function | Sets `client_id`? | Fix needed |
+|---|---|---|
+| `send-sms` (manual) | No | Yes -- accept `client_id` from request body |
+| `send-invoice-sms` | Yes (sometimes null) | Minor -- ensure always set |
+| `send-correspondence-sms` | No | Yes -- look up from letter recipient |
+| `send-bulk-debt-sms` | No | Yes -- has client data available |
+| `send-signature-sms` | Yes | OK |
+| `send-accident-signature-sms` | No | Yes -- has client data |
+| `payment-result` | Yes | OK |
+| `send-renewal-reminders` | Yes | OK |
+| `cron-birthday-license-sms` | No (uses wrong column name `message_content`) | Yes |
+| `send-marketing-sms` | No (uses wrong column name `message_content`) | Yes |
+| `send-package-invoice-sms` | Yes | OK |
 
-### 1. Update the `sync-to-xservice` edge function
+## Additional Issue
 
-When inserting the invoice record into `media_files`, include the `branch_id` from the policy being synced. The policy already has a `branch_id` field available in the query.
+Some functions use `message_content` instead of `message` as the column name, which means those inserts silently fail (the column doesn't exist). The actual column is `message`.
 
-### 2. Backfill existing records
+## Solution
 
-Run a migration to set `branch_id` on existing X-Service invoice records by looking up the linked policy's branch.
+### 1. Fix edge functions to pass `client_id`
 
-## Technical Details
+Update each affected function to include `client_id` in the `sms_logs` insert when the data is available.
 
-| File | Change |
-|---|---|
-| `supabase/functions/sync-to-xservice/index.ts` | Pass `branch_id` from the policy row when inserting the media file |
-| Database migration | Backfill `branch_id` on existing X-Service invoice records |
+### 2. Fix wrong column names
 
-### Edge Function Change
+Change `message_content` to `message` in `cron-birthday-license-sms`, `send-marketing-sms`, and `send-correspondence-sms`.
 
-```typescript
-// When inserting the invoice media_files record, include branch_id from the policy
-await supabase.from("media_files").insert({
-  original_name: "فاتورة X-Service.pdf",
-  mime_type: "application/pdf",
-  cdn_url: invoiceUrl,
-  storage_path: null,
-  entity_type: "policy_insurance",
-  entity_id: policy_id,
-  size: 0,
-  branch_id: policy.branch_id,  // <-- ADD THIS
-});
-```
+### 3. Backfill existing records
 
-### Backfill Migration
+Run a migration to set `client_id` on existing NULL records by matching phone numbers to known clients:
 
 ```sql
-UPDATE media_files mf
-SET branch_id = p.branch_id
-FROM policies p
-WHERE mf.entity_id = p.id::text
-  AND mf.entity_type = 'policy_insurance'
-  AND mf.storage_path IS NULL
-  AND mf.size = 0
-  AND mf.branch_id IS NULL;
+UPDATE sms_logs sl
+SET client_id = c.id
+FROM clients c
+WHERE sl.client_id IS NULL
+  AND c.phone_number IS NOT NULL
+  AND c.deleted_at IS NULL
+  AND sl.phone_number = c.phone_number;
 ```
 
-This ensures both existing and future X-Service invoice files are visible to workers who have branch access.
+### 4. Also pass `created_by` where available
+
+Several functions have the authenticated user ID available but don't pass it as `created_by`.
+
+## Files to Change
+
+| File | Changes |
+|---|---|
+| `supabase/functions/send-sms/index.ts` | Accept optional `client_id` from body, pass to insert |
+| `supabase/functions/send-bulk-debt-sms/index.ts` | Pass `client_id` from client data |
+| `supabase/functions/send-correspondence-sms/index.ts` | Fix column `message_content` to `message`, look up client |
+| `supabase/functions/send-accident-signature-sms/index.ts` | Pass `client_id` |
+| `supabase/functions/cron-birthday-license-sms/index.ts` | Fix column `message_content` to `message`, pass `client_id` |
+| `supabase/functions/send-marketing-sms/index.ts` | Fix column `message_content` to `message` |
+| Database migration | Backfill `client_id` on existing records |
+

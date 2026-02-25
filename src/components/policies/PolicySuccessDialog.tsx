@@ -324,7 +324,7 @@ export function PolicySuccessDialog({
             تم إنشاء الوثيقة بنجاح
           </DialogTitle>
           <DialogDescription>
-            يمكنك طباعة الفاتورة أو إيصال الدفع أو إرسالها للعميل عبر SMS
+            يمكنك طباعة فاتورة التأمين أو فاتورة الدفع أو إرسالها للعميل عبر SMS
           </DialogDescription>
         </DialogHeader>
 
@@ -337,7 +337,7 @@ export function PolicySuccessDialog({
 
         <div className="flex flex-col gap-3 mt-4">
           {/* Invoice Section */}
-          <p className="text-xs font-semibold text-muted-foreground">الفاتورة</p>
+          <p className="text-xs font-semibold text-muted-foreground">فاتورة التأمين</p>
           <Button
             variant="outline"
             className="w-full gap-2 h-12"
@@ -349,7 +349,7 @@ export function PolicySuccessDialog({
             ) : (
               <Printer className="h-5 w-5" />
             )}
-            طباعة الفاتورة
+            طباعة فاتورة التأمين
           </Button>
 
           <Button
@@ -365,14 +365,14 @@ export function PolicySuccessDialog({
             ) : (
               <MessageSquare className="h-5 w-5" />
             )}
-            {smsSent ? "تم إرسال الفاتورة SMS" : "إرسال الفاتورة SMS"}
+            {smsSent ? "تم إرسال فاتورة التأمين SMS" : "إرسال فاتورة التأمين SMS"}
           </Button>
 
           {/* Receipt Section - only show if payments exist */}
           {paymentIds.length > 0 && (
             <>
               <Separator className="my-1" />
-              <p className="text-xs font-semibold text-muted-foreground">إيصال الدفع</p>
+              <p className="text-xs font-semibold text-muted-foreground">فاتورة الدفع</p>
 
               <Button
                 variant="outline"
@@ -385,7 +385,7 @@ export function PolicySuccessDialog({
                 ) : (
                   <Receipt className="h-5 w-5" />
                 )}
-                طباعة إيصال الدفع
+                طباعة فاتورة الدفع
               </Button>
 
               <Button
@@ -401,7 +401,7 @@ export function PolicySuccessDialog({
                 ) : (
                   <MessageSquare className="h-5 w-5" />
                 )}
-                {receiptSmsSent ? "تم إرسال الإيصال SMS" : "إرسال إيصال الدفع SMS"}
+                {receiptSmsSent ? "تم إرسال فاتورة الدفع SMS" : "إرسال فاتورة الدفع SMS"}
               </Button>
             </>
           )}

@@ -82,12 +82,21 @@ export default function XServiceSettings() {
       .in("policy_type_parent", ["ROAD_SERVICE", "ACCIDENT_FEE_EXEMPTION"])
       .is("deleted_at", null);
 
-    // Get already-synced count
-    const { data: alreadySynced } = await supabase
-      .from("xservice_sync_log")
-      .select("policy_id")
-      .eq("status", "success");
-    const syncedSet = new Set((alreadySynced || []).map((r: any) => r.policy_id));
+    // Get already-synced count (paginated to avoid 1000-row limit)
+    let syncedSet = new Set<string>();
+    let syncFrom = 0;
+    const syncPageSize = 1000;
+    while (true) {
+      const { data: syncPage } = await supabase
+        .from("xservice_sync_log")
+        .select("policy_id")
+        .eq("status", "success")
+        .range(syncFrom, syncFrom + syncPageSize - 1);
+      if (!syncPage || syncPage.length === 0) break;
+      for (const r of syncPage) syncedSet.add((r as any).policy_id);
+      if (syncPage.length < syncPageSize) break;
+      syncFrom += syncPageSize;
+    }
 
     const withService = totalWithService ?? 0;
     const all = totalAll ?? 0;

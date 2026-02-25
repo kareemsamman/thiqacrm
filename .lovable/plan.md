@@ -1,106 +1,101 @@
 
 
-# Fix X-Service Sync (Non-Visa) + Add Sync Status Indicator
+# Fix Bulk Sync: Skip Unsyncable + Already-Synced Policies
 
-## Problem 1: Sync still not working for non-Visa packages
+## Problems Found
 
-The database confirms that the latest Road Service policies for "Kareem Test" (created at 07:01, 06:49, 06:26, 06:20) have ZERO entries in `xservice_sync_log`. The sync is never triggered.
+1. **All 300 failed because 94% of policies are unsyncable**: Out of 1,385 service policies, only 76 have a `service_id` set (the rest are legacy WordPress imports with no link to a specific road service or accident fee service). X-Service rejects them with: "Cannot determine service: multiple services found."
 
-**Root cause**: The sync logic at line 1430-1442 was designed for the Visa path, where the temp policy gets CONVERTED to the first addon type. In non-Visa path, this logic is wrong:
+2. **No deduplication**: Bulk sync re-sends everything, including policies already successfully synced to X-Service.
 
-| Step | What happens | Problem |
-|---|---|---|
-| Line 825 | `policyIdToUse` = ELZAMI main policy ID | Correct |
-| Line 891 | `_pkgFirstAddonType` = `'road_service'` | Correct |
-| Line 1431 | Checks if first addon type is X-Service type: YES | Correct |
-| Line 1432 | Pushes `policyIdToUse` (ELZAMI ID!) as if it's Road Service | **WRONG** -- this is the ELZAMI policy |
-| Line 1437 | Skips road_service addon because `addon.type === _pkgFirstAddonType` | **WRONG** -- the actual Road Service gets skipped |
+## Data Breakdown
 
-So the sync tries to sync the ELZAMI policy as a road service (which `sync-to-xservice` skips because ELZAMI isn't a sync type), and the actual Road Service addon is never synced.
+| Category | Count |
+|---|---|
+| Total ROAD_SERVICE + ACCIDENT_FEE policies | 1,385 |
+| Have service_id (can be matched) | 76 |
+| Have service_id AND price > 0 (fully syncable) | 73 |
+| Missing service_id (will always fail) | 1,309 |
 
-**Fix**: Add a boolean flag `_tempConvertedToAddon` that is `true` only in the Visa path (where `policyIdToUse` IS the first addon). In non-Visa path, don't skip any addons and don't push `policyIdToUse` as an addon.
+## Solution
 
-### File: `src/components/policies/PolicyWizard.tsx`
+### File 1: `supabase/functions/bulk-sync-to-xservice/index.ts`
 
-**Change 1**: Add a tracking flag alongside the hoisted variables (line 829):
-```typescript
-var _pkgFirstAddonType: string | null = null;
-var _pkgMainAddonId: string | null = null;
-var _tempConvertedToAddon = false; // Only true in Visa path
+Two changes:
+
+**A. Skip already-synced policies**: Before fetching the batch, get all policy IDs that already have `status='success'` in `xservice_sync_log`. Exclude them from the query using `.not('id', 'in', (...))`.
+
+**B. Skip policies without service_id**: Add a filter condition: only fetch policies where `road_service_id IS NOT NULL` OR `accident_fee_service_id IS NOT NULL`. This eliminates the 1,309 legacy policies that will always fail.
+
+The query becomes:
+```sql
+SELECT * FROM policies
+WHERE policy_type_parent IN ('ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION')
+  AND deleted_at IS NULL
+  AND (road_service_id IS NOT NULL OR accident_fee_service_id IS NOT NULL)
+  AND id NOT IN (SELECT DISTINCT policy_id FROM xservice_sync_log WHERE status = 'success')
+ORDER BY created_at
 ```
 
-**Change 2**: Set `_tempConvertedToAddon = true` in the Visa path where the temp policy gets converted (around line 1030).
+### File 2: `src/pages/XServiceSettings.tsx`
 
-**Change 3**: Fix the sync logic (line 1430-1442) to use the flag:
+**Update eligible count** to reflect the ACTUAL syncable count (policies with service_id that haven't been synced yet), not the raw total. This way the user sees "73 eligible" instead of "1,385 eligible".
+
+Also add a small note showing how many are already synced and how many are skipped (no service_id).
+
+### File 3: `supabase/functions/sync-to-xservice/index.ts` (minor)
+
+No changes needed -- single sync already validates via X-Service response.
+
+## Technical Details
+
+### Bulk sync query changes
+
 ```typescript
-if (packageMode && packageAddons) {
-  const tempTypeMap = { ... };
+// 1. Get already-synced policy IDs
+const { data: alreadySynced } = await supabase
+  .from("xservice_sync_log")
+  .select("policy_id")
+  .eq("status", "success");
+const syncedIds = (alreadySynced || []).map(r => r.policy_id);
 
-  // Only in Visa path: temp policy was converted to first addon type
-  if (_tempConvertedToAddon && _pkgFirstAddonType) {
-    const firstAddonTypeParent = tempTypeMap[_pkgFirstAddonType];
-    if (firstAddonTypeParent && xserviceTypes.includes(firstAddonTypeParent)) {
-      policyIdsToSync.push(policyIdToUse);
-    }
-  }
+// 2. Query only unsycned policies WITH service_id
+let query = supabase
+  .from("policies")
+  .select("id, ...")
+  .in("policy_type_parent", types)
+  .is("deleted_at", null)
+  .or("road_service_id.not.is.null,accident_fee_service_id.not.is.null");
 
-  // Check ALL addon policies (don't skip first addon in non-Visa path)
-  packageAddons.forEach((addon: any) => {
-    if (!addon.enabled) return;
-    // In Visa path, skip first addon (already handled via temp policy above)
-    if (_tempConvertedToAddon && addon.type === _pkgFirstAddonType) return;
-    const addonParent = tempTypeMap[addon.type];
-    if (addonParent && xserviceTypes.includes(addonParent) && addon._savedPolicyId) {
-      policyIdsToSync.push(addon._savedPolicyId);
-    }
-  });
-
-  // Check main policy from Step 3 (if created as separate addon in Visa path)
-  if (xserviceTypes.includes(mainType) && _pkgMainAddonId) {
-    policyIdsToSync.push(_pkgMainAddonId);
-  }
+// Exclude already synced
+if (syncedIds.length > 0) {
+  query = query.not("id", "in", `(${syncedIds.join(",")})`);
 }
 ```
 
----
+### Frontend eligible count
 
-## Problem 2: No sync status indicator on package components
+```typescript
+// Show actual syncable count (has service_id, not already synced)
+const { count: totalWithService } = await supabase
+  .from("policies")
+  .select("id", { count: "exact", head: true })
+  .in("policy_type_parent", ["ROAD_SERVICE", "ACCIDENT_FEE_EXEMPTION"])
+  .is("deleted_at", null)
+  .or("road_service_id.not.is.null,accident_fee_service_id.not.is.null");
 
-The user wants to see a green/red indicator on each Road Service or Accident Fee row in the "Package Components Table" (visible in the Policy Details Drawer), showing whether the policy was synced to X-Service.
+const { data: alreadySynced } = await supabase
+  .from("xservice_sync_log")
+  .select("policy_id")
+  .eq("status", "success");
 
-### File: `src/components/policies/PackageComponentsTable.tsx`
-
-- Add an optional `syncStatuses` prop: `Record<string, 'success' | 'failed' | 'pending' | null>`
-- For ROAD_SERVICE and ACCIDENT_FEE_EXEMPTION rows, show a small colored dot next to the type icon:
-  - Green dot = synced successfully
-  - Red dot = sync failed
-  - Orange dot = pending/no log yet
-  - No dot = not a syncable type (ELZAMI, etc.)
-
-### File: `src/components/policies/PolicyDetailsDrawer.tsx`
-
-- In `fetchPolicyDetails()`, after loading package policies, query `xservice_sync_log` for all service-type policy IDs to get their latest sync status
-- Pass the statuses as a prop to `PackageComponentsTable`
-- The query: `SELECT DISTINCT ON (policy_id) policy_id, status FROM xservice_sync_log WHERE policy_id IN (...) ORDER BY policy_id, created_at DESC`
-
-### Visual Design
-
-In each service policy row, next to the type icon, a small 8x8 circle:
-
-```
-[Shield icon] الزامي                    -- no dot (not syncable)
-[Truck icon] [green dot] خدمات الطريق   -- synced to X
-[Truck icon] [red dot] خدمات الطريق     -- sync failed
+const syncedCount = new Set((alreadySynced || []).map(r => r.policy_id)).size;
+const eligible = (totalWithService || 0) - syncedCount;
 ```
 
-Tooltip on hover showing: "تمت المزامنة مع X-Service" (green) or "فشلت المزامنة مع X-Service" (red).
+## Result After Fix
 
----
-
-## Summary of Changes
-
-| File | Change |
-|---|---|
-| `PolicyWizard.tsx` | Add `_tempConvertedToAddon` flag; fix sync logic to not skip addons in non-Visa path |
-| `PackageComponentsTable.tsx` | Add optional `syncStatuses` prop; render colored dot for service-type policies |
-| `PolicyDetailsDrawer.tsx` | Query `xservice_sync_log` for service policies; pass statuses to table |
+- Eligible count will show ~73 instead of 1,385
+- Already-synced policies won't be re-sent
+- Legacy policies without service_id are skipped (no more guaranteed failures)
+- Bulk sync will only process policies that actually CAN sync

@@ -4880,6 +4880,24 @@ export type Database = {
       }
       can_view_financials: { Args: { _user_id: string }; Returns: boolean }
       clear_data_for_import: { Args: never; Returns: Json }
+      dashboard_company_production: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          company_id: string
+          company_name: string
+          full_amount: number
+          full_count: number
+          third_amount: number
+          third_count: number
+          total_amount: number
+          total_count: number
+        }[]
+      }
+      dashboard_insured_cars_count: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: number
+      }
+      dashboard_total_client_debt: { Args: never; Returns: number }
       find_missing_packages: {
         Args: never
         Returns: {

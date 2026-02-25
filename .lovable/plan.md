@@ -1,70 +1,75 @@
 
 
-# Fix: Client Name Missing in SMS History
+# Fix: "ثالث/شامل" Still Showing + Package Companies Missing
 
-## Problem
+## Problems
 
-The SMS history page joins `sms_logs.client_id` to `clients.full_name` to show the client name. However, most edge functions that insert into `sms_logs` don't set `client_id` -- only signature and some invoice functions do. This is why names appear only for some rows.
+1. **"ثالث/شامل" still appears** in the type column for packages. The previous RPC migration didn't apply — the function still uses `ARRAY_AGG(DISTINCT p.policy_type_parent::text)` which returns `THIRD_FULL` as-is, and the frontend maps it to "ثالث/شامل".
 
-From the database: out of the last 20 SMS logs, only 6 have `client_id` set (all signature type). The rest are NULL.
-
-## Affected Edge Functions
-
-| Function | Sets `client_id`? | Fix needed |
-|---|---|---|
-| `send-sms` (manual) | No | Yes -- accept `client_id` from request body |
-| `send-invoice-sms` | Yes (sometimes null) | Minor -- ensure always set |
-| `send-correspondence-sms` | No | Yes -- look up from letter recipient |
-| `send-bulk-debt-sms` | No | Yes -- has client data available |
-| `send-signature-sms` | Yes | OK |
-| `send-accident-signature-sms` | No | Yes -- has client data |
-| `payment-result` | Yes | OK |
-| `send-renewal-reminders` | Yes | OK |
-| `cron-birthday-license-sms` | No (uses wrong column name `message_content`) | Yes |
-| `send-marketing-sms` | No (uses wrong column name `message_content`) | Yes |
-| `send-package-invoice-sms` | Yes | OK |
-
-## Additional Issue
-
-Some functions use `message_content` instead of `message` as the column name, which means those inserts silently fail (the column doesn't exist). The actual column is `message`.
+2. **Company column shows only one company** for packages. The RPC returns only `(ARRAY_AGG(...))[1]` for company — the first one. Packages can have policies from different companies, so all should be listed.
 
 ## Solution
 
-### 1. Fix edge functions to pass `client_id`
+### 1. Fix the RPC `report_created_policies`
 
-Update each affected function to include `client_id` in the `sms_logs` insert when the data is available.
+Two changes in the `grouped_policies` CTE:
 
-### 2. Fix wrong column names
-
-Change `message_content` to `message` in `cron-birthday-license-sms`, `send-marketing-sms`, and `send-correspondence-sms`.
-
-### 3. Backfill existing records
-
-Run a migration to set `client_id` on existing NULL records by matching phone numbers to known clients:
-
+- **Types**: Replace `ARRAY_AGG(DISTINCT p.policy_type_parent::text)` with child-aware resolution:
 ```sql
-UPDATE sms_logs sl
-SET client_id = c.id
-FROM clients c
-WHERE sl.client_id IS NULL
-  AND c.phone_number IS NOT NULL
-  AND c.deleted_at IS NULL
-  AND sl.phone_number = c.phone_number;
+ARRAY_AGG(DISTINCT 
+  CASE 
+    WHEN p.policy_type_parent::text = 'THIRD_FULL' AND p.policy_type_child IS NOT NULL 
+      THEN p.policy_type_child::text
+    ELSE p.policy_type_parent::text
+  END
+)
+```
+This returns `FULL` or `THIRD` instead of `THIRD_FULL`.
+
+- **Companies**: Add a new output column `package_companies text[]` that collects all distinct company names:
+```sql
+ARRAY_AGG(DISTINCT COALESCE(ic.name_ar, ic.name)) as grp_company_names
 ```
 
-### 4. Also pass `created_by` where available
+### 2. Update frontend (PolicyReports.tsx)
 
-Several functions have the authenticated user ID available but don't pass it as `created_by`.
+- **Type column** (line 1079): Already uses `policyTypeLabels[type]` — since we added `FULL: 'شامل'` and `THIRD: 'ثالث'` labels in the previous change, this will work automatically once the RPC returns correct values.
 
-## Files to Change
+- **Company column** (line 1090): For packages, show all companies from the new `package_companies` array, each on its own line. For single policies, keep as-is.
 
-| File | Changes |
+- **Renewals tab** (lines 1474-1478): The `policy_types` array from `report_renewals_service` also returns raw parent types. Fix that RPC too.
+
+- **Renewed tab** (lines 1769-1773): Same issue with `report_renewed_policies`.
+
+### 3. Fix renewal RPCs
+
+Update `report_renewals_service` and `report_renewed_policies` to also return child-resolved type labels instead of raw `THIRD_FULL`.
+
+## Files Changed
+
+| File | Change |
 |---|---|
-| `supabase/functions/send-sms/index.ts` | Accept optional `client_id` from body, pass to insert |
-| `supabase/functions/send-bulk-debt-sms/index.ts` | Pass `client_id` from client data |
-| `supabase/functions/send-correspondence-sms/index.ts` | Fix column `message_content` to `message`, look up client |
-| `supabase/functions/send-accident-signature-sms/index.ts` | Pass `client_id` |
-| `supabase/functions/cron-birthday-license-sms/index.ts` | Fix column `message_content` to `message`, pass `client_id` |
-| `supabase/functions/send-marketing-sms/index.ts` | Fix column `message_content` to `message` |
-| Database migration | Backfill `client_id` on existing records |
+| Database migration | Re-create `report_created_policies` with child-aware types + `package_companies` column |
+| Database migration | Update `report_renewals_service` type aggregation |
+| `src/pages/PolicyReports.tsx` | Show `package_companies` list in company column for packages |
 
+## Technical Details
+
+### New RPC output column
+- `package_companies text[]` — array of distinct company names (Arabic preferred) for all policies in the package
+
+### Frontend company display for packages
+```tsx
+// Line 1090 area
+<TableCell>
+  {policy.is_package && policy.package_companies?.length > 0 ? (
+    <div className="flex flex-col gap-0.5">
+      {policy.package_companies.filter(Boolean).map((name, i) => (
+        <span key={i} className="text-sm">{name}</span>
+      ))}
+    </div>
+  ) : (
+    policy.company_name_ar || policy.company_name || '-'
+  )}
+</TableCell>
+```

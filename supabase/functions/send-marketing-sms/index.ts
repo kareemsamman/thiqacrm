@@ -215,11 +215,12 @@ Deno.serve(async (req) => {
 
         await supabase.from('sms_logs').insert({
           phone_number: phone,
-          message_content: campaignMessage.slice(0, 500),
+          message: campaignMessage.slice(0, 500),
           status: isAccepted ? 'sent' : 'failed',
           sms_type: 'marketing',
           entity_type: 'campaign',
           entity_id: currentCampaignId,
+          client_id: recipient.client_id || null,
         });
 
         await new Promise(resolve => setTimeout(resolve, 100));

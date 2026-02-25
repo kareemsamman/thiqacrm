@@ -1,59 +1,81 @@
 
 
-# Fix Renewal Reminders - Batch Processing (Same as Marketing SMS Fix)
+# Fix Policy Success Dialog: Refresh + Receipt Send/Print
 
-## Problem
-The `send-renewal-reminders` edge function processes ALL policies in a single invocation, sending SMS one by one with no batching. With 100+ policies, it hits the 60-second edge function timeout and stops after only ~14 messages.
+## Problems to Fix
+
+1. **No refresh when closing success dialog** -- After creating a policy, pressing "Close" doesn't refresh/navigate back to the customer page properly
+2. **Missing payment receipt option** -- The success dialog only has invoice send/print, but no way to send/print the **payment receipt** (the receipt HTML like `cdn.basheer-ab.com/receipts/...`)
 
 ## Solution
-Apply the same batch processing pattern already used in `send-marketing-sms`:
 
-### 1. Refactor `send-renewal-reminders` Edge Function
-- Process a maximum of **200 policies per invocation**
-- After processing a batch, if more policies remain, the function **triggers itself** to handle the next batch
-- Track progress using a `batch_id` stored in a lightweight tracking mechanism
+### 1. Fix Close/Refresh Behavior
 
-### 2. How It Works
+The current `onClose` callback in `PolicyWizard.tsx` (line 1745-1758) already navigates to `/clients/{clientId}`, but the issue is that the `PolicySuccessDialog` closes the wizard dialog (`onOpenChange(false)`) which may not trigger a proper page refresh.
 
-**First call (from UI):**
-1. Fetch all matching policies
-2. Store the full list of policy IDs in a temporary batch record (or pass via self-invocation)
-3. Send SMS for the first 200 policies
-4. If more remain, call itself with the remaining policy IDs
+**Fix:** When closing the success dialog, force a page reload after navigation to ensure the client page shows the newly created policy.
 
-**Continuation calls:**
-1. Receive remaining policy IDs
-2. Send SMS for the next 200
-3. Repeat until done
-4. Return final totals
+**File: `src/components/policies/PolicyWizard.tsx`**
+- In the `onClose` callback of `PolicySuccessDialog`, add `window.location.href = `/clients/${clientIdToNavigate}`` instead of just using `navigate()` -- this ensures a full reload showing the new policy data
 
-### 3. Implementation Details
+### 2. Add Payment Receipt Send/Print to Success Dialog
 
-**File: `supabase/functions/send-renewal-reminders/index.ts`**
+**File: `src/components/policies/PolicySuccessDialog.tsx`**
 
-- Add `BATCH_SIZE = 200` constant
-- Accept optional `continuation_policy_ids` and `running_sent_count` / `running_skipped_count` in request body
-- On first call: fetch policies, filter by cooldown, collect IDs to process
-- Process up to 200 policies per invocation
-- If more remain after batch: fire-and-forget `fetch()` to self with remaining IDs and accumulated counts
-- Return immediately with batch results (sent/skipped so far + remaining count)
-- On final batch: return complete totals
+Add two new buttons to the success dialog:
+- **"طباعة إيصال الدفع" (Print Payment Receipt)** -- Calls `generate-payment-receipt` edge function, opens the receipt URL in a new tab
+- **"إرسال إيصال الدفع SMS" (Send Payment Receipt SMS)** -- Generates the receipt then sends the URL to the customer via the `send-sms` edge function
 
-**File: `src/pages/PolicyReports.tsx`**
+The flow:
+1. After policy creation, fetch the payment IDs for this policy from `policy_payments`
+2. For each payment (or the first/main payment), generate a receipt via `generate-payment-receipt`
+3. Open in new tab (print) or send via SMS (send)
 
-- Update `handleSendReminders` to show a more informative toast: include "remaining" count if returned
-- No major UI changes needed since the function handles continuation automatically
+**Updated dialog layout:**
+```
+-- Success checkmark + title --
+-- Error message (if any) --
 
-### 4. Key Code Changes
+[Section: Invoice]
+  [ Print Invoice button ]
+  [ Send Invoice SMS button ]
 
-The function will:
-- Split policy processing: first 200 go in current batch, rest passed to self-invocation
-- Use `fetch(selfUrl, { method: 'POST', body: ... })` (fire-and-forget) to trigger next batch, same pattern as marketing SMS
-- Keep the auth token forwarded to continuation calls
-- Accumulate sent/skipped/error counts across batches
+[Section: Payment Receipt]
+  [ Print Payment Receipt button ]
+  [ Send Payment Receipt SMS button ]
 
-### 5. Safety
-- Each invocation processes at most 200 policies (~20-40 seconds)
-- Self-invocation ensures all policies get processed even with 1000+ recipients
-- If a batch fails mid-way, remaining policies simply don't get sent (no data corruption)
-- Cooldown check prevents duplicate sends on retry
+[ Close button ]
+```
+
+### Technical Details
+
+**File: `src/components/policies/PolicySuccessDialog.tsx`**
+
+- Add state: `printingReceipt`, `sendingReceiptSms`, `receiptSmsSent`
+- Add `useEffect` to fetch payment IDs when dialog opens: query `policy_payments` where `policy_id = policyId` (and for packages, all policy IDs in the group)
+- `handlePrintReceipt()`: calls `generate-payment-receipt` with `payment_id`, opens `receipt_url` in new tab
+- `handleSendReceiptSms()`: calls `generate-payment-receipt` to get the URL, then calls `send-sms` edge function with the receipt URL and client phone
+- Add a `Separator` between invoice section and receipt section
+- If no payments exist (e.g., deferred payment), hide the receipt section
+
+**File: `src/components/policies/PolicyWizard.tsx`**
+
+- Change the `onClose` handler (line 1745) to use `window.location.href` for full page reload instead of React Router `navigate()`:
+```typescript
+onClose={() => {
+  const clientIdToNavigate = successPolicyData.clientId;
+  setShowSuccessDialog(false);
+  setSuccessPolicyData(null);
+  onOpenChange(false);
+  resetForm();
+  
+  if (clientIdToNavigate) {
+    window.location.href = `/clients/${clientIdToNavigate}`;
+  } else {
+    onSaved?.();
+  }
+}}
+```
+
+**No new edge functions needed** -- we reuse `generate-payment-receipt` and `send-sms`.
+

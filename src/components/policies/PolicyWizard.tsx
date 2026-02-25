@@ -828,6 +828,7 @@ export function PolicyWizard({
         // Track package info for X-Service sync (hoisted so both paths can use them)
         var _pkgFirstAddonType: string | null = null;
         var _pkgMainAddonId: string | null = null;
+        var _tempConvertedToAddon = false; // Only true in Visa path where temp policy IS the first addon
         if (packageMode && groupId) {
           for (const addon of packageAddons) {
             if (!addon.enabled) continue;
@@ -1035,6 +1036,7 @@ export function PolicyWizard({
             .eq('id', tempPolicyId);
 
           if (updateError) throw updateError;
+          _tempConvertedToAddon = true; // Mark that temp policy was converted to first addon
 
           // 7. Create addon policies (skip the first one since it's already the temp policy)
           for (const addon of packageAddons) {
@@ -1421,26 +1423,31 @@ export function PolicyWizard({
       const policyIdsToSync: string[] = [];
       
       if (packageMode && packageAddons) {
-        // In package mode, the temp policy (policyIdToUse) was converted to firstAddonType
-        // Check if it's an X-Service type
         const tempTypeMap: Record<string, string> = {
           'elzami': 'ELZAMI', 'third_full': 'THIRD_FULL',
           'road_service': 'ROAD_SERVICE', 'accident_fee_exemption': 'ACCIDENT_FEE_EXEMPTION',
         };
-        const firstAddonTypeParent = _pkgFirstAddonType ? tempTypeMap[_pkgFirstAddonType] : null;
-        if (firstAddonTypeParent && xserviceTypes.includes(firstAddonTypeParent)) {
-          policyIdsToSync.push(policyIdToUse);
+
+        // Only in Visa path: temp policy was converted to first addon type
+        if (_tempConvertedToAddon && _pkgFirstAddonType) {
+          const firstAddonTypeParent = tempTypeMap[_pkgFirstAddonType];
+          if (firstAddonTypeParent && xserviceTypes.includes(firstAddonTypeParent)) {
+            policyIdsToSync.push(policyIdToUse);
+          }
         }
-        // Check additional addon policies
+
+        // Check ALL addon policies
         packageAddons.forEach((addon: any) => {
           if (!addon.enabled) return;
-          if (addon.type === _pkgFirstAddonType) return; // already handled via temp policy
+          // In Visa path, skip first addon (already handled via temp policy above)
+          if (_tempConvertedToAddon && addon.type === _pkgFirstAddonType) return;
           const addonParent = tempTypeMap[addon.type];
           if (addonParent && xserviceTypes.includes(addonParent) && addon._savedPolicyId) {
             policyIdsToSync.push(addon._savedPolicyId);
           }
         });
-        // Check main policy from Step 3 (if it was created as a separate addon)
+
+        // Check main policy from Step 3 (if it was created as a separate addon in Visa path)
         if (xserviceTypes.includes(mainType) && _pkgMainAddonId) {
           policyIdsToSync.push(_pkgMainAddonId);
         }

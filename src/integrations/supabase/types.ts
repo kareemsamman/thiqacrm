@@ -2783,7 +2783,7 @@ export type Database = {
           mime_type: string
           original_name: string
           size: number
-          storage_path: string
+          storage_path: string | null
           uploaded_by: string | null
         }
         Insert: {
@@ -2797,7 +2797,7 @@ export type Database = {
           mime_type: string
           original_name: string
           size: number
-          storage_path: string
+          storage_path?: string | null
           uploaded_by?: string | null
         }
         Update: {
@@ -2811,7 +2811,7 @@ export type Database = {
           mime_type?: string
           original_name?: string
           size?: number
-          storage_path?: string
+          storage_path?: string | null
           uploaded_by?: string | null
         }
         Relationships: [

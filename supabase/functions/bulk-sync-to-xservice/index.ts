@@ -6,6 +6,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+async function getAllSyncedPolicyIds(supabase: any): Promise<Set<string>> {
+  const ids = new Set<string>();
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data } = await supabase
+      .from("xservice_sync_log")
+      .select("policy_id")
+      .eq("status", "success")
+      .range(from, from + pageSize - 1);
+    if (!data || data.length === 0) break;
+    for (const r of data) ids.add(r.policy_id);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return ids;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -43,45 +61,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Get already-synced policy IDs to skip
-    const { data: alreadySynced } = await supabase
-      .from("xservice_sync_log")
-      .select("policy_id")
-      .eq("status", "success");
-    const syncedIds = [...new Set((alreadySynced || []).map((r: any) => r.policy_id))];
+    // 3. Get ALL already-synced policy IDs (paginated to avoid 1000-row limit)
+    const syncedIds = await getAllSyncedPolicyIds(supabase);
 
-    // 4. Get total count (syncable: has service_id, not already synced, not deleted)
-    let countQuery = supabase
+    // 4. Fetch a larger batch of candidates, then filter out synced in-memory
+    // This avoids the massive NOT IN (...) query that breaks with 400+ UUIDs
+    const fetchSize = Math.max(limit * 3, 100); // fetch more to account for filtering
+    let candidates: any[] = [];
+    let dbOffset = offset;
+    let totalScanned = 0;
+
+    while (candidates.length < limit) {
+      const { data: batch, error: bErr } = await supabase
+        .from("policies")
+        .select("id, policy_type_parent, policy_number, start_date, end_date, insurance_price, payed_for_company, notes, car_id, client_id, road_service_id, accident_fee_service_id")
+        .in("policy_type_parent", types)
+        .is("deleted_at", null)
+        .or("road_service_id.not.is.null,accident_fee_service_id.not.is.null")
+        .order("created_at", { ascending: true })
+        .range(dbOffset, dbOffset + fetchSize - 1);
+
+      if (bErr || !batch || batch.length === 0) break;
+
+      for (const p of batch) {
+        if (!syncedIds.has(p.id) && candidates.length < limit) {
+          candidates.push(p);
+        }
+      }
+      totalScanned += batch.length;
+      dbOffset += batch.length;
+
+      // If we got fewer than requested, we've exhausted the table
+      if (batch.length < fetchSize) break;
+    }
+
+    // 5. Count total eligible (all service policies minus synced)
+    const { count: totalAllCount } = await supabase
       .from("policies")
       .select("id", { count: "exact", head: true })
       .in("policy_type_parent", types)
       .is("deleted_at", null)
       .or("road_service_id.not.is.null,accident_fee_service_id.not.is.null");
-    if (syncedIds.length > 0) {
-      countQuery = countQuery.not("id", "in", `(${syncedIds.join(",")})`);
-    }
-    const { count: totalCount } = await countQuery;
 
-    // 5. Fetch batch (only policies with service_id, not yet synced)
-    let batchQuery = supabase
-      .from("policies")
-      .select("id, policy_type_parent, policy_number, start_date, end_date, insurance_price, payed_for_company, notes, car_id, client_id, road_service_id, accident_fee_service_id")
-      .in("policy_type_parent", types)
-      .is("deleted_at", null)
-      .or("road_service_id.not.is.null,accident_fee_service_id.not.is.null")
-      .order("created_at", { ascending: true })
-      .range(offset, offset + limit - 1);
-    if (syncedIds.length > 0) {
-      batchQuery = batchQuery.not("id", "in", `(${syncedIds.join(",")})`);
-    }
-    const { data: policies, error: pErr } = await batchQuery;
-
-    if (pErr || !policies) {
-      return new Response(JSON.stringify({ error: "Failed to fetch policies" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const totalEligible = (totalAllCount || 0) - syncedIds.size;
 
     const rawUrl = settings.api_url.replace(/\/+$/, "");
     const syncUrl = rawUrl.includes("/functions/v1/")
@@ -91,7 +113,7 @@ Deno.serve(async (req) => {
     let synced = 0;
     let failed = 0;
 
-    for (const policy of policies) {
+    for (const policy of candidates) {
       try {
         // Fetch client
         const { data: client } = await supabase
@@ -155,7 +177,7 @@ Deno.serve(async (req) => {
             service_name: serviceName,
             start_date: policy.start_date,
             end_date: policy.end_date,
-            sell_price: policy.payed_for_company || 0,
+            sell_price: policy.insurance_price || 0,
             notes: policy.notes || "",
           },
         };
@@ -200,13 +222,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const done = offset + policies.length >= (totalCount || 0);
+    const processedSoFar = offset + candidates.length;
+    const done = candidates.length === 0 || processedSoFar >= totalEligible;
 
     return new Response(JSON.stringify({
       synced,
       failed,
-      processed: policies.length,
-      total: totalCount || 0,
+      processed: candidates.length,
+      total: totalEligible,
       done,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

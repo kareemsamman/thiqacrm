@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
         service_name: serviceName,
         start_date: policy.start_date,
         end_date: policy.end_date,
-        sell_price: policy.payed_for_company || 0,
+        sell_price: policy.insurance_price || 0,
         notes: policy.notes || "",
       },
     };

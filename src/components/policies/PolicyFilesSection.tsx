@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   ImageIcon, Plus, Trash2, Download, X, Loader2, FileText, FolderOpen, 
-  Save, Hash, CheckCircle2, Send, AlertTriangle, Printer, ChevronLeft, ChevronRight
+  Save, Hash, CheckCircle2, Send, AlertTriangle, Printer, ChevronLeft, ChevronRight,
+  ExternalLink
 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ interface MediaFile {
   size: number;
   created_at: string;
   entity_type: string | null;
+  storage_path?: string | null;
 }
 
 interface PolicyFilesSectionProps {
@@ -500,6 +502,7 @@ export function PolicyFilesSection({
 
   const isImage = (mimeType: string) => mimeType.startsWith('image/');
   const isPdf = (mimeType: string) => mimeType === 'application/pdf';
+  const isExternalLink = (file: MediaFile) => !file.storage_path && file.size === 0;
 
   const renderFileGrid = (files: MediaFile[]) => {
     if (files.length === 0) {
@@ -513,7 +516,18 @@ export function PolicyFilesSection({
             key={file.id}
             className="relative group rounded-lg border overflow-hidden bg-muted/30 aspect-square"
           >
-            {isImage(file.mime_type) ? (
+            {isExternalLink(file) ? (
+              <div 
+                className="w-full h-full flex flex-col items-center justify-center cursor-pointer bg-gradient-to-br from-blue-500 to-blue-600 text-white"
+                onClick={() => window.open(file.cdn_url, '_blank')}
+              >
+                <ExternalLink className="h-10 w-10" />
+                <span className="text-sm font-bold mt-2">X-Service</span>
+                <p className="text-[10px] mt-1 px-2 truncate w-full text-center opacity-80">
+                  {file.original_name}
+                </p>
+              </div>
+            ) : isImage(file.mime_type) ? (
               <img
                 src={file.cdn_url}
                 alt={file.original_name}

@@ -13,6 +13,7 @@ interface MediaFile {
   size: number;
   created_at: string;
   entity_type: string | null;
+  storage_path?: string | null;
 }
 
 interface FilePreviewGalleryProps {

@@ -1,50 +1,91 @@
 
-# Financial Reports - Complete 2026 Filter Fix
 
-## What's Already Done
-The `fetchFinancialData` function in `FinancialReports.tsx` already has all the `.gte('created_at', '2026-01-01')` filters applied from the previous edit. The `get_company_balance` RPC also accepts `p_from_date`.
+# Simplify Accident Report Form - Upload-Based Workflow
 
-## What's Still Missing
+## Current State
+The accident report form has 8 tabs with many manual fields (accident details, owner/driver info, third party, damages, injuries, attachments, files, signature). The user fills everything digitally.
 
-### 1. `useProfitSummary.ts` - Not filtered to 2026
-The "ربح AB الإجمالي" (Total AB Profit) card on the Financial Reports page uses `useProfitSummary()`, which fetches policies starting from `yearStart` (dynamic current year start). This needs to be hardcoded to `2026-01-01` so profit data also starts from 2026.
+## New Workflow
+After selecting a customer and policy, the form becomes a simple **file upload and gallery** page:
+1. Select customer + policy (existing wizard - keep as-is)
+2. Land on a simplified page with:
+   - Policy info card (customer, car, company - keep)
+   - Status dropdown + notes/reminders (keep)
+   - **Main area**: File upload zone + gallery of all uploaded files
+   - **Print button**: Opens a print view showing all image/PDF pages (excludes videos)
+3. No more manual form fields (no accident details tab, no driver tab, no damages tab, etc.)
 
-Additionally, the `broker_settlements` query inside this hook has NO date filter at all.
+## What Changes
 
-**Changes:**
-- Change the policies query from `.gte('start_date', yearStart)` to `.gte('start_date', '2026-01-01')`
-- Add `.gte('created_at', '2026-01-01')` to the broker settlements query
-- Keep the today/month/year breakdowns working within 2026+ data
+### AccidentReportForm.tsx - Major Rewrite
+Remove all 8 tabs and their form fields. Replace with:
+- Keep: header, policy info card, status dropdown, notes/reminders dialogs
+- Keep: `AccidentFilesSection` component (already handles file uploads)
+- Add: Video upload support (mp4, webm, mov) to the accepted file types
+- Add: "Print All" button that opens a print-friendly view of all uploaded images/PDFs (excluding videos)
+- Remove: All form state variables for accident details, driver info, damages, third parties, etc.
+- Remove: Save/Submit logic for form fields (keep only file management + status + notes)
 
-### 2. localStorage Cache Serving Old Data
-The Financial Reports page caches data in `localStorage` for 5 minutes. Even after the code changes, the user might see old cached data. We need to bust the cache by changing the cache key.
+### AccidentFilesSection.tsx - Enhance
+- Add video file support (mp4, webm, mov)
+- Add a "Print All" button that generates a printable view
+- Show video files with a video icon/thumbnail but mark them as "not printable"
+- In print view: render each image full-page, embed PDFs page-by-page, skip videos
 
-**Change:**
-- Update `CACHE_KEY` from `"ab_financial_reports_cache"` to `"ab_financial_reports_cache_2026"` to invalidate old cached data
+### Database
+- No schema changes needed. The `accident_reports` table and `accident_report_files` table already exist and support this workflow.
+- The form fields in `accident_reports` become optional/unused (they stay in the table but won't be filled from the UI anymore).
+
+## Detailed UI Layout (New AccidentReportForm)
+
+```text
++------------------------------------------+
+| [Back] Accident Report                   |
+|   Policy: XXX - Client - Car             |
+|   [Status dropdown] [Notes] [Reminders]  |
++------------------------------------------+
+| Policy Info Card (client, car, company)  |
++------------------------------------------+
+|                                          |
+| Upload Zone (drag & drop)                |
+| [Choose Files]                           |
+|                                          |
+| Uploaded Files Grid:                     |
+| [img1] [img2] [pdf1] [video1]           |
+| [img3] [pdf2] ...                        |
+|                                          |
+| [Print All Pages]  (excludes videos)     |
++------------------------------------------+
+```
+
+## Print View Behavior
+- Opens new window / print dialog
+- Each image rendered full-width on its own "page"
+- PDF pages rendered inline (using existing PdfJsViewer or img conversion)
+- Videos are skipped with a note "Video file - not included in print"
+- CSS `@media print` rules handle page breaks
 
 ## Files to Change
 
 | File | Change |
 |---|---|
-| `src/hooks/useProfitSummary.ts` | Filter policies to `>= 2026-01-01` instead of dynamic year start; add date filter to broker settlements |
-| `src/pages/FinancialReports.tsx` | Update cache key to bust old cached data |
+| `src/pages/AccidentReportForm.tsx` | Remove all form tabs/fields, keep header + policy card + status + notes/reminders. Replace body with file upload section + print button |
+| `src/components/accident-reports/AccidentFilesSection.tsx` | Add video support, add "Print All" button, add print-friendly gallery view |
 
-## Technical Details
+## What We Keep
+- AccidentReportWizard (customer + policy selection) - unchanged
+- AccidentReports list page - unchanged
+- Notes and reminders dialogs - unchanged
+- Status management - unchanged
+- The `accident_reports` DB row is still created to track status, notes, reminders
 
-### useProfitSummary.ts
-```typescript
-// Line 80: Change from:
-.gte('start_date', yearStart);
-// To:
-.gte('start_date', '2026-01-01');
+## What We Remove from UI
+- Accident details tab (date, time, location, description)
+- Owner/driver tab
+- Third party tab
+- Damages tab
+- Old attachments tab (replaced by unified files section)
+- Injured persons tab
+- Signature tab
+- Save draft / Submit buttons for form fields
 
-// Line 88: Add date filter to broker settlements:
-.eq('status', 'completed')
-.gte('created_at', '2026-01-01');
-```
-
-### FinancialReports.tsx
-```typescript
-// Line 32: Change cache key
-const CACHE_KEY = "ab_financial_reports_cache_2026";
-```

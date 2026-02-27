@@ -1,79 +1,76 @@
 
 
-# Fix Accident Report: Editable Fields + PDF Page Extraction in Print
+# Fix Print Header Styling + PDF Page Extraction
 
-## Problems Identified
+## Problems
 
-1. **Policy number and accident date are not editable** in the accident report form -- user needs to modify these directly on the report page
-2. **PDF files render as black iframes** in the print view instead of being extracted as individual page images
+1. **Header page looks plain/ugly** - no borders, no proper card-style layout, just plain text centered on page
+2. **PDF files fail to render in print** - shows red error "فشل في تحميل PDF" because pdf.js page rendering is failing (likely the canvas render call or worker initialization issue with pdfjs-dist v5)
 
-## Solution
+## Changes
 
-### 1. Add Editable Policy Number and Accident Date Fields
+### AccidentFilesSection.tsx - Two fixes
 
-Add two inline-editable fields in the accident report form (under the policy info card or in the header area):
+#### Fix 1: Redesign the print header page
+Replace the current plain header with a professional, bordered card-style layout:
+- Add a proper bordered container with shadow effect
+- AB Insurance logo/branding at top
+- Clean table with alternating row colors and proper borders
+- Larger, bolder typography
+- Professional look matching an insurance document
 
-- **رقم البوليصة** - editable text input that updates `policies.policy_number` in the database
-- **تاريخ الحادث** - editable date picker that updates `accident_reports.accident_date` in the database
+#### Fix 2: Fix PDF page extraction
+The issue is likely with pdfjs-dist v5 API differences. Fix the approach:
+- Use `new Uint8Array(arrayBuffer)` for the data parameter (v5 requirement)
+- Set the worker source correctly for v5 (`pdf.worker.min.mjs`)
+- Add proper error handling with fallback: if pdf.js extraction fails, show a link instead of the red error
+- Add a visual loading indicator while PDFs are being processed
 
-Both fields will show the current value with an edit icon, and save on change. The updated values will automatically flow to the print header since `AccidentFilesSection` already receives these as props.
+### Updated Print Header Design
 
-### 2. Fix PDF Rendering in Print - Extract Pages as Images
+```text
++--------------------------------------------------+
+|  ┌──────────────────────────────────────────┐     |
+|  │        بلاغ حادث - AB Insurance          │     |
+|  │  ────────────────────────────────────     │     |
+|  │                                          │     |
+|  │  رقم البلاغ:        11                   │     |
+|  │  رقم البوليصة:      23232                │     |
+|  │  تاريخ الحادث:      27/02/2026           │     |
+|  │  العميل:            Kareem Test          │     |
+|  │  المركبة:           21212121             │     |
+|  │  شركة التأمين:      اراضي مقدسة          │     |
+|  └──────────────────────────────────────────┘     |
++--------------------------------------------------+
+```
 
-Instead of embedding PDFs as iframes (which render black in print), use **pdf.js** to:
-- Load each PDF file
-- Render each page to a canvas
-- Convert each canvas to an image (toDataURL)
-- Insert each page image as a full-page `<img>` in the print document
+Styled with:
+- Bordered card with rounded corners and subtle shadow
+- Header with background color band
+- Table rows with alternating background
+- Proper spacing and professional fonts
 
-This means a 2-page PDF becomes 2 separate printed pages with proper content.
+### PDF Fix Details
 
-## Files to Change
+The current code uses:
+```typescript
+await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+```
+
+pdfjs-dist v5 changed the render API. Will update to:
+```typescript
+const renderTask = page.render({ canvasContext: ctx, viewport });
+await renderTask.promise;
+```
+
+Also ensure data is passed as `Uint8Array`:
+```typescript
+const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+```
+
+## File to Change
 
 | File | Change |
 |---|---|
-| `src/pages/AccidentReportForm.tsx` | Add editable policy number input and accident date picker in the form UI, with save handlers |
-| `src/components/accident-reports/AccidentFilesSection.tsx` | Replace PDF iframe approach with pdf.js page-to-image extraction in `handlePrintAll` |
+| `src/components/accident-reports/AccidentFilesSection.tsx` | Redesign print header HTML/CSS + fix pdf.js rendering for v5 |
 
-## Technical Details
-
-### AccidentReportForm.tsx - Editable Fields
-
-Add two editable fields below the policy info card:
-
-```text
-+------------------------------------------+
-| رقم البوليصة: [editable input] [save]    |
-| تاريخ الحادث: [date picker]    [save]    |
-+------------------------------------------+
-```
-
-- Policy number: updates `policies.policy_number` via Supabase, then updates local state
-- Accident date: updates `accident_reports.accident_date` via Supabase, then updates local state
-- Both pass updated values down to `AccidentFilesSection` props
-
-### AccidentFilesSection.tsx - PDF Page Extraction
-
-Replace the current PDF iframe rendering in `handlePrintAll` with:
-
-1. For each PDF file, fetch it via the proxy edge function (same as `PdfJsViewer` does)
-2. Use `pdfjs-dist` (already installed) to load the PDF document
-3. Loop through each page, render to canvas at print-quality resolution
-4. Convert canvas to data URL (PNG)
-5. Insert as `<img>` tags in the print HTML -- one per page, each on its own print page
-
-```typescript
-// Pseudocode for PDF extraction
-const pdf = await pdfjsLib.getDocument(blobUrl).promise;
-for (let i = 1; i <= pdf.numPages; i++) {
-  const page = await pdf.getPage(i);
-  const canvas = document.createElement('canvas');
-  // render at 2x scale for print quality
-  const ctx = canvas.getContext('2d');
-  await page.render({ canvasContext: ctx, viewport }).promise;
-  const imgDataUrl = canvas.toDataURL('image/png');
-  // Add as <img> in print HTML
-}
-```
-
-The print flow becomes async (shows a loading state while extracting pages), then opens the print window with all pages as images.

@@ -132,8 +132,10 @@ Deno.serve(async (req) => {
       .update({ tranzila_index: tranzilaIndex })
       .eq('id', payment.id)
 
-    // Determine terminal: use sandbox terminal in test mode, production terminal otherwise
-    const terminalName = settings.test_mode
+    // Determine terminal: sandbox only for super admin (morshed500@gmail.com) when test_mode is on
+    const SUPER_ADMIN_EMAIL = 'morshed500@gmail.com'
+    const useSandbox = settings.test_mode && user.email === SUPER_ADMIN_EMAIL
+    const terminalName = useSandbox
       ? (settings.sandbox_terminal_name || 'demo5964')
       : settings.terminal_name
 
@@ -175,7 +177,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      test_mode: settings.test_mode,
+      test_mode: useSandbox,
       payment_id: payment.id,
       iframe_url: iframeUrl,
       form_fields: formFields, // Return fields for POST submission

@@ -1,22 +1,17 @@
 
 
-# Change "فاتورة ضريبية" to "بوليصة تأمين" in AB Policy Invoices
+# Update PolicySuccessDialog Button Labels
 
-## What Changes
+Change the first two buttons and their section header from "فاتورة التأمين" to "بوليصة التأمين" in the Policy Success Dialog.
 
-Two edge functions generate the AB policy invoice HTML. Both currently say "فاتورة ضريبية" (tax invoice) in the header. They will be updated to say "بوليصة تأمين" (insurance policy).
+## Changes in `src/components/policies/PolicySuccessDialog.tsx`
 
-### Files to Change
-
-| File | Current Text | New Text |
+| Location | Current Text | New Text |
 |---|---|---|
-| `supabase/functions/send-invoice-sms/index.ts` (line 886) | `فاتورة ضريبية` | `بوليصة تأمين` |
-| `supabase/functions/generate-invoice-pdf/index.ts` (line 469) | `إيصال / فاتورة ضريبية` | `بوليصة تأمين` |
+| Section label (line ~243) | `فاتورة التأمين` | `بوليصة التأمين` |
+| Print button (line ~252) | `طباعة فاتورة التأمين` | `طباعة بوليصة التأمين` |
+| SMS button (line ~263) | `إرسال فاتورة التأمين SMS` / `تم إرسال فاتورة التأمين SMS` | `إرسال بوليصة التأمين SMS` / `تم إرسال بوليصة التأمين SMS` |
+| Dialog description (line ~232) | `يمكنك طباعة فاتورة التأمين أو فاتورة الدفع أو إرسالها للعميل عبر SMS` | `يمكنك طباعة بوليصة التأمين أو فاتورة الدفع أو إرسالها للعميل عبر SMS` |
 
-### Not Changed (intentionally)
+The "فاتورة الدفع" (Payment Invoice) section remains unchanged -- only the insurance document buttons are renamed.
 
-- **generate-tax-invoice**: This is the actual company settlement tax invoice -- it should remain "فاتورة ضريبية".
-- **CompanySettlement / CompanySettlementDetail pages**: UI buttons for generating tax invoices -- should remain as-is.
-- **send-package-invoice-sms**: Already says "فاتورة باقة تأمين" (package invoice) -- different context, left as-is.
-
-Both edge functions will be redeployed after the change.

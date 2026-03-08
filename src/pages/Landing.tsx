@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageView, trackEvent } from "@/hooks/useAnalyticsTracker";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, CheckCircle, Star, ArrowLeft, Play,
@@ -76,6 +77,7 @@ const featureTabs = [
 ];
 
 export default function Landing() {
+  usePageView("/landing");
   const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");
@@ -141,8 +143,8 @@ export default function Landing() {
             <a href="#faq" className="hover:text-white transition-colors">أسئلة وأجوبة</a>
             <a href="/pricing" className="hover:text-white transition-colors">الأسعار</a>
           </div>
-          <button
-            onClick={() => navigate("/login?view=signup")}
+            <button
+              onClick={() => { trackEvent("signup_click", "/landing"); navigate("/login?view=signup"); }}
             className="px-6 py-2 text-[13px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',

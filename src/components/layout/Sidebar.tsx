@@ -167,6 +167,7 @@ export const navigationGroups: NavGroup[] = [
       { name: "سجل المدفوعات", href: "/thiqa/payments", icon: CreditCard, thiqaSuperAdminOnly: true },
       { name: "إعلانات النظام", href: "/thiqa/announcements", icon: Megaphone, thiqaSuperAdminOnly: true },
       { name: "إعدادات المنصة", href: "/thiqa/settings", icon: Settings, thiqaSuperAdminOnly: true },
+      { name: "تحليلات الموقع", href: "/thiqa/analytics", icon: BarChart3, thiqaSuperAdminOnly: true },
     ],
   },
 ];

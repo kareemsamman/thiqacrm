@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { trackEvent } from "@/hooks/useAnalyticsTracker";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2, Info } from "lucide-react";
@@ -231,6 +232,7 @@ export default function Login() {
       if (data?.error) throw new Error(data.error);
 
       const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح!";
+      trackEvent("signup_complete", "/login", { email: signupEmail.trim() });
       toast.success(successMessage);
 
       const normalizedEmail = signupEmail.trim();

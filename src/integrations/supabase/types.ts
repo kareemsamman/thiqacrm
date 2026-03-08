@@ -4989,6 +4989,42 @@ export type Database = {
           },
         ]
       }
+      site_analytics_events: {
+        Row: {
+          country: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          page: string | null
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          page?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          page?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           agent_id: string | null

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageView } from "@/hooks/useAnalyticsTracker";
 import { useNavigate } from "react-router-dom";
 import { Check, Info } from "lucide-react";
 import { useLandingContent, ct } from "@/hooks/useLandingContent";
@@ -57,6 +58,7 @@ const plans = [
 ];
 
 export default function Pricing() {
+  usePageView("/pricing");
   const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [yearly, setYearly] = useState(false);

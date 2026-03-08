@@ -1146,6 +1146,60 @@ export default function ThiqaAgentDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل الدفعة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>المبلغ (₪)</Label>
+              <Input type="number" value={editPaymentAmount} onChange={e => setEditPaymentAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>من تاريخ</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-right font-normal">
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {format(editPeriodStart, "dd/MM/yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={editPeriodStart} onSelect={(d) => d && handleEditPeriodStartChange(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>إلى تاريخ</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-right font-normal">
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {format(editPeriodEnd, "dd/MM/yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={editPeriodEnd} onSelect={(d) => d && setEditPeriodEnd(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>ملاحظات</Label>
+              <Input value={editPaymentNotes} onChange={e => setEditPaymentNotes(e.target.value)} placeholder="اختياري" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingPayment(null)}>إلغاء</Button>
+            <Button onClick={saveEditPayment} disabled={savingPayment}>
+              {savingPayment && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

@@ -94,84 +94,60 @@ export default function Landing() {
       </section>
 
 
-      {/* ═══ Diagonal divider ═══ */}
-      <img src={sectionDivider} alt="" className="w-full h-auto block" />
+      {/* ═══ Section 2: 3 Feature Cards ═══ */}
+      <section id="features" className="py-24 md:py-36 relative">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <p className="text-sm text-white/40 mb-4 tracking-wide">הבית הדיגיטלי של הסוכנות שלך</p>
+          <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
+            כל הכלים לניהול הסוכנות תחת קורת גג אחת
+          </h2>
+          <p className="text-white/40 text-sm max-w-xl mx-auto mb-16">
+            תשתית טכנולוגית מתקדמת שחוסכת לך זמן, מונעת טעויות ומגדילה את הרווחיות.
+          </p>
 
-      {/* ═══ Features bar ═══ */}
-      <section className="py-16 md:py-20 bg-[#151a2a]">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
             {[
-              { icon: Users, title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה" },
-              { icon: CreditCard, title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות" },
-              { icon: MessageSquare, title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות" },
-              { icon: BarChart3, title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת" },
-            ].map((item, i) => (
-              <div key={i} className="text-center flex flex-col items-center gap-3">
-                <div className="h-14 w-14 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center">
-                  <item.icon className="h-6 w-6 text-white/60" />
+              {
+                img: featureProfitEngine,
+                title: "מנוע חישוב רווחים אוטומטי.",
+                desc: "ניהול תזרימי צ׳קים, סליקת אשראי והתחשבנות מול ברוקרים וחברות ביטוח בדיוק של 100%. בלי אובדן עמלות ובלי חישובים ידניים.",
+              },
+              {
+                img: featurePaperless,
+                title: "אפס ניירת, מקסימום מהירות.",
+                desc: "שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא אחרי מחזור חיי הפוליסה — הכל מהדסקטופ או מהנייד.",
+              },
+              {
+                img: featureMarketing,
+                title: "הופכים נתונים למכירות.",
+                desc: "מערכת שיווק מובנית לשליחת קמפיינים ב-SMS ובמייל. תזכורות אוטומטיות לחידושים, עדכונים על מבצעים ושימור לקוחות בצורה אקטיבית.",
+              },
+            ].map((card, i) => (
+              <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden text-center">
+                <div className="aspect-[4/3] overflow-hidden">
+                  <img src={card.img} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </div>
-                <div>
-                  <p className="text-[14px] font-semibold text-white/90">{item.title}</p>
-                  <p className="text-[13px] text-white/40">{item.desc}</p>
+                <div className="p-6 pt-5">
+                  <h3 className="text-lg font-bold mb-2">{card.title}</h3>
+                  <p className="text-sm text-white/40 leading-relaxed">{card.desc}</p>
                 </div>
               </div>
             ))}
           </div>
+
+          <button
+            onClick={() => navigate("/login")}
+            className="px-10 py-4 text-[15px] font-bold text-white hover:text-white transition-colors"
+            style={{
+              borderRadius: '100px',
+              border: '2px solid rgba(255, 255, 255, 0.40)',
+              background: 'rgba(255, 255, 255, 0.10)',
+            }}
+          >
+            קבלו 35 ימים בחינם
+          </button>
         </div>
       </section>
-
-      {/* ═══ Diagonal divider ═══ */}
-      <img src={sectionDivider} alt="" className="w-full h-auto block" />
-
-      {/* ═══ Section 3: Feature breakdown with stats ═══ */}
-      <section className="py-24 md:py-36 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#080b16] via-[#0b0f22] to-[#080b16] pointer-events-none" />
-        <div className="relative max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-20 leading-tight">
-            כל הכלים לניהול הסוכנות
-            <br />
-            <span className="text-white/60">תחת קורת גג אחת</span>
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-            {/* Left: Dashboard image */}
-            <div className="relative">
-              <div className="absolute -inset-6 bg-[#2244aa]/[0.06] rounded-3xl blur-[40px]" />
-              <img src={dashboardMockup} alt="" className="relative rounded-2xl border border-white/[0.06] shadow-xl w-full" loading="lazy" />
-            </div>
-            {/* Right: Features + stats */}
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-xl font-bold mb-2">לוח בקרה אישי</h3>
-                <p className="text-white/40 text-sm leading-relaxed">תמונת מצב מלאה של העסק שלך במבט אחד — לקוחות, פוליסות, תשלומים, חובות ותזכורות.</p>
-              </div>
-              {[
-                { icon: Users, t: "ניהול לקוחות ורכבים", d: "מאגר מלא עם חיפוש מהיר, פילטרים וייצוא CSV" },
-                { icon: FileText, t: "ניהול פוליסות וחבילות", d: "יצירה, חידוש ומעקב של כל סוגי הביטוח" },
-                { icon: CreditCard, t: "תשלומים וחובות", d: "מעקב תשלומים, תזכורות אוטומטיות, צ'קים" },
-                { icon: BarChart3, t: "דוחות כספיים מפורטים", d: "רווחיות לפי חברה, סוכן, תקופה — בלחיצה" },
-              ].map((item, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="h-9 w-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
-                    <item.icon className="h-4 w-4 text-[#7ba4f7]" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-[15px] mb-0.5">{item.t}</h4>
-                    <p className="text-sm text-white/35">{item.d}</p>
-                  </div>
-                </div>
-              ))}
-
-              {/* Stats inline */}
-              <div className="grid grid-cols-2 gap-6 pt-4">
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                  <div className="text-3xl font-extrabold text-[#7ba4f7]">72</div>
-                  <p className="text-xs text-white/40 mt-1">פוליסות מתחדשות השבוע</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                  <div className="text-3xl font-extrabold text-[#7ba4f7]">65%</div>
-                  <p className="text-xs text-white/40 mt-1">חיסכון בזמן ניהול</p>
-                </div>
               </div>
             </div>
           </div>

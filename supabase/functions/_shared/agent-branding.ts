@@ -8,6 +8,10 @@ export interface AgentBranding {
   companyNameEn: string;
   logoUrl: string | null;
   siteDescription: string;
+  signatureHeaderHtml: string;
+  signatureBodyHtml: string;
+  signatureFooterHtml: string;
+  signaturePrimaryColor: string;
 }
 
 const DEFAULT_BRANDING: AgentBranding = {
@@ -15,6 +19,10 @@ const DEFAULT_BRANDING: AgentBranding = {
   companyNameEn: 'Insurance Agency',
   logoUrl: null,
   siteDescription: '',
+  signatureHeaderHtml: '<h2>نموذج الموافقة على الخصوصية</h2>',
+  signatureBodyHtml: '<p>مرحباً.</p><p>أقرّ بأنني قرأت وفهمت سياسة الخصوصية، وأوافق على قيام الشركة بجمع واستخدام ومعالجة بياناتي الشخصية للأغراض المتعلقة بخدمات التأمين والتواصل وإتمام الإجراءات اللازمة.</p><p>بالتوقيع أدناه، أؤكد صحة البيانات وأمنح موافقتي على ما ورد أعلاه.</p>',
+  signatureFooterHtml: '<p>جميع الحقوق محفوظة</p>',
+  signaturePrimaryColor: '#1e3a5f',
 };
 
 /**
@@ -30,7 +38,7 @@ export async function getAgentBranding(
   try {
     const { data, error } = await supabase
       .from('site_settings')
-      .select('site_title, site_description, logo_url')
+      .select('site_title, site_description, logo_url, signature_header_html, signature_body_html, signature_footer_html, signature_primary_color')
       .eq('agent_id', agentId)
       .maybeSingle();
 
@@ -38,9 +46,13 @@ export async function getAgentBranding(
 
     return {
       companyName: data.site_title || DEFAULT_BRANDING.companyName,
-      companyNameEn: '', // Agents can add English name later if needed
+      companyNameEn: '',
       logoUrl: data.logo_url || null,
       siteDescription: data.site_description || '',
+      signatureHeaderHtml: data.signature_header_html || DEFAULT_BRANDING.signatureHeaderHtml,
+      signatureBodyHtml: data.signature_body_html || DEFAULT_BRANDING.signatureBodyHtml,
+      signatureFooterHtml: data.signature_footer_html || DEFAULT_BRANDING.signatureFooterHtml,
+      signaturePrimaryColor: data.signature_primary_color || DEFAULT_BRANDING.signaturePrimaryColor,
     };
   } catch {
     return DEFAULT_BRANDING;

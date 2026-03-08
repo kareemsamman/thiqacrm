@@ -964,65 +964,86 @@ export default function ThiqaAgentDetail() {
             </Card>
           </TabsContent>
 
-          {/* ═══════════ PAYMENTS TAB ═══════════ */}
+           {/* ═══════════ PAYMENTS TAB ═══════════ */}
           <TabsContent value="payments">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />سجل المدفوعات</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
-                  <div className="flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                  <div>
                     <Label>المبلغ (₪)</Label>
                     <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder={`${agent.monthly_price || 300}`} />
                   </div>
-                  <div className="flex-1">
-                    <Label>التاريخ</Label>
+                  <div>
+                    <Label>من تاريخ</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal", !paymentDate && "text-muted-foreground")}>
+                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
                           <CalendarIcon className="ml-2 h-4 w-4" />
-                          {paymentDate ? format(paymentDate, "dd/MM/yyyy") : "اختر تاريخ"}
+                          {format(periodStart, "dd/MM/yyyy")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                        <Calendar mode="single" selected={periodStart} onSelect={(d) => d && handlePeriodStartChange(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="flex-1">
+                  <div>
+                    <Label>إلى تاريخ</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
+                          <CalendarIcon className="ml-2 h-4 w-4" />
+                          {format(periodEnd, "dd/MM/yyyy")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={periodEnd} onSelect={(d) => d && setPeriodEnd(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
                     <Label>ملاحظات</Label>
                     <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="اختياري" />
                   </div>
-                  <Button onClick={recordPayment} disabled={!paymentAmount} className="w-full md:w-auto text-xs md:text-sm whitespace-nowrap">تسجيل الدفعة + تمديد شهر</Button>
+                  <Button onClick={recordPayment} disabled={!paymentAmount} className="w-full text-xs md:text-sm whitespace-nowrap">تسجيل الدفعة</Button>
                 </div>
 
                 <div className="border rounded-lg overflow-x-auto">
-                  <table className="w-full text-sm min-w-[400px]">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">التاريخ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">من تاريخ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إلى تاريخ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الخطة</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">ملاحظات</th>
-                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap w-[60px]">إجراء</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap w-[80px]">إجراء</th>
                       </tr>
                     </thead>
                     <tbody>
                       {payments.map((p: any) => (
                         <tr key={p.id} className="border-t">
-                          <td className="p-2 md:p-3 text-xs md:text-sm">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
+                          <td className="p-2 md:p-3 text-xs md:text-sm">{p.period_start ? format(new Date(p.period_start), 'dd/MM/yyyy') : format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
+                          <td className="p-2 md:p-3 text-xs md:text-sm">{p.period_end ? format(new Date(p.period_end), 'dd/MM/yyyy') : '—'}</td>
                           <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
                           <td className="p-2 md:p-3"><Badge variant="outline" className="text-[10px] md:text-xs">{p.plan}</Badge></td>
                           <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm">{p.notes || '—'}</td>
                           <td className="p-2 md:p-3">
-                            <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => setDeletePaymentId(p.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditPayment(p)}>
+                                <Settings className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => setDeletePaymentId(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>

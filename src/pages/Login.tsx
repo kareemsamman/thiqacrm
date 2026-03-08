@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
+type SignupFeedback = { type: "success" | "error" | "info"; message: string };
 
 export default function Login() {
   const [loading, setLoading] = useState(false);

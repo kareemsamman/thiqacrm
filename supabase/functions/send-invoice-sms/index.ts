@@ -72,8 +72,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyApiKey = Deno.env.get('BUNNY_API_KEY');
     const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
-    // Hardcoded CDN URL to match upload-media function
-    const bunnyCdnUrl = 'https://cdn.basheer-ab.com';
+    const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

@@ -389,7 +389,7 @@ export default function Landing() {
                           <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
                           <p className="text-sm text-white/50 leading-relaxed mb-8">{slides[slideIdx].desc}</p>
                           <button
-                            onClick={() => navigate("/login")}
+                            onClick={() => navigate("/login?view=signup")}
                             className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/70 hover:text-white transition-colors bg-white/[0.06] border border-white/[0.1] rounded-lg w-fit"
                           >
                             <ArrowLeft className="h-4 w-4" />

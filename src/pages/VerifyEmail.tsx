@@ -68,7 +68,7 @@ export default function VerifyEmail() {
 
     try {
       const { data, error } = await supabase.functions.invoke("registration-otp-verify", {
-        body: { email, code },
+        body: { email, code: trimmedCode },
       });
 
       if (error) {

@@ -157,13 +157,8 @@ export const navigationGroups: NavGroup[] = [
       { name: "قوالب الفواتير", href: "/admin/invoice-templates", icon: FileText },
       { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
       { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
-      { name: "إعدادات SMS", href: "/admin/sms-settings", icon: MessageSquare },
-      { name: "إعدادات المصادقة", href: "/admin/auth-settings", icon: Settings },
       { name: "سجل الرسائل", href: "/sms-history", icon: History },
-      { name: "استيراد WordPress", href: "/admin/wordpress-import", icon: Upload },
-      { name: "إعلانات النظام", href: "/admin/announcements", icon: Megaphone, superAdminOnly: true },
       { name: "العلامة التجارية", href: "/admin/branding", icon: Palette },
-      { name: "إعدادات X-Service", href: "/admin/xservice", icon: Link2 },
     ],
   },
   {
@@ -173,6 +168,7 @@ export const navigationGroups: NavGroup[] = [
       { name: "لوحة التحكم", href: "/thiqa", icon: LayoutDashboard, thiqaSuperAdminOnly: true },
       { name: "الوكلاء", href: "/thiqa/agents", icon: Building2, thiqaSuperAdminOnly: true },
       { name: "سجل المدفوعات", href: "/thiqa/payments", icon: CreditCard, thiqaSuperAdminOnly: true },
+      { name: "إعلانات النظام", href: "/thiqa/announcements", icon: Megaphone, thiqaSuperAdminOnly: true },
     ],
   },
 ];

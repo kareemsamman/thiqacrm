@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgentContext } from "@/hooks/useAgentContext";
 import {
   Dialog,
   DialogContent,
@@ -21,14 +22,15 @@ interface Announcement {
 
 export function AnnouncementPopup() {
   const { user } = useAuth();
+  const { agentId } = useAgentContext();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
 
   const fetchAnnouncement = async () => {
     if (!user?.id) return;
 
-    // Get active announcements
-    const { data: announcements, error } = await supabase
+    // Get active announcements: either for this agent or for all agents (agent_id is null)
+    let query = supabase
       .from("announcements")
       .select("id, title, content, show_once")
       .eq("is_active", true)
@@ -36,6 +38,15 @@ export function AnnouncementPopup() {
       .gte("end_date", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1);
+
+    // Filter: agent_id is null (all agents) OR matches current agent
+    if (agentId) {
+      query = query.or(`agent_id.is.null,agent_id.eq.${agentId}`);
+    } else {
+      query = query.is("agent_id", null);
+    }
+
+    const { data: announcements, error } = await query;
 
     if (error || !announcements?.length) return;
 
@@ -49,13 +60,8 @@ export function AnnouncementPopup() {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    // If show_once and already dismissed, don't show
     if (ann.show_once && dismissal) return;
-
-    // For recurring announcements, check if dismissed today
-    if (!ann.show_once && dismissal) {
-      return;
-    }
+    if (!ann.show_once && dismissal) return;
 
     setAnnouncement(ann);
     setOpen(true);
@@ -64,9 +70,8 @@ export function AnnouncementPopup() {
   useEffect(() => {
     if (!user?.id) return;
     fetchAnnouncement();
-  }, [user?.id]);
+  }, [user?.id, agentId]);
 
-  // Real-time subscription for new announcements
   useEffect(() => {
     if (!user?.id) return;
 
@@ -74,27 +79,17 @@ export function AnnouncementPopup() {
       .channel("announcements-realtime")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "announcements",
-        },
-        () => {
-          // Refetch when announcements change
-          fetchAnnouncement();
-        }
+        { event: "*", schema: "public", table: "announcements" },
+        () => fetchAnnouncement()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, agentId]);
 
   const handleDismiss = async () => {
     if (!announcement || !user?.id) return;
 
-    // Record dismissal
     await supabase.from("announcement_dismissals").upsert(
       {
         announcement_id: announcement.id,

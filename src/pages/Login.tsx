@@ -341,9 +341,13 @@ export default function Login() {
                   <Label htmlFor="email">البريد الإلكتروني</Label>
                   <Input id="email" type="email" placeholder="your-email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="ltr-input" disabled={loading} />
                 </div>
-                <Button className="w-full h-12 text-base gap-2" onClick={handleEmailStart} disabled={loading || !email}>
+                <div className="space-y-2">
+                  <Label htmlFor="password">كلمة المرور</Label>
+                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
+                </div>
+                <Button className="w-full h-12 text-base gap-2" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mail className="h-5 w-5" />}
-                  {loading ? "جاري الإرسال..." : "إرسال رمز التحقق"}
+                  {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
                 </Button>
               </TabsContent>
 

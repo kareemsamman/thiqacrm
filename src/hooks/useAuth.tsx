@@ -175,9 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Admin session guard - force logout for non-super admins on new browser session
   useEffect(() => {
-    const SESSION_KEY = 'admin_session_active';
-    const userEmail = user?.email;
-    const isNonSuperAdmin = userEmail !== SUPER_ADMIN_EMAIL && isAdmin;
+    const isNonSuperAdmin = !isSuperAdmin && isAdmin;
     
     if (!user || !isNonSuperAdmin) {
       return;

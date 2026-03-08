@@ -13,80 +13,76 @@ export default function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#080b16] text-white overflow-x-hidden font-[Simona_Pro,sans-serif]" dir="rtl">
+    <div className="min-h-screen text-white overflow-x-hidden" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
 
       {/* ═══ Navbar ═══ */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-[#080b16]/70 backdrop-blur-2xl border-b border-white/[0.04]">
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/[0.05] border-b border-white/[0.08]">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
             <img src={thiqaLogo} alt="Thiqa" className="h-8 w-8" />
-            <span className="text-lg font-bold tracking-tight opacity-90">Thiqa</span>
+            <span className="text-lg font-bold tracking-tight">Thiqa</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-[13px] text-white/50 font-medium">
-            <a href="#features" className="hover:text-white/90 transition-colors">מה אנחנו מציעים</a>
-            <a href="#demo" className="hover:text-white/90 transition-colors">דמו</a>
-            <a href="#testimonials" className="hover:text-white/90 transition-colors">לקוחות</a>
-            <a href="#faq" className="hover:text-white/90 transition-colors">שאלות</a>
+          <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
+            <a href="#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>
+            <a href="#demo" className="hover:text-white transition-colors">איך זה עובד</a>
+            <a href="#faq" className="hover:text-white transition-colors">שאלות ותשובות</a>
+            <a href="#pricing" className="hover:text-white transition-colors">מחירון</a>
           </div>
           <Button
             onClick={() => navigate("/login")}
             size="sm"
-            className="bg-white/10 hover:bg-white/20 text-white rounded-full px-5 text-[13px] border border-white/[0.08] backdrop-blur-sm"
+            className="bg-white text-black hover:bg-white/90 rounded-full px-6 text-[13px] font-bold shadow-lg"
           >
-            כניסה למערכת
+            קבלו 35 ימים בחינם
           </Button>
         </div>
       </nav>
 
-      {/* ═══ HERO ═══ */}
-      <section className="relative pt-36 pb-10 md:pt-48 md:pb-16">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#2d4bc7]/[0.12] rounded-full blur-[140px]" />
+      {/* ═══ HERO with gradient background ═══ */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+        {/* Full-screen gradient background */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/images/hero-gradient-bg.png" 
+            alt="" 
+            className="w-full h-full object-cover"
+          />
+          {/* Darkening overlay for text readability */}
+          <div className="absolute inset-0 bg-black/20" />
         </div>
-        <div className="relative max-w-4xl mx-auto text-center px-6">
-          <h1 className="text-[2.5rem] md:text-[3.8rem] lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight">
-            ה-CRM הרווחי ביותר
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center px-6 pt-20">
+          <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight">
+            ה-CRM החכם ביותר
             <br />
-            <span className="bg-gradient-to-l from-[#7ba4f7] via-[#5b7cf7] to-[#8b6cf7] bg-clip-text text-transparent">
-              לסוכניות ביטוח
-            </span>
-            {" "}שרוצות להרוויח יותר
+            לסוכניות ביטוח שרוצות להרוויח יותר
           </h1>
-          <p className="mt-6 text-[15px] md:text-lg text-white/40 max-w-xl mx-auto leading-relaxed">
-            כל הכלים לניהול הסוכנות תחת קורת גג אחת — לקוחות, פוליסות, תשלומים, דוחות, תזכורות ועוד.
+          <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
+            פתרון קצה-לקצה לניהול פוליסות, כספים ושיווק. מהיר, מאובטח
+            <br className="hidden md:block" />
+            ומותאם לעבודה בקנה מידה רחב.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-10">
+          <div className="mt-10">
             <Button
               size="lg"
               onClick={() => navigate("/login")}
-              className="bg-white text-[#080b16] hover:bg-white/90 rounded-full px-8 h-[52px] text-[15px] font-bold gap-2 shadow-xl shadow-white/[0.06]"
+              className="bg-white text-black hover:bg-white/90 rounded-full px-10 h-[56px] text-[16px] font-bold shadow-xl"
             >
-              התחילו בחינם
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="lg"
-              variant="ghost"
-              className="rounded-full px-7 h-[52px] text-[15px] text-white/60 hover:text-white hover:bg-white/[0.06] gap-2"
-              onClick={() => document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" })}
-            >
-              <Play className="h-4 w-4" />
-              צפו בדמו
+              קבלו 35 ימים בחינם
             </Button>
           </div>
         </div>
 
         {/* Dashboard mockup */}
-        <div className="relative max-w-6xl mx-auto mt-20 px-6">
-          <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-black/40">
-            <div className="absolute inset-0 bg-gradient-to-t from-[#080b16] via-transparent to-transparent z-10 pointer-events-none" />
-            <img src={dashboardMockup} alt="Thiqa CRM" className="w-full" loading="lazy" />
+        <div className="relative z-10 max-w-5xl mx-auto mt-16 px-6 pb-8">
+          <div className="relative rounded-xl overflow-hidden border border-white/[0.1] shadow-2xl shadow-black/50">
+            <img src="/images/dashboard-mockup.png" alt="Thiqa CRM Dashboard" className="w-full" loading="lazy" />
           </div>
         </div>
       </section>
 
       {/* ═══ Section 2: כל הכלים — Screenshots tilted ═══ */}
-      <section id="features" className="py-24 md:py-36 relative">
+      <section id="features" className="py-24 md:py-36 relative bg-[#0a0e1a]">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight">

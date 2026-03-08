@@ -602,6 +602,7 @@ function buildPackageInvoiceHtml(
       direction: rtl;
     }
     .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); overflow: hidden; }
+    .container-body { padding: 24px 30px; }
     .header {
       text-align: center;
       margin-bottom: 0;
@@ -660,7 +661,7 @@ function buildPackageInvoiceHtml(
       border-top: none;
       padding: 16px;
       border-radius: 0 0 8px 8px;
-      background: #fafbfc;
+      background: #ffffff;
     }
     .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .info-item {
@@ -906,6 +907,7 @@ function buildPackageInvoiceHtml(
       <div class="package-badge">📦 باقة ${policies.length} وثائق</div>
     </div>
 
+    <div class="container-body">
     <div class="summary-cards">
       <div class="summary-card total">
         <strong>إجمالي الباقة</strong>
@@ -1012,6 +1014,7 @@ function buildPackageInvoiceHtml(
         <button class="share-button" onclick="shareInvoice()">📲 مشاركة الفاتورة</button>
       </div>
     </div>
+  </div>
   </div>
   
   <!-- Lightbox Modal -->

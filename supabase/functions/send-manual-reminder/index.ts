@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAgentBranding, resolveAgentId } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

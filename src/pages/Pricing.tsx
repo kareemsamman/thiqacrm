@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageView } from "@/hooks/useAnalyticsTracker";
 import { useNavigate } from "react-router-dom";
 import { Check, Info } from "lucide-react";
 import { useLandingContent, ct } from "@/hooks/useLandingContent";

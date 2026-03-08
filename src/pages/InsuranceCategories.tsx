@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgentContext } from "@/hooks/useAgentContext";
 import { Plus, Edit, Trash2, GripVertical, Car, FileText, Loader2, Star, ChevronUp, ChevronDown } from "lucide-react";
 
 interface InsuranceCategory {

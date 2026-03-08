@@ -602,6 +602,14 @@ export default function DatabaseMigration() {
                     <Progress value={progress} />
                   </div>
                 )}
+
+                {importLog.length > 0 && (
+                  <div className="mt-4 max-h-64 overflow-y-auto rounded border bg-muted/50 p-3 text-sm font-mono space-y-1" dir="ltr">
+                    {importLog.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

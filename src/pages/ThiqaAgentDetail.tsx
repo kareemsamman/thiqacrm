@@ -114,6 +114,7 @@ export default function ThiqaAgentDetail() {
         name: agent.name, name_ar: agent.name_ar, email: agent.email,
         phone: agent.phone, plan: agent.plan,
         subscription_status: agent.subscription_status,
+        subscription_expires_at: agent.subscription_expires_at,
         monthly_price: agent.monthly_price, notes: agent.notes,
         updated_at: new Date().toISOString(),
       })

@@ -43,11 +43,11 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      if (user.email !== 'morshed500@gmail.com') {
+      if (!isThiqaSuperAdminEmail(user.email)) {
         sessionStorage.setItem('admin_session_active', 'true');
       }
       if (isActive) {
-        navigate('/', { replace: true });
+        navigate(isSuperAdmin ? '/thiqa/agents' : '/', { replace: true });
       } else {
         navigate('/no-access', { replace: true });
       }

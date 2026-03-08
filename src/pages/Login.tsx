@@ -52,7 +52,7 @@ export default function Login() {
         navigate('/no-access', { replace: true });
       }
     }
-  }, [user, isActive, authLoading, navigate]);
+  }, [user, isActive, isSuperAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (countdown > 0) {

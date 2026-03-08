@@ -184,11 +184,9 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut, isAdmin, branchName } = useAuth();
+  const { profile, signOut, isAdmin, branchName, isSuperAdmin } = useAuth();
   const { data: siteSettings } = useSiteSettings();
   const { hasFeature, isThiqaSuperAdmin } = useAgentContext();
-
-  const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 
   // Filter groups and items based on role + features
   // Thiqa super admin only sees the Thiqa management section

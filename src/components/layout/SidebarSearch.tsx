@@ -23,9 +23,14 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
 
   // Filter groups and items based on role
   const filteredItems = navigationGroups
-    .filter(group => !group.adminOnly || isAdmin)
+    .filter(group => {
+      if (isSuperAdmin) return group.items.some(item => item.thiqaSuperAdminOnly);
+      return !group.adminOnly || isAdmin;
+    })
     .flatMap(group => 
       group.items.filter(item => {
+        if (isSuperAdmin) return !!item.thiqaSuperAdminOnly;
+        if (item.thiqaSuperAdminOnly) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;
         return true;

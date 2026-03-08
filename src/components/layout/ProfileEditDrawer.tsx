@@ -50,8 +50,8 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
 
       if (error) throw error;
       toast.success("تم تحديث الملف الشخصي");
+      await refreshProfile();
       onOpenChange(false);
-      window.location.reload();
     } catch (err: any) {
       console.error('Profile save error:', err);
       toast.error("خطأ: " + err.message);

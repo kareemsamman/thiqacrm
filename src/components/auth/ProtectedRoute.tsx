@@ -30,6 +30,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
+  // Thiqa super admin should stay in Thiqa management routes only
+  if (isSuperAdmin && !location.pathname.startsWith('/thiqa')) {
+    return <Navigate to="/thiqa/agents" replace />;
+  }
+
   // Super admin and admins always have access (isActive includes this check)
   // Only show No Access for non-admin users with inactive status
   if (!isActive) {

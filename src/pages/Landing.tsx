@@ -351,7 +351,7 @@ export default function Landing() {
 
         <div className="relative z-10">
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            لا تنتظر التجديد. اصنعه بنفسك
+            {ct(content, "slider_title", "لا تنتظر التجديد. اصنعه بنفسك")}
           </h2>
 
           {(() => {

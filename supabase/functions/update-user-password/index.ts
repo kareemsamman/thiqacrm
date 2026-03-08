@@ -10,22 +10,27 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing authorization");
+    if (!authHeader?.startsWith("Bearer ")) throw new Error("Missing authorization");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+    // Verify caller identity using getClaims
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error("Unauthorized");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) throw new Error("Unauthorized");
+
+    const callerId = claimsData.claims.sub;
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const { data: isSA } = await adminClient.rpc("is_super_admin", { _user_id: caller.id });
+    // Check if caller is super admin
+    const { data: isSA } = await adminClient.rpc("is_super_admin", { _user_id: callerId });
     if (!isSA) throw new Error("Not a super admin");
 
     const { user_id, new_password } = await req.json();

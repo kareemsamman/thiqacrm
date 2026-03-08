@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageView, trackEvent } from "@/hooks/useAnalyticsTracker";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft, CheckCircle, Star, ArrowLeft, Play,

@@ -20,10 +20,31 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const { email, code } = await req.json();
-    if (!email || !code) throw new Error("البريد الإلكتروني والرمز مطلوبان");
+    const { email, code, skip } = await req.json();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
 
-    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!normalizedEmail) throw new Error("البريد الإلكتروني مطلوب");
+
+    // If skip mode (auto-confirm without OTP)
+    if (skip === true) {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .single();
+
+      if (!profile) throw new Error("لم يتم العثور على الحساب.");
+
+      await adminClient.auth.admin.updateUserById(profile.id, { email_confirm: true });
+      await adminClient.from("profiles").update({ email_confirmed: true }).eq("id", profile.id);
+
+      return new Response(
+        JSON.stringify({ success: true, message: "تم تفعيل الحساب بنجاح" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!code) throw new Error("الرمز مطلوب");
     const codeHash = await hashOTP(String(code).trim());
 
     // Find valid OTP

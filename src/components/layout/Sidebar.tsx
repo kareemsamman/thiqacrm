@@ -449,7 +449,11 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                 onClick={() => {
                   const key = `thiqa_onboarding_completed_${profile?.id}`;
                   localStorage.removeItem(key);
-                  window.location.reload();
+                  if (location.pathname === '/' || location.pathname === '') {
+                    window.dispatchEvent(new Event('show-onboarding'));
+                  } else {
+                    navigate('/');
+                  }
                 }}
                 className="gap-2 cursor-pointer"
               >

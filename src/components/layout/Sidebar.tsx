@@ -266,11 +266,11 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+      <div className="flex h-20 items-center justify-between border-b border-white/[0.08] px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
             {isThiqaSuperAdmin ? (
-              <img src={thiqaLogo} alt="Thiqa" className="h-16 w-16 rounded-lg object-contain" />
+              <img src={thiqaLogo} alt="Thiqa" className="h-12 w-12 rounded-lg object-contain" />
             ) : siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
             ) : (
@@ -285,7 +285,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
         )}
         {collapsed && (
           isThiqaSuperAdmin ? (
-            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-16 w-16 rounded-lg object-contain" />
+            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-10 w-10 rounded-lg object-contain" />
           ) : siteSettings?.logo_url ? (
             <img src={siteSettings.logo_url} alt="Logo" className="mx-auto h-9 w-9 rounded-lg object-contain" />
           ) : (
@@ -497,7 +497,7 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent 
           side="right" 
-          className="w-64 p-0 border-l bg-[hsl(0,0%,7%)] border-[hsl(0,0%,15%)] text-[hsl(0,0%,85%)]"
+          className="w-64 p-0 border-l bg-[#122143] border-white/[0.08] text-white/85"
         >
           <SidebarContent 
             collapsed={false} 
@@ -509,7 +509,7 @@ export function Sidebar() {
       {/* Desktop sidebar - floating with margin */}
       <aside
         className={cn(
-          "fixed right-2 top-2 bottom-2 z-40 rounded-2xl border border-sidebar-border glass-dark transition-all duration-300 shadow-lg hidden md:block overflow-hidden",
+          "fixed right-2 top-2 bottom-2 z-40 rounded-2xl border border-white/[0.08] bg-[#122143] transition-all duration-300 shadow-lg hidden md:block overflow-hidden",
           collapsed ? "w-16" : "w-64"
         )}
       >

@@ -44,7 +44,10 @@ Deno.serve(async (req) => {
 
     const userId = createdUser.user.id;
 
-    // Create agent
+    // Create agent with 35-day free trial
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 35);
+
     const { data: agentData, error: agentError } = await adminClient
       .from("agents")
       .insert({
@@ -54,6 +57,8 @@ Deno.serve(async (req) => {
         phone: phone?.trim() || null,
         plan: "trial",
         subscription_status: "active",
+        subscription_expires_at: trialEnd.toISOString(),
+        monthly_price: 0,
       })
       .select("id")
       .single();

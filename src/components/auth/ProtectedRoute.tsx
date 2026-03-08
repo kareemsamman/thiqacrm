@@ -10,13 +10,13 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isSuperAdmin } = useAuth();
-  const { isImpersonating } = useAgentContext();
+  const { isImpersonating, isSubscriptionActive, isSubscriptionPaused, loading: agentLoading } = useAgentContext();
 
   const location = useLocation();
   // Super admin bypasses profile loading requirement
   const needsProfileLoading = user && !isSuperAdmin && profileLoading && !profile;
   
-  if (loading || needsProfileLoading) {
+  if (loading || needsProfileLoading || (user && !isSuperAdmin && agentLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -41,6 +41,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Only show No Access for non-admin users with inactive status
   if (!isActive) {
     return <Navigate to="/no-access" replace />;
+  }
+
+  // Subscription expired or paused → redirect (super admins bypass)
+  if (!isSuperAdmin && !isSubscriptionActive) {
+    return <Navigate to="/subscription-expired" replace />;
   }
 
   return <>{children}</>;

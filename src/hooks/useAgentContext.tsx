@@ -21,6 +21,7 @@ interface AgentContextType {
   agentFeatures: Record<string, boolean>;
   loading: boolean;
   isSubscriptionActive: boolean;
+  isSubscriptionPaused: boolean;
   isThiqaSuperAdmin: boolean;
   isImpersonating: boolean;
   impersonatedAgent: AgentInfo | null;
@@ -173,9 +174,11 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     fetchAgentContext();
   }, [user, authLoading, isSuperAdmin, impersonatedAgentId]);
 
+  const subscriptionStatus = agent?.subscription_status;
   const isSubscriptionActive = isThiqaSuperAdmin || isImpersonating || !agent || 
-    agent.subscription_status === 'active' &&
-    (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date());
+    (subscriptionStatus === 'active' &&
+    (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date()));
+  const isSubscriptionPaused = subscriptionStatus === 'paused' || subscriptionStatus === 'suspended';
 
   const hasFeature = (featureKey: string): boolean => {
     if (isThiqaSuperAdmin || isImpersonating) return true;
@@ -193,6 +196,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       agentFeatures,
       loading,
       isSubscriptionActive,
+      isSubscriptionPaused,
       isThiqaSuperAdmin,
       isImpersonating,
       impersonatedAgent,

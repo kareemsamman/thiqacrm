@@ -90,6 +90,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { policy_id, force_resend, skip_sms }: SendInvoiceSmsRequest = await req.json();
 
     if (!policy_id) {

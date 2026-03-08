@@ -888,7 +888,13 @@ export default function ThiqaAgentDetail() {
                               <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-2 md:p-3">
-                              <div className="flex items-center gap-1">
+                              {p?.email_confirmed ? (
+                                <Badge variant="default" className="text-[10px] md:text-xs bg-green-600">مفعّل</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px] md:text-xs">غير مفعّل</Badge>
+                              )}
+                            </td>
+                            <td className="p-2 md:p-3">
                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditUser(au)}>
                                   <Settings className="h-3.5 w-3.5" />
                                 </Button>

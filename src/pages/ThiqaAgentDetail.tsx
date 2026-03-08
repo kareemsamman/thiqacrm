@@ -487,7 +487,7 @@ export default function ThiqaAgentDetail() {
     setEditingUser(au);
     setEditUserName(p?.full_name || '');
     setEditUserPhone(p?.phone || '');
-    setEditUserBranch(p?.branch_id || '');
+    setEditUserBranch(p?.branch_id || 'none');
   };
 
   const saveEditUser = async () => {
@@ -496,7 +496,7 @@ export default function ThiqaAgentDetail() {
     const { error } = await supabase.from('profiles').update({
       full_name: editUserName || null,
       phone: editUserPhone || null,
-      branch_id: editUserBranch || null,
+      branch_id: editUserBranch === 'none' ? null : editUserBranch || null,
     }).eq('id', editingUser.user_id);
     setSavingUser(false);
     if (error) { toast.error('خطأ في تحديث المستخدم'); return; }
@@ -1129,7 +1129,7 @@ export default function ThiqaAgentDetail() {
               <Select value={editUserBranch} onValueChange={setEditUserBranch}>
                 <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">بدون فرع</SelectItem>
+                   <SelectItem value="none">بدون فرع</SelectItem>
                   {branches.map((b: any) => (
                     <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
                   ))}

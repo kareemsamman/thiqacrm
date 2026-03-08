@@ -352,16 +352,20 @@ export default function Login() {
                     <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — هذا التسجيل ينشئ وكالة جديدة مستقلة</p>
                   </div>
 
+                  <div className="rounded-xl border border-border/60 bg-secondary/40 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">هذا النموذج مخصص لتسجيل <span className="font-semibold text-foreground">وكالة جديدة</span> فقط، وليس لإضافة مستخدم داخل وكالة موجودة.</p>
+                  </div>
+
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأول *</Label>
-                        <Input value={firstName} onChange={(e) => { setFirstName(e.target.value); setSignupErrors(prev => ({ ...prev, firstName: "" })); }} placeholder="محمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.firstName ? "border-destructive" : ""}`} disabled={loading} />
+                        <Input value={firstName} onChange={(e) => { setFirstName(e.target.value); setSignupErrors(prev => ({ ...prev, firstName: "" })); setSignupFeedback(null); }} placeholder="محمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.firstName ? "border-destructive" : ""}`} disabled={loading} />
                         {signupErrors.firstName && <p className="text-xs text-destructive">{signupErrors.firstName}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأخير *</Label>
-                        <Input value={lastName} onChange={(e) => { setLastName(e.target.value); setSignupErrors(prev => ({ ...prev, lastName: "" })); }} placeholder="أحمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.lastName ? "border-destructive" : ""}`} disabled={loading} />
+                        <Input value={lastName} onChange={(e) => { setLastName(e.target.value); setSignupErrors(prev => ({ ...prev, lastName: "" })); setSignupFeedback(null); }} placeholder="أحمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.lastName ? "border-destructive" : ""}`} disabled={loading} />
                         {signupErrors.lastName && <p className="text-xs text-destructive">{signupErrors.lastName}</p>}
                       </div>
                     </div>
@@ -369,32 +373,53 @@ export default function Login() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">البريد الإلكتروني *</Label>
-                        <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
+                        <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); setSignupFeedback(null); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
                         {signupErrors.signupEmail && <p className="text-xs text-destructive">{signupErrors.signupEmail}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">رقم الهاتف (10 أرقام)</Label>
-                        <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
+                        <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); setSignupFeedback(null); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
                         {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">كلمة المرور *</Label>
-                        <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); setSignupFeedback(null); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
                         {signupErrors.signupPassword && <p className="text-xs text-destructive">{signupErrors.signupPassword}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">تأكيد كلمة المرور *</Label>
-                        <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); setSignupFeedback(null); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
                         {signupErrors.signupConfirmPassword && <p className="text-xs text-destructive">{signupErrors.signupConfirmPassword}</p>}
                       </div>
                     </div>
 
-                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>
+                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={!canSubmitSignup}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
                       {loading ? "جاري التسجيل..." : "تسجيل وكيل جديد"}
                     </Button>
+
+                    {signupFeedback && (
+                      <div
+                        className={`rounded-xl border p-3 text-sm flex items-start gap-2 ${
+                          signupFeedback.type === "success"
+                            ? "border-success/30 bg-success/10 text-success"
+                            : signupFeedback.type === "error"
+                            ? "border-destructive/30 bg-destructive/10 text-destructive"
+                            : "border-primary/30 bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {signupFeedback.type === "success" ? (
+                          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                        ) : signupFeedback.type === "error" ? (
+                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        ) : (
+                          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                        )}
+                        <p className="leading-5">{signupFeedback.message}</p>
+                      </div>
+                    )}
                   </div>
 
                   <Separator />

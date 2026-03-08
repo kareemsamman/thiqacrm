@@ -234,7 +234,6 @@ export default function Landing() {
 
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-      {/* ═══ Section 4: Tabbed Features ═══ */}
       <section id="demo" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">

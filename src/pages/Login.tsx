@@ -37,6 +37,9 @@ export default function Login() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  
+  // Signup validation errors (shown after attempted submit)
+  const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }

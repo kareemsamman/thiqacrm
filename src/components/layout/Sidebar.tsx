@@ -266,7 +266,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+      <div className="flex h-20 items-center justify-between border-b border-white/[0.08] px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
             {isThiqaSuperAdmin ? (

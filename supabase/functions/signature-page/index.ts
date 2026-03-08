@@ -133,7 +133,7 @@ serve(async (req) => {
     }
 
     // Build and return the signature page HTML using template content
-    const html = buildSignaturePageHtml(clientName, token, signatureRecord.token_expires_at, templateContent, supabaseUrl);
+    const html = buildSignaturePageHtml(clientName, token, signatureRecord.token_expires_at, templateContent, supabaseUrl, branding.companyName, branding.companyNameEn, primaryColor);
     
     return new Response(html, {
       status: 200,

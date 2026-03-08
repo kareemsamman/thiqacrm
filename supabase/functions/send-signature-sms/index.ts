@@ -362,9 +362,10 @@ function buildSignaturePageHtml(
 ): string {
   const expiryText = expiresAt ? formatDate(expiresAt) : '';
 
-  // Logo section if provided
-  const logoSection = template.logo_url 
-    ? `<img src="${template.logo_url}" alt="Logo" class="logo" style="max-height: 60px; margin-bottom: 15px;" />`
+  // Logo section: prefer branding logo, fall back to template logo
+  const logoUrl = branding.logoUrl || template.logo_url;
+  const logoSection = logoUrl
+    ? `<img src="${logoUrl}" alt="${branding.companyName}" class="logo" style="max-height: 60px; margin-bottom: 15px;" />`
     : '';
 
   return `<!DOCTYPE html>

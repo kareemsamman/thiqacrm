@@ -217,13 +217,55 @@ export default function ThiqaAgentDetail() {
     const { error } = await supabase.from('agent_subscription_payments').insert({
       agent_id: agent.id, amount: parseFloat(paymentAmount), plan: agent.plan,
       payment_date: format(paymentDate, 'yyyy-MM-dd'),
+      period_start: format(periodStart, 'yyyy-MM-dd'),
+      period_end: format(periodEnd, 'yyyy-MM-dd'),
       received_by: user?.id, notes: paymentNotes || null,
-    });
+    } as any);
     if (!error) {
       toast.success('تم تسجيل الدفعة');
       setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
+      const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setFullYear(e.getFullYear() + 1); setPeriodEnd(e);
       fetchAll();
     }
+  };
+
+  // ─── Auto-calc period end when start changes ───
+  const handlePeriodStartChange = (date: Date) => {
+    setPeriodStart(date);
+    const end = new Date(date);
+    end.setFullYear(end.getFullYear() + 1);
+    setPeriodEnd(end);
+  };
+
+  const handleEditPeriodStartChange = (date: Date) => {
+    setEditPeriodStart(date);
+    const end = new Date(date);
+    end.setFullYear(end.getFullYear() + 1);
+    setEditPeriodEnd(end);
+  };
+
+  const openEditPayment = (p: any) => {
+    setEditingPayment(p);
+    setEditPaymentAmount(String(p.amount));
+    setEditPaymentNotes(p.notes || '');
+    setEditPeriodStart(p.period_start ? new Date(p.period_start) : new Date(p.payment_date));
+    setEditPeriodEnd(p.period_end ? new Date(p.period_end) : new Date(p.payment_date));
+  };
+
+  const saveEditPayment = async () => {
+    if (!editingPayment) return;
+    setSavingPayment(true);
+    const { error } = await supabase.from('agent_subscription_payments').update({
+      amount: parseFloat(editPaymentAmount),
+      notes: editPaymentNotes || null,
+      period_start: format(editPeriodStart, 'yyyy-MM-dd'),
+      period_end: format(editPeriodEnd, 'yyyy-MM-dd'),
+    } as any).eq('id', editingPayment.id);
+    setSavingPayment(false);
+    if (error) { toast.error('خطأ في تحديث الدفعة'); return; }
+    toast.success('تم تحديث الدفعة');
+    setEditingPayment(null);
+    fetchAll();
   };
 
   // ─── Save SMS settings ───

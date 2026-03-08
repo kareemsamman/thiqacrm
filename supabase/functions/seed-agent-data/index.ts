@@ -302,60 +302,50 @@ serve(async (req) => {
       results.pricing_rules = data?.length ?? 0;
     }
 
-    // 6. Road service prices for "شركة اكس"
+    // 6. Road service prices for "شركة اكس" — always replace
     const xCompanyId = coMap.get("شركة اكس");
     if (xCompanyId) {
-      const { data: existingRsp } = await supabase
-        .from("company_road_service_prices").select("id").eq("company_id", xCompanyId).eq("agent_id", agentId);
-      
-      if (!existingRsp || existingRsp.length === 0) {
-        const rspToInsert = SEED_ROAD_SERVICE_PRICES.map((r) => {
-          const serviceId = rsRes.idMap.get(r.service_name);
-          if (!serviceId) return null;
-          return {
-            company_id: xCompanyId,
-            agent_id: agentId,
-            road_service_id: serviceId,
-            car_type: r.car_type,
-            age_band: r.age_band,
-            company_cost: r.company_cost,
-            selling_price: r.selling_price,
-          };
-        }).filter(Boolean);
+      await supabase.from("company_road_service_prices").delete().eq("company_id", xCompanyId).eq("agent_id", agentId);
 
-        if (rspToInsert.length > 0) {
-          const { data, error } = await supabase.from("company_road_service_prices").insert(rspToInsert).select("id");
-          if (error) throw error;
-          results.road_service_prices = data?.length ?? 0;
-        }
-      } else {
-        results.road_service_prices = 0;
+      const rspToInsert = SEED_ROAD_SERVICE_PRICES.map((r) => {
+        const serviceId = rsRes.idMap.get(r.service_name);
+        if (!serviceId) return null;
+        return {
+          company_id: xCompanyId,
+          agent_id: agentId,
+          road_service_id: serviceId,
+          car_type: r.car_type,
+          age_band: r.age_band,
+          company_cost: r.company_cost,
+          selling_price: r.selling_price,
+        };
+      }).filter(Boolean);
+
+      if (rspToInsert.length > 0) {
+        const { data, error } = await supabase.from("company_road_service_prices").insert(rspToInsert).select("id");
+        if (error) throw error;
+        results.road_service_prices = data?.length ?? 0;
       }
 
-      // 7. Accident fee prices for "شركة اكس"
-      const { data: existingAfp } = await supabase
-        .from("company_accident_fee_prices").select("id").eq("company_id", xCompanyId).eq("agent_id", agentId);
-      
-      if (!existingAfp || existingAfp.length === 0) {
-        const afpToInsert = SEED_ACCIDENT_FEE_PRICES.map((r) => {
-          const serviceId = afRes.idMap.get(r.service_name);
-          if (!serviceId) return null;
-          return {
-            company_id: xCompanyId,
-            agent_id: agentId,
-            accident_fee_service_id: serviceId,
-            company_cost: r.company_cost,
-            selling_price: r.selling_price,
-          };
-        }).filter(Boolean);
+      // 7. Accident fee prices for "شركة اكس" — always replace
+      await supabase.from("company_accident_fee_prices").delete().eq("company_id", xCompanyId).eq("agent_id", agentId);
 
-        if (afpToInsert.length > 0) {
-          const { data, error } = await supabase.from("company_accident_fee_prices").insert(afpToInsert).select("id");
-          if (error) throw error;
-          results.accident_fee_prices = data?.length ?? 0;
-        }
-      } else {
-        results.accident_fee_prices = 0;
+      const afpToInsert = SEED_ACCIDENT_FEE_PRICES.map((r) => {
+        const serviceId = afRes.idMap.get(r.service_name);
+        if (!serviceId) return null;
+        return {
+          company_id: xCompanyId,
+          agent_id: agentId,
+          accident_fee_service_id: serviceId,
+          company_cost: r.company_cost,
+          selling_price: r.selling_price,
+        };
+      }).filter(Boolean);
+
+      if (afpToInsert.length > 0) {
+        const { data, error } = await supabase.from("company_accident_fee_prices").insert(afpToInsert).select("id");
+        if (error) throw error;
+        results.accident_fee_prices = data?.length ?? 0;
       }
     }
 

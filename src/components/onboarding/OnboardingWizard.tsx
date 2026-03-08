@@ -10,10 +10,8 @@ import {
   Users,
   Car,
   FileText,
-  CreditCard,
   CheckCircle2,
   X,
-  Sparkles,
   ArrowLeft,
   Palette,
   Rocket,
@@ -74,8 +72,6 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ];
 
-const ONBOARDING_KEY = "thiqa_onboarding_completed";
-
 async function detectCompletedSteps(agentId: string): Promise<Set<string>> {
   const done = new Set<string>();
   try {
@@ -109,13 +105,14 @@ export function OnboardingWizard() {
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const isDashboard = location.pathname === "/" || location.pathname === "";
 
-  // Listen for manual trigger from sidebar
+  // Listen for manual trigger from sidebar profile menu
   useEffect(() => {
     const handler = () => {
-      if (!user || !isAdmin || !agentId) return;
+      setManualOpen(true);
       setReady(true);
       setVisible(true);
       if (agentId) {
@@ -124,43 +121,67 @@ export function OnboardingWizard() {
     };
     window.addEventListener('show-onboarding', handler);
     return () => window.removeEventListener('show-onboarding', handler);
-  }, [user, isAdmin, agentId]);
+  }, [agentId]);
 
+  // Auto-show on first visit (check DB)
   useEffect(() => {
     if (!user || !isAdmin || !agentId || !isDashboard) {
-      setVisible(false);
+      if (!manualOpen) setVisible(false);
       return;
     }
 
-    const key = `${ONBOARDING_KEY}_${user.id}`;
-    const completed = localStorage.getItem(key);
-    if (completed) return;
-
     let cancelled = false;
-    detectCompletedSteps(agentId).then((done) => {
-      if (cancelled) return;
-      setCompletedSteps(done);
 
-      const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
-      if (allDone) {
-        localStorage.setItem(key, "true");
-        return;
+    // Check DB for onboarding_completed
+    (async () => {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", user.id)
+          .single();
+
+        if (cancelled) return;
+        if ((profile as any)?.onboarding_completed) return; // Already completed
+
+        const done = await detectCompletedSteps(agentId);
+        if (cancelled) return;
+        setCompletedSteps(done);
+
+        const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
+        if (allDone) {
+          // Mark as completed in DB
+          await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
+          return;
+        }
+
+        setReady(true);
+        setTimeout(() => setVisible(true), 500);
+      } catch (e) {
+        console.error("Onboarding check error:", e);
       }
-
-      setReady(true);
-      setTimeout(() => setVisible(true), 500);
-    });
+    })();
 
     return () => { cancelled = true; };
-  }, [user, isAdmin, agentId, isDashboard]);
+  }, [user, isAdmin, agentId, isDashboard, manualOpen]);
 
-  const handleSkip = () => {
-    if (user) localStorage.setItem(`${ONBOARDING_KEY}_${user.id}`, "true");
+  const handleSkip = async () => {
     setVisible(false);
+    setManualOpen(false);
+    // Mark completed in DB
+    if (user && !manualOpen) {
+      await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
+    }
+  };
+
+  const handleClose = () => {
+    setVisible(false);
+    setManualOpen(false);
   };
 
   const handleGoToStep = (step: OnboardingStep) => {
     setVisible(false);
+    setManualOpen(false);
     navigate(step.targetRoute);
   };
 
@@ -183,7 +204,6 @@ export function OnboardingWizard() {
 
       if (parts.length > 0) {
         toast.success(`تم إضافة بيانات تجريبية: ${parts.join('، ')}`);
-        // Re-detect
         const done = await detectCompletedSteps(agentId);
         setCompletedSteps(done);
       } else {
@@ -204,7 +224,7 @@ export function OnboardingWizard() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleSkip} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
       <div className="relative w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden animate-scale-in">
         {/* Header */}
@@ -212,7 +232,7 @@ export function OnboardingWizard() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleSkip}
+            onClick={handleClose}
             className="absolute left-3 top-3 h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -258,7 +278,6 @@ export function OnboardingWizard() {
                     : "bg-muted/40 border border-transparent hover:border-border"
                 )}
               >
-                {/* Icon */}
                 <div className={cn(
                   "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 text-lg",
                   isDone ? "bg-primary/10" : "bg-muted"
@@ -270,7 +289,6 @@ export function OnboardingWizard() {
                   )}
                 </div>
 
-                {/* Text */}
                 <div className="flex-1 min-w-0">
                   <p className={cn(
                     "text-sm font-semibold",
@@ -281,7 +299,6 @@ export function OnboardingWizard() {
                   <p className="text-xs text-muted-foreground truncate">{step.description}</p>
                 </div>
 
-                {/* Arrow */}
                 <ArrowLeft className={cn(
                   "h-4 w-4 shrink-0",
                   isDone ? "text-primary/50" : "text-muted-foreground/50"
@@ -293,7 +310,6 @@ export function OnboardingWizard() {
 
         {/* Footer actions */}
         <div className="px-4 pb-4 pt-2 space-y-2 border-t border-border/50">
-          {/* Seed data button */}
           <Button
             variant="outline"
             className="w-full h-10 gap-2 text-sm rounded-xl"
@@ -308,28 +324,20 @@ export function OnboardingWizard() {
             {seeding ? 'جاري إضافة البيانات...' : 'إضافة بيانات تجريبية للبداية'}
           </Button>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSkip}
-              className="flex-1 text-xs text-muted-foreground h-9"
-            >
-              تخطي الدليل
-            </Button>
-          </div>
+          {!manualOpen && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkip}
+                className="flex-1 text-xs text-muted-foreground h-9"
+              >
+                تخطي الدليل ولا تعرضه مرة أخرى
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-}
-
-export function useResetOnboarding() {
-  const { user } = useAuth();
-  return () => {
-    if (user) {
-      localStorage.removeItem(`${ONBOARDING_KEY}_${user.id}`);
-      window.location.reload();
-    }
-  };
 }

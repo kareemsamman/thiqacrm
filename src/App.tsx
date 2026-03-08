@@ -100,6 +100,7 @@ const App = () => (
           <AuthProvider>
             <SessionTrackerWrapper>
             <AgentProvider>
+            <SidebarStateProvider>
             <RecentClientProvider>
             <Routes>
               <Route path="/landing" element={<Landing />} />

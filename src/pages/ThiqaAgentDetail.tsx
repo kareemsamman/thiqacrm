@@ -251,7 +251,7 @@ export default function ThiqaAgentDetail() {
   const handleEditPeriodStartChange = (date: Date) => {
     setEditPeriodStart(date);
     const end = new Date(date);
-    end.setFullYear(end.getFullYear() + 1);
+    end.setMonth(end.getMonth() + 1);
     setEditPeriodEnd(end);
   };
 

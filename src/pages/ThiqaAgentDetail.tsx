@@ -1001,6 +1001,63 @@ export default function ThiqaAgentDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Agent Dialog */}
+      <DeleteConfirmDialog
+        open={deleteAgentOpen}
+        onOpenChange={setDeleteAgentOpen}
+        onConfirm={deleteAgent}
+        title="حذف الوكيل"
+        description={`هل أنت متأكد من حذف الوكيل "${agent.name_ar || agent.name}"؟ سيتم حذف جميع بياناته بشكل نهائي.`}
+        loading={deletingAgent}
+      />
+
+      {/* Delete Payment Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletePaymentId}
+        onOpenChange={(open) => !open && setDeletePaymentId(null)}
+        onConfirm={() => deletePaymentId && deletePayment(deletePaymentId)}
+        title="حذف الدفعة"
+        description="هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء."
+      />
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل المستخدم</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editUserName} onChange={e => setEditUserName(e.target.value)} placeholder="الاسم" />
+            </div>
+            <div className="space-y-2">
+              <Label>الهاتف</Label>
+              <Input value={editUserPhone} onChange={e => setEditUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+            </div>
+            <div className="space-y-2">
+              <Label>الفرع</Label>
+              <Select value={editUserBranch} onValueChange={setEditUserBranch}>
+                <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">بدون فرع</SelectItem>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingUser(null)}>إلغاء</Button>
+            <Button onClick={saveEditUser} disabled={savingUser}>
+              {savingUser && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

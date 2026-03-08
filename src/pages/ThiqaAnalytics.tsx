@@ -123,8 +123,8 @@ export default function ThiqaAnalytics() {
   }, [events]);
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <MainLayout>
+    <div className="space-y-6" dir="rtl">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

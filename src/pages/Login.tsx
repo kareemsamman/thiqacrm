@@ -291,7 +291,7 @@ export default function Login() {
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/40" /></div>
                         <div className="relative flex justify-center text-xs">
-                          <span className="bg-white/70 dark:bg-card/70 backdrop-blur-sm px-3 text-muted-foreground">أو أنشئ حساب يدوياً</span>
+                          <span className="bg-white/70 dark:bg-card/70 backdrop-blur-sm px-3 text-muted-foreground">أو سجّل وكالة جديدة يدوياً</span>
                         </div>
                       </div>
                     </>
@@ -300,7 +300,7 @@ export default function Login() {
                   {/* 35-day free trial banner */}
                   <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
                     <p className="text-sm font-bold text-primary">🎉 35 يوم مجاناً!</p>
-                    <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — جرّب النظام بالكامل مجاناً</p>
+                    <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — هذا التسجيل ينشئ وكالة جديدة مستقلة</p>
                   </div>
 
                   <div className="space-y-3">
@@ -329,12 +329,6 @@ export default function Login() {
                         {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
                       </div>
                     </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">تاريخ الميلاد</Label>
-                      <ArabicDatePicker value={birthDate} onChange={(val) => setBirthDate(val)} isBirthDate disabled={loading} className="rounded-xl" />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">كلمة المرور *</Label>

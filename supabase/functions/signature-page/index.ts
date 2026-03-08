@@ -322,7 +322,7 @@ function buildSignaturePageHtml(
     body {
       font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
       min-height: 100vh;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 50%, #3d5a7f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 50%, ${primaryColor}bb 100%);
       padding: 20px;
       display: flex;
       align-items: center;

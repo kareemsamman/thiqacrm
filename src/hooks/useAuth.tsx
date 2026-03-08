@@ -25,7 +25,9 @@ interface AuthContextType {
   branchName: string | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+}
 
+const SESSION_KEY = 'admin_session_active';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {

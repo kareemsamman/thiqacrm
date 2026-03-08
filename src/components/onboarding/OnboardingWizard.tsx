@@ -121,16 +121,9 @@ export function OnboardingWizard() {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   const refreshCompletedSteps = useCallback(async () => {
-    if (!agentId) return { done: new Set<string>(), gainedProgress: false };
-
+    if (!agentId) return;
     const done = await detectCompletedSteps(agentId);
     setCompletedSteps(done);
-
-    const doneCount = ONBOARDING_STEPS.filter((step) => done.has(step.id)).length;
-    const gainedProgress = doneCount > previousDoneCountRef.current;
-    previousDoneCountRef.current = doneCount;
-
-    return { done, gainedProgress };
   }, [agentId]);
 
   // Listen for manual open only (sidebar menu click)

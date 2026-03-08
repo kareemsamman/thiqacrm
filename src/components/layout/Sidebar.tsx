@@ -446,6 +446,19 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               <UserCircle className="h-4 w-4" />
               <span>الملف الشخصي</span>
             </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem
+                onClick={() => {
+                  const key = `thiqa_onboarding_completed_${profile?.id}`;
+                  localStorage.removeItem(key);
+                  window.location.reload();
+                }}
+                className="gap-2 cursor-pointer"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>دليل البداية</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleSignOut}

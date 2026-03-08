@@ -15,6 +15,7 @@ import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
 import featurePaperless from "@/assets/landing/feature-paperless.png";
 import featureMarketing from "@/assets/landing/feature-marketing.png";
 import sliderBg from "@/assets/landing/slider-bg.png";
+import gridLogoBg from "@/assets/landing/grid-logo-bg.png";
 
 const featureTabs = [
   {
@@ -394,6 +395,42 @@ export default function Landing() {
               </>
             );
           })()}
+        </div>
+      </section>
+
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
+      {/* ═══ Section 5: Grid Logo ═══ */}
+      <section className="relative py-24 md:py-36 overflow-hidden bg-[#171719]">
+        <div className="relative z-10 text-center px-6">
+          <p className="text-sm text-white/40 mb-4 tracking-wide">פתרון מקיף ופשוט</p>
+          <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-10">
+            כל מה שהסוכנות צריכה, תחת קורת גג אחת
+          </h2>
+        </div>
+
+        {/* Grid logo background */}
+        <div className="relative w-full max-w-5xl mx-auto">
+          <img src={gridLogoBg} alt="" className="w-full h-auto" loading="lazy" />
+        </div>
+
+        <div className="relative z-10 text-center px-6 mt-10">
+          <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed">
+            שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן
+            <br />
+            ומעקב מלא אחרי מחזור חיי הפוליסה — הכל מהדסקטופ או מהנייד.
+          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="px-8 py-3 text-[14px] font-bold text-white/90 hover:text-white transition-colors"
+            style={{
+              borderRadius: '100px',
+              border: '2px solid rgba(255, 255, 255, 0.40)',
+              background: 'rgba(255, 255, 255, 0.10)',
+            }}
+          >
+            קבלו 35 ימים בחינם
+          </button>
         </div>
       </section>
 

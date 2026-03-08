@@ -357,7 +357,8 @@ function buildSignaturePageHtml(
   token: string, 
   expiresAt: string | null,
   template: TemplateContent,
-  supabaseUrl: string
+  supabaseUrl: string,
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const expiryText = expiresAt ? formatDate(expiresAt) : '';
 

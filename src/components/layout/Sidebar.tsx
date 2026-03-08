@@ -272,7 +272,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
         {!collapsed && (
           <div className="flex items-center gap-2">
             {isThiqaSuperAdmin ? (
-              <img src={thiqaLogo} alt="Thiqa" className="h-12 w-12 rounded-lg object-contain" />
+              <img src={thiqaLogo} alt="Thiqa" className="rounded-lg object-contain" />
             ) : siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
             ) : (

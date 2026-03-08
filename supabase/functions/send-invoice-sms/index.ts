@@ -241,7 +241,7 @@ serve(async (req) => {
     const storagePath = `invoices/${year}/${month}/ab_invoice_${clientNameSafe}_${timestamp}_${randomId}.html`;
 
     // Upload AB Invoice to Bunny Storage
-    const bunnyUploadUrl = `https://storage.bunnycdn.com/${bunnyStorageZone}/${storagePath}`;
+    const bunnyUploadUrl = buildBunnyStorageUploadUrl(bunnyStorageZone, storagePath);
     
     console.log(`[send-invoice-sms] Uploading AB invoice to: ${bunnyUploadUrl}`);
 

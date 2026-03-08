@@ -194,7 +194,7 @@ serve(async (req) => {
     const clientNameSafe = client.full_name?.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') || 'customer';
     const storagePath = `signatures/${year}/${month}/sign_${clientNameSafe}_${timestamp}_${randomId}.html`;
 
-    const bunnyUploadUrl = `https://storage.bunnycdn.com/${bunnyStorageZone}/${storagePath}`;
+    const bunnyUploadUrl = buildBunnyStorageUploadUrl(bunnyStorageZone, storagePath);
     
     console.log(`[send-signature-sms] Uploading signature page to: ${bunnyUploadUrl}`);
 

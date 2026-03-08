@@ -212,6 +212,23 @@ Deno.serve(async (req) => {
           text: `مرحباً ${fullName}، تم إنشاء حسابك بنجاح على منصة ثقة للتأمين.`,
           html: htmlContent,
         });
+
+        // Notify super admin
+        const superAdminEmail = smtp.superadmin_email;
+        if (superAdminEmail && superAdminEmail.includes("@")) {
+          const adminHtml = buildEmailHtml({
+            body: newAgentAdminNotifyBody(fullName, normalizedEmail, phone?.trim() || null),
+            footerText: "إشعار تلقائي من منصة ثقة للتأمين.",
+          });
+
+          await transporter.sendMail({
+            from: `"${smtp.smtp_sender_name || "Thiqa Insurance"}" <${smtpUser}>`,
+            to: superAdminEmail,
+            subject: "=?UTF-8?B?" + btoa(unescape(encodeURIComponent("وكيل جديد سجّل في المنصة 🆕"))) + "?=",
+            text: `وكيل جديد: ${fullName} - ${normalizedEmail}`,
+            html: adminHtml,
+          });
+        }
       }
     } catch (welcomeErr) {
       console.error("Welcome email error (non-blocking):", welcomeErr);

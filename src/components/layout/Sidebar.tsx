@@ -156,6 +156,14 @@ export const navigationGroups: NavGroup[] = [
       { name: "إعدادات X-Service", href: "/admin/xservice", icon: Link2 },
     ],
   },
+  {
+    name: "إدارة ثقة",
+    icon: Crown,
+    items: [
+      { name: "الوكلاء", href: "/thiqa/agents", icon: Building2, thiqaSuperAdminOnly: true },
+      { name: "سجل المدفوعات", href: "/thiqa/payments", icon: CreditCard, thiqaSuperAdminOnly: true },
+    ],
+  },
 ];
 
 function SidebarContent({ collapsed, onCollapse, onNavigate }: { 

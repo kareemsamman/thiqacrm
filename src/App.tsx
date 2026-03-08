@@ -63,6 +63,13 @@ import ActivityLog from "./pages/ActivityLog";
 import BrandingSettings from "./pages/BrandingSettings";
 import XServiceSettings from "./pages/XServiceSettings";
 import { SiteHelmet } from "@/components/layout/SiteHelmet";
+import { AgentProvider } from "@/hooks/useAgentContext";
+import { ThiqaAdminRoute } from "@/components/auth/ThiqaAdminRoute";
+import SubscriptionExpired from "./pages/SubscriptionExpired";
+import ThiqaAgents from "./pages/ThiqaAgents";
+import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
+import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
+import ThiqaPayments from "./pages/ThiqaPayments";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,10 +96,17 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <SessionTrackerWrapper>
+            <AgentProvider>
             <RecentClientProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
+              <Route path="/subscription-expired" element={<SubscriptionExpired />} />
+              {/* Thiqa Super Admin routes */}
+              <Route path="/thiqa/agents" element={<ThiqaAdminRoute><ThiqaAgents /></ThiqaAdminRoute>} />
+              <Route path="/thiqa/agents/new" element={<ThiqaAdminRoute><ThiqaCreateAgent /></ThiqaAdminRoute>} />
+              <Route path="/thiqa/agents/:agentId" element={<ThiqaAdminRoute><ThiqaAgentDetail /></ThiqaAdminRoute>} />
+              <Route path="/thiqa/payments" element={<ThiqaAdminRoute><ThiqaPayments /></ThiqaAdminRoute>} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Index />
@@ -358,6 +372,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             </RecentClientProvider>
+            </AgentProvider>
             </SessionTrackerWrapper>
           </AuthProvider>
         </BrowserRouter>

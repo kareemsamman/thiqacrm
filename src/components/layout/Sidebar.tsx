@@ -47,8 +47,9 @@ import { SidebarClaimsBadge } from "./SidebarClaimsBadge";
 import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
-import { Palette, Link2 } from "lucide-react";
+import { Palette, Link2, Crown } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useAgentContext } from "@/hooks/useAgentContext";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
 
 interface NavItem {
@@ -57,6 +58,8 @@ interface NavItem {
   icon: LucideIcon;
   adminOnly?: boolean;
   superAdminOnly?: boolean;
+  thiqaSuperAdminOnly?: boolean;
+  featureKey?: string;
   badge?: 'notifications' | 'debt' | 'tasks' | 'claims' | 'accidents' | 'renewals';
 }
 
@@ -98,11 +101,11 @@ export const navigationGroups: NavGroup[] = [
     name: "المالية",
     icon: Wallet,
     items: [
-      { name: "الشيكات", href: "/cheques", icon: CreditCard },
+      { name: "الشيكات", href: "/cheques", icon: CreditCard, featureKey: 'cheques' },
       { name: "متابعة الديون", href: "/debt-tracking", icon: DollarSign, badge: 'debt' },
       { name: "شركات التأمين", href: "/companies", icon: Building2, adminOnly: true },
       { name: "الوسطاء", href: "/brokers", icon: Wallet, adminOnly: true },
-      { name: "سندات القبض والصرف", href: "/expenses", icon: DollarSign, adminOnly: true },
+      { name: "سندات القبض والصرف", href: "/expenses", icon: DollarSign, adminOnly: true, featureKey: 'expenses' },
     ],
   },
   {
@@ -110,8 +113,8 @@ export const navigationGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { name: "تقارير الوثائق", href: "/reports/policies", icon: BarChart3, badge: 'renewals' },
-      { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true },
-      { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true },
+      { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true, featureKey: 'company_settlement' },
+      { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true, featureKey: 'financial_reports' },
     ],
   },
   {
@@ -153,6 +156,14 @@ export const navigationGroups: NavGroup[] = [
       { name: "إعدادات X-Service", href: "/admin/xservice", icon: Link2 },
     ],
   },
+  {
+    name: "إدارة ثقة",
+    icon: Crown,
+    items: [
+      { name: "الوكلاء", href: "/thiqa/agents", icon: Building2, thiqaSuperAdminOnly: true },
+      { name: "سجل المدفوعات", href: "/thiqa/payments", icon: CreditCard, thiqaSuperAdminOnly: true },
+    ],
+  },
 ];
 
 function SidebarContent({ collapsed, onCollapse, onNavigate }: { 
@@ -166,17 +177,20 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin, branchName } = useAuth();
   const { data: siteSettings } = useSiteSettings();
+  const { hasFeature, isThiqaSuperAdmin } = useAgentContext();
 
   const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 
-  // Filter groups and items based on role
+  // Filter groups and items based on role + features
   const filteredGroups = navigationGroups
     .filter(group => !group.adminOnly || isAdmin)
     .map(group => ({
       ...group,
       items: group.items.filter(item => {
+        if (item.thiqaSuperAdminOnly && !isThiqaSuperAdmin) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;
+        if (item.featureKey && !hasFeature(item.featureKey)) return false;
         return true;
       }),
     }))

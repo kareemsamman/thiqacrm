@@ -235,7 +235,7 @@ serve(async (req) => {
     const remaining = (policy.insurance_price || 0) - totalPaid;
 
     // Generate AB Invoice HTML and upload to Bunny CDN
-    const abInvoiceHtml = buildAbInvoiceHtml(policy, payments || [], paymentType, totalPaid, remaining, insuranceFiles || [], policyChildren || [], companySettings);
+    const abInvoiceHtml = buildAbInvoiceHtml(policy, payments || [], paymentType, totalPaid, remaining, insuranceFiles || [], policyChildren || [], companySettings, branding);
     
     const now = new Date();
     const year = now.getFullYear();

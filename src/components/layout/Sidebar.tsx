@@ -57,7 +57,7 @@ import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
 import { ProfileEditDrawer } from "./ProfileEditDrawer";
-import { Palette, Link2, Crown } from "lucide-react";
+import { Palette, Link2, Crown, HelpCircle } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAgentContext } from "@/hooks/useAgentContext";
 import thiqaLogo from "@/assets/thiqa-logo.svg";

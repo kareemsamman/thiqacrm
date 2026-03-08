@@ -502,7 +502,8 @@ export default function ThiqaAgentDetail() {
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <Button size="sm" className="text-xs" onClick={() => {
-              const { startImpersonation } = require('@/hooks/useAgentContext');
+              startImpersonation(agentId!);
+              navigate('/');
             }}>
               <Building2 className="h-3.5 w-3.5 ml-1" />
               الدخول للنظام

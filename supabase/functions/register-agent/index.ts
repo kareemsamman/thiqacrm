@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .from("thiqa_platform_settings")
       .select("setting_value")
       .eq("setting_key", "skip_email_verification")
-      .single();
+      .maybeSingle();
 
     const skipEmailVerification = skipSetting?.setting_value === "true";
 

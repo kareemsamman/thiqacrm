@@ -519,6 +519,60 @@ export default function AdminUsers() {
           </div>
         </div>
 
+        {/* Create User Form */}
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            إنشاء مستخدم جديد
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>الاسم الكامل</Label>
+              <Input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="مثال: أحمد محمد" />
+            </div>
+            <div>
+              <Label>البريد الإلكتروني *</Label>
+              <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" type="email" />
+            </div>
+            <div>
+              <Label>كلمة المرور *</Label>
+              <Input value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="6 أحرف على الأقل" dir="ltr" type="password" />
+            </div>
+            <div>
+              <Label>الهاتف</Label>
+              <Input value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+            </div>
+            <div>
+              <Label>الصلاحية *</Label>
+              <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as 'admin' | 'worker')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">مدير (Admin)</SelectItem>
+                  <SelectItem value="worker">موظف (Worker)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {branches.length > 0 && (
+              <div>
+                <Label>الفرع</Label>
+                <Select value={newUserBranch} onValueChange={setNewUserBranch}>
+                  <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون فرع</SelectItem>
+                    {branches.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>{branch.name_ar || branch.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <Button onClick={handleCreateUser} disabled={creatingUser || !newUserEmail.trim() || !newUserPassword.trim()}>
+            {creatingUser ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
+            إنشاء المستخدم
+          </Button>
+        </div>
+
         {/* Tabs */}
         <Tabs defaultValue="pending" className="space-y-4">
           <TabsList className="grid w-full max-w-xl grid-cols-4">

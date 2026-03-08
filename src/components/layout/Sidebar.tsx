@@ -61,6 +61,8 @@ import { Palette, Link2, Crown } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAgentContext } from "@/hooks/useAgentContext";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
+import { useSidebarState } from "@/hooks/useSidebarState";
 
 interface NavItem {
   name: string;

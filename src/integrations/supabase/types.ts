@@ -4553,6 +4553,7 @@ export type Database = {
           full_name: string | null
           id: string
           last_seen_notifications_at: string | null
+          onboarding_completed: boolean
           pbx_extension: string | null
           phone: string | null
           status: Database["public"]["Enums"]["user_status"]
@@ -4568,6 +4569,7 @@ export type Database = {
           full_name?: string | null
           id: string
           last_seen_notifications_at?: string | null
+          onboarding_completed?: boolean
           pbx_extension?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status"]
@@ -4583,6 +4585,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_seen_notifications_at?: string | null
+          onboarding_completed?: boolean
           pbx_extension?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["user_status"]

@@ -1069,10 +1069,18 @@ export default function ThiqaAgentDetail() {
                   <Button onClick={recordPayment} disabled={!paymentAmount} className="w-full text-xs md:text-sm whitespace-nowrap">تسجيل الدفعة</Button>
                 </div>
 
+                {/* No active payment warning */}
+                {payments.length > 0 && !payments.some((p: any) => p.status === 'active') && (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-center">
+                    <p className="text-sm font-medium text-destructive">⚠️ لا يوجد دفعة فعالة — الوكيل لم يدفع</p>
+                  </div>
+                )}
+
                 <div className="border rounded-lg overflow-x-auto">
-                  <table className="w-full text-sm min-w-[500px]">
+                  <table className="w-full text-sm min-w-[600px]">
                     <thead className="bg-muted/50">
                       <tr>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الحالة</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">من تاريخ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إلى تاريخ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
@@ -1084,6 +1092,11 @@ export default function ThiqaAgentDetail() {
                     <tbody>
                       {payments.map((p: any) => (
                         <tr key={p.id} className="border-t">
+                          <td className="p-2 md:p-3">
+                            <Badge className={`text-[10px] md:text-xs ${p.status === 'active' ? 'bg-green-600' : 'bg-muted text-muted-foreground'}`}>
+                              {p.status === 'active' ? 'فعالة' : 'منتهية'}
+                            </Badge>
+                          </td>
                           <td className="p-2 md:p-3 text-xs md:text-sm">{p.period_start ? format(new Date(p.period_start), 'dd/MM/yyyy') : format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
                           <td className="p-2 md:p-3 text-xs md:text-sm">{p.period_end ? format(new Date(p.period_end), 'dd/MM/yyyy') : '—'}</td>
                           <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
@@ -1101,7 +1114,13 @@ export default function ThiqaAgentDetail() {
                           </td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">
+                            لا توجد مدفوعات — الوكيل لم يسدد أي دفعة بعد
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

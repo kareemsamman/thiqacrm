@@ -289,6 +289,12 @@ export default function Login() {
                     </>
                   )}
 
+                  {/* 35-day free trial banner */}
+                  <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
+                    <p className="text-sm font-bold text-primary">🎉 35 يوم مجاناً!</p>
+                    <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — جرّب النظام بالكامل مجاناً</p>
+                  </div>
+
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
@@ -303,33 +309,35 @@ export default function Login() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">البريد الإلكتروني *</Label>
+                        <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
+                        {signupErrors.signupEmail && <p className="text-xs text-destructive">{signupErrors.signupEmail}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">رقم الهاتف (10 أرقام)</Label>
+                        <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
+                        {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
+                      </div>
+                    </div>
+
                     <div className="space-y-1">
                       <Label className="text-xs">تاريخ الميلاد</Label>
                       <ArabicDatePicker value={birthDate} onChange={(val) => setBirthDate(val)} isBirthDate disabled={loading} className="rounded-xl" />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">البريد الإلكتروني *</Label>
-                      <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
-                      {signupErrors.signupEmail && <p className="text-xs text-destructive">{signupErrors.signupEmail}</p>}
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">رقم الهاتف (10 أرقام)</Label>
-                      <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
-                      {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">كلمة المرور *</Label>
-                      <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
-                      {signupErrors.signupPassword && <p className="text-xs text-destructive">{signupErrors.signupPassword}</p>}
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">تأكيد كلمة المرور *</Label>
-                      <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
-                      {signupErrors.signupConfirmPassword && <p className="text-xs text-destructive">{signupErrors.signupConfirmPassword}</p>}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">كلمة المرور *</Label>
+                        <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        {signupErrors.signupPassword && <p className="text-xs text-destructive">{signupErrors.signupPassword}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">تأكيد كلمة المرور *</Label>
+                        <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        {signupErrors.signupConfirmPassword && <p className="text-xs text-destructive">{signupErrors.signupConfirmPassword}</p>}
+                      </div>
                     </div>
 
                     <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>

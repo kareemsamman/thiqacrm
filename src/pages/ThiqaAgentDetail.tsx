@@ -107,6 +107,7 @@ export default function ThiqaAgentDetail() {
   const [editUserName, setEditUserName] = useState("");
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserBranch, setEditUserBranch] = useState("");
+  const [editUserPassword, setEditUserPassword] = useState("");
   const [savingUser, setSavingUser] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);

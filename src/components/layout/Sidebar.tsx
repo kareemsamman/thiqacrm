@@ -447,13 +447,15 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
             {isAdmin && (
               <DropdownMenuItem
                 onClick={() => {
-                  const key = `thiqa_onboarding_completed_${profile?.id}`;
-                  localStorage.removeItem(key);
                   if (location.pathname === '/' || location.pathname === '') {
                     window.dispatchEvent(new Event('show-onboarding'));
-                  } else {
-                    navigate('/');
+                    return;
                   }
+
+                  navigate('/');
+                  setTimeout(() => {
+                    window.dispatchEvent(new Event('show-onboarding'));
+                  }, 150);
                 }}
                 className="gap-2 cursor-pointer"
               >

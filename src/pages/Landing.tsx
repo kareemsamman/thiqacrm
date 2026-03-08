@@ -82,7 +82,7 @@ export default function Landing() {
       </section>
 
       {/* ═══ Section 2: כל הכלים — Screenshots tilted ═══ */}
-      <section id="features" className="py-24 md:py-36 relative">
+      <section id="features" className="py-24 md:py-36 relative bg-[#0a0e1a]">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight">

@@ -169,7 +169,7 @@ export default function Landing() {
           </p>
           <div className="mt-10">
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/login?view=signup")}
               className="text-[16px] font-bold text-white/90 hover:text-white transition-colors px-10 py-4"
               style={{
                 borderRadius: '100px',

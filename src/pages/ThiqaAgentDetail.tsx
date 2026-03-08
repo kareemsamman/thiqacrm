@@ -119,6 +119,13 @@ export default function ThiqaAgentDetail() {
   const [importTotalRows, setImportTotalRows] = useState(0);
   const [importDoneRows, setImportDoneRows] = useState(0);
 
+  // Elapsed time ticker for import
+  useEffect(() => {
+    if (!importStartTime) return;
+    const interval = setInterval(() => setImportElapsed(Math.floor((Date.now() - importStartTime) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [importStartTime]);
+
   useEffect(() => {
     if (agentId) fetchAll();
   }, [agentId]);

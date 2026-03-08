@@ -473,8 +473,26 @@ export function PolicyWizard({
           .select()
           .single();
 
-        if (clientError) throw clientError;
-        clientId = newClientData.id;
+        if (clientError) {
+          // If duplicate id_number, fetch the existing client instead
+          if (clientError.code === '23505' && clientError.message?.includes('id_number')) {
+            const { data: existingClient } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('id_number', newClient.id_number.trim())
+              .is('deleted_at', null)
+              .single();
+            if (existingClient) {
+              clientId = existingClient.id;
+            } else {
+              throw clientError;
+            }
+          } else {
+            throw clientError;
+          }
+        } else {
+          clientId = newClientData.id;
+        }
       }
 
       if (!clientId) throw new Error('Client ID is required');
@@ -702,9 +720,26 @@ export function PolicyWizard({
             .select()
             .single();
 
-          if (clientError) throw clientError;
-          clientId = newClientData.id;
-          newlyCreatedClientId = newClientData.id; // Store the new client ID
+          if (clientError) {
+            if (clientError.code === '23505' && clientError.message?.includes('id_number')) {
+              const { data: existingClient } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('id_number', newClient.id_number.trim())
+                .is('deleted_at', null)
+                .single();
+              if (existingClient) {
+                clientId = existingClient.id;
+              } else {
+                throw clientError;
+              }
+            } else {
+              throw clientError;
+            }
+          } else {
+            clientId = newClientData.id;
+            newlyCreatedClientId = newClientData.id;
+          }
         }
 
         if (!clientId) throw new Error('Client ID is required');

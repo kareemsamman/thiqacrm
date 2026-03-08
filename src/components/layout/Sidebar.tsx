@@ -181,14 +181,16 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
 
   const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 
-  // Filter groups and items based on role
+  // Filter groups and items based on role + features
   const filteredGroups = navigationGroups
     .filter(group => !group.adminOnly || isAdmin)
     .map(group => ({
       ...group,
       items: group.items.filter(item => {
+        if (item.thiqaSuperAdminOnly && !isThiqaSuperAdmin) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;
+        if (item.featureKey && !hasFeature(item.featureKey)) return false;
         return true;
       }),
     }))

@@ -564,9 +564,9 @@ export default function Landing() {
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">أسئلة وأجوبة</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">{ct(content, "faq_label", "أسئلة وأجوبة")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            كل ما يهمك معرفته عن Thiqa
+            {ct(content, "faq_title", "كل ما يهمك معرفته عن Thiqa")}
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 md:gap-12">

@@ -57,6 +57,7 @@ const plans = [
 ];
 
 export default function Pricing() {
+  const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [yearly, setYearly] = useState(false);
 

@@ -25,6 +25,7 @@ import {
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
+import { useAgentContext } from "@/hooks/useAgentContext";
 
 // ─── Feature flags ───
 const ALL_FEATURES = [

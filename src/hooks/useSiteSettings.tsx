@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAgentContext } from "./useAgentContext";
 
 export interface SiteSettings {
   id: string;
@@ -13,13 +14,18 @@ export interface SiteSettings {
 }
 
 export function useSiteSettings() {
+  const { agentId } = useAgentContext();
+
   return useQuery({
-    queryKey: ["site-settings"],
+    queryKey: ["site-settings", agentId],
+    enabled: Boolean(agentId),
     queryFn: async (): Promise<SiteSettings | null> => {
+      if (!agentId) return null;
+
       const { data, error } = await supabase
         .from("site_settings")
         .select("*")
-        .limit(1)
+        .eq("agent_id", agentId)
         .maybeSingle();
 
       if (error) throw error;
@@ -31,22 +37,43 @@ export function useSiteSettings() {
 
 export function useUpdateSiteSettings() {
   const queryClient = useQueryClient();
+  const { agentId } = useAgentContext();
 
   return useMutation({
     mutationFn: async (updates: Partial<Omit<SiteSettings, "id" | "updated_at" | "updated_by">>) => {
-      // Get the single row
-      const { data: existing } = await supabase
+      if (!agentId) throw new Error("Agent context not found");
+
+      const { data: existing, error: existingError } = await supabase
         .from("site_settings")
         .select("id")
-        .limit(1)
-        .single();
+        .eq("agent_id", agentId)
+        .maybeSingle();
 
-      if (!existing) throw new Error("No settings row found");
+      if (existingError) throw existingError;
+
+      if (existing?.id) {
+        const { data, error } = await supabase
+          .from("site_settings")
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
 
       const { data, error } = await supabase
         .from("site_settings")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", existing.id)
+        .insert({
+          agent_id: agentId,
+          site_title: updates.site_title ?? "Thiqa",
+          site_description: updates.site_description ?? "",
+          logo_url: updates.logo_url ?? null,
+          favicon_url: updates.favicon_url ?? null,
+          og_image_url: updates.og_image_url ?? null,
+          updated_at: new Date().toISOString(),
+        })
         .select()
         .single();
 
@@ -54,7 +81,8 @@ export function useUpdateSiteSettings() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["site-settings", agentId] });
+      queryClient.removeQueries({ queryKey: ["site-settings"], exact: true });
     },
   });
 }

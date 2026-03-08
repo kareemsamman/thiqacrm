@@ -94,7 +94,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
       {/* Elegant Letterhead */}
       <div style={{ 
         padding: '32px 40px 24px',
-        borderBottom: '3px double #0d9488',
+        borderBottom: '3px double hsl(225, 65%, 50%)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
           <h1 style={{ 

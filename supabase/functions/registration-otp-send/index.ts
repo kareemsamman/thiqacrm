@@ -19,6 +19,27 @@ async function hashOTP(otp: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function getSmtpSettings(adminClient: any) {
+  const { data, error } = await adminClient
+    .from("thiqa_platform_settings")
+    .select("setting_key, setting_value")
+    .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name"]);
+
+  if (error) throw new Error("فشل في تحميل إعدادات SMTP");
+
+  const map: Record<string, string> = {};
+  (data || []).forEach((r: any) => { map[r.setting_key] = r.setting_value || ""; });
+
+  // Fallback to env vars if DB values are empty
+  return {
+    host: map.smtp_host || Deno.env.get("THIQA_SMTP_HOST") || "smtp.hostinger.com",
+    port: parseInt(map.smtp_port || Deno.env.get("THIQA_SMTP_PORT") || "465"),
+    user: map.smtp_user || Deno.env.get("THIQA_SMTP_USER") || "",
+    password: map.smtp_password || Deno.env.get("THIQA_SMTP_PASSWORD") || "",
+    senderName: map.smtp_sender_name || "Thiqa Insurance",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -27,13 +48,10 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const smtpHost = Deno.env.get("THIQA_SMTP_HOST") || "smtp.hostinger.com";
-    const smtpPort = parseInt(Deno.env.get("THIQA_SMTP_PORT") || "465");
-    const smtpUser = Deno.env.get("THIQA_SMTP_USER");
-    const smtpPassword = Deno.env.get("THIQA_SMTP_PASSWORD");
+    const smtp = await getSmtpSettings(adminClient);
 
-    if (!smtpUser || !smtpPassword) {
-      throw new Error("SMTP not configured for registration");
+    if (!smtp.user || !smtp.password) {
+      throw new Error("SMTP غير مُعد. يرجى إعداد إعدادات البريد من لوحة الإدارة.");
     }
 
     const { email } = await req.json();
@@ -73,15 +91,15 @@ Deno.serve(async (req) => {
 
     const client = new SMTPClient({
       connection: {
-        hostname: smtpHost,
-        port: smtpPort,
+        hostname: smtp.host,
+        port: smtp.port,
         tls: true,
-        auth: { username: smtpUser, password: smtpPassword },
+        auth: { username: smtp.user, password: smtp.password },
       },
     });
 
     await client.send({
-      from: smtpUser,
+      from: `${smtp.senderName} <${smtp.user}>`,
       to: normalizedEmail,
       subject: "رمز تأكيد التسجيل - Thiqa",
       content: `رمز التحقق الخاص بك هو: ${otp}\nهذا الرمز صالح لمدة 5 دقائق.`,

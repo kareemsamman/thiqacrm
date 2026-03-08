@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Settings, Mail, Save, Loader2, Eye, EyeOff } from "lucide-react";
 
-interface SmtpSettings {
+interface SmtpForm {
   smtp_host: string;
   smtp_port: string;
   smtp_user: string;
@@ -28,7 +28,7 @@ function useThiqaPlatformSettings() {
         .select("setting_key, setting_value");
       if (error) throw error;
       const map: Record<string, string> = {};
-      (data || []).forEach((r: any) => { map[r.setting_key] = r.setting_value || ""; });
+      (data || []).forEach((r) => { map[r.setting_key] = r.setting_value || ""; });
       return map;
     },
   });
@@ -39,21 +39,29 @@ function SmtpSettingsTab() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useThiqaPlatformSettings();
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState<SmtpSettings | null>(null);
+  const [form, setForm] = useState<SmtpForm>({
+    smtp_host: "",
+    smtp_port: "465",
+    smtp_user: "",
+    smtp_password: "",
+    smtp_sender_name: "Thiqa Insurance",
+  });
 
-  // Initialize form when data loads
-  const currentForm: SmtpSettings = form || {
-    smtp_host: settings?.smtp_host || "smtp.hostinger.com",
-    smtp_port: settings?.smtp_port || "465",
-    smtp_user: settings?.smtp_user || "",
-    smtp_password: settings?.smtp_password || "",
-    smtp_sender_name: settings?.smtp_sender_name || "Thiqa Insurance",
-  };
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        smtp_host: settings.smtp_host || "smtp.hostinger.com",
+        smtp_port: settings.smtp_port || "465",
+        smtp_user: settings.smtp_user || "",
+        smtp_password: settings.smtp_password || "",
+        smtp_sender_name: settings.smtp_sender_name || "Thiqa Insurance",
+      });
+    }
+  }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: async (formData: SmtpSettings) => {
-      const entries = Object.entries(formData);
-      for (const [key, value] of entries) {
+    mutationFn: async (formData: SmtpForm) => {
+      for (const [key, value] of Object.entries(formData)) {
         const { error } = await supabase
           .from("thiqa_platform_settings")
           .update({ setting_value: value, updated_at: new Date().toISOString() })
@@ -80,10 +88,6 @@ function SmtpSettingsTab() {
     );
   }
 
-  const update = (key: keyof SmtpSettings, value: string) => {
-    setForm({ ...currentForm, [key]: value });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -101,8 +105,8 @@ function SmtpSettingsTab() {
             <Label htmlFor="smtp_host">خادم SMTP (Host)</Label>
             <Input
               id="smtp_host"
-              value={currentForm.smtp_host}
-              onChange={(e) => update("smtp_host", e.target.value)}
+              value={form.smtp_host}
+              onChange={(e) => setForm(f => ({ ...f, smtp_host: e.target.value }))}
               placeholder="smtp.hostinger.com"
               className="ltr-input"
             />
@@ -111,8 +115,8 @@ function SmtpSettingsTab() {
             <Label htmlFor="smtp_port">المنفذ (Port)</Label>
             <Input
               id="smtp_port"
-              value={currentForm.smtp_port}
-              onChange={(e) => update("smtp_port", e.target.value)}
+              value={form.smtp_port}
+              onChange={(e) => setForm(f => ({ ...f, smtp_port: e.target.value }))}
               placeholder="465"
               className="ltr-input"
             />
@@ -124,8 +128,8 @@ function SmtpSettingsTab() {
           <Input
             id="smtp_user"
             type="email"
-            value={currentForm.smtp_user}
-            onChange={(e) => update("smtp_user", e.target.value)}
+            value={form.smtp_user}
+            onChange={(e) => setForm(f => ({ ...f, smtp_user: e.target.value }))}
             placeholder="noreply@thiqa.app"
             className="ltr-input"
           />
@@ -137,8 +141,8 @@ function SmtpSettingsTab() {
             <Input
               id="smtp_password"
               type={showPassword ? "text" : "password"}
-              value={currentForm.smtp_password}
-              onChange={(e) => update("smtp_password", e.target.value)}
+              value={form.smtp_password}
+              onChange={(e) => setForm(f => ({ ...f, smtp_password: e.target.value }))}
               placeholder="••••••••"
               className="ltr-input pe-10"
             />
@@ -156,15 +160,15 @@ function SmtpSettingsTab() {
           <Label htmlFor="smtp_sender_name">اسم المرسل</Label>
           <Input
             id="smtp_sender_name"
-            value={currentForm.smtp_sender_name}
-            onChange={(e) => update("smtp_sender_name", e.target.value)}
+            value={form.smtp_sender_name}
+            onChange={(e) => setForm(f => ({ ...f, smtp_sender_name: e.target.value }))}
             placeholder="Thiqa Insurance"
           />
         </div>
 
         <div className="flex justify-end pt-4 border-t">
           <Button
-            onClick={() => saveMutation.mutate(currentForm)}
+            onClick={() => saveMutation.mutate(form)}
             disabled={saveMutation.isPending}
           >
             {saveMutation.isPending ? (

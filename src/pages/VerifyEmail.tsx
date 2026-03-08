@@ -10,7 +10,6 @@ import { OtpInput } from "@/components/auth/OtpInput";
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") || "";
-  const password = searchParams.get("p") || "";
   const navigate = useNavigate();
 
   const [code, setCode] = useState("");
@@ -41,7 +40,6 @@ export default function VerifyEmail() {
         body: { email },
       });
       if (error) {
-        // Try parsing error body
         try {
           const errBody = await (error as any).context?.json?.();
           throw new Error(errBody?.error || error.message);
@@ -85,20 +83,13 @@ export default function VerifyEmail() {
       setFeedback({ type: "success", message: "تم تأكيد البريد الإلكتروني بنجاح!" });
       toast.success("تم تأكيد البريد الإلكتروني بنجاح!");
 
-      // Auto-login with the password
-      if (password) {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (!loginError) {
-          setTimeout(() => navigate("/", { replace: true }), 1000);
-          return;
-        }
+      // Redirect to dashboard if already logged in, or to login
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setTimeout(() => navigate("/", { replace: true }), 1000);
+      } else {
+        setTimeout(() => navigate("/login", { replace: true }), 2000);
       }
-
-      // Fallback: redirect to login
-      setTimeout(() => navigate("/login", { replace: true }), 2000);
     } catch (e: any) {
       setFeedback({ type: "error", message: e.message || "رمز غير صحيح" });
     } finally {
@@ -157,7 +148,7 @@ export default function VerifyEmail() {
               <div
                 className={`rounded-xl border p-3 text-sm flex items-start gap-2 ${
                   feedback.type === "success"
-                    ? "border-success/30 bg-success/10 text-success"
+                    ? "border-green-500/30 bg-green-500/10 text-green-700"
                     : feedback.type === "error"
                     ? "border-destructive/30 bg-destructive/10 text-destructive"
                     : "border-primary/30 bg-primary/10 text-primary"

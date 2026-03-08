@@ -21,6 +21,7 @@ interface Agent {
   subscription_expires_at: string | null;
   monthly_price: number | null;
   created_at: string;
+  email_confirmed?: boolean;
 }
 
 export default function ThiqaAgents() {
@@ -40,7 +41,25 @@ export default function ThiqaAgents() {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (!error && data) setAgents(data as Agent[]);
+    if (!error && data) {
+      // Fetch email_confirmed status for each agent's primary user
+      const agentIds = data.map((a: any) => a.id);
+      const { data: auData } = await supabase
+        .from('agent_users')
+        .select('agent_id, user_id, profiles!agent_users_user_id_profiles_fkey(email_confirmed)')
+        .in('agent_id', agentIds);
+
+      const confirmMap: Record<string, boolean> = {};
+      (auData || []).forEach((au: any) => {
+        const confirmed = au.profiles?.email_confirmed === true;
+        // If any user is confirmed, mark agent as confirmed
+        if (confirmed || !(au.agent_id in confirmMap)) {
+          confirmMap[au.agent_id] = confirmed || (confirmMap[au.agent_id] ?? false);
+        }
+      });
+
+      setAgents((data as Agent[]).map(a => ({ ...a, email_confirmed: confirmMap[a.id] ?? false })));
+    }
     setLoading(false);
   };
 
@@ -50,12 +69,15 @@ export default function ThiqaAgents() {
     (a.name_ar && a.name_ar.includes(search))
   );
 
-  const statusBadge = (status: string) => {
-    switch (status) {
+  const statusBadge = (agent: Agent) => {
+    if (!agent.email_confirmed) {
+      return <Badge variant="outline" className="border-amber-500 text-amber-600">غير مفعّل</Badge>;
+    }
+    switch (agent.subscription_status) {
       case 'active': return <Badge className="bg-green-600">فعال</Badge>;
       case 'suspended': return <Badge variant="destructive">معلّق</Badge>;
       case 'expired': return <Badge variant="secondary">منتهي</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      default: return <Badge variant="outline">{agent.subscription_status}</Badge>;
     }
   };
 
@@ -114,7 +136,7 @@ export default function ThiqaAgents() {
                       <div className="text-xs text-muted-foreground truncate">{agent.email}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {statusBadge(agent.subscription_status)}
+                       {statusBadge(agent)}
                       {planBadge(agent.plan)}
                     </div>
                   </div>
@@ -162,7 +184,7 @@ export default function ThiqaAgents() {
                       </td>
                       <td className="p-3 text-muted-foreground">{agent.email}</td>
                       <td className="p-3">{planBadge(agent.plan)}</td>
-                      <td className="p-3">{statusBadge(agent.subscription_status)}</td>
+                      <td className="p-3">{statusBadge(agent)}</td>
                       <td className="p-3 text-muted-foreground">
                         {agent.subscription_expires_at 
                           ? format(new Date(agent.subscription_expires_at), 'dd/MM/yyyy')

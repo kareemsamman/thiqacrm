@@ -50,11 +50,29 @@ export default function Login() {
       if (!isThiqaSuperAdminEmail(user.email)) {
         sessionStorage.setItem('admin_session_active', 'true');
       }
-      if (isActive) {
-        navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
-      } else {
-        navigate('/no-access', { replace: true });
-      }
+
+      // Check if email is confirmed
+      const checkEmailConfirmed = async () => {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('email_confirmed')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData && profileData.email_confirmed === false && !isThiqaSuperAdminEmail(user.email)) {
+          // Not confirmed → redirect to verify page
+          navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
+          return;
+        }
+
+        if (isActive) {
+          navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
+        } else {
+          navigate('/no-access', { replace: true });
+        }
+      };
+
+      checkEmailConfirmed();
     }
   }, [user, isActive, isSuperAdmin, authLoading, navigate]);
 

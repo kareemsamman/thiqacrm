@@ -79,6 +79,41 @@ export default function Landing() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");
   const [slideIdx, setSlideIdx] = useState(0);
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [testimonialAnim, setTestimonialAnim] = useState<"in" | "out">("in");
+
+  const testimonials = [
+    {
+      quote: "הדבר הכי חשוב לי במערכת זה הדיוק. לפני Thiqa הייתי מאבד עמלות ורודף אחרי צ׳קים באקסלים. היום המנוע הפיננסי עושה הכל לבד —",
+      highlight: "אני יודע בדיוק כמה הרווחתי מכל פוליסה ומה היתרה מול כל חברה. זה שקט נפשי שלא היה לי שנים.",
+      name: "מאור שלמה,",
+      role: "מנהל חברת פוליסה",
+    },
+    {
+      quote: "מאז שעברנו ל-Thiqa חסכנו שעות עבודה בכל יום. הדוחות האוטומטיים והתזכורות החכמות שינו לנו את הסוכנות.",
+      highlight: "אני לא מפספס שום חידוש ולא מאבד שום לקוח. המערכת עובדת בשבילי 24/7.",
+      name: "אחמד חאלד,",
+      role: "וכיל تأمين — חיפה",
+    },
+    {
+      quote: "התמיכה מדהימה והמערכת אינטואיטיבית. תוך שבוע כל הצוות שלי עבד עם Thiqa בצורה חלקה.",
+      highlight: "הייצוא לאקסל והדוחות הכספיים חוסכים לי רואה חשבון. פשוט מושלם.",
+      name: "יוסף כנעאן,",
+      role: "סוכן ביטוח — נצרת",
+    },
+  ];
+
+  const goTestimonial = (dir: "up" | "down") => {
+    setTestimonialAnim("out");
+    setTimeout(() => {
+      setTestimonialIdx((p) =>
+        dir === "down"
+          ? (p + 1) % testimonials.length
+          : (p - 1 + testimonials.length) % testimonials.length
+      );
+      setTestimonialAnim("in");
+    }, 350);
+  };
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>

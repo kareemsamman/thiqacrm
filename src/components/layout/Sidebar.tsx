@@ -358,7 +358,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       to={item.href}
                       onClick={handleNavClick}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative group",
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-all duration-200 relative group",
                         isActiveRoute
                           ? "glass-dark bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
                           : "text-sidebar-foreground hover:bg-[hsl(var(--sidebar-glass-bg))] hover:text-sidebar-accent-foreground"

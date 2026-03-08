@@ -278,7 +278,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
             )}
             {!isThiqaSuperAdmin && (
               <span className="text-base font-semibold text-sidebar-foreground">
-                {siteSettings?.site_title || 'ثقة للتأمين'}
+                {siteSettings?.site_title || 'Thiqa'}
               </span>
             )}
           </div>

@@ -495,17 +495,24 @@ export default function Landing() {
             </button>
 
             {/* Card */}
-            <div className="rounded-2xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#4a6cc7]/20 via-[#7ba4f7]/10 to-transparent">
+            <div
+              className="rounded-2xl overflow-hidden border border-white/[0.06]"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                backdropFilter: 'blur(26px)',
+                WebkitBackdropFilter: 'blur(26px)',
+              }}
+            >
               <div
-                className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] gap-0 transition-all duration-500"
+                className="grid grid-cols-1 md:grid-cols-[0.8fr_1.5fr] gap-0 transition-all duration-500"
                 style={{
                   opacity: testimonialAnim === "in" ? 1 : 0,
                   transform: testimonialAnim === "in" ? "translateY(0)" : "translateY(30px)",
                   transition: "opacity 0.35s ease, transform 0.35s ease",
                 }}
               >
-                {/* Stats side */}
-                <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8">
+                {/* Stats side (right in RTL) */}
+                <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8 order-2 md:order-1">
                   <div>
                     <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">320+</div>
                     <p className="text-sm text-white/50 mt-2 leading-relaxed">שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא</p>
@@ -516,8 +523,8 @@ export default function Landing() {
                   </div>
                 </div>
 
-                {/* Quote side */}
-                <div className="p-8 md:p-10 flex flex-col justify-center">
+                {/* Quote side (left in RTL — larger) */}
+                <div className="p-8 md:p-12 flex flex-col justify-center order-1 md:order-2">
                   <div className="text-5xl text-white/20 font-serif leading-none mb-4 text-left">״</div>
                   <p className="text-lg md:text-xl text-white/70 leading-relaxed mb-1">
                     {testimonials[testimonialIdx].quote}

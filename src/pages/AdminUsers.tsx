@@ -254,10 +254,12 @@ export default function AdminUsers() {
 
       if (profileError) throw profileError;
 
-      // Add user role
+      if (!agentId) throw new Error('Missing agent context');
+
+      // Add or update user role inside current agent only
       const { error: roleError } = await supabase
         .from('user_roles')
-        .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
+        .upsert({ user_id: userId, role, agent_id: agentId }, { onConflict: 'user_id,agent_id' });
 
       if (roleError) throw roleError;
 

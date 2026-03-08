@@ -53,14 +53,16 @@ export default function Login() {
 
       // Check if email is confirmed
       const checkEmailConfirmed = async () => {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('email_confirmed')
-          .eq('id', user.id)
-          .single();
+        // Check both profile and platform skip setting in parallel
+        const [profileRes, skipRes] = await Promise.all([
+          supabase.from('profiles').select('email_confirmed').eq('id', user.id).single(),
+          supabase.from('thiqa_platform_settings').select('setting_value').eq('setting_key', 'skip_email_verification').single(),
+        ]);
 
-        if (profileData && profileData.email_confirmed === false && !isThiqaSuperAdminEmail(user.email)) {
-          // Not confirmed → redirect to verify page
+        const skipEnabled = skipRes.data?.setting_value === "true";
+        const emailConfirmed = profileRes.data?.email_confirmed === true;
+
+        if (!emailConfirmed && !skipEnabled && !isThiqaSuperAdminEmail(user.email)) {
           navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
           return;
         }

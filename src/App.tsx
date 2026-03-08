@@ -75,6 +75,7 @@ import ThiqaDashboard from "./pages/ThiqaDashboard";
 import ThiqaSettings from "./pages/ThiqaSettings";
 import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient({
   defaultOptions: {

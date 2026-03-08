@@ -91,30 +91,32 @@ export default function Login() {
     window.open(window.location.origin + '/login', '_blank');
   };
 
-  const handleEmailStart = async () => {
+  const handleEmailPasswordLogin = async () => {
     if (!email || !email.includes("@")) {
       toast.error("يرجى إدخال بريد إلكتروني صحيح");
       return;
     }
+    if (!password || password.length < 6) {
+      toast.error("يرجى إدخال كلمة المرور (6 أحرف على الأقل)");
+      return;
+    }
     setLoading(true);
     try {
-      const response = await supabase.functions.invoke("auth-email-start", { body: { email } });
-      if (response.error) {
-        let message = response.error.message;
-        const ctx = (response as any).response ?? (response.error as any).context;
-        if (ctx && typeof ctx.json === "function") {
-          try { const body = await ctx.json(); if (body?.error) message = body.error; } catch {}
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        } else if (error.message.includes("Email not confirmed")) {
+          toast.error("البريد الإلكتروني غير مؤكد. تواصل مع المدير.");
+        } else {
+          toast.error(error.message);
         }
-        throw new Error(message);
-      }
-      if (!response.data?.success) {
-        toast.error(response.data?.error || "فشل في إرسال رمز التحقق");
         return;
       }
-      toast.success("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
-      setAuthStep("otp");
-      setAuthMethod("email");
-      setCountdown(60);
+      toast.success("تم تسجيل الدخول بنجاح");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "حدث خطأ غير متوقع");
     } finally {

@@ -480,23 +480,15 @@ export default function ThiqaAgentDetail() {
     toast.success('تم تغيير الصلاحية');
   };
 
-  // ─── Delete agent ───
+  // ─── Delete agent (via edge function) ───
   const deleteAgent = async () => {
     setDeletingAgent(true);
     try {
-      // Delete related data first
-      await Promise.all([
-        supabase.from('agent_subscription_payments').delete().eq('agent_id', agentId!),
-        supabase.from('agent_feature_flags').delete().eq('agent_id', agentId!),
-        supabase.from('agent_users').delete().eq('agent_id', agentId!),
-        supabase.from('user_roles').delete().eq('agent_id', agentId!),
-        supabase.from('sms_settings').delete().eq('agent_id', agentId!),
-        supabase.from('auth_settings').delete().eq('agent_id', agentId!),
-        supabase.from('payment_settings').delete().eq('agent_id', agentId!),
-        supabase.from('site_settings').delete().eq('agent_id', agentId!),
-      ]);
-      const { error } = await supabase.from('agents').delete().eq('id', agentId!);
+      const { data, error } = await supabase.functions.invoke('delete-agent', {
+        body: { agent_id: agentId },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success('تم حذف الوكيل بنجاح');
       navigate('/thiqa/agents');
     } catch (err: any) {

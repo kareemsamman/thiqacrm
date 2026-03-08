@@ -20,57 +20,57 @@ import gridLogoBg from "@/assets/landing/grid-logo-bg.png";
 const featureTabs = [
   {
     id: "invoicing",
-    label: "הפקה וחיתום",
+    label: "إصدار وتسعير",
     num: "01",
-    title: "הפקת פוליסות בלחיצה אחת.",
-    desc: "יצירת פוליסות חדשות, חידושים וחבילות ביטוח מותאמות — עם חישוב מחיר אוטומטי לפי כללי התמחור של כל חברת ביטוח.",
+    title: "إصدار وثائق التأمين بضغطة واحدة.",
+    desc: "إنشاء وثائق جديدة، تجديدات وحزم تأمين مخصصة — مع حساب سعر تلقائي حسب قواعد التسعير لكل شركة تأمين.",
     stats: [
-      { value: "3", unit: "דקות", label: "זמן ממוצע להפקת פוליסה חדשה מלאה." },
-      { value: "100%", unit: "", label: "דיוק בחישוב מחירים ועמלות אוטומטי." },
+      { value: "3", unit: "دقائق", label: "متوسط الوقت لإصدار وثيقة تأمين جديدة كاملة." },
+      { value: "100%", unit: "", label: "دقة في حساب الأسعار والعمولات تلقائياً." },
     ],
   },
   {
     id: "claims",
-    label: "ניהול תביעות",
+    label: "إدارة المطالبات",
     num: "02",
-    title: "תביעות נסגרות מהר יותר,\nבלי ״פינג-פונג״ מיילים.",
-    desc: "ניהול תביעות חכם עם עדכונים אוטומטיים ללקוח, איסוף מסמכים דיגיטלי וסנכרון מלא מול חברות הביטוח. הלקוח נשאר מעודכן, ואתם פנויים למכירה הבאה.",
+    title: "المطالبات تُغلق أسرع،\nبدون مراسلات لا نهائية.",
+    desc: "إدارة مطالبات ذكية مع تحديثات تلقائية للعميل، جمع مستندات رقمي ومزامنة كاملة مع شركات التأمين. العميل يبقى على اطلاع، وأنت متفرّغ للبيع التالي.",
     stats: [
-      { value: "12", unit: "דקות", label: "הזמן הממוצע שנחסך לסוכן על פתיחת תביעה ועדכון הסטטוס מול חברות הביטוח, בזכות סנכרון נתונים אוטומטי." },
-      { value: "65%", unit: "", label: "קיצור בזמן איסוף המסמכים מהלקוח. המערכת שולחת דרישות אוטומטיות ומתחילה את הקבצים ישירות בתיק התביעה ללא מגע יד אדם." },
+      { value: "12", unit: "دقيقة", label: "متوسط الوقت الموفّر للوكيل على فتح مطالبة وتحديث الحالة مع شركات التأمين، بفضل مزامنة البيانات التلقائية." },
+      { value: "65%", unit: "", label: "تقليص في وقت جمع المستندات من العميل. النظام يرسل طلبات تلقائية ويبدأ الملفات مباشرة في ملف المطالبة بدون تدخل يدوي." },
     ],
   },
   {
     id: "marketing",
-    label: "אוטומציה שיווקית",
+    label: "أتمتة التسويق",
     num: "03",
-    title: "שיווק אוטומטי שעובד בשבילך.",
-    desc: "שליחת SMS וקמפיינים אוטומטיים ללקוחות, תזכורות חידוש, עדכוני מבצעים ושימור לקוחות — הכל ללא מאמץ ידני.",
+    title: "تسويق تلقائي يعمل من أجلك.",
+    desc: "إرسال SMS وحملات تلقائية للعملاء، تذكيرات تجديد، تحديثات عروض والحفاظ على العملاء — كل شيء بدون جهد يدوي.",
     stats: [
-      { value: "40%", unit: "", label: "עלייה בשיעור חידוש פוליסות בזכות תזכורות אוטומטיות." },
-      { value: "5K+", unit: "", label: "הודעות SMS נשלחות מדי חודש דרך המערכת." },
+      { value: "40%", unit: "", label: "ارتفاع في نسبة تجديد الوثائق بفضل التذكيرات التلقائية." },
+      { value: "5K+", unit: "", label: "رسائل SMS تُرسل شهرياً عبر النظام." },
     ],
   },
   {
     id: "bi",
-    label: "בקרה ו-BI",
+    label: "رقابة وتحليلات",
     num: "04",
-    title: "שליטה מלאה על הנתונים.",
-    desc: "דוחות רווחיות, מעקב עמלות, ניתוח ביצועי סוכנים ומבט-על על כל הסניפים — בזמן אמת ובלחיצה אחת.",
+    title: "سيطرة كاملة على البيانات.",
+    desc: "تقارير ربحية، متابعة عمولات، تحليل أداء الوكلاء ونظرة شاملة على جميع الفروع — بالوقت الفعلي وبضغطة واحدة.",
     stats: [
-      { value: "50%", unit: "", label: "חיסכון בזמן הפקת דוחות כספיים." },
-      { value: "∞", unit: "", label: "דוחות מותאמים אישית ללא הגבלה." },
+      { value: "50%", unit: "", label: "توفير في وقت إعداد التقارير المالية." },
+      { value: "∞", unit: "", label: "تقارير مخصصة بلا حدود." },
     ],
   },
   {
     id: "cx",
-    label: "חוויית לקוח",
+    label: "تجربة العميل",
     num: "05",
-    title: "חוויית לקוח שמוכרת בעד עצמה.",
-    desc: "חתימות דיגיטליות, פורטל לקוח, תקשורת ישירה ב-WhatsApp ומעקב אחרי כל אינטראקציה — הלקוחות שלכם ירגישו את ההבדל.",
+    title: "تجربة عميل تبيع نفسها.",
+    desc: "توقيعات رقمية، بوابة عميل، تواصل مباشر عبر WhatsApp ومتابعة كل تفاعل — عملاؤك سيشعرون بالفرق.",
     stats: [
-      { value: "95%", unit: "", label: "שביעות רצון לקוחות מהממשק הדיגיטלי." },
-      { value: "24/7", unit: "", label: "גישה עצמאית ללקוח לפוליסות והמסמכים." },
+      { value: "95%", unit: "", label: "رضا العملاء عن الواجهة الرقمية." },
+      { value: "24/7", unit: "", label: "وصول ذاتي للعميل للوثائق والمستندات." },
     ],
   },
 ];
@@ -85,22 +85,22 @@ export default function Landing() {
 
   const testimonials = [
     {
-      quote: "הדבר הכי חשוב לי במערכת זה הדיוק. לפני Thiqa הייתי מאבד עמלות ורודף אחרי צ׳קים באקסלים. היום המנוע הפיננסי עושה הכל לבד —",
-      highlight: "אני יודע בדיוק כמה הרווחתי מכל פוליסה ומה היתרה מול כל חברה. זה שקט נפשי שלא היה לי שנים.",
-      name: "מאור שלמה,",
-      role: "מנהל חברת פוליסה",
+      quote: "أهم شيء بالنسبة لي في النظام هو الدقة. قبل Thiqa كنت أفقد عمولات وألاحق شيكات في ملفات إكسل. اليوم المحرك المالي يعمل كل شيء لوحده —",
+      highlight: "أعرف بالضبط كم ربحت من كل وثيقة وما هو الرصيد مع كل شركة. هذا هدوء بال لم يكن عندي لسنوات.",
+      name: "ماهر سليمان,",
+      role: "مدير وكالة تأمين",
     },
     {
-      quote: "מאז שעברנו ל-Thiqa חסכנו שעות עבודה בכל יום. הדוחות האוטומטיים והתזכורות החכמות שינו לנו את הסוכנות.",
-      highlight: "אני לא מפספס שום חידוש ולא מאבד שום לקוח. המערכת עובדת בשבילי 24/7.",
-      name: "אחמד חאלד,",
-      role: "וכיל تأمين — חיפה",
+      quote: "منذ أن انتقلنا لـ Thiqa وفرنا ساعات عمل كل يوم. التقارير التلقائية والتذكيرات الذكية غيّرت لنا الوكالة.",
+      highlight: "لا أفوّت أي تجديد ولا أفقد أي عميل. النظام يعمل من أجلي 24/7.",
+      name: "أحمد خالد,",
+      role: "وكيل تأمين — حيفا",
     },
     {
-      quote: "התמיכה מדהימה והמערכת אינטואיטיבית. תוך שבוע כל הצוות שלי עבד עם Thiqa בצורה חלקה.",
-      highlight: "הייצוא לאקסל והדוחות הכספיים חוסכים לי רואה חשבון. פשוט מושלם.",
-      name: "יוסף כנעאן,",
-      role: "סוכן ביטוח — נצרת",
+      quote: "الدعم ممتاز والنظام سهل الاستخدام. خلال أسبوع كل فريقي كان يعمل على Thiqa بشكل سلس.",
+      highlight: "التصدير لإكسل والتقارير المالية وفرت عليّ محاسب. ببساطة مثالي.",
+      name: "يوسف كنعان,",
+      role: "وكيل تأمين — الناصرة",
     },
   ];
 
@@ -126,10 +126,10 @@ export default function Landing() {
             <img src={thiqaLogo} alt="Thiqa" />
           </div>
           <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
-            <a href="#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>
-            <a href="#demo" className="hover:text-white transition-colors">איך זה עובד</a>
-            <a href="#faq" className="hover:text-white transition-colors">שאלות ותשובות</a>
-            <a href="#pricing" className="hover:text-white transition-colors">מחירון</a>
+            <a href="#features" className="hover:text-white transition-colors">لماذا نحن مختلفون</a>
+            <a href="#demo" className="hover:text-white transition-colors">كيف يعمل</a>
+            <a href="#faq" className="hover:text-white transition-colors">أسئلة وأجوبة</a>
+            <a href="/pricing" className="hover:text-white transition-colors">الأسعار</a>
           </div>
           <button
             onClick={() => navigate("/login")}
@@ -140,34 +140,32 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            קבלו 35 ימים בחינם
+            احصل على 35 يوم مجاناً
           </button>
         </div>
       </nav>
 
       {/* ═══ HERO with gradient background ═══ */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
-        {/* Full-screen gradient background */}
         <div className="absolute inset-0 z-0">
           <img 
             src="/images/hero-gradient-bg.png" 
             alt="" 
             className="w-full h-full object-cover"
           />
-          {/* Darkening overlay for text readability */}
           <div className="absolute inset-0 bg-black/20" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center px-6 pt-20">
           <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight">
-            ה-CRM החכם ביותר
+            نظام CRM الأذكى
             <br />
-            לסוכניות ביטוח שרוצות להרוויח יותר
+            لوكالات التأمين التي تريد أن تربح أكثر
           </h1>
           <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
-            פתרון קצה-לקצה לניהול פוליסות, כספים ושיווק. מהיר, מאובטח
+            حل شامل لإدارة الوثائق، الأموال والتسويق. سريع، آمن
             <br className="hidden md:block" />
-            ומותאם לעבודה בקנה מידה רחב.
+            ومصمم للعمل على نطاق واسع.
           </p>
           <div className="mt-10">
             <button
@@ -180,12 +178,11 @@ export default function Landing() {
                 boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
               }}
             >
-              קבלו 35 ימים בחינם
+              احصل على 35 يوم مجاناً
             </button>
           </div>
         </div>
 
-        {/* Dashboard mockup — flush to bottom */}
         <div className="relative z-10 max-w-5xl mx-auto mt-16 px-6">
           <div className="relative rounded-t-xl overflow-hidden border border-white/[0.1] border-b-0 shadow-2xl shadow-black/50">
             <img src="/images/dashboard-mockup.png" alt="Thiqa CRM Dashboard" className="w-full block" loading="lazy" />
@@ -199,10 +196,10 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
             {[
-              { title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M30 50C30 45.5817 33.5817 42 38 42C42.4183 42 46 45.5817 46 50H30ZM38 41C34.685 41 32 38.315 32 35C32 31.685 34.685 29 38 29C41.315 29 44 31.685 44 35C44 38.315 41.315 41 38 41ZM45.3628 43.2332C48.4482 44.0217 50.7679 46.7235 50.9836 50H48C48 47.3902 47.0002 45.0139 45.3628 43.2332ZM43.3401 40.9569C44.9728 39.4922 46 37.3661 46 35C46 33.5827 45.6314 32.2514 44.9849 31.0969C47.2753 31.554 49 33.5746 49 36C49 38.7625 46.7625 41 44 41C43.7763 41 43.556 40.9853 43.3401 40.9569Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
-              { title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
-              { title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M33.0002 27.334C36.1298 27.334 38.6668 29.871 38.6668 33.0007V38.6673H33.0002C29.8705 38.6673 27.3335 36.1303 27.3335 33.0007C27.3335 29.871 29.8705 27.334 33.0002 27.334ZM33.0002 41.334H38.6668V47.0007C38.6668 50.1303 36.1298 52.6673 33.0002 52.6673C29.8705 52.6673 27.3335 50.1303 27.3335 47.0007C27.3335 43.8711 29.8705 41.334 33.0002 41.334ZM41.3335 41.334H47.0002C50.1298 41.334 52.6668 43.8711 52.6668 47.0007C52.6668 50.1303 50.1298 52.6673 47.0002 52.6673C43.8706 52.6673 41.3335 50.1303 41.3335 47.0007V41.334ZM48.0108 37.4267L47.6615 38.2276C47.4059 38.8139 46.5944 38.8139 46.3387 38.2276L45.9895 37.4267C45.367 35.9985 44.2455 34.8614 42.8462 34.2394L41.7699 33.761C41.188 33.5024 41.188 32.6561 41.7699 32.3974L42.7859 31.9457C44.2212 31.3077 45.3628 30.1286 45.9747 28.6519L46.3334 27.7864C46.5834 27.1832 47.417 27.1832 47.6668 27.7864L48.0255 28.6519C48.6375 30.1286 49.7791 31.3077 51.2144 31.9457L52.2303 32.3974C52.8123 32.6561 52.8123 33.5024 52.2303 33.761L51.1543 34.2394C49.7548 34.8614 48.6335 35.9985 48.0108 37.4267Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
-              { title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "إدارة العملاء والوثائق", desc: "من البداية للنهاية", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M30 50C30 45.5817 33.5817 42 38 42C42.4183 42 46 45.5817 46 50H30ZM38 41C34.685 41 32 38.315 32 35C32 31.685 34.685 29 38 29C41.315 29 44 31.685 44 35C44 38.315 41.315 41 38 41ZM45.3628 43.2332C48.4482 44.0217 50.7679 46.7235 50.9836 50H48C48 47.3902 47.0002 45.0139 45.3628 43.2332ZM43.3401 40.9569C44.9728 39.4922 46 37.3661 46 35C46 33.5827 45.6314 32.2514 44.9849 31.0969C47.2753 31.554 49 33.5746 49 36C49 38.7625 46.7625 41 44 41C43.7763 41 43.556 40.9853 43.3401 40.9569Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "تحكم مالي، تحصيل", desc: "وحساب عمولات", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "أتمتة التسويق، SMS", desc: "وتوقيعات رقمية", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M33.0002 27.334C36.1298 27.334 38.6668 29.871 38.6668 33.0007V38.6673H33.0002C29.8705 38.6673 27.3335 36.1303 27.3335 33.0007C27.3335 29.871 29.8705 27.334 33.0002 27.334ZM33.0002 41.334H38.6668V47.0007C38.6668 50.1303 36.1298 52.6673 33.0002 52.6673C29.8705 52.6673 27.3335 50.1303 27.3335 47.0007C27.3335 43.8711 29.8705 41.334 33.0002 41.334ZM41.3335 41.334H47.0002C50.1298 41.334 52.6668 43.8711 52.6668 47.0007C52.6668 50.1303 50.1298 52.6673 47.0002 52.6673C43.8706 52.6673 41.3335 50.1303 41.3335 47.0007V41.334ZM48.0108 37.4267L47.6615 38.2276C47.4059 38.8139 46.5944 38.8139 46.3387 38.2276L45.9895 37.4267C45.367 35.9985 44.2455 34.8614 42.8462 34.2394L41.7699 33.761C41.188 33.5024 41.188 32.6561 41.7699 32.3974L42.7859 31.9457C44.2212 31.3077 45.3628 30.1286 45.9747 28.6519L46.3334 27.7864C46.5834 27.1832 47.417 27.1832 47.6668 27.7864L48.0255 28.6519C48.6375 30.1286 49.7791 31.3077 51.2144 31.9457L52.2303 32.3974C52.8123 32.6561 52.8123 33.5024 52.2303 33.761L51.1543 34.2394C49.7548 34.8614 48.6335 35.9985 48.0108 37.4267Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "رقابة متعددة الفروع", desc: "وتقارير أرباح فورية", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
             ].map((item, i) => (
               <div key={i} className="text-center flex flex-col items-center gap-3">
                 {item.svg}
@@ -219,30 +216,30 @@ export default function Landing() {
 
       <section id="features" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">הבית הדיגיטלי של הסוכנות שלך</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">البيت الرقمي لوكالتك</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-            כל הכלים לניהול הסוכנות תחת קורת גג אחת
+            كل الأدوات لإدارة الوكالة تحت سقف واحد
           </h2>
           <p className="text-white/40 text-sm max-w-xl mx-auto mb-16">
-            תשתית טכנולוגית מתקדמת שחוסכת לך זמן, מונעת טעויות ומגדילה את הרווחיות.
+            بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
             {[
               {
                 img: featureProfitEngine,
-                title: "מנוע חישוב רווחים אוטומטי.",
-                desc: "ניהול תזרימי צ׳קים, סליקת אשראי והתחשבנות מול ברוקרים וחברות ביטוח בדיוק של 100%. בלי אובדן עמלות ובלי חישובים ידניים.",
+                title: "محرك حساب أرباح تلقائي.",
+                desc: "إدارة تدفقات الشيكات، تحصيل بطاقات ائتمان وتسوية مع الوسطاء وشركات التأمين بدقة 100%. بدون خسارة عمولات وبدون حسابات يدوية.",
               },
               {
                 img: featurePaperless,
-                title: "אפס ניירת, מקסימום מהירות.",
-                desc: "שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא אחרי מחזור חיי הפוליסה — הכל מהדסקטופ או מהנייד.",
+                title: "صفر أوراق، أقصى سرعة.",
+                desc: "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.",
               },
               {
                 img: featureMarketing,
-                title: "הופכים נתונים למכירות.",
-                desc: "מערכת שיווק מובנית לשליחת קמפיינים ב-SMS ובמייל. תזכורות אוטומטיות לחידושים, עדכונים על מבצעים ושימור לקוחות בצורה אקטיבית.",
+                title: "تحويل البيانات إلى مبيعات.",
+                desc: "نظام تسويق مدمج لإرسال حملات عبر SMS وبريد إلكتروني. تذكيرات تلقائية للتجديدات، تحديثات عروض والحفاظ على العملاء بشكل فعّال.",
               },
             ].map((card, i) => (
               <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden text-center">
@@ -266,7 +263,7 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            קבלו 35 ימים בחינם
+            احصل على 35 يوم مجاناً
           </button>
         </div>
       </section>
@@ -276,12 +273,12 @@ export default function Landing() {
       <section id="demo" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">?למה דווקא Thiqa</p>
+            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">لماذا Thiqa بالذات؟</p>
             <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-              כל הכלים לניהול הסוכנות תחת קורת גג אחת
+              كل الأدوات لإدارة الوكالة تحت سقف واحد
             </h2>
             <p className="text-white/40 text-sm max-w-xl mx-auto">
-              תשתית טכנולוגית מתקדמת שחוסכת לך זמן, מונעת טעויות ומגדילה את הרווחיות.
+              بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
             </p>
           </div>
 
@@ -306,7 +303,6 @@ export default function Landing() {
           {/* Tab Content */}
           {featureTabs.filter(t => t.id === activeTab).map(tab => (
             <div key={tab.id} className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/[0.06] border-t-0 rounded-b-xl overflow-hidden">
-              {/* Right (RTL): Content */}
               <div className="p-8 lg:p-12 flex flex-col justify-center order-1 lg:order-none">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 leading-tight whitespace-pre-line">{tab.title}</h3>
                 <p className="text-white/40 text-sm leading-relaxed mb-8">{tab.desc}</p>
@@ -327,12 +323,11 @@ export default function Landing() {
                     onClick={() => navigate("/login")}
                     className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-colors bg-white/[0.04] border border-white/[0.08] rounded-lg"
                   >
-                    התחילו ניסיון עכשיו
+                    ابدأ التجربة الآن
                     <ArrowLeft className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-              {/* Left (RTL): Image */}
               <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center order-2 lg:order-none">
                 <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
               </div>
@@ -345,32 +340,30 @@ export default function Landing() {
 
       {/* ═══ Section 5: Slider ═══ */}
       <section className="relative py-24 md:py-36 overflow-hidden">
-        {/* Gradient background */}
         <img src={sliderBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/30" />
 
         <div className="relative z-10">
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            אל תחכו לחידוש. תייצרו אותו
+            لا تنتظر التجديد. اصنعه بنفسك
           </h2>
 
-          {/* Slider */}
           {(() => {
             const slides = [
               {
-                title: "ניהול מסמכים מאובטח בענן",
-                desc: "כל המסמכים, הפוליסות והקבלות — מאורגנים בענן עם גישה מיידית מהדסקטופ או מהנייד.",
-                cta: "התחילו ניסיון עכשיו",
+                title: "إدارة مستندات آمنة في السحابة",
+                desc: "كل المستندات، الوثائق والإيصالات — منظمة في السحابة مع وصول فوري من الكمبيوتر أو الجوال.",
+                cta: "ابدأ التجربة الآن",
               },
               {
-                title: "שקט נפשי ושימור לקוחות",
-                desc: "אל תתנו ללקוח להרגיש לבד ברגע האמת. המערכת מנהלת עבורכם את איסוף המסמכים, מעדכנת את הלקוח בסטטוס התביעה באופן אוטומטי, ומוודאת ששום דרישה מחברת הביטוח לא מתפספסת. אתם נותנים שירות VIP, בזמן שהאוטומציה עושה את העבודה השחורה.",
-                cta: "התחילו ניסיון עכשיו",
+                title: "راحة بال والحفاظ على العملاء",
+                desc: "لا تترك العميل يشعر بأنه وحيد في لحظة الحقيقة. النظام يدير لك جمع المستندات، يحدّث العميل بحالة المطالبة تلقائياً، ويتأكد أن لا مطلب من شركة التأمين يضيع. أنت تقدم خدمة VIP، بينما الأتمتة تقوم بالعمل الشاق.",
+                cta: "ابدأ التجربة الآن",
               },
               {
-                title: "דוחות כספיים בלחיצה",
-                desc: "דוחות רווח, תשלומים ויתרות — הכל אוטומטי ומעודכן בזמן אמת, עם ייצוא מיידי.",
-                cta: "התחילו ניסיון עכשיו",
+                title: "تقارير مالية بضغطة زر",
+                desc: "تقارير أرباح، مدفوعات وأرصدة — كل شيء تلقائي ومحدّث بالوقت الفعلي، مع تصدير فوري.",
+                cta: "ابدأ التجربة الآن",
               },
             ];
 
@@ -380,22 +373,18 @@ export default function Landing() {
             return (
               <>
                 <div className="relative flex items-stretch w-full">
-                  {/* Previous slide peek — bleeds off left edge */}
                   <div className="hidden lg:flex flex-shrink-0 w-[14%] opacity-60 transition-all duration-500">
                     <div className="rounded-2xl overflow-hidden bg-white/[0.12] border border-white/[0.08] p-6 flex items-center justify-center w-full cursor-pointer" onClick={goPrev}>
                       <h3 className="text-base font-bold text-center text-white/70">{slides[(slideIdx - 1 + slides.length) % slides.length].title}</h3>
                     </div>
                   </div>
 
-                  {/* Active slide — takes remaining center space */}
                   <div className="flex-1 transition-all duration-500 mx-3 lg:mx-5">
                     <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] flex flex-col h-full">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 flex-1">
-                        {/* Image side */}
                         <div className="flex items-center justify-center p-6 md:p-10 order-2 md:order-1">
                           <img src={featuresMockup} alt="" className="max-h-[300px] object-contain rounded-lg" loading="lazy" />
                         </div>
-                        {/* Content side */}
                         <div className="p-8 md:p-12 flex flex-col justify-center order-1 md:order-2">
                           <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
                           <p className="text-sm text-white/50 leading-relaxed mb-8">{slides[slideIdx].desc}</p>
@@ -411,7 +400,6 @@ export default function Landing() {
                     </div>
                   </div>
 
-                  {/* Next slide peek — bleeds off right edge */}
                   <div className="hidden lg:flex flex-shrink-0 w-[14%] opacity-60 transition-all duration-500">
                     <div className="rounded-2xl overflow-hidden bg-white/[0.12] border border-white/[0.08] p-6 flex items-center justify-center w-full cursor-pointer" onClick={goNext}>
                       <h3 className="text-base font-bold text-center text-white/70">{slides[(slideIdx + 1) % slides.length].title}</h3>
@@ -419,7 +407,6 @@ export default function Landing() {
                   </div>
                 </div>
 
-                {/* Navigation arrows */}
                 <div className="flex justify-center gap-3 mt-10">
                   <button onClick={goPrev} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                     <ChevronLeft className="h-5 w-5 rotate-180" />
@@ -439,22 +426,21 @@ export default function Landing() {
       {/* ═══ Section 5: Grid Logo ═══ */}
       <section className="relative py-24 md:py-36 overflow-hidden bg-[#171719]">
         <div className="relative z-10 text-center px-6">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">פתרון מקיף ופשוט</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">حل شامل وبسيط</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-10">
-            כל מה שהסוכנות צריכה, תחת קורת גג אחת
+            كل ما تحتاجه الوكالة، تحت سقف واحد
           </h2>
         </div>
 
-        {/* Grid logo background */}
         <div className="relative w-full max-w-5xl mx-auto">
           <img src={gridLogoBg} alt="" className="w-full h-auto" loading="lazy" />
         </div>
 
         <div className="relative z-10 text-center px-6 mt-10">
           <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed">
-            שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן
+            إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة
             <br />
-            ומעקב מלא אחרי מחזור חיי הפוליסה — הכל מהדסקטופ או מהנייד.
+            ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.
           </p>
           <button
             onClick={() => navigate("/login")}
@@ -465,16 +451,15 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            קבלו 35 ימים בחינם
+            احصل على 35 يوم مجاناً
           </button>
         </div>
       </section>
 
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-      {/* ═══ Section 6: Testimonials Vertical Slider ═══ */}
+      {/* ═══ Section 6: Testimonials ═══ */}
       <section id="testimonials" className="py-24 md:py-36 relative overflow-hidden">
-        {/* Flowing gradient background */}
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -482,13 +467,12 @@ export default function Landing() {
           }}
         />
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">סיפורי לקוחות</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">قصص العملاء</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            בואו תשמעו מה יש להגיד לסוכנים שלנו
+            تعالوا اسمعوا ماذا يقول وكلاؤنا
           </h2>
 
           <div className="relative">
-            {/* Vertical nav arrows */}
             <button
               onClick={() => goTestimonial("up")}
               className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-14 hidden lg:flex h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 items-center justify-center transition-colors z-10"
@@ -502,7 +486,6 @@ export default function Landing() {
               <ChevronLeft className="h-5 w-5" />
             </button>
 
-            {/* Card */}
             <div
               className="rounded-2xl overflow-hidden border border-white/[0.06]"
               style={{
@@ -519,19 +502,17 @@ export default function Landing() {
                   transition: "opacity 0.35s ease, transform 0.35s ease",
                 }}
               >
-                {/* Stats side (right in RTL) */}
                 <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8 order-2 md:order-1">
                   <div>
                     <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">320+</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא</p>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
                   </div>
                   <div>
                     <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">50%</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא</p>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
                   </div>
                 </div>
 
-                {/* Quote side (left in RTL — larger) */}
                 <div className="p-8 md:p-12 flex flex-col justify-center order-1 md:order-2">
                   <div className="text-5xl text-white/20 font-serif leading-none mb-4 text-left">״</div>
                   <p className="text-lg md:text-xl text-white/70 leading-relaxed mb-1">
@@ -551,7 +532,6 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Progress bar */}
             <div className="flex justify-center gap-2 mt-8">
               {testimonials.map((_, i) => (
                 <div
@@ -563,7 +543,6 @@ export default function Landing() {
               ))}
             </div>
 
-            {/* Mobile arrows */}
             <div className="flex lg:hidden justify-center gap-3 mt-6">
               <button onClick={() => goTestimonial("up")} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                 <ChevronLeft className="h-5 w-5 rotate-180" />
@@ -581,19 +560,18 @@ export default function Landing() {
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">שאלות ותשובות</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">أسئلة وأجوبة</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            כל מה שחשוב לדעת על Thiqa
+            كل ما يهمك معرفته عن Thiqa
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 md:gap-12">
-            {/* Categories tabs - right side */}
             <div className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
               {[
-                { key: "general", label: "כללי ותמיכה" },
-                { key: "pricing", label: "מחירים ותשלומים" },
-                { key: "features", label: "פיצ'רים ויכולות" },
-                { key: "security", label: "אבטחה ופרטיות" },
+                { key: "general", label: "عام ودعم" },
+                { key: "pricing", label: "أسعار ومدفوعات" },
+                { key: "features", label: "ميزات وإمكانيات" },
+                { key: "security", label: "أمان وخصوصية" },
               ].map((cat) => (
                 <button
                   key={cat.key}
@@ -609,29 +587,28 @@ export default function Landing() {
               ))}
             </div>
 
-            {/* FAQ questions - left side */}
             <div className="flex flex-col gap-4">
               {(() => {
                 const faqData: Record<string, { q: string; a: string }[]> = {
                   general: [
-                    { q: "מה זה Thiqa?", a: "מערכת CRM מתקדמת שתוכננה במיוחד לסוכנויות ביטוח בישראל. ניהול לקוחות, פוליסות, תשלומים ודוחות — הכל במקום אחד." },
-                    { q: "האם התוכנה תומכת בערבית?", a: "כן, המערכת בנויה בערבית מלאה עם ממשק RTL מקצועי." },
-                    { q: "יש תמיכה טכנית?", a: "כן, צוות התמיכה שלנו זמין בטלפון ובוואטסאפ בימי עבודה. זמן תגובה ממוצע: פחות מ-30 דקות." },
+                    { q: "ما هو Thiqa؟", a: "نظام CRM متقدم مصمم خصيصاً لوكالات التأمين. إدارة العملاء، الوثائق، المدفوعات والتقارير — كل شيء في مكان واحد." },
+                    { q: "هل البرنامج يدعم العربية؟", a: "نعم، النظام مبني بالعربية بالكامل مع واجهة RTL احترافية." },
+                    { q: "هل يوجد دعم تقني؟", a: "نعم، فريق الدعم متاح بالهاتف وعبر واتساب في أيام العمل. متوسط وقت الرد: أقل من 30 دقيقة." },
                   ],
                   pricing: [
-                    { q: "כמה עולה המנוי?", a: "אנחנו מציעים שתי תוכניות: Basic לסוכנויות קטנות ו-Pro לסוכנויות גדולות עם כל הפיצ'רים. דברו איתנו לפרטים." },
-                    { q: "האם יש תקופת ניסיון?", a: "כן, אנחנו מציעים 35 ימי ניסיון בחינם ללא צורך בכרטיס אשראי." },
-                    { q: "אפשר לבטל בכל עת?", a: "בהחלט. אין התחייבות ואפשר לבטל את המנוי בכל עת." },
+                    { q: "كم يكلف الاشتراك؟", a: "نقدم خطتين: Basic للوكالات الصغيرة و-Pro للوكالات الكبيرة مع جميع الميزات. تواصلوا معنا للتفاصيل." },
+                    { q: "هل يوجد فترة تجريبية؟", a: "نعم، نقدم 35 يوم تجربة مجانية بدون الحاجة لبطاقة ائتمان." },
+                    { q: "هل يمكن الإلغاء في أي وقت؟", a: "بالتأكيد. لا يوجد التزام ويمكن إلغاء الاشتراك في أي وقت." },
                   ],
                   features: [
-                    { q: "אפשר לייבא נתונים ממערכת קיימת?", a: "בהחלט. יש לנו כלי ייבוא מובנה שתומך בהעברת נתונים ממערכות WordPress ומקורות אחרים." },
-                    { q: "האם יש אפליקציה לנייד?", a: "המערכת מותאמת לחלוטין למובייל ועובדת מצוין בכל דפדפן בנייד." },
-                    { q: "האם יש חתימה דיגיטלית?", a: "כן, אפשר לשלוח פוליסות לחתימה דיגיטלית ב-SMS ולקבל אישור מיידי." },
+                    { q: "هل يمكن استيراد بيانات من نظام قائم؟", a: "بالتأكيد. لدينا أداة استيراد مدمجة تدعم نقل البيانات من أنظمة WordPress ومصادر أخرى." },
+                    { q: "هل يوجد تطبيق للجوال؟", a: "النظام متوافق بالكامل مع الجوال ويعمل بشكل ممتاز في أي متصفح على الهاتف." },
+                    { q: "هل يوجد توقيع رقمي؟", a: "نعم، يمكن إرسال وثائق للتوقيع الرقمي عبر SMS والحصول على تأكيد فوري." },
                   ],
                   security: [
-                    { q: "האם המידע שלי מאובטח?", a: "כן, אנחנו משתמשים בטכנולוגיות הצפנה מתקדמות עם גיבויים יומיים אוטומטיים." },
-                    { q: "איפה המידע מאוחסן?", a: "כל המידע מאוחסן בשרתים מאובטחים עם תקני אבטחה מחמירים." },
-                    { q: "מי יכול לגשת למידע שלי?", a: "רק אתם ומשתמשים שאתם מאשרים. יש מערכת הרשאות מלאה." },
+                    { q: "هل معلوماتي آمنة؟", a: "نعم، نستخدم تقنيات تشفير متقدمة مع نسخ احتياطية يومية تلقائية." },
+                    { q: "أين يتم تخزين البيانات؟", a: "كل البيانات مخزنة في خوادم آمنة بمعايير أمان صارمة." },
+                    { q: "من يمكنه الوصول لمعلوماتي؟", a: "أنتم فقط والمستخدمون الذين تعتمدونهم. يوجد نظام صلاحيات كامل." },
                   ],
                 };
                 return faqData[faqCategory]?.map((faq, i) => (
@@ -656,7 +633,6 @@ export default function Landing() {
 
       {/* ═══ CTA ═══ */}
       <section className="relative overflow-hidden rounded-2xl mx-4 md:mx-8 lg:mx-16 my-8">
-        {/* Dreamy gradient background */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -665,14 +641,14 @@ export default function Landing() {
         />
         <div className="relative py-20 md:py-28 text-center px-6">
           <h2 className="text-3xl md:text-[2.8rem] font-bold mb-8 leading-tight text-[#1a1a2e]">
-            כי לסוכנות שלכם מגיע יותר מניהול רגיל.
+            لأن وكالتكم تستحق أكثر من إدارة عادية.
           </h2>
           <Button
             size="lg"
             onClick={() => navigate("/login")}
             className="bg-white text-[#1a1a2e] hover:bg-white/90 rounded-full px-10 h-[52px] text-sm font-bold shadow-lg"
           >
-            התחילו עכשיו בחינם
+            ابدأ الآن مجاناً
           </Button>
         </div>
       </section>
@@ -680,12 +656,11 @@ export default function Landing() {
       {/* ═══ Footer ═══ */}
       <footer className="border-t border-white/[0.04] pt-16 pb-8">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Accordion footer sections */}
           <div className="flex flex-col divide-y divide-white/[0.06]">
             {[
-              { title: "מידע", items: ["מרכז העזרה", "יצירת קשר"] },
-              { title: "תנאים ומדיניות", items: ["תנאי שימוש", "מדיניות פרטיות", "נגישות"] },
-              { title: "תמיכה", items: ["צ'אט תמיכה", "שאלות נפוצות", "info@thiqa.co.il"] },
+              { title: "معلومات", items: ["مركز المساعدة", "اتصل بنا"] },
+              { title: "شروط وسياسات", items: ["شروط الاستخدام", "سياسة الخصوصية", "إمكانية الوصول"] },
+              { title: "الدعم", items: ["دردشة الدعم", "أسئلة شائعة", "info@thiqa.co.il"] },
             ].map((section, idx) => (
               <details key={idx} className="group py-6">
                 <summary className="flex items-center justify-between cursor-pointer list-none">
@@ -702,16 +677,14 @@ export default function Landing() {
             ))}
           </div>
 
-          {/* Divider with dots */}
           <div className="flex items-center gap-3 mt-8 mb-8">
             <div className="h-1.5 w-1.5 rounded-full bg-white/20" />
             <div className="flex-1 h-px bg-white/[0.06]" />
             <div className="h-1.5 w-1.5 rounded-full bg-white/20" />
           </div>
 
-          <p className="text-sm text-white/20 text-center mb-12">כל הזכויות שמורות © Thiqa {new Date().getFullYear()}</p>
+          <p className="text-sm text-white/20 text-center mb-12">جميع الحقوق محفوظة © Thiqa {new Date().getFullYear()}</p>
 
-          {/* Giant logo */}
           <div className="flex justify-center overflow-hidden">
             <img src={thiqaLogo} alt="Thiqa" className="w-[80%] md:w-[60%] max-w-[700px] opacity-[0.08]" />
           </div>

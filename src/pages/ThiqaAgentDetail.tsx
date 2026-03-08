@@ -1270,6 +1270,18 @@ export default function ThiqaAgentDetail() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>كلمة مرور جديدة</Label>
+              <Input
+                type="password"
+                value={editUserPassword}
+                onChange={e => setEditUserPassword(e.target.value)}
+                placeholder="اتركه فارغاً للإبقاء على الحالي"
+                dir="ltr"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">6 أحرف على الأقل</p>
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingUser(null)}>إلغاء</Button>

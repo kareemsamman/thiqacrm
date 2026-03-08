@@ -460,19 +460,61 @@ export default function ThiqaAgentDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>مستخدمو الوكيل</CardTitle>
-                <CardDescription>المستخدمون المربوطون بهذا الوكيل — يمكنهم الوصول لبياناته</CardDescription>
+                <CardDescription>إنشاء مستخدمين وتحديد صلاحياتهم وفروعهم</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <Label>إضافة مستخدم بالإيميل</Label>
-                    <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+              <CardContent className="space-y-6">
+                {/* Create user form */}
+                <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2"><UserPlus className="h-4 w-4" />إنشاء مستخدم جديد</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>الاسم الكامل</Label>
+                      <Input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="مثال: أحمد محمد" />
+                    </div>
+                    <div>
+                      <Label>البريد الإلكتروني *</Label>
+                      <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" type="email" />
+                    </div>
+                    <div>
+                      <Label>كلمة المرور *</Label>
+                      <Input value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="6 أحرف على الأقل" dir="ltr" type="password" />
+                    </div>
+                    <div>
+                      <Label>الهاتف</Label>
+                      <Input value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+                    </div>
+                    <div>
+                      <Label>الصلاحية *</Label>
+                      <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as 'admin' | 'worker')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">مدير (Admin)</SelectItem>
+                          <SelectItem value="worker">موظف (Worker)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {branches.length > 0 && (
+                      <div>
+                        <Label>الفرع</Label>
+                        <Select value={newUserBranch} onValueChange={setNewUserBranch}>
+                          <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">بدون فرع</SelectItem>
+                            {branches.map((b: any) => (
+                              <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                  <Button onClick={addUserToAgent} disabled={!newUserEmail.trim()}>
-                    <UserPlus className="h-4 w-4 ml-2" />إضافة
+                  <Button onClick={createUserForAgent} disabled={creatingUser || !newUserEmail.trim() || !newUserPassword.trim()}>
+                    {creatingUser ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
+                    إنشاء المستخدم
                   </Button>
                 </div>
 
+                {/* Users table */}
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
@@ -480,6 +522,8 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-3">المستخدم</th>
                         <th className="text-right p-3">الإيميل</th>
                         <th className="text-right p-3">الهاتف</th>
+                        <th className="text-right p-3">الصلاحية</th>
+                        <th className="text-right p-3">الفرع</th>
                         <th className="text-right p-3">الحالة</th>
                         <th className="text-right p-3">إجراء</th>
                       </tr>
@@ -487,13 +531,29 @@ export default function ThiqaAgentDetail() {
                     <tbody>
                       {agentUsers.map((au: any) => {
                         const p = au.profiles;
+                        const role = userRoles[au.user_id];
+                        const branchName = p?.branch_id ? branches.find((b: any) => b.id === p.branch_id) : null;
                         return (
                           <tr key={au.id} className="border-t">
                             <td className="p-3 font-medium">{p?.full_name || '—'}</td>
                             <td className="p-3 text-muted-foreground">{p?.email || '—'}</td>
                             <td className="p-3 text-muted-foreground">{p?.phone || '—'}</td>
                             <td className="p-3">
-                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status || '—'}</Badge>
+                              <Select value={role || 'worker'} onValueChange={(v) => changeUserRole(au.user_id, v as 'admin' | 'worker')}>
+                                <SelectTrigger className="h-8 w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">مدير</SelectItem>
+                                  <SelectItem value="worker">موظف</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">
+                              {branchName ? (branchName.name_ar || branchName.name) : '—'}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-3">
                               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeUserFromAgent(au.user_id)}>
@@ -504,7 +564,7 @@ export default function ThiqaAgentDetail() {
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون مربوطون</td></tr>
+                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>

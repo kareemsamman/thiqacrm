@@ -6444,6 +6444,10 @@ export type Database = {
         Args: { p_admin_id?: string; p_entry_id: string; p_reason?: string }
         Returns: string
       }
+      user_belongs_to_agent: {
+        Args: { _agent_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_directory_get_by_ids: {
         Args: { p_ids: string[] }
         Returns: {

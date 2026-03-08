@@ -671,13 +671,13 @@ export default function ThiqaAgentDetail() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 md:space-y-6 max-w-5xl" dir="rtl">
+      <div className="space-y-4 md:space-y-6 max-w-5xl overflow-x-hidden p-4 md:p-6" dir="rtl">
         {/* Header */}
-        <div className="flex items-start gap-2 md:gap-3">
-          <Button variant="ghost" size="icon" className="flex-shrink-0 mt-1" onClick={() => navigate('/thiqa/agents')}>
-            <ArrowRight className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => navigate('/thiqa/agents')}>
+              <ArrowRight className="h-5 w-5" />
+            </Button>
             {agent.logo_url ? (
               <img src={agent.logo_url} alt="" className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-contain border flex-shrink-0" />
             ) : (
@@ -685,7 +685,7 @@ export default function ThiqaAgentDetail() {
                 <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-lg md:text-2xl font-bold truncate">{agent.name_ar || agent.name}</h1>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
                 <span className="truncate max-w-[150px] md:max-w-none">{agent.email}</span>
@@ -696,7 +696,7 @@ export default function ThiqaAgentDetail() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-wrap">
             <Button size="sm" className="text-xs" onClick={() => {
               startImpersonation(agentId!);
               navigate('/');
@@ -704,7 +704,7 @@ export default function ThiqaAgentDetail() {
               <Building2 className="h-3.5 w-3.5 ml-1" />
               الدخول للنظام
             </Button>
-            <Button variant="destructive" size="sm" className="flex-shrink-0 text-xs" onClick={() => setDeleteAgentOpen(true)}>
+            <Button variant="destructive" size="sm" className="text-xs" onClick={() => setDeleteAgentOpen(true)}>
               <Trash2 className="h-3.5 w-3.5 ml-1" />
               حذف الوكيل
             </Button>

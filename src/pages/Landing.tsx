@@ -337,7 +337,6 @@ export default function Landing() {
               },
             ];
 
-            const goNext = () => setSlideIdx((p: number) => (p + 1) % slides.length);
             const goNext = () => setSlideIdx((p) => (p + 1) % slides.length);
             const goPrev = () => setSlideIdx((p) => (p - 1 + slides.length) % slides.length);
 

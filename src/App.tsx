@@ -365,6 +365,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             </RecentClientProvider>
+            </AgentProvider>
             </SessionTrackerWrapper>
           </AuthProvider>
         </BrowserRouter>

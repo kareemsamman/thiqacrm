@@ -115,7 +115,7 @@ export default function Login() {
             .from('thiqa_platform_settings')
             .select('setting_value')
             .eq('setting_key', 'skip_email_verification')
-            .single();
+            .maybeSingle();
 
           if (skipRes?.setting_value === "true") {
             // Auto-confirm via edge function and retry

@@ -358,44 +358,46 @@ export default function ThiqaAgentDetail() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 max-w-5xl" dir="rtl">
+      <div className="space-y-4 md:space-y-6 max-w-5xl" dir="rtl">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/thiqa/agents')}>
+        <div className="flex items-start gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="flex-shrink-0 mt-1" onClick={() => navigate('/thiqa/agents')}>
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
             {agent.logo_url ? (
-              <img src={agent.logo_url} alt="" className="h-12 w-12 rounded-lg object-contain border" />
+              <img src={agent.logo_url} alt="" className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-contain border flex-shrink-0" />
             ) : (
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             )}
-            <div>
-              <h1 className="text-2xl font-bold">{agent.name_ar || agent.name}</h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{agent.email}</span>
-                <Badge className={agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive'}>
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-2xl font-bold truncate">{agent.name_ar || agent.name}</h1>
+              <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
+                <span className="truncate max-w-[150px] md:max-w-none">{agent.email}</span>
+                <Badge className={cn("text-[10px] md:text-xs", agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive')}>
                   {agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
                 </Badge>
-                <Badge variant="outline">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
+                <Badge variant="outline" className="text-[10px] md:text-xs">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
               </div>
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="info" className="space-y-4">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="info"><Settings className="h-4 w-4 ml-1" />معلومات</TabsTrigger>
-            <TabsTrigger value="users"><Users className="h-4 w-4 ml-1" />المستخدمون</TabsTrigger>
-            <TabsTrigger value="branding"><Palette className="h-4 w-4 ml-1" />العلامة التجارية</TabsTrigger>
-            <TabsTrigger value="sms"><MessageSquare className="h-4 w-4 ml-1" />SMS 019</TabsTrigger>
-            <TabsTrigger value="auth"><Shield className="h-4 w-4 ml-1" />المصادقة</TabsTrigger>
-            <TabsTrigger value="tranzila"><CreditCard className="h-4 w-4 ml-1" />Tranzila</TabsTrigger>
-            <TabsTrigger value="features"><Settings className="h-4 w-4 ml-1" />الميزات</TabsTrigger>
-            <TabsTrigger value="payments"><CreditCard className="h-4 w-4 ml-1" />المدفوعات</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="inline-flex h-auto gap-1 w-max md:w-auto md:flex-wrap">
+              <TabsTrigger value="info" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />معلومات</TabsTrigger>
+              <TabsTrigger value="users" className="text-xs md:text-sm px-2 md:px-3"><Users className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المستخدمون</TabsTrigger>
+              <TabsTrigger value="branding" className="text-xs md:text-sm px-2 md:px-3"><Palette className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />العلامة</TabsTrigger>
+              <TabsTrigger value="sms" className="text-xs md:text-sm px-2 md:px-3"><MessageSquare className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />SMS</TabsTrigger>
+              <TabsTrigger value="auth" className="text-xs md:text-sm px-2 md:px-3"><Shield className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المصادقة</TabsTrigger>
+              <TabsTrigger value="tranzila" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />Tranzila</TabsTrigger>
+              <TabsTrigger value="features" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />الميزات</TabsTrigger>
+              <TabsTrigger value="payments" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المدفوعات</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ═══════════ INFO TAB ═══════════ */}
           <TabsContent value="info">

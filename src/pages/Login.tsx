@@ -378,7 +378,7 @@ export default function Login() {
                         </button>
                       </div>
                    </div>
-                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
+                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg flex-row-reverse" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
                       {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
                     </Button>

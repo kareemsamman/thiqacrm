@@ -471,9 +471,9 @@ export default function Landing() {
           }}
         />
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">قصص العملاء</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">{ct(content, "testimonials_label", "قصص العملاء")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            تعالوا اسمعوا ماذا يقول وكلاؤنا
+            {ct(content, "testimonials_title", "تعالوا اسمعوا ماذا يقول وكلاؤنا")}
           </h2>
 
           <div className="relative">
@@ -508,12 +508,12 @@ export default function Landing() {
               >
                 <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8 order-2 md:order-1">
                   <div>
-                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">320+</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">{ct(content, "testimonials_stat_1", "320+")}</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">{ct(content, "testimonials_stat_1_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة")}</p>
                   </div>
                   <div>
-                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">50%</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">{ct(content, "testimonials_stat_2", "50%")}</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">{ct(content, "testimonials_stat_2_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة")}</p>
                   </div>
                 </div>
 

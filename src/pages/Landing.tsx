@@ -471,51 +471,91 @@ export default function Landing() {
 
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-      {/* ═══ Testimonials + Stats ═══ */}
+      {/* ═══ Section 6: Testimonials Vertical Slider ═══ */}
       <section id="testimonials" className="py-24 md:py-36 relative">
         <div className="relative max-w-6xl mx-auto px-6">
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">סיפורי לקוחות</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            בואו תשמעו מה יש להגיד
-            <br />
-            <span className="text-white/60">לסוכנים שלנו</span>
+            בואו תשמעו מה יש להגיד לסוכנים שלנו
           </h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Quote */}
-            <div className="space-y-6">
-              <div className="text-6xl text-[#7ba4f7]/30 font-serif leading-none">"</div>
-              <p className="text-xl md:text-2xl text-white/80 leading-relaxed font-light -mt-6">
-                ثقة غيّر طريقة إدارتي للوكالة بالكامل. كل شيء منظم وسريع. التقارير المالية وفرت علي ساعات عمل يومياً.
-              </p>
-              <div>
-                <p className="font-bold text-lg">أحمد خالد</p>
-                <p className="text-sm text-white/40">وكيل تأمين — حيفا</p>
-              </div>
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, j) => (
-                  <Star key={j} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
-                ))}
+          <div className="relative">
+            {/* Vertical nav arrows */}
+            <button
+              onClick={() => goTestimonial("up")}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-14 hidden lg:flex h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 items-center justify-center transition-colors z-10"
+            >
+              <ChevronLeft className="h-5 w-5 rotate-180" />
+            </button>
+            <button
+              onClick={() => goTestimonial("down")}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-14 hidden lg:flex h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 items-center justify-center transition-colors z-10"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            {/* Card */}
+            <div className="rounded-2xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#4a6cc7]/20 via-[#7ba4f7]/10 to-transparent">
+              <div
+                className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] gap-0 transition-all duration-500"
+                style={{
+                  opacity: testimonialAnim === "in" ? 1 : 0,
+                  transform: testimonialAnim === "in" ? "translateY(0)" : "translateY(30px)",
+                  transition: "opacity 0.35s ease, transform 0.35s ease",
+                }}
+              >
+                {/* Stats side */}
+                <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8">
+                  <div>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">320+</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא</p>
+                  </div>
+                  <div>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">50%</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">שליחת פוליסות לחתימה דיגיטלית ב-SMS, ניהול מסמכים מאובטח בענן ומעקב מלא</p>
+                  </div>
+                </div>
+
+                {/* Quote side */}
+                <div className="p-8 md:p-10 flex flex-col justify-center">
+                  <div className="text-5xl text-white/20 font-serif leading-none mb-4 text-left">״</div>
+                  <p className="text-lg md:text-xl text-white/70 leading-relaxed mb-1">
+                    {testimonials[testimonialIdx].quote}
+                  </p>
+                  <p className="text-lg md:text-xl text-white font-bold leading-relaxed mb-8">
+                    {testimonials[testimonialIdx].highlight}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-lg bg-white/10 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-white/90">{testimonials[testimonialIdx].name}</p>
+                      <p className="text-sm text-white/40">{testimonials[testimonialIdx].role}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-5">
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                <div className="text-4xl md:text-5xl font-extrabold text-[#7ba4f7]">320+</div>
-                <p className="text-sm text-white/40 mt-2">סוכנות ביטוח</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                <div className="text-4xl md:text-5xl font-extrabold text-[#7ba4f7]">50K+</div>
-                <p className="text-sm text-white/40 mt-2">פוליסות פעילות</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                <div className="text-4xl md:text-5xl font-extrabold text-[#7ba4f7]">50%</div>
-                <p className="text-sm text-white/40 mt-2">חיסכון בעלויות</p>
-              </div>
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
-                <div className="text-4xl md:text-5xl font-extrabold text-[#7ba4f7]">99.9%</div>
-                <p className="text-sm text-white/40 mt-2">זמן פעילות</p>
-              </div>
+            {/* Progress bar */}
+            <div className="flex justify-center gap-2 mt-8">
+              {testimonials.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1 rounded-full transition-all duration-500 ${
+                    i === testimonialIdx ? "w-10 bg-[#7ba4f7]" : "w-6 bg-white/10"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Mobile arrows */}
+            <div className="flex lg:hidden justify-center gap-3 mt-6">
+              <button onClick={() => goTestimonial("up")} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <ChevronLeft className="h-5 w-5 rotate-180" />
+              </button>
+              <button onClick={() => goTestimonial("down")} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>

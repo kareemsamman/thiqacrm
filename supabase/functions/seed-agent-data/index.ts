@@ -6,9 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Example insurance companies - common in Israeli/Palestinian market
 const SEED_COMPANIES = [
-  { name: 'هبول', name_ar: 'هبول', category_parent: ['ELZAMI'], elzami_commission: 0 },
+  { name: 'הפול', name_ar: 'هبول', category_parent: ['ELZAMI'], elzami_commission: 0 },
   { name: 'שלומו', name_ar: 'شلومو', category_parent: ['ELZAMI'], elzami_commission: 0 },
   { name: 'הראל', name_ar: 'هرئل', category_parent: ['ELZAMI'], elzami_commission: 0 },
   { name: 'מנורה', name_ar: 'منورا', category_parent: ['ELZAMI'], elzami_commission: 0 },
@@ -34,7 +33,7 @@ const SEED_INSURANCE_CATEGORIES = [
 
 const SEED_ROAD_SERVICES = [
   { name: 'גרירה', name_ar: 'سحب', description: 'خدمة سحب السيارة', active: true, sort_order: 1, allowed_car_types: ['car'] },
-  { name: 'פנצ\'ר', name_ar: 'إطار مثقوب', description: 'تبديل إطار مثقوب', active: true, sort_order: 2, allowed_car_types: ['car'] },
+  { name: "פנצ'ר", name_ar: 'إطار مثقوب', description: 'تبديل إطار مثقوب', active: true, sort_order: 2, allowed_car_types: ['car'] },
   { name: 'מצבר', name_ar: 'بطارية', description: 'تشغيل أو تبديل بطارية', active: true, sort_order: 3, allowed_car_types: ['car'] },
   { name: 'פתיחת רכב', name_ar: 'فتح سيارة', description: 'فتح سيارة مقفلة', active: true, sort_order: 4, allowed_car_types: ['car'] },
   { name: 'דלק', name_ar: 'وقود', description: 'توصيل وقود', active: true, sort_order: 5, allowed_car_types: ['car'] },
@@ -51,6 +50,11 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // Use anon client to verify the user's JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -58,17 +62,20 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await anonClient.auth.getUser();
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Use service role client for data operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get agent_id
     const { data: agentUser } = await supabase
@@ -86,7 +93,7 @@ serve(async (req) => {
     const agentId = agentUser.agent_id;
     const results: Record<string, number> = {};
 
-    // 1. Seed insurance companies (only if none exist)
+    // 1. Seed insurance companies
     const { count: companyCount } = await supabase
       .from('insurance_companies')
       .select('id', { count: 'exact', head: true })

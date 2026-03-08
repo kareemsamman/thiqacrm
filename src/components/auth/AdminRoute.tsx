@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Loader2 } from 'lucide-react';
 
 interface AdminRouteProps {
@@ -13,6 +14,7 @@ interface AdminRouteProps {
  */
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isAdmin, isSuperAdmin } = useAuth();
+  const { isImpersonating } = useAgentContext();
 
   // Block during initial auth resolution
   const needsProfileLoading = user && !isSuperAdmin && profileLoading && !profile;
@@ -33,8 +35,8 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // Thiqa super admin should only use Thiqa management routes
-  if (isSuperAdmin) {
+  // Thiqa super admin should only use Thiqa management routes (unless impersonating)
+  if (isSuperAdmin && !isImpersonating) {
     return <Navigate to="/thiqa/agents" replace />;
   }
 

@@ -119,6 +119,12 @@ export default function ThiqaCreateAgent() {
                 <Select value={form.plan} onValueChange={v => setForm({...form, plan: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="free_trial">
+                      <div className="flex items-center gap-2">
+                        تجربة مجانية — 35 يوم
+                        <span className="text-xs text-muted-foreground">(كل الميزات)</span>
+                      </div>
+                    </SelectItem>
                     <SelectItem value="basic">
                       <div className="flex items-center gap-2">
                         Basic — ₪300/شهر

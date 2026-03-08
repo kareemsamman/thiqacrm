@@ -270,29 +270,40 @@ export default function ThiqaAgentDetail() {
     toast.success('تم حفظ العلامة التجارية');
   };
 
-  // ─── Add user to agent ───
-  const addUserToAgent = async () => {
-    if (!newUserEmail.trim()) return;
-    // Find user profile by email
-    const { data: profile } = await supabase
-      .from('profiles').select('id, email, full_name')
-      .eq('email', newUserEmail.trim()).maybeSingle();
-    if (!profile) {
-      toast.error('المستخدم غير موجود. يجب أن يسجل دخول أولاً.');
+  // ─── Create new user for agent ───
+  const createUserForAgent = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim()) {
+      toast.error('يرجى إدخال البريد الإلكتروني وكلمة المرور');
       return;
     }
-    // Check if already assigned
-    const existing = agentUsers.find((u: any) => u.user_id === profile.id);
-    if (existing) { toast.error('المستخدم مربوط بالفعل'); return; }
-    // Also update profile agent_id
-    const [{ error: linkError }, { error: profileError }] = await Promise.all([
-      supabase.from('agent_users').insert({ agent_id: agentId!, user_id: profile.id }),
-      supabase.from('profiles').update({ agent_id: agentId! }).eq('id', profile.id),
-    ]);
-    if (linkError) { toast.error(linkError.message); return; }
-    toast.success('تم إضافة المستخدم');
-    setNewUserEmail('');
-    fetchAll();
+    if (newUserPassword.length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-agent-user', {
+        body: {
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          full_name: newUserName.trim() || null,
+          phone: newUserPhone.trim() || null,
+          agent_id: agentId!,
+          role: newUserRole,
+          branch_id: newUserBranch || null,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success('تم إنشاء المستخدم بنجاح');
+      setNewUserEmail(''); setNewUserPassword(''); setNewUserName(''); setNewUserPhone('');
+      setNewUserRole('worker'); setNewUserBranch('');
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'خطأ في إنشاء المستخدم');
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   // ─── Remove user from agent ───
@@ -300,9 +311,26 @@ export default function ThiqaAgentDetail() {
     await Promise.all([
       supabase.from('agent_users').delete().eq('agent_id', agentId!).eq('user_id', userId),
       supabase.from('profiles').update({ agent_id: null }).eq('id', userId),
+      supabase.from('user_roles').delete().eq('user_id', userId).eq('agent_id', agentId!),
     ]);
     toast.success('تم إزالة المستخدم');
     fetchAll();
+  };
+
+  // ─── Change user role ───
+  const changeUserRole = async (userId: string, newRole: 'admin' | 'worker') => {
+    await supabase.from('user_roles').upsert(
+      { user_id: userId, role: newRole, agent_id: agentId! },
+      { onConflict: 'user_id,role' }
+    );
+    // Delete old role if different
+    if (newRole === 'admin') {
+      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'worker').eq('agent_id', agentId!);
+    } else {
+      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin').eq('agent_id', agentId!);
+    }
+    setUserRoles(prev => ({ ...prev, [userId]: newRole }));
+    toast.success('تم تغيير الصلاحية');
   };
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));

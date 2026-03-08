@@ -337,7 +337,7 @@ function buildSignaturePageHtml(
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%);
       color: white;
       padding: 30px 25px;
       text-align: center;

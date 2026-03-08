@@ -19,9 +19,7 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { profile, isAdmin } = useAuth();
-
-  const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   // Filter groups and items based on role
   const filteredItems = navigationGroups

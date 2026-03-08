@@ -14,6 +14,7 @@ interface AdminRouteProps {
  */
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isAdmin, isSuperAdmin } = useAuth();
+  const { isImpersonating } = useAgentContext();
 
   // Block during initial auth resolution
   const needsProfileLoading = user && !isSuperAdmin && profileLoading && !profile;

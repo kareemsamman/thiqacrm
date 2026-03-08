@@ -389,7 +389,11 @@ export default function ThiqaAgentDetail() {
                   </div>
                   <div>
                     <Label>تاريخ انتهاء الاشتراك</Label>
-                    <Input value={agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'yyyy-MM-dd') : ''} disabled className="opacity-60" />
+                    <Input 
+                      type="date"
+                      value={agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'yyyy-MM-dd') : ''} 
+                      onChange={e => setAgent({...agent, subscription_expires_at: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                    />
                   </div>
                   <div>
                     <Label>السعر الشهري</Label>

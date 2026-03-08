@@ -680,7 +680,6 @@ export default function AdminUsers() {
                       <TableHead className="text-right">البريد الإلكتروني</TableHead>
                       <TableHead className="text-right">الفرع</TableHead>
                       <TableHead className="text-right">الدور</TableHead>
-                      <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
                   </TableHeader>

@@ -392,7 +392,7 @@ function buildSignaturePageHtml(
       margin-bottom: 10px;
     }
     .template-content strong {
-      color: #1e3a5f;
+      color: ${primaryColor};
     }
     
     .signature-section {

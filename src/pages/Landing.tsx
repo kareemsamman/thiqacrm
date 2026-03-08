@@ -20,10 +20,10 @@ export default function Landing() {
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
 
       {/* ═══ Navbar ═══ */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md">
+      <nav className="fixed top-0 inset-x-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <img src={thiqaLogo} alt="Thiqa" className="h-12 w-12" />
+            <img src={thiqaLogo} alt="Thiqa" className="h-14 w-14" />
           </div>
           <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
             <a href="#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>

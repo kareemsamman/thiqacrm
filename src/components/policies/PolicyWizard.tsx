@@ -1156,11 +1156,27 @@ export function PolicyWizard({
       // If using temp policy, remove stale payments (e.g. visa from cancelled Tranzila attempt)
       // before inserting the final set from wizard state
       if (useTempPolicy) {
-        await supabase
+        // Check how much was already paid (e.g. via Tranzila)
+        const { data: existingDbPayments } = await supabase
           .from('policy_payments')
-          .delete()
+          .select('amount')
           .eq('policy_id', policyIdToUse)
-          .eq('locked', false);
+          .eq('refused', false);
+        const existingTotal = (existingDbPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
+        const policyPrice = pricing.totalPrice || parseFloat(policy.insurance_price) || 0;
+        // If already fully paid (e.g. Tranzila payment covers it), skip inserting new payments
+        if (existingTotal >= policyPrice) {
+          // Jump past payment insertion
+          // (payments already handled by previous flow)
+        } else {
+          // Remove stale non-visa payments that may conflict
+          await supabase
+            .from('policy_payments')
+            .delete()
+            .eq('policy_id', policyIdToUse)
+            .eq('locked', false)
+            .neq('payment_type', 'visa');
+        }
       }
 
       // Create payments (skip visa payments that were already created by Tranzila)

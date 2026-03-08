@@ -523,6 +523,33 @@ export default function ThiqaAgentDetail() {
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // ─── Import data for agent ───
+  const handleImportData = async () => {
+    if (!importFile || !agentId) return;
+    setImporting(true);
+    setImportResults(null);
+    setImportProgress("جاري قراءة الملف...");
+    try {
+      const text = await importFile.text();
+      const data = JSON.parse(text);
+      setImportProgress("جاري رفع البيانات...");
+      const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
+        body: { agent_id: agentId, data },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      setImportResults(result.results);
+      setImportProgress("");
+      toast.success("تم استيراد البيانات بنجاح");
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || "خطأ في استيراد البيانات");
+      setImportProgress("");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return <MainLayout><div className="space-y-4 p-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div></MainLayout>;
   }

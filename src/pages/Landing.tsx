@@ -412,10 +412,10 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ CTA ═══ */}
       <section className="py-24 md:py-36 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#162050] via-[#0e1640] to-[#080b16] pointer-events-none" />
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#2d4bc7]/[0.15] rounded-full blur-[120px]" />
         </div>
         <div className="relative max-w-3xl mx-auto text-center px-6">

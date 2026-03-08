@@ -511,13 +511,38 @@ export default function ThiqaAgentDetail() {
   const saveEditUser = async () => {
     if (!editingUser) return;
     setSavingUser(true);
+    
+    // Update profile
     const { error } = await supabase.from('profiles').update({
       full_name: editUserName || null,
       phone: editUserPhone || null,
       branch_id: editUserBranch === 'none' ? null : editUserBranch || null,
     }).eq('id', editingUser.user_id);
+    
+    if (error) { 
+      setSavingUser(false);
+      toast.error('خطأ في تحديث المستخدم'); 
+      return; 
+    }
+
+    // Update password if provided
+    if (editUserPassword.trim()) {
+      if (editUserPassword.length < 6) {
+        setSavingUser(false);
+        toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+        return;
+      }
+      const { data: pwData, error: pwError } = await supabase.functions.invoke('update-user-password', {
+        body: { user_id: editingUser.user_id, new_password: editUserPassword },
+      });
+      if (pwError || pwData?.error) {
+        setSavingUser(false);
+        toast.error(pwData?.error || 'خطأ في تحديث كلمة المرور');
+        return;
+      }
+    }
+
     setSavingUser(false);
-    if (error) { toast.error('خطأ في تحديث المستخدم'); return; }
     toast.success('تم تحديث المستخدم');
     setEditingUser(null);
     fetchAll();

@@ -895,6 +895,7 @@ export default function ThiqaAgentDetail() {
                               )}
                             </td>
                             <td className="p-2 md:p-3">
+                              <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditUser(au)}>
                                   <Settings className="h-3.5 w-3.5" />
                                 </Button>

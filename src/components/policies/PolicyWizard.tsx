@@ -1551,12 +1551,12 @@ export function PolicyWizard({
           className="max-w-5xl w-[95vw] sm:max-h-[95vh] max-h-[100dvh] overflow-hidden flex flex-col sm:rounded-2xl rounded-none p-3 sm:p-6" 
           dir="rtl"
         >
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
+          <DialogHeader className="flex-shrink-0 pb-2 sm:pb-4 border-b">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <DialogTitle className="text-base sm:text-xl font-bold flex items-center gap-2">
                 إضافة وثيقة جديدة
                 {selectedCategory && (
-                  <span className="text-sm font-normal text-muted-foreground">
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                     ({selectedCategory.name_ar || selectedCategory.name})
                   </span>
                 )}

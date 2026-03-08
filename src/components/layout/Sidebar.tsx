@@ -497,7 +497,7 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent 
           side="right" 
-          className="w-64 p-0 border-l bg-[hsl(0,0%,7%)] border-[hsl(0,0%,15%)] text-[hsl(0,0%,85%)]"
+          className="w-64 p-0 border-l bg-[#122143] border-white/[0.08] text-white/85"
         >
           <SidebarContent 
             collapsed={false} 

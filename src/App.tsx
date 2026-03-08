@@ -73,6 +73,7 @@ import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
 import ThiqaDashboard from "./pages/ThiqaDashboard";
 import Landing from "./pages/Landing";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const queryClient = new QueryClient({
   defaultOptions: {

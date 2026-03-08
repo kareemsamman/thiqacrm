@@ -117,7 +117,7 @@ Secure: ${smtpSecure ? 'Yes (TLS)' : 'No'}`;
       await client.send({
         from: smtpUser,
         to: testEmail,
-        subject: "اختبار إعدادات SMTP - AB Insurance CRM",
+        subject: "اختبار إعدادات SMTP - ثقة للتأمين",
         content: textContent,
         html: htmlContent,
       });

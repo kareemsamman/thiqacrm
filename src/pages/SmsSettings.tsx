@@ -946,7 +946,7 @@ export default function SmsSettings() {
                     onChange={(e) =>
                       setSignaturePageSettings(prev => ({ ...prev, footer_html: e.target.value }))
                     }
-                    placeholder="<p>جميع الحقوق محفوظة © AB Insurance</p>"
+                    placeholder="<p>جميع الحقوق محفوظة © ثقة للتأمين</p>"
                     className="min-h-[60px] font-mono text-sm"
                     dir="rtl"
                   />

@@ -378,7 +378,7 @@ function buildSignaturePageHtml(
       margin-bottom: 25px;
     }
     .template-content h2, .template-content h3 {
-      color: #1e3a5f;
+      color: ${primaryColor};
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 15px;

@@ -856,6 +856,7 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الصلاحية</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الفرع</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الحالة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">البريد</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إجراء</th>
                       </tr>
                     </thead>

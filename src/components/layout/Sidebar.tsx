@@ -417,8 +417,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                   className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/20 flex-shrink-0"
                 />
               ) : (
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-md">
-                  <span className="text-sm font-bold text-primary-foreground">{userInitial}</span>
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[hsl(var(--sidebar-active))] shadow-md">
+                  <span className="text-sm font-bold text-white">{userInitial}</span>
                 </div>
               )}
               {!collapsed && (

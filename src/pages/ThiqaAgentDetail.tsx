@@ -812,6 +812,20 @@ export default function ThiqaAgentDetail() {
                     <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder={`${agent.monthly_price || 300}`} />
                   </div>
                   <div className="flex-1">
+                    <Label>التاريخ</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal", !paymentDate && "text-muted-foreground")}>
+                          <CalendarIcon className="ml-2 h-4 w-4" />
+                          {paymentDate ? format(paymentDate, "dd/MM/yyyy") : "اختر تاريخ"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="flex-1">
                     <Label>ملاحظات</Label>
                     <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="اختياري" />
                   </div>

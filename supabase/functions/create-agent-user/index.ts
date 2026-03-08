@@ -25,14 +25,35 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
+    // Check if super admin
     const { data: isSA } = await adminClient.rpc("is_super_admin", { _user_id: caller.id });
-    if (!isSA) throw new Error("Not a super admin");
 
     const body = await req.json();
     const { email, password, full_name, phone, agent_id, role, branch_id } = body;
 
     if (!email || !password || !agent_id || !role) {
       throw new Error("Missing required fields: email, password, agent_id, role");
+    }
+
+    // If not super admin, check if caller is an admin of this agent
+    if (!isSA) {
+      const { data: callerAgentUser } = await adminClient
+        .from("agent_users")
+        .select("agent_id")
+        .eq("user_id", caller.id)
+        .eq("agent_id", agent_id)
+        .maybeSingle();
+
+      if (!callerAgentUser) throw new Error("ليس لديك صلاحية لإضافة مستخدمين لهذا الوكيل");
+
+      const { data: callerRole } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (!callerRole) throw new Error("يجب أن تكون مديراً لإضافة مستخدمين");
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();

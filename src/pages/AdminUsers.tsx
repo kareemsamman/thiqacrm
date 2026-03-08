@@ -47,7 +47,12 @@ import {
   Building2,
   Phone,
   History,
+  UserPlus,
+  Plus,
 } from "lucide-react";
+import { useAgentContext } from "@/hooks/useAgentContext";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { UserSessionsTab } from "@/components/admin/UserSessionsTab";
@@ -83,6 +88,7 @@ interface LoginAttempt {
 export default function AdminUsers() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { branches, getBranchName } = useBranches();
+  const { agentId } = useAgentContext();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
@@ -96,6 +102,48 @@ export default function AdminUsers() {
     action: 'approve' | 'block' | 'unblock';
     userName: string;
   } | null>(null);
+
+  // Create user form state
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "worker">("worker");
+  const [newUserBranch, setNewUserBranch] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim() || !agentId) return;
+    setCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-agent-user', {
+        body: {
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          full_name: newUserName.trim() || null,
+          phone: newUserPhone.trim() || null,
+          agent_id: agentId,
+          role: newUserRole,
+          branch_id: newUserBranch && newUserBranch !== 'none' ? newUserBranch : null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "تم الإنشاء", description: "تم إنشاء المستخدم بنجاح" });
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserPhone("");
+      setNewUserRole("worker");
+      setNewUserBranch("");
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message || "فشل في إنشاء المستخدم", variant: "destructive" });
+    } finally {
+      setCreatingUser(false);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -469,6 +517,60 @@ export default function AdminUsers() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Create User Form */}
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            إنشاء مستخدم جديد
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>الاسم الكامل</Label>
+              <Input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="مثال: أحمد محمد" />
+            </div>
+            <div>
+              <Label>البريد الإلكتروني *</Label>
+              <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" type="email" />
+            </div>
+            <div>
+              <Label>كلمة المرور *</Label>
+              <Input value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="6 أحرف على الأقل" dir="ltr" type="password" />
+            </div>
+            <div>
+              <Label>الهاتف</Label>
+              <Input value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+            </div>
+            <div>
+              <Label>الصلاحية *</Label>
+              <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as 'admin' | 'worker')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">مدير (Admin)</SelectItem>
+                  <SelectItem value="worker">موظف (Worker)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {branches.length > 0 && (
+              <div>
+                <Label>الفرع</Label>
+                <Select value={newUserBranch} onValueChange={setNewUserBranch}>
+                  <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون فرع</SelectItem>
+                    {branches.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>{branch.name_ar || branch.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <Button onClick={handleCreateUser} disabled={creatingUser || !newUserEmail.trim() || !newUserPassword.trim()}>
+            {creatingUser ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
+            إنشاء المستخدم
+          </Button>
         </div>
 
         {/* Tabs */}

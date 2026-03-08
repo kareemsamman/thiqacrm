@@ -411,7 +411,7 @@ export default function ThiqaAgentDetail() {
           </div>
         </div>
 
-        <Tabs defaultValue="info" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
             <TabsList className="inline-flex h-auto gap-1 w-max md:w-auto md:flex-wrap">
               <TabsTrigger value="info" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />معلومات</TabsTrigger>

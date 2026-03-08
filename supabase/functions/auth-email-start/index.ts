@@ -96,17 +96,12 @@ serve(async (req) => {
     const normalizedEmail = email.toLowerCase().trim();
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // Parallel fetch: profile, auth settings, and rate limit check - MUCH faster
-    const [profileResult, authSettingsResult, rateLimitResult] = await Promise.all([
+    // Fetch profile and rate limit in parallel first
+    const [profileResult, rateLimitResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, status, email, full_name")
+        .select("id, status, email, full_name, agent_id")
         .eq("email", normalizedEmail)
-        .single(),
-      supabase
-        .from("auth_settings")
-        .select("*")
-        .limit(1)
         .single(),
       supabase
         .from("otp_codes")

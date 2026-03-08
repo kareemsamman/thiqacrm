@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [branchName, setBranchName] = useState<string | null>(null);
 
-  // Super admin check based on email - this is the authoritative check
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  // Super admin check based on approved identifiers
+  const isSuperAdmin = isThiqaSuperAdminEmail(user?.email);
 
   const fetchUserProfile = async (userId: string, userEmail: string | undefined) => {
     setProfileLoading(true);

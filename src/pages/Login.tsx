@@ -319,7 +319,7 @@ export default function Login() {
             </div>
 
             {/* Content */}
-            <div className="px-8 pb-10 space-y-5">
+            <div className="px-5 sm:px-8 pb-8 sm:pb-10 space-y-5">
               {isInIframe && (
                 <Alert className="border-amber-300/60 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm rounded-xl">
                   <AlertCircle className="h-4 w-4 text-amber-600" />

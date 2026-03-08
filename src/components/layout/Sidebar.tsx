@@ -49,6 +49,7 @@ import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
 import { Palette, Link2 } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import thiqaLogo from "@/assets/thiqa-logo.svg";
 
 interface NavItem {
   name: string;

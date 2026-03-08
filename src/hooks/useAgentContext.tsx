@@ -21,6 +21,7 @@ interface AgentContextType {
   agentFeatures: Record<string, boolean>;
   loading: boolean;
   isSubscriptionActive: boolean;
+  isSubscriptionPaused: boolean;
   isThiqaSuperAdmin: boolean;
   isImpersonating: boolean;
   impersonatedAgent: AgentInfo | null;

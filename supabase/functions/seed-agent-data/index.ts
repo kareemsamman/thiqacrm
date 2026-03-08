@@ -91,26 +91,51 @@ const SEED_ACCIDENT_FEE_PRICES = [
   { service_name: "اعفاء رسوم حادث فوق 24 حتى 2000 شيكل", company_cost: 0, selling_price: 0 },
 ];
 
-// ── Helper: upsert by name, return map of name→id ────────────────────
-async function upsertByName(
+// Helper: delete old seed rows (no FK dependencies) then insert new ones, return name→id map
+async function syncSeedData(
   supabase: any,
   table: string,
-  rows: any[],
+  seedRows: any[],
   agentId: string,
   keyField = "name",
+  dependencyTable?: string,
+  dependencyFk?: string,
 ): Promise<{ inserted: number; idMap: Map<string, string> }> {
+  const seedNames = new Set(seedRows.map((r) => r[keyField]));
+
   const { data: existing, error: readErr } = await supabase
     .from(table)
     .select(`id, ${keyField}`)
     .eq("agent_id", agentId);
   if (readErr) throw readErr;
 
-  const existingMap = new Map<string, string>();
+  const idMap = new Map<string, string>();
+  const idsToDelete: string[] = [];
+
   for (const row of existing ?? []) {
-    existingMap.set(row[keyField], row.id);
+    if (seedNames.has(row[keyField])) {
+      // Check if it has real dependencies
+      if (dependencyTable && dependencyFk) {
+        const { count } = await supabase
+          .from(dependencyTable)
+          .select("id", { count: "exact", head: true })
+          .eq(dependencyFk, row.id);
+        if ((count ?? 0) > 0) {
+          idMap.set(row[keyField], row.id);
+          continue;
+        }
+      }
+      idsToDelete.push(row.id);
+    } else {
+      idMap.set(row[keyField], row.id);
+    }
   }
 
-  const toInsert = rows.filter((r) => !existingMap.has(r[keyField]));
+  if (idsToDelete.length > 0) {
+    await supabase.from(table).delete().in("id", idsToDelete);
+  }
+
+  const toInsert = seedRows.filter((r) => !idMap.has(r[keyField]));
   let insertedCount = 0;
 
   if (toInsert.length > 0) {
@@ -121,11 +146,11 @@ async function upsertByName(
     if (error) throw error;
     insertedCount = data?.length ?? 0;
     for (const row of data ?? []) {
-      existingMap.set(row[keyField], row.id);
+      idMap.set(row[keyField], row.id);
     }
   }
 
-  return { inserted: insertedCount, idMap: existingMap };
+  return { inserted: insertedCount, idMap };
 }
 
 // ── Main handler ─────────────────────────────────────────────────────

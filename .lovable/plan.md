@@ -1,55 +1,51 @@
 
 
-# Fix Package Payment Splitting — Insert 1 Record Per Cheque, Not Split Across Components
-
 ## Problem
-When paying for a package policy (e.g., شامل ₪3,700 + خدمات طريق ₪500 = ₪4,200) with 3 cheques of ₪1,400 each, `PackagePaymentModal` proportionally splits each cheque across the 2 component policies, creating **6 payment records** (₪1,233 + ₪167 per cheque). The user expects **3 records** — one per cheque.
+
+All notification trigger functions (`notify_on_payment_received`, `notify_on_policy_created`, `notify_on_client_created`, `notify_on_customer_signature`, `notify_on_customer_signature_insert`) select target users using only `branch_id` filtering — they never check `agent_id`. This causes cross-agent notification leakage: when one agent creates data, users from other agents receive those notifications too.
 
 ## Root Cause
-`PackagePaymentModal.handleSubmit` calls `calculateSplitPayments()` which distributes each payment proportionally by remaining balance across all package component policies.
 
-## Solution
-
-### 1. Update the DB trigger to validate across the entire package group
-**Migration SQL** — Change the existing payment total check in `validate_policy_payment_total()` so that when a policy belongs to a group, `v_existing_total` sums payments across **all** policies in that group (not just `NEW.policy_id`).
-
-Current trigger (line 42-48) only sums `pp.policy_id = NEW.policy_id`. Updated version:
+Example from `notify_on_payment_received`:
 ```sql
-IF v_group_id IS NOT NULL THEN
-  -- Sum payments across ALL policies in the package
-  SELECT COALESCE(SUM(pp.amount), 0) INTO v_existing_total
-  FROM policy_payments pp
-  JOIN policies pol ON pol.id = pp.policy_id
-  WHERE pol.group_id = v_group_id
-    AND pol.deleted_at IS NULL
-    AND COALESCE(pp.refused, false) = false
-    AND (TG_OP <> 'UPDATE' OR pp.id <> NEW.id);
-ELSE
-  -- Single policy: sum only for that policy
-  SELECT COALESCE(SUM(pp.amount), 0) INTO v_existing_total ...
-END IF;
+SELECT ARRAY_AGG(p.id) INTO v_admin_users
+FROM public.profiles p
+WHERE p.status = 'active'
+  AND (p.branch_id IS NULL OR p.branch_id = NEW.branch_id);
+```
+No `agent_id` join — picks up ALL active users.
+
+## Fix
+
+Update all 5 notification trigger functions to join `agent_users` and filter by `NEW.agent_id`:
+
+```sql
+SELECT ARRAY_AGG(p.id) INTO v_admin_users
+FROM public.profiles p
+JOIN public.agent_users au ON au.user_id = p.id
+WHERE p.status = 'active'
+  AND au.agent_id = NEW.agent_id
+  AND (p.branch_id IS NULL OR p.branch_id = NEW.branch_id);
 ```
 
-### 2. Update `PackagePaymentModal.handleSubmit` — Stop splitting, insert 1 record per payment
-**File:** `src/components/clients/PackagePaymentModal.tsx`
+Also set `agent_id` on the inserted notification rows so the `auto_set_agent_id` trigger and RLS work correctly.
 
-Instead of calling `calculateSplitPayments()` and looping over splits, insert each payment line as a **single record** against the primary (first) policy in the package. Add `batch_id` to group them. Include `cheque_image_url` for cheque payments.
+## Cleanup
 
-Key changes in `handleSubmit` (lines 448-496):
-- Generate a `batch_id` for all payments in this batch
-- Pick the primary policy ID (first policy with remaining, or first overall)
-- Insert one `policy_payments` record per payment line (no split loop)
-- Include `cheque_image_url` from scanned cheques
-- Upload images for each payment
+Delete the 2 orphaned notifications for `diwacix494@feriwor.com` that were incorrectly created:
+```sql
+DELETE FROM notifications WHERE user_id = '87fbbad6-178b-444d-bd10-73377dbaa66d';
+```
 
-### 3. Update `handleScannedCheques` to preserve `cheque_image_url`
-**File:** `src/components/clients/PackagePaymentModal.tsx`
+## Single Migration
 
-The scanned cheque handler (line 324-356) doesn't preserve the CDN `image_url` from the scanner. Add `cheque_image_url: cheque.image_url` to the payment line (same pattern as `PolicyPaymentsSection`).
+One migration with:
+1. `CREATE OR REPLACE FUNCTION` for all 5 triggers, adding `agent_id` filtering
+2. `DELETE` orphan notifications for the affected user
 
-### Files Changed
-| File | Change |
-|---|---|
-| DB migration (SQL) | Update trigger to sum across package group |
-| `src/components/clients/PackagePaymentModal.tsx` | Stop proportional split; insert 1 record per payment against primary policy with batch_id + cheque_image_url |
+## Technical Detail
+
+- Tables involved: `notifications`, `profiles`, `agent_users`
+- The `NEW` row (from policies, payments, clients, customer_signatures) already has `agent_id` set by the `auto_set_agent_id` trigger which fires BEFORE INSERT
+- The notification INSERT already has `auto_set_agent_id` trigger, but explicitly passing `agent_id` is safer
 

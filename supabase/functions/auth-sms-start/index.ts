@@ -155,7 +155,6 @@ serve(async (req) => {
     ]);
 
     const { data: existingProfile } = profileResult;
-    const { data: authSettings, error: settingsError } = authSettingsResult;
     const { data: recentOtps } = rateLimitResult;
 
     // Case 1: Profile exists

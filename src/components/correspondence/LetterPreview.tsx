@@ -101,10 +101,10 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
             fontSize: '28px', 
             fontWeight: 'bold', 
             margin: 0, 
-            color: '#0d9488',
+            color: 'hsl(225, 65%, 50%)',
             letterSpacing: '1px',
           }}>
-            AB تأمين
+            ثقة للتأمين
           </h1>
           <p style={{ 
             fontSize: '13px', 

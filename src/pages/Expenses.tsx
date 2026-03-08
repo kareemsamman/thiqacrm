@@ -529,7 +529,7 @@ export default function Expenses() {
   const handleExportInvoice = (type: 'receipt' | 'payment') => {
     const monthLabel = format(selectedMonth, 'MMMM yyyy', { locale: he });
     const logoUrl = siteSettings?.logo_url || null;
-    const businessName = siteSettings?.site_title || 'AB Insurance';
+    const businessName = siteSettings?.site_title || 'ثقة للتأمين';
     const filtered = expenses.filter(e => e.voucher_type === type && !e.is_company_due);
     const html = buildExpenseInvoiceHtml(
       filtered as any,

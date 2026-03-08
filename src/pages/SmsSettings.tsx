@@ -345,7 +345,7 @@ export default function SmsSettings() {
       const { data, error } = await supabase.functions.invoke("send-sms", {
         body: {
           phone: testPhone,
-          message: "رسالة اختبار من AB Insurance CRM - Test message from AB Insurance CRM",
+          message: "رسالة اختبار من ثقة للتأمين - Test message from Thiqa Insurance CRM",
         },
       });
 

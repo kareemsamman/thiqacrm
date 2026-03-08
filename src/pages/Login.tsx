@@ -169,19 +169,12 @@ export default function Login() {
 
       if (data?.error) throw new Error(data.error);
 
-      const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.";
+      const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح!";
       toast.success(successMessage);
-      setSignupFeedback({ type: "success", message: successMessage });
-      setPageView("login");
-      setEmail(signupEmail);
-      setPassword(signupPassword);
-      setFirstName("");
-      setLastName("");
-      setSignupEmail("");
-      setSignupPassword("");
-      setSignupConfirmPassword("");
-      setSignupPhone("");
-      setSignupErrors({});
+      
+      // Redirect to email verification page
+      const params = new URLSearchParams({ email: signupEmail.trim(), p: signupPassword });
+      navigate(`/verify-email?${params.toString()}`, { replace: true });
     } catch (e: unknown) {
       const errorMessage = await extractInvokeErrorMessage(e);
       setSignupFeedback({ type: "error", message: errorMessage });

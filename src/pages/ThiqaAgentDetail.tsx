@@ -137,7 +137,7 @@ export default function ThiqaAgentDetail() {
         supabase.from('agents').select('*').eq('id', agentId!).single(),
         supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
         supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
-        supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id)').eq('agent_id', agentId!),
+        supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id, email_confirmed)').eq('agent_id', agentId!),
         supabase.from('sms_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
         supabase.from('auth_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
         supabase.from('payment_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
@@ -480,23 +480,15 @@ export default function ThiqaAgentDetail() {
     toast.success('تم تغيير الصلاحية');
   };
 
-  // ─── Delete agent ───
+  // ─── Delete agent (via edge function) ───
   const deleteAgent = async () => {
     setDeletingAgent(true);
     try {
-      // Delete related data first
-      await Promise.all([
-        supabase.from('agent_subscription_payments').delete().eq('agent_id', agentId!),
-        supabase.from('agent_feature_flags').delete().eq('agent_id', agentId!),
-        supabase.from('agent_users').delete().eq('agent_id', agentId!),
-        supabase.from('user_roles').delete().eq('agent_id', agentId!),
-        supabase.from('sms_settings').delete().eq('agent_id', agentId!),
-        supabase.from('auth_settings').delete().eq('agent_id', agentId!),
-        supabase.from('payment_settings').delete().eq('agent_id', agentId!),
-        supabase.from('site_settings').delete().eq('agent_id', agentId!),
-      ]);
-      const { error } = await supabase.from('agents').delete().eq('id', agentId!);
+      const { data, error } = await supabase.functions.invoke('delete-agent', {
+        body: { agent_id: agentId },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success('تم حذف الوكيل بنجاح');
       navigate('/thiqa/agents');
     } catch (err: any) {
@@ -864,6 +856,7 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الصلاحية</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الفرع</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الحالة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">البريد</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إجراء</th>
                       </tr>
                     </thead>
@@ -895,6 +888,13 @@ export default function ThiqaAgentDetail() {
                               <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-2 md:p-3">
+                              {p?.email_confirmed ? (
+                                <Badge variant="default" className="text-[10px] md:text-xs bg-green-600">مفعّل</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px] md:text-xs">غير مفعّل</Badge>
+                              )}
+                            </td>
+                            <td className="p-2 md:p-3">
                               <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditUser(au)}>
                                   <Settings className="h-3.5 w-3.5" />
@@ -908,7 +908,7 @@ export default function ThiqaAgentDetail() {
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
+                        <tr><td colSpan={8} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>

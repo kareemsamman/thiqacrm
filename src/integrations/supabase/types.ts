@@ -4549,6 +4549,7 @@ export type Database = {
           branch_id: string | null
           created_at: string
           email: string
+          email_confirmed: boolean | null
           full_name: string | null
           id: string
           last_seen_notifications_at: string | null
@@ -4563,6 +4564,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           email: string
+          email_confirmed?: boolean | null
           full_name?: string | null
           id: string
           last_seen_notifications_at?: string | null
@@ -4577,6 +4579,7 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           email?: string
+          email_confirmed?: boolean | null
           full_name?: string | null
           id?: string
           last_seen_notifications_at?: string | null

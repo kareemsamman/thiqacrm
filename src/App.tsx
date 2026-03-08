@@ -73,6 +73,7 @@ import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
 import ThiqaDashboard from "./pages/ThiqaDashboard";
 import Landing from "./pages/Landing";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +107,7 @@ const App = () => (
               <Route path="/landing" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/subscription-expired" element={<SubscriptionExpired />} />
               {/* Thiqa Super Admin routes */}
               <Route path="/thiqa" element={<ThiqaAdminRoute><ThiqaDashboard /></ThiqaAdminRoute>} />

@@ -237,6 +237,7 @@ export default function Login() {
       } else {
         throw new Error(autoLoginError.message || "تم إنشاء الحساب لكن تعذر تسجيل الدخول تلقائياً");
       }
+    } catch (e: unknown) {
       const errorMessage = await extractInvokeErrorMessage(e);
       setSignupFeedback({ type: "error", message: errorMessage });
       toast.error(errorMessage);

@@ -165,6 +165,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
         });
       }
 
+      window.dispatchEvent(new Event('onboarding-progress-updated'));
       onSuccess();
     } catch (error: any) {
       console.error('Error saving company:', error);

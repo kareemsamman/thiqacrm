@@ -81,7 +81,7 @@ serve(async (req) => {
       // Plain text version (important fallback for email clients)
       const textContent = `اختبار SMTP ناجح!
 
-تم إرسال هذه الرسالة بنجاح من نظام AB Insurance CRM.
+تم إرسال هذه الرسالة بنجاح من نظام ثقة للتأمين.
 إعدادات SMTP تعمل بشكل صحيح!
 
 ---

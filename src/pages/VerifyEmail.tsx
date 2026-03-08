@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle, Mail, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
 import { OtpInput } from "@/components/auth/OtpInput";
 
 export default function VerifyEmail() {

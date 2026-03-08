@@ -908,7 +908,7 @@ export default function ThiqaAgentDetail() {
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
+                        <tr><td colSpan={8} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>

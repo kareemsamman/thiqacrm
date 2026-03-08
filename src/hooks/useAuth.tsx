@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Check if user has admin role OR is super admin
-      const isSuperAdminUser = userEmail === SUPER_ADMIN_EMAIL;
+      const isSuperAdminUser = isThiqaSuperAdminEmail(userEmail);
       
       if (isSuperAdminUser) {
         // Super admin is always admin

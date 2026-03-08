@@ -50,12 +50,21 @@ Deno.serve(async (req) => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const fullName = `${String(first_name).trim()} ${String(last_name).trim()}`;
 
+    // Check if email verification is skipped
+    const { data: skipSetting } = await adminClient
+      .from("thiqa_platform_settings")
+      .select("setting_value")
+      .eq("setting_key", "skip_email_verification")
+      .single();
+
+    const skipEmailVerification = skipSetting?.setting_value === "true";
+
     let userId: string | null = null;
 
     const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
       email: normalizedEmail,
       password,
-      email_confirm: false,
+      email_confirm: skipEmailVerification,
       user_metadata: { full_name: fullName },
     });
 

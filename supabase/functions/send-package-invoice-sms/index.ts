@@ -596,22 +596,24 @@ function buildPackageInvoiceHtml(
       font-size: 14px;
       line-height: 1.7;
       color: #2d3748;
-      background: #fff;
-      padding: 20px;
+      background: #122143;
+      min-height: 100vh;
+      padding: 24px 16px;
       direction: rtl;
     }
-    .container { max-width: 800px; margin: 0 auto; }
+    .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); overflow: hidden; }
     .header {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 0;
       padding: 30px 20px;
-      background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
-      border-radius: 12px;
-      border-bottom: 3px solid #1e3a5f;
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
+      border-radius: 0;
+      border-bottom: none;
+      color: white;
     }
-    .header h1 { color: #1e3a5f; font-size: 26px; font-weight: 800; margin-bottom: 8px; }
-    .header .english-name { color: #4a5568; font-size: 16px; font-weight: 500; letter-spacing: 2px; margin-bottom: 10px; }
-    .header p { color: #718096; font-size: 14px; }
+    .header h1 { color: white; font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+    .header .english-name { color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 500; letter-spacing: 2px; margin-bottom: 10px; }
+    .header p { color: rgba(255,255,255,0.85); font-size: 14px; }
     .package-badge {
       display: inline-block;
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);

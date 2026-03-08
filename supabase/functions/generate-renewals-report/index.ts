@@ -302,23 +302,28 @@ function buildDetailedReportHtml(clients: ClientWithPolicies[], totalPolicies: n
     
     body {
       font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
-      background: #f8fafc;
+      background: #122143;
       color: #1e293b;
       line-height: 1.5;
-      padding: 20px;
+      min-height: 100vh;
+      padding: 24px 16px;
     }
     
     .container {
       max-width: 1200px;
       margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+      overflow: hidden;
     }
     
     /* Header */
     .report-header {
-      background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
       color: white;
       padding: 24px 32px;
-      border-radius: 12px 12px 0 0;
+      border-radius: 0;
       display: flex;
       justify-content: space-between;
       align-items: center;

@@ -110,8 +110,30 @@ export default function Login() {
         if (error.message.includes("Invalid login credentials")) {
           toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         } else if (isEmailNotConfirmed) {
-          toast.info("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
-          navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, { replace: true });
+          // Check if skip is enabled
+          const { data: skipRes } = await supabase
+            .from('thiqa_platform_settings')
+            .select('setting_value')
+            .eq('setting_key', 'skip_email_verification')
+            .single();
+
+          if (skipRes?.setting_value === "true") {
+            // Auto-confirm via edge function and retry
+            toast.info("جاري تفعيل الحساب...");
+            await supabase.functions.invoke("registration-otp-verify", {
+              body: { email: email.trim(), skip: true },
+            });
+            // Retry login
+            const { error: retryError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+            if (retryError) {
+              toast.error("فشل تسجيل الدخول بعد التفعيل");
+            } else {
+              toast.success("تم تسجيل الدخول بنجاح");
+            }
+          } else {
+            toast.info("يرجى تأكيد بريدك الإلكتروني");
+            navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, { replace: true });
+          }
         } else {
           toast.error(error.message);
         }

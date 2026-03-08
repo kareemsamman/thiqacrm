@@ -108,6 +108,10 @@ export default function ThiqaAgentDetail() {
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserBranch, setEditUserBranch] = useState("");
   const [savingUser, setSavingUser] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<Record<string, { inserted: number; errors: number }> | null>(null);
+  const [importProgress, setImportProgress] = useState("");
 
   useEffect(() => {
     if (agentId) fetchAll();
@@ -519,6 +523,33 @@ export default function ThiqaAgentDetail() {
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // ─── Import data for agent ───
+  const handleImportData = async () => {
+    if (!importFile || !agentId) return;
+    setImporting(true);
+    setImportResults(null);
+    setImportProgress("جاري قراءة الملف...");
+    try {
+      const text = await importFile.text();
+      const data = JSON.parse(text);
+      setImportProgress("جاري رفع البيانات...");
+      const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
+        body: { agent_id: agentId, data },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      setImportResults(result.results);
+      setImportProgress("");
+      toast.success("تم استيراد البيانات بنجاح");
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || "خطأ في استيراد البيانات");
+      setImportProgress("");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return <MainLayout><div className="space-y-4 p-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div></MainLayout>;
   }
@@ -593,6 +624,7 @@ export default function ThiqaAgentDetail() {
               <TabsTrigger value="tranzila" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />Tranzila</TabsTrigger>
               <TabsTrigger value="features" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />الميزات</TabsTrigger>
               <TabsTrigger value="payments" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المدفوعات</TabsTrigger>
+              <TabsTrigger value="import" className="text-xs md:text-sm px-2 md:px-3"><Upload className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />استيراد بيانات</TabsTrigger>
               <TabsTrigger value="stats" className="text-xs md:text-sm px-2 md:px-3"><Building2 className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />إحصائيات</TabsTrigger>
             </TabsList>
           </div>
@@ -1039,6 +1071,89 @@ export default function ThiqaAgentDetail() {
                     </tbody>
                   </table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ IMPORT TAB ═══════════ */}
+          <TabsContent value="import">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />استيراد بيانات</CardTitle>
+                <CardDescription>رفع ملف JSON يحتوي على بيانات الوكيل (نسخة احتياطية من نظام سابق)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border-2 border-dashed rounded-xl p-8 text-center space-y-4">
+                  <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="import-file" className="cursor-pointer">
+                      <span className="text-primary font-medium hover:underline">اختر ملف JSON</span>
+                    </Label>
+                    <input
+                      id="import-file"
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) { setImportFile(f); setImportResults(null); }
+                      }}
+                    />
+                  </div>
+                  {importFile && (
+                    <div className="text-sm text-muted-foreground">
+                      <Badge variant="secondary">{importFile.name}</Badge>
+                      <span className="mr-2">({(importFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleImportData}
+                  disabled={!importFile || importing}
+                  className="w-full"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Upload className="h-4 w-4 ml-2" />}
+                  {importing ? importProgress || "جاري الاستيراد..." : "بدء الاستيراد"}
+                </Button>
+
+                {importResults && (
+                  <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">نتائج الاستيراد</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-right p-2 font-medium">الجدول</th>
+                              <th className="text-right p-2 font-medium">تم الإدراج</th>
+                              <th className="text-right p-2 font-medium">أخطاء</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(importResults).map(([table, res]) => (
+                              <tr key={table} className="border-b last:border-0">
+                                <td className="p-2 font-mono text-xs">{table}</td>
+                                <td className="p-2">
+                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted}</Badge>
+                                </td>
+                                <td className="p-2">
+                                  {res.errors > 0 ? (
+                                    <Badge variant="destructive">{res.errors}</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">0</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

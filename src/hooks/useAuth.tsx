@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       branchId,
       branchName,
       signOut,
-    }}>
+      refreshProfile,
       {children}
     </AuthContext.Provider>
   );

@@ -113,6 +113,11 @@ export default function ThiqaAgentDetail() {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<Record<string, { inserted: number; errors: number }> | null>(null);
   const [importProgress, setImportProgress] = useState("");
+  const [importTableIndex, setImportTableIndex] = useState(-1);
+  const [importStartTime, setImportStartTime] = useState<number | null>(null);
+  const [importElapsed, setImportElapsed] = useState(0);
+  const [importTotalRows, setImportTotalRows] = useState(0);
+  const [importDoneRows, setImportDoneRows] = useState(0);
 
   useEffect(() => {
     if (agentId) fetchAll();

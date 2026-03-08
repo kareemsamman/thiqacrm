@@ -67,7 +67,8 @@ function buildComprehensiveInvoiceHtml(
   client: any,
   payments: any[],
   totals: { totalInsurance: number; totalPaid: number; totalRemaining: number },
-  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string }
+  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string },
+  branding: AgentBranding
 ): string {
   // Build single unified payments table with car number
   const paymentRows = payments.map(payment => {

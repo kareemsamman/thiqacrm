@@ -37,21 +37,23 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
     if (!user) return;
     setSaving(true);
     try {
+      // Use upsert to handle case where profile row might not exist
       const { error } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: user.id,
+          email: user.email || profile?.email || '',
           full_name: fullName.trim() || null,
           phone: phone.trim() || null,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+        }, { onConflict: 'id' });
 
       if (error) throw error;
       toast.success("تم تحديث الملف الشخصي");
       onOpenChange(false);
-      // Reload to reflect changes
       window.location.reload();
     } catch (err: any) {
+      console.error('Profile save error:', err);
       toast.error("خطأ: " + err.message);
     } finally {
       setSaving(false);

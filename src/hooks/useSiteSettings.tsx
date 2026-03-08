@@ -23,7 +23,7 @@ export function useSiteSettings() {
         .maybeSingle();
 
       if (error) throw error;
-      return data as SiteSettings;
+      return (data as SiteSettings) || null;
     },
     staleTime: 1000 * 60 * 30, // 30 minutes
   });

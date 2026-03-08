@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,8 +123,8 @@ export default function ThiqaAnalytics() {
   }, [events]);
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <MainLayout>
+    <div className="space-y-6" dir="rtl">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -252,8 +253,8 @@ export default function ThiqaAnalytics() {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
+    </MainLayout>
   );
 }
 

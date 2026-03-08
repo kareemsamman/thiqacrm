@@ -3,8 +3,8 @@
  * All emails sent from the platform should use this wrapper.
  */
 
-const EMAIL_BG_URL = "https://thiqacrm.lovable.app/images/email-bg.png";
-const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-email.png";
+const EMAIL_BG_URL = "https://ijtybxpguieptamsikjq.supabase.co/storage/v1/object/public/email-assets/email-bg.png";
+const EMAIL_LOGO_URL = "https://ijtybxpguieptamsikjq.supabase.co/storage/v1/object/public/email-assets/thiqa-logo-email.png";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */

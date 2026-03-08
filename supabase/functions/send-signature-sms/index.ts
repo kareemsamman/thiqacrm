@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
+import { buildBunnyStorageUploadUrl, normalizeBunnyCdnUrl, resolveBunnyStorageZone } from "../_shared/bunny-storage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,8 +59,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyApiKey = Deno.env.get('BUNNY_API_KEY');
-    const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
-    const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const rawBunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
+    const bunnyCdnUrl = normalizeBunnyCdnUrl(Deno.env.get('BUNNY_CDN_URL'));
+    const bunnyStorageZone = resolveBunnyStorageZone(rawBunnyStorageZone, bunnyCdnUrl);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -192,7 +194,7 @@ serve(async (req) => {
     const clientNameSafe = client.full_name?.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') || 'customer';
     const storagePath = `signatures/${year}/${month}/sign_${clientNameSafe}_${timestamp}_${randomId}.html`;
 
-    const bunnyUploadUrl = `https://storage.bunnycdn.com/${bunnyStorageZone}/${storagePath}`;
+    const bunnyUploadUrl = buildBunnyStorageUploadUrl(bunnyStorageZone, storagePath);
     
     console.log(`[send-signature-sms] Uploading signature page to: ${bunnyUploadUrl}`);
 

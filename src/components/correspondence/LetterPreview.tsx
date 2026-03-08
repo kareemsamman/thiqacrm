@@ -50,7 +50,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
       } catch (error) {
         console.error('Error fetching company info:', error);
         setCompanyInfo({
-          company_name: 'AB تأمين',
+          company_name: 'ثقة للتأمين',
         });
       } finally {
         setLoading(false);

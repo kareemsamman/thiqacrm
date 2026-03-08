@@ -45,6 +45,7 @@ interface CompanyDrawerProps {
 
 export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDrawerProps) {
   const { toast } = useToast();
+  const { agentId } = useAgentContext();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

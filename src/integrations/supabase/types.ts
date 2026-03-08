@@ -5933,6 +5933,7 @@ export type Database = {
           total_payable: number
         }[]
       }
+      get_my_agent_id: { Args: never; Returns: string }
       get_tasks_with_users: {
         Args: { target_date: string }
         Returns: {

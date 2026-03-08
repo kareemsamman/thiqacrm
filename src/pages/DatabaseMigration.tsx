@@ -131,12 +131,15 @@ export default function DatabaseMigration() {
     window.open('/migration-guide.md', '_blank');
   };
 
+  const [importLog, setImportLog] = useState<string[]>([]);
+
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
     setImporting(true);
     setProgress(0);
+    setImportLog([]);
     
     try {
       const text = await file.text();
@@ -150,38 +153,85 @@ export default function DatabaseMigration() {
         'insurance_categories',
         'pricing_rules',
         'clients',
+        'client_children',
+        'client_notes',
         'cars',
         'car_accidents',
         'policies',
         'policy_payments',
+        'policy_groups',
+        'client_payments',
+        'client_debits',
         'outside_cheques',
         'media_files',
         'invoice_templates',
         'invoices',
         'customer_signatures',
+        'customer_wallet_transactions',
         'sms_settings',
         'payment_settings',
-        'notifications'
+        'notifications',
+        'tasks',
+        'expenses',
+        'correspondence_letters',
+        'business_contacts',
+        'ab_ledger',
+        'broker_settlements',
+        'broker_settlement_items',
+        'company_settlements',
+        'company_settlement_items',
+        'accident_reports',
+        'accident_third_parties',
+        'accident_report_files',
+        'accident_report_notes',
+        'accident_report_reminders',
+        'accident_injured_persons',
+        'road_services',
+        'accident_fee_services',
+        'company_road_service_prices',
+        'company_accident_fee_prices',
+        'company_accident_templates',
+        'auth_settings',
+        'site_settings',
+        'xservice_settings',
+        'form_templates',
+        'repair_claims',
+        'lead_chats',
+        'lead_notes',
+        'login_attempts',
+        'announcements',
+        'announcement_dismissals',
       ];
+
+      const tablesToImport = importOrder.filter(t => data[t] && data[t].length > 0);
       
-      for (let i = 0; i < importOrder.length; i++) {
-        const table = importOrder[i];
-        setCurrentTable(table);
-        setProgress(Math.round((i / importOrder.length) * 100));
+      for (let i = 0; i < tablesToImport.length; i++) {
+        const table = tablesToImport[i];
+        const rows = data[table];
+        setCurrentTable(`${table} (${rows.length} سجل)`);
+        setProgress(Math.round((i / tablesToImport.length) * 100));
         
-        if (data[table] && data[table].length > 0) {
-          // Insert in batches of 100
-          const batchSize = 100;
-          for (let j = 0; j < data[table].length; j += batchSize) {
-            const batch = data[table].slice(j, j + batchSize);
-            const { error } = await supabase
-              .from(table as any)
-              .upsert(batch, { onConflict: 'id' });
-            
-            if (error) {
-              console.warn(`Error importing ${table}:`, error.message);
+        try {
+          const { data: result, error } = await supabase.functions.invoke('bulk-import', {
+            body: { table, data: rows }
+          });
+          
+          if (error) {
+            const msg = `❌ ${table}: ${error.message}`;
+            setImportLog(prev => [...prev, msg]);
+            console.warn(msg);
+          } else {
+            const msg = `✅ ${table}: ${result.imported}/${result.total} imported`;
+            setImportLog(prev => [...prev, msg]);
+            if (result.errors) {
+              result.errors.forEach((e: string) => {
+                setImportLog(prev => [...prev, `  ⚠️ ${e}`]);
+              });
             }
           }
+        } catch (err: any) {
+          const msg = `❌ ${table}: ${err.message}`;
+          setImportLog(prev => [...prev, msg]);
         }
       }
       
@@ -550,6 +600,14 @@ export default function DatabaseMigration() {
                       جاري استيراد: {currentTable}
                     </div>
                     <Progress value={progress} />
+                  </div>
+                )}
+
+                {importLog.length > 0 && (
+                  <div className="mt-4 max-h-64 overflow-y-auto rounded border bg-muted/50 p-3 text-sm font-mono space-y-1" dir="ltr">
+                    {importLog.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
                   </div>
                 )}
               </CardContent>

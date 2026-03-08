@@ -139,8 +139,7 @@ export default function VerifyEmail() {
               <OtpInput
                 value={code}
                 onChange={setCode}
-                length={4}
-                onComplete={handleVerify}
+                disabled={loading}
               />
             </div>
 

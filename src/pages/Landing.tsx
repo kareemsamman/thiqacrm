@@ -17,16 +17,6 @@ import featurePaperlessDefault from "@/assets/landing/feature-paperless.png";
 import featureMarketingDefault from "@/assets/landing/feature-marketing.png";
 import sliderBgDefault from "@/assets/landing/slider-bg.png";
 import gridLogoBgDefault from "@/assets/landing/grid-logo-bg.png";
-import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
-import featuresMockup from "@/assets/landing/features-mockup.png";
-import sectionDivider from "@/assets/landing/section-divider.png";
-import sectionDividerDark from "@/assets/landing/section-divider-dark.png";
-import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
-import featurePaperless from "@/assets/landing/feature-paperless.png";
-import featureMarketing from "@/assets/landing/feature-marketing.png";
-import sliderBg from "@/assets/landing/slider-bg.png";
-import gridLogoBg from "@/assets/landing/grid-logo-bg.png";
-
 const featureTabs = [
   {
     id: "invoicing",

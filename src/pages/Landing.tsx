@@ -1,6 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
   ChevronLeft, CheckCircle, Star, ArrowLeft, Play,
   Users, FileText, CreditCard, BarChart3, Bell, MessageSquare,
   Phone, Shield

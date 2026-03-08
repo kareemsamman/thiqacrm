@@ -498,10 +498,18 @@ export default function ThiqaAgentDetail() {
               </div>
             </div>
           </div>
-          <Button variant="destructive" size="sm" className="flex-shrink-0 text-xs" onClick={() => setDeleteAgentOpen(true)}>
-            <Trash2 className="h-3.5 w-3.5 ml-1" />
-            حذف الوكيل
-          </Button>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button size="sm" className="text-xs" onClick={() => {
+              const { startImpersonation } = require('@/hooks/useAgentContext');
+            }}>
+              <Building2 className="h-3.5 w-3.5 ml-1" />
+              الدخول للنظام
+            </Button>
+            <Button variant="destructive" size="sm" className="flex-shrink-0 text-xs" onClick={() => setDeleteAgentOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 ml-1" />
+              حذف الوكيل
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

@@ -319,11 +319,11 @@ const App = () => (
                   <MarketingSms />
                 </AdminRoute>
               } />
-              {/* Super admin announcement settings */}
-              <Route path="/admin/announcements" element={
-                <ProtectedRoute>
+              {/* Thiqa super admin announcement settings */}
+              <Route path="/thiqa/announcements" element={
+                <ThiqaAdminRoute>
                   <AnnouncementSettings />
-                </ProtectedRoute>
+                </ThiqaAdminRoute>
               } />
               {/* Admin correspondence letters */}
               <Route path="/admin/correspondence" element={

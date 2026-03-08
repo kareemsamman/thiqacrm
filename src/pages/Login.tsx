@@ -45,7 +45,7 @@ export default function Login() {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }
   }, []);
 
-  const tryBypassEmailVerification = async (targetEmail: string) => {
+  const tryBypassEmailVerification = useCallback(async (targetEmail: string) => {
     const normalizedEmail = targetEmail.trim().toLowerCase();
     if (!normalizedEmail) return false;
 
@@ -55,7 +55,7 @@ export default function Login() {
 
     if (error || data?.error) return false;
     return data?.success === true;
-  };
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user) {

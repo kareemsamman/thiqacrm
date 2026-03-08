@@ -35,11 +35,20 @@ import {
   FileWarning,
   Mail,
   LucideIcon,
+  UserCircle,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SidebarNotificationBadge } from "./SidebarNotificationBadge";
 import { SidebarDebtBadge } from "./SidebarDebtBadge";
 import { SidebarTaskBadge } from "./SidebarTaskBadge";
@@ -47,6 +56,7 @@ import { SidebarClaimsBadge } from "./SidebarClaimsBadge";
 import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
+import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { Palette, Link2, Crown } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAgentContext } from "@/hooks/useAgentContext";
@@ -172,6 +182,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   onNavigate?: () => void;
 }) {
   const [signingOut, setSigningOut] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const navigate = useNavigate();
@@ -385,37 +396,68 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
 
       {/* User section */}
       <div className="border-t border-sidebar-border p-3">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-sm font-medium text-primary">{userInitial}</span>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-sidebar-foreground">
-                {userName}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {userRole}{userBranch ? ` • ${userBranch}` : ''}
-              </p>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg p-2 transition-colors hover:bg-sidebar-accent",
+                collapsed && "justify-center"
+              )}
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={userName}
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/20 flex-shrink-0"
+                />
+              ) : (
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-md">
+                  <span className="text-sm font-bold text-primary-foreground">{userInitial}</span>
+                </div>
+              )}
+              {!collapsed && (
+                <>
+                  <div className="flex-1 min-w-0 text-right">
+                    <p className="truncate text-sm font-medium text-sidebar-foreground">
+                      {userName}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {userRole}{userBranch ? ` • ${userBranch}` : ''}
+                    </p>
+                  </div>
+                  <MoreVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="w-56 [direction:rtl]">
+            <div className="px-3 py-2 border-b">
+              <p className="text-sm font-medium">{userName}</p>
+              <p className="text-xs text-muted-foreground">{profile?.email}</p>
             </div>
-          )}
-          {!collapsed && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            <DropdownMenuItem onClick={() => setProfileOpen(true)} className="gap-2 cursor-pointer">
+              <UserCircle className="h-4 w-4" />
+              <span>الملف الشخصي</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
               onClick={handleSignOut}
               disabled={signingOut}
+              className="gap-2 cursor-pointer text-destructive focus:text-destructive"
             >
               {signingOut ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <LogOut className="h-4 w-4" />
               )}
-            </Button>
-          )}
-        </div>
+              <span>تسجيل الخروج</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      {/* Profile Edit Drawer */}
+      <ProfileEditDrawer open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }

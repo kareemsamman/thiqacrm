@@ -514,7 +514,7 @@ function buildSignaturePageHtml(
     }
     .btn-clear:hover { background: #e2e8f0; }
     .btn-submit {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%);
       color: white;
     }
     .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30,58,95,0.3); }

@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import { useAgentContext } from "@/hooks/useAgentContext";
+import { DateInputPicker } from "@/components/shared/DateInputPicker";
 
 // ─── Feature flags ───
 const ALL_FEATURES = [
@@ -989,31 +990,11 @@ export default function ThiqaAgentDetail() {
                   </div>
                   <div>
                     <Label>من تاريخ</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
-                          <CalendarIcon className="ml-2 h-4 w-4" />
-                          {format(periodStart, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={periodStart} onSelect={(d) => d && handlePeriodStartChange(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
+                    <DateInputPicker value={periodStart} onChange={handlePeriodStartChange} />
                   </div>
                   <div>
                     <Label>إلى تاريخ</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
-                          <CalendarIcon className="ml-2 h-4 w-4" />
-                          {format(periodEnd, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={periodEnd} onSelect={(d) => d && setPeriodEnd(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
+                    <DateInputPicker value={periodEnd} onChange={setPeriodEnd} />
                   </div>
                   <div>
                     <Label>ملاحظات</Label>
@@ -1171,31 +1152,11 @@ export default function ThiqaAgentDetail() {
             </div>
             <div className="space-y-2">
               <Label>من تاريخ</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-right font-normal">
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {format(editPeriodStart, "dd/MM/yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={editPeriodStart} onSelect={(d) => d && handleEditPeriodStartChange(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                </PopoverContent>
-              </Popover>
+              <DateInputPicker value={editPeriodStart} onChange={handleEditPeriodStartChange} />
             </div>
             <div className="space-y-2">
               <Label>إلى تاريخ</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-right font-normal">
-                    <CalendarIcon className="ml-2 h-4 w-4" />
-                    {format(editPeriodEnd, "dd/MM/yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={editPeriodEnd} onSelect={(d) => d && setEditPeriodEnd(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                </PopoverContent>
-              </Popover>
+              <DateInputPicker value={editPeriodEnd} onChange={setEditPeriodEnd} />
             </div>
             <div className="space-y-2">
               <Label>ملاحظات</Label>

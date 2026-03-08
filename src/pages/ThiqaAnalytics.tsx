@@ -253,8 +253,8 @@ export default function ThiqaAnalytics() {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
+    </MainLayout>
   );
 }
 

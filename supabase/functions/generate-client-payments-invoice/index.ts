@@ -500,6 +500,10 @@ serve(async (req) => {
       );
     }
 
+    // Fetch dynamic branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { client_id, send_sms } = await req.json();
 
     if (!client_id) {

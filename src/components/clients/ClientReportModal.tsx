@@ -464,9 +464,10 @@ export function ClientReportModal({
       const reportUrl = reportResponse.data?.url;
       if (!reportUrl) throw new Error('Failed to generate report URL');
 
+      const companyName = siteSettings?.site_title || 'وكالة التأمين';
       const message = `${client.full_name} عزيزنا/ي\n` +
         `يمكنك مشاهدة تقرير تأميناتك الكامل عبر الرابط:\n${reportUrl}\n\n` +
-        `بشير للتأمينات 🚗`;
+        `${companyName} 🚗`;
 
       const smsResponse = await supabase.functions.invoke('send-sms', {
         body: {

@@ -72,8 +72,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyApiKey = Deno.env.get('BUNNY_API_KEY');
-    const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
-    const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const rawBunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
+    const bunnyCdnUrl = normalizeBunnyCdnUrl(Deno.env.get('BUNNY_CDN_URL'));
+    const bunnyStorageZone = resolveBunnyStorageZone(rawBunnyStorageZone, bunnyCdnUrl);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

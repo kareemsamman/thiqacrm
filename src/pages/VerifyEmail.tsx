@@ -147,7 +147,7 @@ export default function VerifyEmail() {
             <Button
               className="w-full h-12 text-base gap-2 rounded-xl shadow-lg"
               onClick={handleVerify}
-              disabled={loading || code.length !== 4}
+              disabled={loading || code.replace(/\D/g, "").length < 4}
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
               {loading ? "جاري التحقق..." : "تأكيد البريد الإلكتروني"}

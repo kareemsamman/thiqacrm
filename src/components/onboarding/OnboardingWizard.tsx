@@ -112,7 +112,6 @@ export function OnboardingWizard() {
   const { user, isAdmin } = useAuth();
   const { agentId } = useAgentContext();
   const navigate = useNavigate();
-  const location = useLocation();
   const [visible, setVisible] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);

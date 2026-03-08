@@ -318,8 +318,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 relative",
                         isActiveRoute
-                          ? "bg-[hsl(var(--sidebar-active)/0.15)] text-[hsl(var(--sidebar-active))]"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "glass-dark bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))]"
+                          : "text-sidebar-foreground hover:bg-[hsl(var(--sidebar-glass-bg))] hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <item.icon className={cn("h-5 w-5", isActiveRoute && "text-[hsl(var(--sidebar-active))]")} />

@@ -62,6 +62,8 @@ export default function ThiqaAgentDetail() {
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);
   const [agentUsers, setAgentUsers] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string>>({});
+  const [branches, setBranches] = useState<any[]>([]);
   const [smsSettings, setSmsSettings] = useState<any>(null);
   const [authSettings, setAuthSettings] = useState<any>(null);
   const [paymentSettings, setPaymentSettings] = useState<any>(null);

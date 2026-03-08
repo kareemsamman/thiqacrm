@@ -194,8 +194,7 @@ export default function Login() {
 
   const handleResend = async () => {
     if (countdown > 0) return;
-    if (authMethod === "email") await handleEmailStart();
-    else await handleSmsStart();
+    await handleSmsStart();
   };
 
   const handleBack = () => {

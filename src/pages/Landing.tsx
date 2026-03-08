@@ -81,6 +81,7 @@ export default function Landing() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [testimonialAnim, setTestimonialAnim] = useState<"in" | "out">("in");
+  const [faqCategory, setFaqCategory] = useState("general");
 
   const testimonials = [
     {
@@ -579,30 +580,74 @@ export default function Landing() {
 
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
-        <div className="relative max-w-5xl mx-auto px-6">
+        <div className="relative max-w-6xl mx-auto px-6">
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">שאלות ותשובות</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
             כל מה שחשוב לדעת על Thiqa
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5">
-            {[
-              { q: "מה זה Thiqa?", a: "מערכת CRM מתקדמת שתוכננה במיוחד לסוכנויות ביטוח בישראל. ניהול לקוחות, פוליסות, תשלומים ודוחות — הכל במקום אחד." },
-              { q: "האם התוכנה תומכת בערבית?", a: "כן, המערכת בנויה בערבית מלאה עם ממשק RTL מקצועי." },
-              { q: "כמה עולה המנוי?", a: "אנחנו מציעים שתי תוכניות: Basic לסוכנויות קטנות ו-Pro לסוכנויות גדולות עם כל הפיצ'רים. דברו איתנו לפרטים." },
-              { q: "האם המידע שלי מאובטח?", a: "כן, אנחנו משתמשים בטכנולוגיות הצפנה מתקדמות עם גיבויים יומיים אוטומטיים." },
-              { q: "יש תמיכה טכנית?", a: "כן, צוות התמיכה שלנו זמין בטלפון ובוואטסאפ בימי עבודה. זמן תגובה ממוצע: פחות מ-30 דקות." },
-              { q: "אפשר לייבא נתונים ממערכת קיימת?", a: "בהחלט. יש לנו כלי ייבוא מובנה שתומך בהעברת נתונים ממערכות WordPress ומקורות אחרים." },
-            ].map((faq, i) => (
-              <details
-                key={i}
-                className="group p-5 rounded-2xl border border-white/[0.04] bg-white/[0.015] cursor-pointer transition-colors hover:bg-white/[0.03]"
-              >
-                <summary className="flex items-center justify-between font-semibold text-[15px] list-none">
-                  {faq.q}
-                  <ChevronLeft className="h-4 w-4 text-white/30 transition-transform group-open:-rotate-90 shrink-0 mr-4" />
-                </summary>
-                <p className="mt-3 text-sm text-white/40 leading-relaxed">{faq.a}</p>
-              </details>
-            ))}
+          
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 md:gap-12">
+            {/* Categories tabs - right side */}
+            <div className="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
+              {[
+                { key: "general", label: "כללי ותמיכה" },
+                { key: "pricing", label: "מחירים ותשלומים" },
+                { key: "features", label: "פיצ'רים ויכולות" },
+                { key: "security", label: "אבטחה ופרטיות" },
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => setFaqCategory(cat.key)}
+                  className={`whitespace-nowrap px-5 py-3 rounded-xl text-sm font-medium transition-all text-right ${
+                    faqCategory === cat.key
+                      ? "bg-white/10 text-white border border-white/10"
+                      : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* FAQ questions - left side */}
+            <div className="flex flex-col gap-4">
+              {(() => {
+                const faqData: Record<string, { q: string; a: string }[]> = {
+                  general: [
+                    { q: "מה זה Thiqa?", a: "מערכת CRM מתקדמת שתוכננה במיוחד לסוכנויות ביטוח בישראל. ניהול לקוחות, פוליסות, תשלומים ודוחות — הכל במקום אחד." },
+                    { q: "האם התוכנה תומכת בערבית?", a: "כן, המערכת בנויה בערבית מלאה עם ממשק RTL מקצועי." },
+                    { q: "יש תמיכה טכנית?", a: "כן, צוות התמיכה שלנו זמין בטלפון ובוואטסאפ בימי עבודה. זמן תגובה ממוצע: פחות מ-30 דקות." },
+                  ],
+                  pricing: [
+                    { q: "כמה עולה המנוי?", a: "אנחנו מציעים שתי תוכניות: Basic לסוכנויות קטנות ו-Pro לסוכנויות גדולות עם כל הפיצ'רים. דברו איתנו לפרטים." },
+                    { q: "האם יש תקופת ניסיון?", a: "כן, אנחנו מציעים 35 ימי ניסיון בחינם ללא צורך בכרטיס אשראי." },
+                    { q: "אפשר לבטל בכל עת?", a: "בהחלט. אין התחייבות ואפשר לבטל את המנוי בכל עת." },
+                  ],
+                  features: [
+                    { q: "אפשר לייבא נתונים ממערכת קיימת?", a: "בהחלט. יש לנו כלי ייבוא מובנה שתומך בהעברת נתונים ממערכות WordPress ומקורות אחרים." },
+                    { q: "האם יש אפליקציה לנייד?", a: "המערכת מותאמת לחלוטין למובייל ועובדת מצוין בכל דפדפן בנייד." },
+                    { q: "האם יש חתימה דיגיטלית?", a: "כן, אפשר לשלוח פוליסות לחתימה דיגיטלית ב-SMS ולקבל אישור מיידי." },
+                  ],
+                  security: [
+                    { q: "האם המידע שלי מאובטח?", a: "כן, אנחנו משתמשים בטכנולוגיות הצפנה מתקדמות עם גיבויים יומיים אוטומטיים." },
+                    { q: "איפה המידע מאוחסן?", a: "כל המידע מאוחסן בשרתים מאובטחים עם תקני אבטחה מחמירים." },
+                    { q: "מי יכול לגשת למידע שלי?", a: "רק אתם ומשתמשים שאתם מאשרים. יש מערכת הרשאות מלאה." },
+                  ],
+                };
+                return faqData[faqCategory]?.map((faq, i) => (
+                  <details
+                    key={i}
+                    className="group p-5 rounded-2xl border border-white/[0.04] bg-white/[0.015] cursor-pointer transition-colors hover:bg-white/[0.03]"
+                  >
+                    <summary className="flex items-center justify-between font-semibold text-[15px] list-none">
+                      {faq.q}
+                      <ChevronLeft className="h-4 w-4 text-white/30 transition-transform group-open:-rotate-90 shrink-0 mr-4" />
+                    </summary>
+                    <p className="mt-3 text-sm text-white/40 leading-relaxed">{faq.a}</p>
+                  </details>
+                ));
+              })()}
+            </div>
           </div>
         </div>
       </section>

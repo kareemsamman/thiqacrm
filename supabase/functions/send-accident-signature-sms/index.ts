@@ -610,7 +610,7 @@
      </div>
      
      <div class="footer">
-       © AB Insurance - جميع الحقوق محفوظة
+       © ثقة للتأمين - جميع الحقوق محفوظة
      </div>
    </div>
    

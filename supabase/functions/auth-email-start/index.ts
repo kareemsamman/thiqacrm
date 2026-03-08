@@ -294,9 +294,9 @@ serve(async (req) => {
     }
 
     // Prepare email content
-    const subject = "رمز التحقق - AB Insurance CRM";
+    const subject = "رمز التحقق - ثقة للتأمين";
     const textContent = `رمز التحقق الخاص بك هو: ${otp}\r\n\r\nهذا الرمز صالح لمدة 5 دقائق فقط.\r\n\r\nإذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.`;
-    const htmlContent = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;"><div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;"><h1 style="color:#2563eb;margin:0 0 8px 0;">AB Insurance CRM</h1><p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p><p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p><div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">${otp}</div><p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"><p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p></div></body></html>`;
+    const htmlContent = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;"><div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;"><h1 style="color:#2563eb;margin:0 0 8px 0;">ثقة للتأمين</h1><p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p><p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p><div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">${otp}</div><p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"><p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p></div></body></html>`;
 
     // Send email via SMTP
     const emailResult = await sendEmailViaSMTP(

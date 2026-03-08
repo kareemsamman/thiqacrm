@@ -184,7 +184,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
             fontWeight: '600',
             marginBottom: '8px',
           }}>
-            AB تأمين
+            ثقة للتأمين
           </div>
           <div style={{ 
             width: '120px', 

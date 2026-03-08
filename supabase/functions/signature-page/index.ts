@@ -219,7 +219,7 @@ function buildSuccessHtml(clientName: string, signedAt: string | null): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>تم التوقيع بنجاح | AB Insurance</title>
+  <title>تم التوقيع بنجاح | ثقة للتأمين</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {

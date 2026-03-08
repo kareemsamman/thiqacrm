@@ -5,11 +5,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff } from "lucide-react";
+import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield } from "lucide-react";
+
+function GeneralSettingsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useThiqaPlatformSettings();
+  const skipVerification = settings?.skip_email_verification === "true";
+
+  const toggleMutation = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      const { error } = await supabase
+        .from("thiqa_platform_settings")
+        .update({ setting_value: String(newValue), updated_at: new Date().toISOString() })
+        .eq("setting_key", "skip_email_verification");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      toast({ title: "تم الحفظ", description: "تم تحديث الإعداد بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في حفظ الإعداد", variant: "destructive" });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-32 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5" />
+          إعدادات عامة
+        </CardTitle>
+        <CardDescription>إعدادات التسجيل والتفعيل</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-base font-medium">تخطي تفعيل البريد الإلكتروني</Label>
+            <p className="text-sm text-muted-foreground">
+              عند التفعيل، لن يُطلب من الوكلاء الجدد تأكيد بريدهم الإلكتروني عبر OTP
+            </p>
+          </div>
+          <Switch
+            checked={skipVerification}
+            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+            disabled={toggleMutation.isPending}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface SmtpForm {
   smtp_host: string;
@@ -198,13 +252,21 @@ export default function ThiqaSettings() {
           </div>
         </div>
 
-        <Tabs defaultValue="smtp" className="w-full">
+        <Tabs defaultValue="general" className="w-full">
           <TabsList>
+            <TabsTrigger value="general" className="gap-2">
+              <Shield className="h-4 w-4" />
+              عام
+            </TabsTrigger>
             <TabsTrigger value="smtp" className="gap-2">
               <Mail className="h-4 w-4" />
               البريد الإلكتروني
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="general">
+            <GeneralSettingsTab />
+          </TabsContent>
 
           <TabsContent value="smtp">
             <SmtpSettingsTab />

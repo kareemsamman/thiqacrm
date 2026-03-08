@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6.9.16";
-import { buildEmailHtml, welcomeAgentEmailBody } from "../_shared/email-template.ts";
+import { buildEmailHtml, welcomeAgentEmailBody, newAgentAdminNotifyBody } from "../_shared/email-template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
       const { data: smtpRows } = await adminClient
         .from("thiqa_platform_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name"]);
+        .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name", "superadmin_email"]);
 
       const smtp: Record<string, string> = {};
       (smtpRows || []).forEach((r: any) => { smtp[r.setting_key] = r.setting_value || ""; });
@@ -212,6 +212,23 @@ Deno.serve(async (req) => {
           text: `مرحباً ${fullName}، تم إنشاء حسابك بنجاح على منصة ثقة للتأمين.`,
           html: htmlContent,
         });
+
+        // Notify super admin
+        const superAdminEmail = smtp.superadmin_email;
+        if (superAdminEmail && superAdminEmail.includes("@")) {
+          const adminHtml = buildEmailHtml({
+            body: newAgentAdminNotifyBody(fullName, normalizedEmail, phone?.trim() || null),
+            footerText: "إشعار تلقائي من منصة ثقة للتأمين.",
+          });
+
+          await transporter.sendMail({
+            from: `"${smtp.smtp_sender_name || "Thiqa Insurance"}" <${smtpUser}>`,
+            to: superAdminEmail,
+            subject: "=?UTF-8?B?" + btoa(unescape(encodeURIComponent("وكيل جديد سجّل في المنصة 🆕"))) + "?=",
+            text: `وكيل جديد: ${fullName} - ${normalizedEmail}`,
+            html: adminHtml,
+          });
+        }
       }
     } catch (welcomeErr) {
       console.error("Welcome email error (non-blocking):", welcomeErr);

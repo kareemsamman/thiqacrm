@@ -18,6 +18,14 @@ function GeneralSettingsTab() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useThiqaPlatformSettings();
   const skipVerification = settings?.skip_email_verification === "true";
+  const [superAdminEmail, setSuperAdminEmail] = useState("");
+  const [emailDirty, setEmailDirty] = useState(false);
+
+  useEffect(() => {
+    if (settings?.superadmin_email) {
+      setSuperAdminEmail(settings.superadmin_email);
+    }
+  }, [settings]);
 
   const toggleMutation = useMutation({
     mutationFn: async (newValue: boolean) => {
@@ -38,33 +46,90 @@ function GeneralSettingsTab() {
     },
   });
 
+  const saveEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const { error } = await supabase
+        .from("thiqa_platform_settings")
+        .upsert(
+          { setting_key: "superadmin_email", setting_value: email.trim(), updated_at: new Date().toISOString() },
+          { onConflict: "setting_key" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      setEmailDirty(false);
+      toast({ title: "تم الحفظ", description: "تم تحديث بريد المدير بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في حفظ البريد", variant: "destructive" });
+    },
+  });
+
   if (isLoading) return <Skeleton className="h-32 w-full" />;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          إعدادات عامة
-        </CardTitle>
-        <CardDescription>إعدادات التسجيل والتفعيل</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-          <div className="space-y-0.5">
-            <Label className="text-base font-medium">تخطي تفعيل البريد الإلكتروني</Label>
-            <p className="text-sm text-muted-foreground">
-              عند التفعيل، لن يُطلب من الوكلاء الجدد تأكيد بريدهم الإلكتروني عبر OTP
-            </p>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            إعدادات عامة
+          </CardTitle>
+          <CardDescription>إعدادات التسجيل والتفعيل</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium">تخطي تفعيل البريد الإلكتروني</Label>
+              <p className="text-sm text-muted-foreground">
+                عند التفعيل، لن يُطلب من الوكلاء الجدد تأكيد بريدهم الإلكتروني عبر OTP
+              </p>
+            </div>
+            <Switch
+              checked={skipVerification}
+              onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+              disabled={toggleMutation.isPending}
+            />
           </div>
-          <Switch
-            checked={skipVerification}
-            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
-            disabled={toggleMutation.isPending}
-          />
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            بريد المدير (Super Admin)
+          </CardTitle>
+          <CardDescription>يتم إرسال إشعارات تسجيل الوكلاء الجدد لهذا البريد</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="superadmin-email">البريد الإلكتروني</Label>
+              <Input
+                id="superadmin-email"
+                type="email"
+                dir="ltr"
+                placeholder="admin@example.com"
+                value={superAdminEmail}
+                onChange={(e) => {
+                  setSuperAdminEmail(e.target.value);
+                  setEmailDirty(true);
+                }}
+              />
+            </div>
+            <Button
+              onClick={() => saveEmailMutation.mutate(superAdminEmail)}
+              disabled={!emailDirty || saveEmailMutation.isPending}
+            >
+              {saveEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
+              حفظ
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

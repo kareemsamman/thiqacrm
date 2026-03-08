@@ -989,31 +989,11 @@ export default function ThiqaAgentDetail() {
                   </div>
                   <div>
                     <Label>من تاريخ</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
-                          <CalendarIcon className="ml-2 h-4 w-4" />
-                          {format(periodStart, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={periodStart} onSelect={(d) => d && handlePeriodStartChange(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
+                    <DateInputPicker value={periodStart} onChange={handlePeriodStartChange} />
                   </div>
                   <div>
                     <Label>إلى تاريخ</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal")}>
-                          <CalendarIcon className="ml-2 h-4 w-4" />
-                          {format(periodEnd, "dd/MM/yyyy")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={periodEnd} onSelect={(d) => d && setPeriodEnd(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
-                      </PopoverContent>
-                    </Popover>
+                    <DateInputPicker value={periodEnd} onChange={setPeriodEnd} />
                   </div>
                   <div>
                     <Label>ملاحظات</Label>

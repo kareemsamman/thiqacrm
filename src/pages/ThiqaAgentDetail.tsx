@@ -618,8 +618,8 @@ export default function ThiqaAgentDetail() {
               <h1 className="text-lg md:text-2xl font-bold truncate">{agent.name_ar || agent.name}</h1>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
                 <span className="truncate max-w-[150px] md:max-w-none">{agent.email}</span>
-                <Badge className={cn("text-[10px] md:text-xs", agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive')}>
-                  {agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
+                <Badge className={cn("text-[10px] md:text-xs", agent.subscription_status === 'active' ? 'bg-green-600' : agent.subscription_status === 'paused' ? 'bg-yellow-500' : 'bg-destructive')}>
+                  {agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'paused' ? 'متوقف مؤقتاً' : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
                 </Badge>
                 <Badge variant="outline" className="text-[10px] md:text-xs">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
               </div>

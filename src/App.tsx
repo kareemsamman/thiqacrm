@@ -75,6 +75,7 @@ import ThiqaDashboard from "./pages/ThiqaDashboard";
 import ThiqaSettings from "./pages/ThiqaSettings";
 import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
+import Pricing from "./pages/Pricing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +107,7 @@ const App = () => (
             <RecentClientProvider>
             <Routes>
               <Route path="/landing" element={<Landing />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
               <Route path="/verify-email" element={<VerifyEmail />} />

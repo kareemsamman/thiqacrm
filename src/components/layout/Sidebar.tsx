@@ -244,12 +244,10 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
             {siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <span className="text-sm font-bold text-primary-foreground">AB</span>
-              </div>
+              <img src={thiqaLogo} alt="ثقة" className="h-9 w-9 rounded-lg object-contain" />
             )}
             <span className="text-base font-semibold text-sidebar-foreground">
-              {siteSettings?.site_title || 'AB تأمين'}
+              {siteSettings?.site_title || 'ثقة للتأمين'}
             </span>
           </div>
         )}
@@ -257,9 +255,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
           siteSettings?.logo_url ? (
             <img src={siteSettings.logo_url} alt="Logo" className="mx-auto h-9 w-9 rounded-lg object-contain" />
           ) : (
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">AB</span>
-            </div>
+            <img src={thiqaLogo} alt="ثقة" className="mx-auto h-9 w-9 rounded-lg object-contain" />
           )
         )}
       </div>

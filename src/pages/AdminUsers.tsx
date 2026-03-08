@@ -574,15 +574,15 @@ export default function AdminUsers() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="pending" className="space-y-4">
+        <Tabs defaultValue="active" className="space-y-4">
           <TabsList className="grid w-full max-w-xl grid-cols-4">
-            <TabsTrigger value="pending" className="gap-2">
-              <Clock className="h-4 w-4" />
-              معلق ({pendingUsers.length})
-            </TabsTrigger>
             <TabsTrigger value="active" className="gap-2">
               <CheckCircle className="h-4 w-4" />
               نشط ({activeUsers.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="gap-2">
+              <Clock className="h-4 w-4" />
+              معلق ({pendingUsers.length})
             </TabsTrigger>
             <TabsTrigger value="blocked" className="gap-2">
               <XCircle className="h-4 w-4" />

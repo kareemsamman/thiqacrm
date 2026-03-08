@@ -708,80 +708,9 @@ export default function AdminUsers() {
                       <TableHead className="text-right">البريد الإلكتروني</TableHead>
                       <TableHead className="text-right">الفرع</TableHead>
                       <TableHead className="text-right">الدور</TableHead>
-                      <TableHead className="text-right">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          التحويلة
-                        </div>
-                      </TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.full_name || 'غير محدد'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <bdi>{user.email}</bdi>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={user.branch_id || ''}
-                            onValueChange={(value) => handleChangeBranch(user.id, value)}
-                            disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue placeholder="اختر الفرع" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {branches.map(branch => (
-                                <SelectItem key={branch.id} value={branch.id}>
-                                  {branch.name_ar || branch.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={user.role || 'worker'}
-                            onValueChange={(value: 'admin' | 'worker') => 
-                              handleChangeRole(user.id, value)
-                            }
-                            disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="worker">موظف</SelectItem>
-                              <SelectItem value="admin">مدير</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <input
-                            type="text"
-                            className="w-20 px-2 py-1 text-sm border rounded bg-background text-center ltr-input"
-                            placeholder="101"
-                            defaultValue={user.pbx_extension || ''}
-                            onBlur={(e) => {
-                              const newValue = e.target.value.trim();
-                              if (newValue !== (user.pbx_extension || '')) {
-                                handleChangeExtension(user.id, newValue);
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            disabled={actionLoading === user.id}
-                          />
-                        </TableCell>
                         <TableCell>{getStatusBadge(user.status)}</TableCell>
                         <TableCell>
                           {user.email !== 'morshed500@gmail.com' && (

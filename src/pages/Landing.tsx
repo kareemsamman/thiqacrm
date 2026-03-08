@@ -150,7 +150,7 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            احصل على 35 يوم مجاناً
+            {ct(content, "navbar_cta", "احصل على 35 يوم مجاناً")}
           </button>
         </div>
       </nav>

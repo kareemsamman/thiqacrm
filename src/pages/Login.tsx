@@ -301,7 +301,7 @@ export default function Login() {
       </div>
 
       {/* Left panel - background (desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
+      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 relative items-center justify-center overflow-hidden">
         <img src="/images/thiqa-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-transparent" />
         <div className="relative z-10 text-center space-y-4">

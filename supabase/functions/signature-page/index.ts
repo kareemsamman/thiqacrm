@@ -160,7 +160,7 @@ function buildErrorHtml(title: string, message: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>${title} | AB Insurance</title>
+  <title>${title} | ثقة للتأمين</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {

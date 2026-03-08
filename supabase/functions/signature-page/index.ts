@@ -63,18 +63,23 @@ serve(async (req) => {
       });
     }
 
-    // Get client info
+    // Get client info and resolve agent
     let clientName = "عميل";
+    let clientAgentId: string | null = null;
     if (signatureRecord.client_id) {
       const { data: clientData } = await supabase
         .from("clients")
-        .select("full_name")
+        .select("full_name, agent_id")
         .eq("id", signatureRecord.client_id)
         .single();
       if (clientData) {
         clientName = clientData.full_name;
+        clientAgentId = clientData.agent_id;
       }
     }
+
+    // Fetch dynamic branding
+    const branding = await getAgentBranding(supabase, clientAgentId);
 
     // Check if token is expired
     if (signatureRecord.token_expires_at && new Date(signatureRecord.token_expires_at) < new Date()) {
@@ -96,10 +101,10 @@ serve(async (req) => {
 
     // Get signature template from SMS settings
     let templateContent = {
-      logo_url: null as string | null,
+      logo_url: branding.logoUrl as string | null,
       header_html: '<h2>نموذج الموافقة على الخصوصية</h2>',
-      body_html: '<p>مرحباً.</p><p>أقرّ بأنني قرأت وفهمت سياسة الخصوصية، وأوافق على قيام <strong>AB</strong> للتأمين بجمع واستخدام ومعالجة بياناتي الشخصية للأغراض المتعلقة بخدمات التأمين والتواصل وإتمام الإجراءات اللازمة.</p><p>بالتوقيع أدناه، أؤكد صحة البيانات وأمنح موافقتي على ما ورد أعلاه.</p>',
-      footer_html: '<p>© AB للتأمين - جميع الحقوق محفوظة</p>',
+      body_html: `<p>مرحباً.</p><p>أقرّ بأنني قرأت وفهمت سياسة الخصوصية، وأوافق على قيام <strong>${branding.companyName}</strong> بجمع واستخدام ومعالجة بياناتي الشخصية للأغراض المتعلقة بخدمات التأمين والتواصل وإتمام الإجراءات اللازمة.</p><p>بالتوقيع أدناه، أؤكد صحة البيانات وأمنح موافقتي على ما ورد أعلاه.</p>`,
+      footer_html: `<p>© ${branding.companyName} - جميع الحقوق محفوظة</p>`,
     };
 
     const { data: smsSettings } = await supabase

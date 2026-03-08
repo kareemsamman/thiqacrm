@@ -456,7 +456,7 @@ function buildPackageInvoiceHtml(
   // Normalize CDN URLs
   const normalizedFiles = policyFiles.map(f => ({
     ...f,
-    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/')
+    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/')
   }));
   
   const filesHtml = normalizedFiles.length > 0 ? `

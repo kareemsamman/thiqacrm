@@ -65,6 +65,9 @@ export function MainLayout({ children, onPolicyComplete }: MainLayoutProps) {
 
       {/* Task reminder popup */}
       {!isThiqaSuperAdmin && <TaskPopupReminder />}
+
+      {/* Onboarding wizard */}
+      {!isThiqaSuperAdmin && <OnboardingWizard />}
     </div>
   );
 }

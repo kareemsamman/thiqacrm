@@ -176,7 +176,7 @@ export default function BrandingSettings() {
                 id="site-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="AB تأمين"
+                placeholder="ثقة للتأمين"
               />
             </div>
 

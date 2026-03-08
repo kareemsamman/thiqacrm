@@ -15,8 +15,8 @@
 
 @layer base {
   :root {
-    /* Light theme - Clean white with teal accents */
-    --background: 0 0% 98%;
+    /* Light theme - Professional blue-indigo */
+    --background: 220 20% 97%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -25,16 +25,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 174 72% 40%;
+    --primary: 225 65% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 96%;
+    --secondary: 220 20% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 20% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 16% 93%;
+    --muted-foreground: 220 13% 46%;
 
-    --accent: 174 60% 45%;
+    --accent: 225 50% 55%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -46,21 +46,21 @@
     --warning: 38 92% 50%;
     --warning-foreground: 222 47% 11%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 92%;
-    --ring: 174 72% 40%;
+    --border: 220 17% 90%;
+    --input: 220 17% 92%;
+    --ring: 225 65% 50%;
 
     --radius: 0.75rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 25%;
-    --sidebar-primary: 174 72% 40%;
+    --sidebar-primary: 225 65% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent: 220 20% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 20% 92%;
-    --sidebar-ring: 174 72% 40%;
+    --sidebar-border: 220 17% 92%;
+    --sidebar-ring: 225 65% 50%;
   }
 }
 
@@ -102,13 +102,13 @@
 
   /* Light glass effect */
   .glass {
-    background: hsl(0 0% 100% / 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid hsl(214 20% 92%);
+    background: hsl(0 0% 100% / 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(220 17% 92%);
     box-shadow:
-      0 4px 6px -1px hsl(222 47% 11% / 0.05),
-      0 2px 4px -2px hsl(222 47% 11% / 0.05);
+      0 4px 6px -1px hsl(222 47% 11% / 0.04),
+      0 2px 4px -2px hsl(222 47% 11% / 0.03);
   }
 
   /* Custom scrollbar for light theme */
@@ -118,34 +118,34 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: hsl(210 20% 96%);
+    background: hsl(220 20% 96%);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(215 16% 75%);
+    background: hsl(220 13% 75%);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(215 16% 60%);
+    background: hsl(220 13% 60%);
   }
 }
 
 @layer utilities {
-  /* LTR numeric content - use this for numbers, codes, prices, etc. that should display LTR */
+  /* LTR numeric content */
   .ltr-nums {
     unicode-bidi: isolate;
     direction: ltr;
     display: inline-block;
   }
 
-  /* Input fields that expect LTR content (emails, URLs, codes, API keys) */
+  /* Input fields that expect LTR content */
   .ltr-input {
     unicode-bidi: plaintext;
     text-align: left;
   }
 
-  /* Font mono with LTR isolation for code/technical content */
+  /* Font mono with LTR isolation */
   .font-mono-ltr {
     unicode-bidi: isolate;
     direction: ltr;
@@ -164,67 +164,39 @@
   }
 
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
   }
 
-  .stagger-1 {
-    animation-delay: 0.05s;
-  }
-  .stagger-2 {
-    animation-delay: 0.1s;
-  }
-  .stagger-3 {
-    animation-delay: 0.15s;
-  }
-  .stagger-4 {
-    animation-delay: 0.2s;
-  }
-  .stagger-5 {
-    animation-delay: 0.25s;
-  }
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
 
   /* Always-visible horizontal scrollbar */
-  .scrollbar-always-visible::-webkit-scrollbar {
-    height: 10px;
-  }
+  .scrollbar-always-visible::-webkit-scrollbar { height: 10px; }
   .scrollbar-always-visible::-webkit-scrollbar-track {
-    background: hsl(210 20% 96%);
+    background: hsl(220 20% 96%);
     border-radius: 5px;
   }
   .scrollbar-always-visible::-webkit-scrollbar-thumb {
-    background: hsl(174 72% 40%);
+    background: hsl(225 65% 50%);
     border-radius: 5px;
   }
   .scrollbar-always-visible {
     scrollbar-width: thin;
-    scrollbar-color: hsl(174, 72%, 40%) hsl(210, 20%, 96%);
+    scrollbar-color: hsl(225, 65%, 50%) hsl(220, 20%, 96%);
   }
 
   /* Grey scrollbar variant */
@@ -233,49 +205,45 @@
     width: 8px;
   }
   .scrollbar-always-visible-grey::-webkit-scrollbar-track {
-    background: hsl(210 20% 96%);
+    background: hsl(220 20% 96%);
     border-radius: 5px;
   }
   .scrollbar-always-visible-grey::-webkit-scrollbar-thumb {
-    background: hsl(215 16% 75%);
+    background: hsl(220 13% 75%);
     border-radius: 5px;
   }
   .scrollbar-always-visible-grey {
     scrollbar-width: thin;
-    scrollbar-color: hsl(215, 16%, 75%) hsl(210, 20%, 96%);
+    scrollbar-color: hsl(220, 13%, 75%) hsl(220, 20%, 96%);
   }
 }
 
-/* Print styles for professional reports */
+/* Print styles */
 @media print {
-  /* Hide navigation and sidebar */
   [data-sidebar],
   nav,
-  .print\\:hidden,
+  .print\:hidden,
   button,
   .sidebar,
   header[class*="border-b"] {
     display: none !important;
   }
 
-  /* Reset page layout */
   body {
     background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Full width content */
   main,
   [role="main"],
-  .print\\:p-0 {
+  .print\:p-0 {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
   }
 
-  /* Card styles for print */
   .card,
   [class*="rounded-lg"][class*="border"] {
     border: 1px solid #e5e5e5 !important;
@@ -283,15 +251,13 @@
     break-inside: avoid;
   }
 
-  /* Table styles */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
     font-size: 10pt !important;
   }
 
-  th,
-  td {
+  th, td {
     border: 1px solid #ddd !important;
     padding: 6px 8px !important;
   }
@@ -301,38 +267,21 @@
     font-weight: 600 !important;
   }
 
-  /* Page breaks */
-  .page-break-before {
-    page-break-before: always;
-  }
+  .page-break-before { page-break-before: always; }
+  .page-break-after { page-break-after: always; }
 
-  .page-break-after {
-    page-break-after: always;
-  }
+  .text-destructive { color: #dc2626 !important; }
+  .text-success { color: #16a34a !important; }
 
-  /* Ensure text colors print */
-  .text-destructive {
-    color: #dc2626 !important;
-  }
-
-  .text-success {
-    color: #16a34a !important;
-  }
-
-  /* Hide icons in print */
-  svg.print\\:hidden,
+  svg.print\:hidden,
   .rounded-xl[class*="bg-"] {
     display: none !important;
   }
 
-  /* Page margin */
   @page {
     margin: 1cm;
     size: A4;
   }
 
-  /* Header for print */
-  .print\\:block {
-    display: block !important;
-  }
+  .print\:block { display: block !important; }
 }

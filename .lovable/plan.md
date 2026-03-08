@@ -1,61 +1,55 @@
 
 
-# Rebrand to Thiqa (ثقة) — Light Professional Design
+# Fix Package Payment Splitting — Insert 1 Record Per Cheque, Not Split Across Components
 
-## Overview
-Replace all "AB Insurance / AB تأمين" branding with "Thiqa" (ثقة), use the uploaded SVG logo, apply the blurred gradient background to the login page, and refine the color palette for a clean, light, professional look.
+## Problem
+When paying for a package policy (e.g., شامل ₪3,700 + خدمات طريق ₪500 = ₪4,200) with 3 cheques of ₪1,400 each, `PackagePaymentModal` proportionally splits each cheque across the 2 component policies, creating **6 payment records** (₪1,233 + ₪167 per cheque). The user expects **3 records** — one per cheque.
 
-## Files to Change
+## Root Cause
+`PackagePaymentModal.handleSubmit` calls `calculateSplitPayments()` which distributes each payment proportionally by remaining balance across all package component policies.
 
-### 1. Copy uploaded assets into project
-- Copy `Group_2.svg` → `src/assets/thiqa-logo.svg`
-- Copy `SCR-20260107-hrpn_1.png` → `public/images/thiqa-bg.png` (login background)
+## Solution
 
-### 2. `index.html` — Update title, meta, favicon
-- Title: `ثقة للتأمين`
-- Description: `نظام إدارة التأمين`
-- Remove old favicon/OG image references (SiteHelmet handles dynamic ones)
+### 1. Update the DB trigger to validate across the entire package group
+**Migration SQL** — Change the existing payment total check in `validate_policy_payment_total()` so that when a policy belongs to a group, `v_existing_total` sums payments across **all** policies in that group (not just `NEW.policy_id`).
 
-### 3. `src/index.css` — Refined light color palette
-- Shift primary from teal (`174 72% 40%`) to a refined deep blue-indigo (`225 65% 50%`) for a more professional feel
-- Keep the light background, adjust accent colors to complement
-- Subtle refinements to card shadows, glass effect
-
-### 4. `src/pages/Login.tsx` — Full redesign
-- Split-screen layout: left side = blurred gradient background image with Thiqa logo overlay, right side = login form
-- Use the SVG logo instead of "AB" text fallback
-- Update default text from "AB تأمين" → "ثقة للتأمين"
-- Clean, minimal card design on the right
-
-### 5. `src/components/layout/Sidebar.tsx` — Logo update
-- Import the Thiqa SVG logo
-- Replace "AB" text fallback with the SVG logo
-- Update default title from "AB تأمين" → "ثقة للتأمين"
-
-### 6. Edge functions & other hardcoded references (~10 files)
-Update all "AB Insurance" / "AB تأمين" strings to "Thiqa" / "ثقة للتأمين" in:
-- `supabase/functions/send-signature-sms/index.ts`
-- `supabase/functions/signature-page/index.ts`
-- `supabase/functions/test-smtp/index.ts`
-- `supabase/functions/process-cheque-scan/index.ts`
-- `supabase/functions/generate-correspondence-html/index.ts`
-- `supabase/functions/sync-whatsapp-chat/index.ts`
-- `src/components/clients/ClientDetails.tsx`
-- `src/pages/Expenses.tsx`
-
-### 7. `src/pages/BrandingSettings.tsx` — No structural changes
-The branding settings page already supports dynamic logo/title. Just the default fallbacks update.
-
-## Color Palette (New)
-```
---primary: 225 65% 50%        (professional blue)
---primary-foreground: 0 0% 100%
---accent: 225 50% 55%
---ring: 225 65% 50%
---sidebar-primary: 225 65% 50%
+Current trigger (line 42-48) only sums `pp.policy_id = NEW.policy_id`. Updated version:
+```sql
+IF v_group_id IS NOT NULL THEN
+  -- Sum payments across ALL policies in the package
+  SELECT COALESCE(SUM(pp.amount), 0) INTO v_existing_total
+  FROM policy_payments pp
+  JOIN policies pol ON pol.id = pp.policy_id
+  WHERE pol.group_id = v_group_id
+    AND pol.deleted_at IS NULL
+    AND COALESCE(pp.refused, false) = false
+    AND (TG_OP <> 'UPDATE' OR pp.id <> NEW.id);
+ELSE
+  -- Single policy: sum only for that policy
+  SELECT COALESCE(SUM(pp.amount), 0) INTO v_existing_total ...
+END IF;
 ```
 
-All other colors (background, card, muted, destructive, success, warning) stay light and clean — minor tweaks only.
+### 2. Update `PackagePaymentModal.handleSubmit` — Stop splitting, insert 1 record per payment
+**File:** `src/components/clients/PackagePaymentModal.tsx`
 
-## No structural/DB changes needed — purely visual rebrand.
+Instead of calling `calculateSplitPayments()` and looping over splits, insert each payment line as a **single record** against the primary (first) policy in the package. Add `batch_id` to group them. Include `cheque_image_url` for cheque payments.
+
+Key changes in `handleSubmit` (lines 448-496):
+- Generate a `batch_id` for all payments in this batch
+- Pick the primary policy ID (first policy with remaining, or first overall)
+- Insert one `policy_payments` record per payment line (no split loop)
+- Include `cheque_image_url` from scanned cheques
+- Upload images for each payment
+
+### 3. Update `handleScannedCheques` to preserve `cheque_image_url`
+**File:** `src/components/clients/PackagePaymentModal.tsx`
+
+The scanned cheque handler (line 324-356) doesn't preserve the CDN `image_url` from the scanner. Add `cheque_image_url: cheque.image_url` to the payment line (same pattern as `PolicyPaymentsSection`).
+
+### Files Changed
+| File | Change |
+|---|---|
+| DB migration (SQL) | Update trigger to sum across package group |
+| `src/components/clients/PackagePaymentModal.tsx` | Stop proportional split; insert 1 record per payment against primary policy with batch_id + cheque_image_url |
 

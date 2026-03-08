@@ -343,7 +343,7 @@
    <meta charset="UTF-8">
    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-   <title>توقيع بلاغ الحادث | AB Insurance</title>
+   <title>توقيع بلاغ الحادث | ثقة للتأمين</title>
    <style>
      * { box-sizing: border-box; margin: 0; padding: 0; }
      body {
@@ -535,7 +535,7 @@
    <div class="container">
      <div class="header">
        <h1>🚗 توقيع بلاغ الحادث</h1>
-       <div class="subtitle">AB Insurance - وكالة تأمين معتمدة</div>
+       <div class="subtitle">ثقة للتأمين - وكالة تأمين معتمدة</div>
      </div>
      
      <div class="content">
@@ -610,7 +610,7 @@
      </div>
      
      <div class="footer">
-       © AB Insurance - جميع الحقوق محفوظة
+       © ثقة للتأمين - جميع الحقوق محفوظة
      </div>
    </div>
    

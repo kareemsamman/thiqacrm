@@ -81,7 +81,7 @@ serve(async (req) => {
       // Plain text version (important fallback for email clients)
       const textContent = `اختبار SMTP ناجح!
 
-تم إرسال هذه الرسالة بنجاح من نظام AB Insurance CRM.
+تم إرسال هذه الرسالة بنجاح من نظام ثقة للتأمين.
 إعدادات SMTP تعمل بشكل صحيح!
 
 ---
@@ -100,7 +100,7 @@ Secure: ${smtpSecure ? 'Yes (TLS)' : 'No'}`;
 <body style="font-family: Arial, sans-serif; padding: 20px; direction: rtl; text-align: right; background-color: #f3f4f6;">
   <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
     <h2 style="color: #2563eb; margin-bottom: 20px;">✅ اختبار SMTP ناجح!</h2>
-    <p style="font-size: 16px; color: #374151;">تم إرسال هذه الرسالة بنجاح من نظام <strong>AB Insurance CRM</strong>.</p>
+    <p style="font-size: 16px; color: #374151;">تم إرسال هذه الرسالة بنجاح من نظام <strong>ثقة للتأمين</strong>.</p>
     <p style="font-size: 16px; color: #374151;">إعدادات SMTP تعمل بشكل صحيح!</p>
     <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
     <p style="color: #6b7280; font-size: 12px;">
@@ -117,7 +117,7 @@ Secure: ${smtpSecure ? 'Yes (TLS)' : 'No'}`;
       await client.send({
         from: smtpUser,
         to: testEmail,
-        subject: "اختبار إعدادات SMTP - AB Insurance CRM",
+        subject: "اختبار إعدادات SMTP - ثقة للتأمين",
         content: textContent,
         html: htmlContent,
       });

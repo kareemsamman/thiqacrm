@@ -176,7 +176,7 @@ export default function SignaturePage() {
     return (
       <>
         <Helmet>
-          <title>توقيع العميل | AB Insurance CRM</title>
+          <title>توقيع العميل | ثقة للتأمين</title>
           <meta name="description" content="توقيع العميل على نموذج التأمين عبر رابط آمن لمرة واحدة." />
           <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
         </Helmet>
@@ -199,7 +199,7 @@ export default function SignaturePage() {
     return (
       <>
         <Helmet>
-          <title>رابط توقيع غير صالح | AB Insurance CRM</title>
+          <title>رابط توقيع غير صالح | ثقة للتأمين</title>
           <meta name="description" content="رابط التوقيع غير صالح أو منتهي." />
           <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
         </Helmet>
@@ -222,7 +222,7 @@ export default function SignaturePage() {
     return (
       <>
         <Helmet>
-          <title>تم التوقيع | AB Insurance CRM</title>
+          <title>تم التوقيع | ثقة للتأمين</title>
           <meta name="description" content="تم حفظ توقيع العميل بنجاح." />
           <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
         </Helmet>
@@ -246,7 +246,7 @@ export default function SignaturePage() {
   return (
     <>
       <Helmet>
-        <title>توقيع العميل | AB Insurance CRM</title>
+        <title>توقيع العميل | ثقة للتأمين</title>
         <meta name="description" content="توقيع العميل على نموذج التأمين عبر رابط آمن لمرة واحدة." />
         <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
       </Helmet>

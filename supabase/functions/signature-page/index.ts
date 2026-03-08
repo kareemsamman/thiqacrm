@@ -160,7 +160,7 @@ function buildErrorHtml(title: string, message: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>${title} | AB Insurance</title>
+  <title>${title} | ثقة للتأمين</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -219,7 +219,7 @@ function buildSuccessHtml(clientName: string, signedAt: string | null): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>تم التوقيع بنجاح | AB Insurance</title>
+  <title>تم التوقيع بنجاح | ثقة للتأمين</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -305,7 +305,7 @@ function buildSignaturePageHtml(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>توقيع العميل | AB Insurance</title>
+  <title>توقيع العميل | ثقة للتأمين</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {

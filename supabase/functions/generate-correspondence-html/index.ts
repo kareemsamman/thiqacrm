@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const companyName = 'AB تأمين';
+    const companyName = 'ثقة للتأمين';
     const companyLocation = smsSettings?.company_location || '';
     
     // Format date

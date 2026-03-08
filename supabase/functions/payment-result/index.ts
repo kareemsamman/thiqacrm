@@ -410,7 +410,7 @@ async function sendPaymentReceiptSms(supabase: any, payment: any) {
       message += `\nرقم التأكيد: ${confirmationCode}`
     }
     
-    message += '\n\nشكراً لك - AB Insurance'
+    message += '\n\nشكراً لك - ثقة للتأمين'
 
     // Send SMS via 019sms
     const smsUrl = 'https://019sms.co.il/api'

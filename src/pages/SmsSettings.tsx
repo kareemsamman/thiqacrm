@@ -345,7 +345,7 @@ export default function SmsSettings() {
       const { data, error } = await supabase.functions.invoke("send-sms", {
         body: {
           phone: testPhone,
-          message: "رسالة اختبار من AB Insurance CRM - Test message from AB Insurance CRM",
+          message: "رسالة اختبار من ثقة للتأمين - Test message from Thiqa Insurance CRM",
         },
       });
 
@@ -946,7 +946,7 @@ export default function SmsSettings() {
                     onChange={(e) =>
                       setSignaturePageSettings(prev => ({ ...prev, footer_html: e.target.value }))
                     }
-                    placeholder="<p>جميع الحقوق محفوظة © AB Insurance</p>"
+                    placeholder="<p>جميع الحقوق محفوظة © ثقة للتأمين</p>"
                     className="min-h-[60px] font-mono text-sm"
                     dir="rtl"
                   />

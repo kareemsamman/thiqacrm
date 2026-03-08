@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     const smsUser = smsSettings.sms_user;
     const smsToken = smsSettings.sms_token;
-    const smsSource = smsSettings.sms_source || "AB-Insurance";
+    const smsSource = smsSettings.sms_source || "Thiqa-Ins";
 
     if (!smsUser || !smsToken) {
       return new Response(

@@ -1105,7 +1105,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
     return (
       <MainLayout>
         <Helmet>
-          <title>{client.full_name} | AB Insurance CRM</title>
+          <title>{client.full_name} | ثقة للتأمين</title>
         </Helmet>
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header Skeleton */}
@@ -1178,7 +1178,7 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
   return (
     <MainLayout>
       <Helmet>
-        <title>{client.full_name} | AB Insurance CRM</title>
+        <title>{client.full_name} | ثقة للتأمين</title>
       </Helmet>
 
       <div className="max-w-6xl mx-auto space-y-6">

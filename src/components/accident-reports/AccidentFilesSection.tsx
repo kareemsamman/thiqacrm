@@ -175,7 +175,7 @@ export function AccidentFilesSection({ accidentReportId, onFilesChange, policyNu
         <div class="header-card">
           <div class="header-band">
             <h1>بلاغ حادث</h1>
-            <span class="brand">AB Insurance</span>
+            <span class="brand">Thiqa Insurance</span>
           </div>
           <table class="info-table">
             ${infoRows.map((r, i) => `<tr class="${i % 2 === 0 ? 'even' : 'odd'}"><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join("")}

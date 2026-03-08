@@ -43,14 +43,14 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
         }
         
         setCompanyInfo({
-          company_name: 'AB تأمين',
+          company_name: 'ثقة للتأمين',
           company_phone_links: phoneLinks as CompanyInfo['company_phone_links'],
           company_location: data?.company_location || undefined,
         });
       } catch (error) {
         console.error('Error fetching company info:', error);
         setCompanyInfo({
-          company_name: 'AB تأمين',
+          company_name: 'ثقة للتأمين',
         });
       } finally {
         setLoading(false);
@@ -94,17 +94,17 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
       {/* Elegant Letterhead */}
       <div style={{ 
         padding: '32px 40px 24px',
-        borderBottom: '3px double #0d9488',
+        borderBottom: '3px double hsl(225, 65%, 50%)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
           <h1 style={{ 
             fontSize: '28px', 
             fontWeight: 'bold', 
             margin: 0, 
-            color: '#0d9488',
+            color: 'hsl(225, 65%, 50%)',
             letterSpacing: '1px',
           }}>
-            AB تأمين
+            ثقة للتأمين
           </h1>
           <p style={{ 
             fontSize: '13px', 
@@ -184,7 +184,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
             fontWeight: '600',
             marginBottom: '8px',
           }}>
-            AB تأمين
+            ثقة للتأمين
           </div>
           <div style={{ 
             width: '120px', 

@@ -17,7 +17,7 @@ interface ChatMessage {
 }
 
 // Invalid names to filter out
-const INVALID_NAME_PARTS = ["بك في", "AB Insurance", "أنا بوت", "بوت", "تأمين", "Insurance"];
+const INVALID_NAME_PARTS = ["بك في", "Thiqa Insurance", "أنا بوت", "بوت", "تأمين", "Insurance"];
 
 // Parse lead info from chat messages
 function parseLeadInfoFromMessages(messages: ChatMessage[]): {

@@ -387,6 +387,66 @@ export default function ThiqaAgentDetail() {
     toast.success('تم تغيير الصلاحية');
   };
 
+  // ─── Delete agent ───
+  const deleteAgent = async () => {
+    setDeletingAgent(true);
+    try {
+      // Delete related data first
+      await Promise.all([
+        supabase.from('agent_subscription_payments').delete().eq('agent_id', agentId!),
+        supabase.from('agent_feature_flags').delete().eq('agent_id', agentId!),
+        supabase.from('agent_users').delete().eq('agent_id', agentId!),
+        supabase.from('user_roles').delete().eq('agent_id', agentId!),
+        supabase.from('sms_settings').delete().eq('agent_id', agentId!),
+        supabase.from('auth_settings').delete().eq('agent_id', agentId!),
+        supabase.from('payment_settings').delete().eq('agent_id', agentId!),
+        supabase.from('site_settings').delete().eq('agent_id', agentId!),
+      ]);
+      const { error } = await supabase.from('agents').delete().eq('id', agentId!);
+      if (error) throw error;
+      toast.success('تم حذف الوكيل بنجاح');
+      navigate('/thiqa/agents');
+    } catch (err: any) {
+      toast.error(err.message || 'خطأ في حذف الوكيل');
+    } finally {
+      setDeletingAgent(false);
+      setDeleteAgentOpen(false);
+    }
+  };
+
+  // ─── Delete payment ───
+  const deletePayment = async (paymentId: string) => {
+    const { error } = await supabase.from('agent_subscription_payments').delete().eq('id', paymentId);
+    if (error) { toast.error('خطأ في حذف الدفعة'); return; }
+    toast.success('تم حذف الدفعة');
+    setDeletePaymentId(null);
+    fetchAll();
+  };
+
+  // ─── Edit user ───
+  const openEditUser = (au: any) => {
+    const p = au.profiles;
+    setEditingUser(au);
+    setEditUserName(p?.full_name || '');
+    setEditUserPhone(p?.phone || '');
+    setEditUserBranch(p?.branch_id || '');
+  };
+
+  const saveEditUser = async () => {
+    if (!editingUser) return;
+    setSavingUser(true);
+    const { error } = await supabase.from('profiles').update({
+      full_name: editUserName || null,
+      phone: editUserPhone || null,
+      branch_id: editUserBranch || null,
+    }).eq('id', editingUser.user_id);
+    setSavingUser(false);
+    if (error) { toast.error('خطأ في تحديث المستخدم'); return; }
+    toast.success('تم تحديث المستخدم');
+    setEditingUser(null);
+    fetchAll();
+  };
+
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
   if (loading) {

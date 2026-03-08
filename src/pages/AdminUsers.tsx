@@ -147,22 +147,53 @@ export default function AdminUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      if (!agentId) {
+        setUsers([]);
+        setLoginAttempts([]);
+        return;
+      }
+
+      const { data: agentLinks, error: agentLinksError } = await supabase
+        .from('agent_users')
+        .select('user_id')
+        .eq('agent_id', agentId);
+
+      if (agentLinksError) throw agentLinksError;
+
+      const userIds = (agentLinks || []).map(link => link.user_id);
+
+      if (userIds.length === 0) {
+        setUsers([]);
+        setLoginAttempts([]);
+        return;
+      }
+
+      const [
+        { data: profiles, error: profilesError },
+        { data: roles, error: rolesError },
+        { data: attempts, error: attemptsError },
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .eq('agent_id', agentId),
+        supabase
+          .from('login_attempts')
+          .select('*')
+          .in('user_id', userIds)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ]);
 
       if (profilesError) throw profilesError;
-
-      // Fetch all roles
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
       if (rolesError) throw rolesError;
+      if (attemptsError) throw attemptsError;
 
-      // Merge profiles with roles
       const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => {
         const userRole = (roles || []).find(r => r.user_id === profile.id);
         return {
@@ -173,13 +204,11 @@ export default function AdminUsers() {
 
       setUsers(usersWithRoles);
 
-      // Initialize selected roles and branches for pending users
       const roleSelections: Record<string, 'admin' | 'worker'> = {};
       const branchSelections: Record<string, string> = {};
       usersWithRoles.forEach(u => {
         if (u.status === 'pending') {
           roleSelections[u.id] = 'worker';
-          // Default to first branch if available
           if (branches.length > 0) {
             branchSelections[u.id] = branches[0].id;
           }
@@ -187,17 +216,7 @@ export default function AdminUsers() {
       });
       setSelectedRole(roleSelections);
       setSelectedBranch(branchSelections);
-
-      // Fetch login attempts
-      const { data: attempts, error: attemptsError } = await supabase
-        .from('login_attempts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (!attemptsError) {
-        setLoginAttempts(attempts || []);
-      }
+      setLoginAttempts(attempts || []);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -211,10 +230,10 @@ export default function AdminUsers() {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && agentId) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, agentId, branches.length]);
 
   const handleApproveUser = async (userId: string) => {
     setActionLoading(userId);
@@ -235,10 +254,12 @@ export default function AdminUsers() {
 
       if (profileError) throw profileError;
 
-      // Add user role
+      if (!agentId) throw new Error('Missing agent context');
+
+      // Add or update user role inside current agent only
       const { error: roleError } = await supabase
         .from('user_roles')
-        .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
+        .upsert({ user_id: userId, role, agent_id: agentId }, { onConflict: 'user_id,agent_id' });
 
       if (roleError) throw roleError;
 
@@ -322,16 +343,12 @@ export default function AdminUsers() {
   const handleChangeRole = async (userId: string, newRole: 'admin' | 'worker') => {
     setActionLoading(userId);
     try {
-      // Delete existing roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+      if (!agentId) throw new Error('Missing agent context');
 
-      // Insert new role
+      // Update role for current agent only (do not touch other agent memberships)
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: userId, role: newRole });
+        .upsert({ user_id: userId, role: newRole, agent_id: agentId }, { onConflict: 'user_id,agent_id' });
 
       if (error) throw error;
 

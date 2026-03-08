@@ -136,7 +136,7 @@ export default function ThiqaAgents() {
                       <div className="text-xs text-muted-foreground truncate">{agent.email}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {statusBadge(agent.subscription_status)}
+                       {statusBadge(agent)}
                       {planBadge(agent.plan)}
                     </div>
                   </div>

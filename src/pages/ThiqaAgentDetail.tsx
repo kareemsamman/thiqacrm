@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -358,44 +359,46 @@ export default function ThiqaAgentDetail() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 max-w-5xl" dir="rtl">
+      <div className="space-y-4 md:space-y-6 max-w-5xl" dir="rtl">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/thiqa/agents')}>
+        <div className="flex items-start gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="flex-shrink-0 mt-1" onClick={() => navigate('/thiqa/agents')}>
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
             {agent.logo_url ? (
-              <img src={agent.logo_url} alt="" className="h-12 w-12 rounded-lg object-contain border" />
+              <img src={agent.logo_url} alt="" className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-contain border flex-shrink-0" />
             ) : (
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             )}
-            <div>
-              <h1 className="text-2xl font-bold">{agent.name_ar || agent.name}</h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{agent.email}</span>
-                <Badge className={agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive'}>
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-2xl font-bold truncate">{agent.name_ar || agent.name}</h1>
+              <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
+                <span className="truncate max-w-[150px] md:max-w-none">{agent.email}</span>
+                <Badge className={cn("text-[10px] md:text-xs", agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive')}>
                   {agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
                 </Badge>
-                <Badge variant="outline">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
+                <Badge variant="outline" className="text-[10px] md:text-xs">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
               </div>
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="info" className="space-y-4">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="info"><Settings className="h-4 w-4 ml-1" />معلومات</TabsTrigger>
-            <TabsTrigger value="users"><Users className="h-4 w-4 ml-1" />المستخدمون</TabsTrigger>
-            <TabsTrigger value="branding"><Palette className="h-4 w-4 ml-1" />العلامة التجارية</TabsTrigger>
-            <TabsTrigger value="sms"><MessageSquare className="h-4 w-4 ml-1" />SMS 019</TabsTrigger>
-            <TabsTrigger value="auth"><Shield className="h-4 w-4 ml-1" />المصادقة</TabsTrigger>
-            <TabsTrigger value="tranzila"><CreditCard className="h-4 w-4 ml-1" />Tranzila</TabsTrigger>
-            <TabsTrigger value="features"><Settings className="h-4 w-4 ml-1" />الميزات</TabsTrigger>
-            <TabsTrigger value="payments"><CreditCard className="h-4 w-4 ml-1" />المدفوعات</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="inline-flex h-auto gap-1 w-max md:w-auto md:flex-wrap">
+              <TabsTrigger value="info" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />معلومات</TabsTrigger>
+              <TabsTrigger value="users" className="text-xs md:text-sm px-2 md:px-3"><Users className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المستخدمون</TabsTrigger>
+              <TabsTrigger value="branding" className="text-xs md:text-sm px-2 md:px-3"><Palette className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />العلامة</TabsTrigger>
+              <TabsTrigger value="sms" className="text-xs md:text-sm px-2 md:px-3"><MessageSquare className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />SMS</TabsTrigger>
+              <TabsTrigger value="auth" className="text-xs md:text-sm px-2 md:px-3"><Shield className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المصادقة</TabsTrigger>
+              <TabsTrigger value="tranzila" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />Tranzila</TabsTrigger>
+              <TabsTrigger value="features" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />الميزات</TabsTrigger>
+              <TabsTrigger value="payments" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المدفوعات</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ═══════════ INFO TAB ═══════════ */}
           <TabsContent value="info">
@@ -515,17 +518,17 @@ export default function ThiqaAgentDetail() {
                 </div>
 
                 {/* Users table */}
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-right p-3">المستخدم</th>
-                        <th className="text-right p-3">الإيميل</th>
-                        <th className="text-right p-3">الهاتف</th>
-                        <th className="text-right p-3">الصلاحية</th>
-                        <th className="text-right p-3">الفرع</th>
-                        <th className="text-right p-3">الحالة</th>
-                        <th className="text-right p-3">إجراء</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المستخدم</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الإيميل</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الهاتف</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الصلاحية</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الفرع</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الحالة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إجراء</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -535,12 +538,12 @@ export default function ThiqaAgentDetail() {
                         const branchName = p?.branch_id ? branches.find((b: any) => b.id === p.branch_id) : null;
                         return (
                           <tr key={au.id} className="border-t">
-                            <td className="p-3 font-medium">{p?.full_name || '—'}</td>
-                            <td className="p-3 text-muted-foreground">{p?.email || '—'}</td>
-                            <td className="p-3 text-muted-foreground">{p?.phone || '—'}</td>
-                            <td className="p-3">
+                            <td className="p-2 md:p-3 font-medium text-xs md:text-sm">{p?.full_name || '—'}</td>
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm truncate max-w-[120px] md:max-w-none">{p?.email || '—'}</td>
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm hidden md:table-cell">{p?.phone || '—'}</td>
+                            <td className="p-2 md:p-3">
                               <Select value={role || 'worker'} onValueChange={(v) => changeUserRole(au.user_id, v as 'admin' | 'worker')}>
-                                <SelectTrigger className="h-8 w-28">
+                                <SelectTrigger className="h-7 md:h-8 w-20 md:w-28 text-xs md:text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -549,22 +552,22 @@ export default function ThiqaAgentDetail() {
                                 </SelectContent>
                               </Select>
                             </td>
-                            <td className="p-3 text-muted-foreground text-xs">
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs hidden md:table-cell">
                               {branchName ? (branchName.name_ar || branchName.name) : '—'}
                             </td>
-                            <td className="p-3">
-                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
+                            <td className="p-2 md:p-3">
+                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
-                            <td className="p-3">
-                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeUserFromAgent(au.user_id)}>
-                                <UserMinus className="h-4 w-4" />
+                            <td className="p-2 md:p-3">
+                              <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
+                                <UserMinus className="h-3.5 w-3.5" />
                               </Button>
                             </td>
                           </tr>
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>
+                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -778,7 +781,7 @@ export default function ThiqaAgentDetail() {
                 <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />سجل المدفوعات</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
                   <div className="flex-1">
                     <Label>المبلغ (₪)</Label>
                     <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder={`${agent.monthly_price || 300}`} />
@@ -787,29 +790,29 @@ export default function ThiqaAgentDetail() {
                     <Label>ملاحظات</Label>
                     <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="اختياري" />
                   </div>
-                  <Button onClick={recordPayment} disabled={!paymentAmount}>تسجيل الدفعة + تمديد شهر</Button>
+                  <Button onClick={recordPayment} disabled={!paymentAmount} className="w-full md:w-auto text-xs md:text-sm whitespace-nowrap">تسجيل الدفعة + تمديد شهر</Button>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[400px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-right p-3">التاريخ</th>
-                        <th className="text-right p-3">المبلغ</th>
-                        <th className="text-right p-3">الخطة</th>
-                        <th className="text-right p-3">ملاحظات</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">التاريخ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الخطة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">ملاحظات</th>
                       </tr>
                     </thead>
                     <tbody>
                       {payments.map((p: any) => (
                         <tr key={p.id} className="border-t">
-                          <td className="p-3">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
-                          <td className="p-3 font-medium">₪{p.amount}</td>
-                          <td className="p-3"><Badge variant="outline">{p.plan}</Badge></td>
-                          <td className="p-3 text-muted-foreground">{p.notes || '—'}</td>
+                          <td className="p-2 md:p-3 text-xs md:text-sm">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
+                          <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
+                          <td className="p-2 md:p-3"><Badge variant="outline" className="text-[10px] md:text-xs">{p.plan}</Badge></td>
+                          <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm">{p.notes || '—'}</td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>

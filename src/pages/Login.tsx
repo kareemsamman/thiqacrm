@@ -304,7 +304,7 @@ export default function Login() {
         <img src="/images/thiqa-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-transparent" />
         <div className="relative z-10 text-center space-y-4">
-          <img src={thiqaLogo} alt="ثقة" className="mx-auto w-40 h-40 drop-shadow-2xl" />
+          <img src={thiqaLogo} alt="ثقة" className="mx-auto w-40 h-auto drop-shadow-2xl" />
           <p className="text-white/80 text-lg font-light tracking-wide">نظام إدارة التأمين</p>
         </div>
       </div>

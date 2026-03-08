@@ -260,9 +260,9 @@ export default function Login() {
     );
   }
 
-  const logoSrc = settings?.logo_url || thiqaLogo;
-  const siteTitle = settings?.site_title || "Thiqa";
-  const siteDesc = settings?.site_description || "نظام إدارة التأمين";
+  const siteTitle = "Thiqa";
+  const siteDesc = "نظام إدارة التأمين";
+  const logoSrc = thiqaLogo;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row relative">

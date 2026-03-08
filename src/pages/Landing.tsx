@@ -232,36 +232,78 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ Section 4: "אל תחכו לחידוש, חייגו אותו" ═══ */}
-      <section className="py-24 md:py-36 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#2d4bc7]/[0.08] rounded-full blur-[100px]" />
-        </div>
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold mb-4">אל תחכו לחידוש, חייגו אותו</h2>
-          <p className="text-white/40 text-base max-w-lg mx-auto mb-14">תזכורות חידוש אוטומטיות ב-SMS, ניהול תורי שיחות, ו-Click2Call ישירות מהמערכת.</p>
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-          <div className="relative max-w-4xl mx-auto">
-            <div className="absolute -inset-8 bg-[#2244aa]/[0.05] rounded-[40px] blur-[50px]" />
-            <img src={featuresMockup} alt="Mobile views" className="relative rounded-2xl border border-white/[0.06] shadow-2xl mx-auto w-full" loading="lazy" />
+      {/* ═══ Section 4: Tabbed Features ═══ */}
+      <section id="demo" className="py-24 md:py-36 relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">?למה דווקא Thiqa</p>
+            <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
+              כל הכלים לניהול הסוכנות תחת קורת גג אחת
+            </h2>
+            <p className="text-white/40 text-sm max-w-xl mx-auto">
+              תשתית טכנולוגית מתקדמת שחוסכת לך זמן, מונעת טעויות ומגדילה את הרווחיות.
+            </p>
           </div>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap justify-center gap-3 mt-12">
-            {[
-              { icon: Phone, t: "Click2Call" },
-              { icon: MessageSquare, t: "SMS אוטומטי" },
-              { icon: Bell, t: "תזכורות חידוש" },
-            ].map((p, i) => (
-              <div key={i} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
-                <p.icon className="h-4 w-4 text-[#7ba4f7]" />
-                {p.t}
-              </div>
+          {/* Tabs */}
+          <div className="flex overflow-x-auto border border-white/[0.06] rounded-xl mb-0">
+            {featureTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 min-w-[140px] px-4 py-4 text-center border-l border-white/[0.06] first:border-l-0 transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-white/[0.06] text-white"
+                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.02]"
+                }`}
+              >
+                <span className="text-xs text-white/30 block mb-1">{tab.num}</span>
+                <span className="text-sm font-semibold">{tab.label}</span>
+              </button>
             ))}
           </div>
+
+          {/* Tab Content */}
+          {featureTabs.filter(t => t.id === activeTab).map(tab => (
+            <div key={tab.id} className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/[0.06] border-t-0 rounded-b-xl overflow-hidden">
+              {/* Left: Image */}
+              <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center">
+                <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
+              </div>
+              {/* Right: Content */}
+              <div className="p-8 lg:p-12 flex flex-col justify-center">
+                <h3 className="text-2xl md:text-3xl font-bold mb-4 leading-tight whitespace-pre-line">{tab.title}</h3>
+                <p className="text-white/40 text-sm leading-relaxed mb-8">{tab.desc}</p>
+
+                <div className="grid grid-cols-2 gap-6">
+                  {tab.stats.map((stat, j) => (
+                    <div key={j}>
+                      <div className="text-3xl font-extrabold text-white/90">
+                        {stat.value}<span className="text-lg font-medium text-white/50 mr-1">{stat.unit}</span>
+                      </div>
+                      <p className="text-xs text-white/30 mt-2 leading-relaxed">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-colors bg-white/[0.04] border border-white/[0.08] rounded-lg"
+                  >
+                    התחילו ניסיון עכשיו
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
+
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
       {/* ═══ Section 5: כל מה שהסוכנות צריכה ═══ */}
       <section id="demo" className="py-24 md:py-32 relative">

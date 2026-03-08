@@ -77,6 +77,7 @@ const featureTabs = [
 export default function Landing() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");
+  const [slideIdx, setSlideIdx] = useState(0);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>

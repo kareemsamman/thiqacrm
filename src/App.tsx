@@ -116,6 +116,7 @@ const App = () => (
               <Route path="/thiqa/agents/new" element={<ThiqaAdminRoute><ThiqaCreateAgent /></ThiqaAdminRoute>} />
               <Route path="/thiqa/agents/:agentId" element={<ThiqaAdminRoute><ThiqaAgentDetail /></ThiqaAdminRoute>} />
               <Route path="/thiqa/payments" element={<ThiqaAdminRoute><ThiqaPayments /></ThiqaAdminRoute>} />
+              <Route path="/thiqa/settings" element={<ThiqaAdminRoute><ThiqaSettings /></ThiqaAdminRoute>} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Index />

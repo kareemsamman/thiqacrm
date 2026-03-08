@@ -193,11 +193,17 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 
   // Filter groups and items based on role + features
+  // Thiqa super admin only sees the Thiqa management section
   const filteredGroups = navigationGroups
-    .filter(group => !group.adminOnly || isAdmin)
+    .filter(group => {
+      if (isThiqaSuperAdmin) return group.name === 'إدارة ثقة';
+      if (group.adminOnly && !isAdmin) return false;
+      return true;
+    })
     .map(group => ({
       ...group,
       items: group.items.filter(item => {
+        if (isThiqaSuperAdmin) return true; // Thiqa admin sees all items in their groups
         if (item.thiqaSuperAdminOnly && !isThiqaSuperAdmin) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;
@@ -309,11 +315,11 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 relative",
                         isActiveRoute
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-[hsl(var(--sidebar-active)/0.15)] text-[hsl(var(--sidebar-active))]"
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
-                      <item.icon className={cn("h-5 w-5", isActiveRoute && "text-primary")} />
+                      <item.icon className={cn("h-5 w-5", isActiveRoute && "text-[hsl(var(--sidebar-active))]")} />
                       {renderBadge(item)}
                     </NavLink>
                   );
@@ -328,19 +334,19 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               open={isOpen}
               onOpenChange={() => toggleGroup(group.name)}
             >
-              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/50 rounded-lg transition-colors uppercase tracking-wide">
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent rounded-lg transition-colors uppercase tracking-wide">
                 <div className="flex items-center gap-2">
-                  <GroupIcon className="h-4 w-4" />
+                  <GroupIcon className="h-3.5 w-3.5" />
                   <span>{group.name}</span>
                 </div>
                 <ChevronDown 
                   className={cn(
-                    "h-3.5 w-3.5 transition-transform duration-200",
+                    "h-3 w-3 transition-transform duration-200",
                     isOpen && "rotate-180"
                   )} 
                 />
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-1 mr-2 space-y-0.5">
+              <CollapsibleContent className="mt-0.5 mr-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActiveRoute = location.pathname === item.href;
                   return (
@@ -349,16 +355,16 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       to={item.href}
                       onClick={handleNavClick}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative",
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative group",
                         isActiveRoute
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-[hsl(var(--sidebar-active)/0.12)] text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
-                      <item.icon className={cn("h-4 w-4 flex-shrink-0", isActiveRoute && "text-primary")} />
+                      <item.icon className={cn("h-4 w-4 flex-shrink-0 transition-colors", isActiveRoute ? "text-[hsl(var(--sidebar-active))]" : "group-hover:text-sidebar-accent-foreground")} />
                       <span>{item.name}</span>
                       {item.badge === 'renewals' && (
-                        <span className="text-xs text-muted-foreground">| التجديدات</span>
+                        <span className="text-xs text-sidebar-foreground/40">| التجديدات</span>
                       )}
                       {renderBadge(item)}
                     </NavLink>
@@ -411,8 +417,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                   className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/20 flex-shrink-0"
                 />
               ) : (
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-md">
-                  <span className="text-sm font-bold text-primary-foreground">{userInitial}</span>
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[hsl(var(--sidebar-active))] shadow-md">
+                  <span className="text-sm font-bold text-white">{userInitial}</span>
                 </div>
               )}
               {!collapsed && (

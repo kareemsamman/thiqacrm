@@ -279,31 +279,27 @@ serve(async (req) => {
     const afRes = await syncSeedData(supabase, "accident_fee_services", SEED_ACCIDENT_FEE_SERVICES.map(a => ({...a})), agentId, "name", "policies", "accident_fee_service_id");
     results.accident_fee_services = afRes.inserted;
 
-    // 5. Pricing rules for "اراضي مقدسة"
+    // 5. Pricing rules for "اراضي مقدسة" — always replace (delete old + insert new)
     const aradiCompanyId = coMap.get("اراضي مقدسة");
     if (aradiCompanyId) {
-      const { data: existingRules } = await supabase
-        .from("pricing_rules").select("id").eq("company_id", aradiCompanyId).eq("agent_id", agentId);
-      
-      if (!existingRules || existingRules.length === 0) {
-        const rulesToInsert = SEED_PRICING_RULES.map((r) => ({
-          company_id: aradiCompanyId,
-          agent_id: agentId,
-          policy_type_parent: "THIRD_FULL",
-          rule_type: r.rule_type,
-          car_type: r.car_type,
-          age_band: r.age_band,
-          value: r.value,
-          min_car_value: (r as any).min_car_value ?? null,
-          max_car_value: (r as any).max_car_value ?? null,
-          notes: r.notes,
-        }));
-        const { data, error } = await supabase.from("pricing_rules").insert(rulesToInsert).select("id");
-        if (error) throw error;
-        results.pricing_rules = data?.length ?? 0;
-      } else {
-        results.pricing_rules = 0;
-      }
+      // Delete old rules for this company (seed rules only, safe since company was just re-created or has no policies)
+      await supabase.from("pricing_rules").delete().eq("company_id", aradiCompanyId).eq("agent_id", agentId);
+
+      const rulesToInsert = SEED_PRICING_RULES.map((r) => ({
+        company_id: aradiCompanyId,
+        agent_id: agentId,
+        policy_type_parent: "THIRD_FULL",
+        rule_type: r.rule_type,
+        car_type: r.car_type,
+        age_band: r.age_band,
+        value: r.value,
+        min_car_value: (r as any).min_car_value ?? null,
+        max_car_value: (r as any).max_car_value ?? null,
+        notes: r.notes,
+      }));
+      const { data, error } = await supabase.from("pricing_rules").insert(rulesToInsert).select("id");
+      if (error) throw error;
+      results.pricing_rules = data?.length ?? 0;
     }
 
     // 6. Road service prices for "شركة اكس"

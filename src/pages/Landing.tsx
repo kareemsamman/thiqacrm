@@ -305,27 +305,93 @@ export default function Landing() {
 
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-      {/* ═══ Section 5: כל מה שהסוכנות צריכה ═══ */}
-      <section id="demo" className="py-24 md:py-32 relative">
-        <div className="relative max-w-3xl mx-auto text-center px-6">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold mb-6">
-            כל מה שהסוכנות צריכה,
-            <br />
-            <span className="text-white/60">תחת קורת גג אחת</span>
+      {/* ═══ Section 5: Slider ═══ */}
+      <section className="relative py-24 md:py-36 overflow-hidden">
+        {/* Gradient background */}
+        <img src={sliderBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/30" />
+
+        <div className="relative z-10">
+          <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
+            אל תחכו לחידוש. תייצרו אותו
           </h2>
-          <div className="flex justify-center my-10">
-            <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-[#3b5fc7]/30 to-[#7ba4f7]/20 border border-white/[0.08] flex items-center justify-center shadow-xl shadow-[#2d4bc7]/10">
-              <img src={thiqaLogo} alt="Thiqa" className="h-14 w-14" />
-            </div>
-          </div>
-          <Button
-            size="lg"
-            onClick={() => navigate("/login")}
-            className="bg-[#2d4bc7] hover:bg-[#3355dd] text-white rounded-full px-8 h-[52px] text-[15px] font-bold gap-2"
-          >
-            צפו בדמו
-            <Play className="h-4 w-4" />
-          </Button>
+
+          {/* Slider */}
+          {(() => {
+            const slides = [
+              {
+                title: "ניהול מסמכים מאובטח בענן",
+                desc: "כל המסמכים, הפוליסות והקבלות — מאורגנים בענן עם גישה מיידית מהדסקטופ או מהנייד.",
+                cta: "התחילו ניסיון עכשיו",
+              },
+              {
+                title: "שקט נפשי ושימור לקוחות",
+                desc: "אל תתנו ללקוח להרגיש לבד ברגע האמת. המערכת מנהלת עבורכם את איסוף המסמכים, מעדכנת את הלקוח בסטטוס התביעה באופן אוטומטי, ומוודאת ששום דרישה מחברת הביטוח לא מתפספסת. אתם נותנים שירות VIP, בזמן שהאוטומציה עושה את העבודה השחורה.",
+                cta: "התחילו ניסיון עכשיו",
+              },
+              {
+                title: "דוחות כספיים בלחיצה",
+                desc: "דוחות רווח, תשלומים ויתרות — הכל אוטומטי ומעודכן בזמן אמת, עם ייצוא מיידי.",
+                cta: "התחילו ניסיון עכשיו",
+              },
+            ];
+
+            const [slideIdx, setSlideIdx] = useState(0);
+            const goNext = () => setSlideIdx((p) => (p + 1) % slides.length);
+            const goPrev = () => setSlideIdx((p) => (p - 1 + slides.length) % slides.length);
+
+            return (
+              <>
+                <div className="relative flex items-center justify-center gap-6 px-6">
+                  {/* Previous slide peek */}
+                  <div className="hidden lg:block w-[200px] flex-shrink-0 opacity-40 scale-90 transition-all duration-500">
+                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] p-8 min-h-[350px]">
+                      <h3 className="text-lg font-bold mb-3">{slides[(slideIdx - 1 + slides.length) % slides.length].title}</h3>
+                    </div>
+                  </div>
+
+                  {/* Active slide */}
+                  <div className="w-full max-w-3xl transition-all duration-500">
+                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] grid grid-cols-1 md:grid-cols-2 gap-0 min-h-[350px]">
+                      {/* Content side */}
+                      <div className="p-8 md:p-10 flex flex-col justify-center">
+                        <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
+                        <p className="text-sm text-white/50 leading-relaxed mb-8">{slides[slideIdx].desc}</p>
+                        <button
+                          onClick={() => navigate("/login")}
+                          className="flex items-center gap-2 px-5 py-3 text-sm font-bold text-white/70 hover:text-white transition-colors bg-white/[0.06] border border-white/[0.1] rounded-lg w-fit"
+                        >
+                          {slides[slideIdx].cta}
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {/* Image side */}
+                      <div className="flex items-center justify-center p-6">
+                        <img src={featuresMockup} alt="" className="max-h-[280px] object-contain rounded-lg" loading="lazy" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Next slide peek */}
+                  <div className="hidden lg:block w-[200px] flex-shrink-0 opacity-40 scale-90 transition-all duration-500">
+                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] p-8 min-h-[350px]">
+                      <h3 className="text-lg font-bold mb-3">{slides[(slideIdx + 1) % slides.length].title}</h3>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation arrows */}
+                <div className="flex justify-center gap-3 mt-10">
+                  <button onClick={goPrev} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <ChevronLeft className="h-5 w-5 rotate-180" />
+                  </button>
+                  <button onClick={goNext} className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
 

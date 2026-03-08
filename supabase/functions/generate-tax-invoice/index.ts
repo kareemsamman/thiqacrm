@@ -423,7 +423,7 @@ function generateHtml(
   <div class="container">
     <div class="header">
       <h1>فاتورة ضريبية</h1>
-      <div class="subtitle">بشير للتأمين - BASHEER INSURANCE</div>
+      <div class="subtitle">${agentName}</div>
       <div class="company-name">${companyName}</div>
     </div>
     <div class="meta">

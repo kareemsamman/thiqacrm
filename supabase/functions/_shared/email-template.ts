@@ -4,6 +4,7 @@
  */
 
 const EMAIL_BG_URL = "https://thiqacrm.lovable.app/images/email-bg.png";
+const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-dark.svg";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */
@@ -18,7 +19,7 @@ export interface EmailTemplateOptions {
  * Wraps content in the Thiqa branded email template.
  * - Gradient background image
  * - Centered white card with rounded corners
- * - Thiqa branding header
+ * - Thiqa logo header
  * - RTL Arabic layout
  */
 export function buildEmailHtml(options: EmailTemplateOptions): string {
@@ -32,18 +33,17 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;width:100%;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;background-color:#1a1a2e;">
+<body style="margin:0;padding:0;width:100%;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;background-color:#1e1b3a;">
   <!-- Outer wrapper with gradient bg -->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1a1a2e;background-image:url('${EMAIL_BG_URL}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1e1b3a;background-image:url('${EMAIL_BG_URL}');background-size:cover;background-position:center center;background-repeat:no-repeat;">
     <tr>
-      <td align="center" style="padding:40px 16px 32px;">
+      <td align="center" style="padding:48px 16px 36px;">
 
-        <!-- Logo / Brand -->
+        <!-- Logo -->
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
           <tr>
-            <td align="center" style="padding-bottom:24px;">
-              <h1 style="margin:0;font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:36px;font-weight:800;color:#ffffff;letter-spacing:2px;text-shadow:0 2px 8px rgba(0,0,0,0.3);">Thiqa</h1>
-              <p style="margin:6px 0 0;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:0.5px;">نظام إدارة التأمين</p>
+            <td align="center" style="padding-bottom:28px;">
+              <img src="${EMAIL_LOGO_URL}" alt="Thiqa" width="155" height="41" style="display:block;margin:0 auto;height:auto;max-width:155px;" />
             </td>
           </tr>
         </table>

@@ -71,6 +71,7 @@ import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
 import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
 import ThiqaDashboard from "./pages/ThiqaDashboard";
+import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +101,7 @@ const App = () => (
             <AgentProvider>
             <RecentClientProvider>
             <Routes>
+              <Route path="/landing" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
               <Route path="/subscription-expired" element={<SubscriptionExpired />} />

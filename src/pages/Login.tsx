@@ -215,8 +215,8 @@ export default function Login() {
     try {
       const { data, error } = await supabase.functions.invoke("register-agent", {
         body: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
+          first_name: fullName.trim().split(" ")[0] || fullName.trim(),
+          last_name: fullName.trim().split(" ").slice(1).join(" ") || "",
           email: signupEmail.trim(),
           password: signupPassword,
           phone: digitsOnly(signupPhone) || null,

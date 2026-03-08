@@ -283,8 +283,7 @@ export default function Login() {
   const siteTitle = "Thiqa";
   const siteDesc = "نظام إدارة التأمين";
   const canSubmitSignup =
-    !!firstName.trim() &&
-    !!lastName.trim() &&
+    !!fullName.trim() &&
     signupEmail.includes("@") &&
     signupPassword.length >= 6 &&
     signupPassword === signupConfirmPassword &&

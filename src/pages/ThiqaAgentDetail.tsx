@@ -938,6 +938,7 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الخطة</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">ملاحظات</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap w-[60px]">إجراء</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -947,9 +948,14 @@ export default function ThiqaAgentDetail() {
                           <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
                           <td className="p-2 md:p-3"><Badge variant="outline" className="text-[10px] md:text-xs">{p.plan}</Badge></td>
                           <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm">{p.notes || '—'}</td>
+                          <td className="p-2 md:p-3">
+                            <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => setDeletePaymentId(p.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>

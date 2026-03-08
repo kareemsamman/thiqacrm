@@ -308,9 +308,9 @@ export default function Login() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:bg-gradient-to-br lg:from-muted/40 lg:to-background">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:bg-gradient-to-br lg:from-muted/40 lg:to-background">
         <div className="w-full max-w-md animate-scale-in">
-          <div className="rounded-3xl border border-white/20 bg-white/70 dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
+          <div className="rounded-3xl border border-white/20 bg-white/95 dark:bg-card/95 lg:bg-white/70 lg:dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
             {/* Header */}
             <div className="text-center pt-10 pb-4 px-8">
               <img src={thiqaLogo} alt={siteTitle} className="mx-auto h-14 w-14 object-contain lg:hidden mb-4" />

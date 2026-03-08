@@ -687,7 +687,7 @@ function buildSignaturePageHtml(
       const rect = wrapper.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = 200;
-      ctx.strokeStyle = '#1e3a5f';
+      ctx.strokeStyle = '${primaryColor}';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';

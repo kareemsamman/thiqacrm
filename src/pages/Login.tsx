@@ -344,7 +344,7 @@ export default function Login() {
 
                     <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
-                      {loading ? "جاري التسجيل..." : "إنشاء حساب"}
+                      {loading ? "جاري التسجيل..." : "تسجيل وكيل جديد"}
                     </Button>
                   </div>
 

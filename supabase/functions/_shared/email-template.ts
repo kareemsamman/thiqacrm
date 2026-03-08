@@ -4,7 +4,7 @@
  */
 
 const EMAIL_BG_URL = "https://thiqacrm.lovable.app/images/email-bg.png";
-const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-dark.svg";
+const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-email.png";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */

@@ -318,8 +318,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 relative",
                         isActiveRoute
-                          ? "bg-[hsl(var(--sidebar-active)/0.15)] text-[hsl(var(--sidebar-active))]"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "glass-dark bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))]"
+                          : "text-sidebar-foreground hover:bg-[hsl(var(--sidebar-glass-bg))] hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <item.icon className={cn("h-5 w-5", isActiveRoute && "text-[hsl(var(--sidebar-active))]")} />
@@ -337,15 +337,15 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               open={isOpen}
               onOpenChange={() => toggleGroup(group.name)}
             >
-              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent rounded-lg transition-colors uppercase tracking-wide">
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 hover:text-sidebar-foreground/60 hover:bg-[hsl(var(--sidebar-glass-bg))] rounded-lg transition-all duration-200 uppercase tracking-wide">
                 <div className="flex items-center gap-2">
                   <GroupIcon className="h-3.5 w-3.5" />
                   <span>{group.name}</span>
                 </div>
                 <ChevronDown 
                   className={cn(
-                    "h-3 w-3 transition-transform duration-200",
-                    isOpen && "rotate-180"
+                    "h-3 w-3 transition-transform duration-300 text-sidebar-foreground/30",
+                    isOpen && "rotate-180 text-[hsl(var(--sidebar-active))]/60"
                   )} 
                 />
               </CollapsibleTrigger>
@@ -360,8 +360,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative group",
                         isActiveRoute
-                          ? "bg-[hsl(var(--sidebar-active)/0.12)] text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "glass-dark bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
+                          : "text-sidebar-foreground hover:bg-[hsl(var(--sidebar-glass-bg))] hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <item.icon className={cn("h-4 w-4 flex-shrink-0 transition-colors", isActiveRoute ? "text-[hsl(var(--sidebar-active))]" : "group-hover:text-sidebar-accent-foreground")} />

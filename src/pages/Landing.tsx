@@ -6,7 +6,7 @@ import {
   Users, FileText, CreditCard, BarChart3, Bell, MessageSquare,
   Phone, Shield
 } from "lucide-react";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
 import featuresMockup from "@/assets/landing/features-mockup.png";
 import sectionDivider from "@/assets/landing/section-divider.png";
@@ -623,8 +623,7 @@ export default function Landing() {
       {/* ═══ Footer ═══ */}
       <footer className="border-t border-white/[0.04] py-16">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-4">
-          <img src={thiqaLogo} alt="Thiqa" className="h-20 w-20 opacity-50" />
-          <span className="text-3xl font-extrabold tracking-tight text-white/50">Thiqa</span>
+          <img src={thiqaLogo} alt="Thiqa" className="h-10 opacity-50" />
           <p className="text-xs text-white/20 mt-2">© {new Date().getFullYear()} Thiqa CRM. כל הזכויות שמורות.</p>
         </div>
       </footer>

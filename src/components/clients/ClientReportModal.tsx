@@ -311,6 +311,7 @@ export function ClientReportModal({
   broker,
   branchName,
 }: ClientReportModalProps) {
+  const { data: siteSettings } = useSiteSettings();
   const [sendingSms, setSendingSms] = useState(false);
   const [expandedCars, setExpandedCars] = useState<Set<string>>(new Set());
   const [policyFiles, setPolicyFiles] = useState<Record<string, PolicyFile[]>>({});

@@ -93,6 +93,7 @@ const policyTypeLabels: Record<string, string> = {
 
 export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetailsProps) {
   const navigate = useNavigate();
+  const { data: siteSettings } = useSiteSettings();
   const [clients, setClients] = useState<Client[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);

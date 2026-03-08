@@ -505,6 +505,7 @@ export default function ThiqaAgentDetail() {
     setEditUserName(p?.full_name || '');
     setEditUserPhone(p?.phone || '');
     setEditUserBranch(p?.branch_id || 'none');
+    setEditUserPassword('');
   };
 
   const saveEditUser = async () => {

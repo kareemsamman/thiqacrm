@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Keep session flag active
     sessionStorage.setItem(SESSION_KEY, 'true');
-  }, [user, isAdmin]);
+  }, [user, isAdmin, isSuperAdmin]);
 
   // CRITICAL: Super admin and admins bypass status checks entirely
   // Order: super admin → admin → active status

@@ -124,6 +124,24 @@ export default function ThiqaAgentDetail() {
     setUserRoles(rm);
     if (branchRes.data) setBranches(branchRes.data);
     setLoading(false);
+    // Fetch stats in background
+    fetchAgentStats();
+  };
+
+  const fetchAgentStats = async () => {
+    if (!agentId) return;
+    setStatsLoading(true);
+    const [clientsRes, carsRes, policiesRes] = await Promise.all([
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('agent_id', agentId),
+      supabase.from('cars').select('id', { count: 'exact', head: true }).eq('agent_id', agentId).is('deleted_at', null),
+      supabase.from('policies').select('id', { count: 'exact', head: true }).eq('agent_id', agentId),
+    ]);
+    setAgentStats({
+      clients: clientsRes.count || 0,
+      cars: carsRes.count || 0,
+      policies: policiesRes.count || 0,
+    });
+    setStatsLoading(false);
   };
 
   // ─── Save agent info ───

@@ -56,7 +56,7 @@ export default function Login() {
         // Check both profile and platform skip setting in parallel
         const [profileRes, skipRes] = await Promise.all([
           supabase.from('profiles').select('email_confirmed').eq('id', user.id).single(),
-          supabase.from('thiqa_platform_settings').select('setting_value').eq('setting_key', 'skip_email_verification').single(),
+          supabase.from('thiqa_platform_settings').select('setting_value').eq('setting_key', 'skip_email_verification').maybeSingle(),
         ]);
 
         const skipEnabled = skipRes.data?.setting_value === "true";
@@ -115,7 +115,7 @@ export default function Login() {
             .from('thiqa_platform_settings')
             .select('setting_value')
             .eq('setting_key', 'skip_email_verification')
-            .single();
+            .maybeSingle();
 
           if (skipRes?.setting_value === "true") {
             // Auto-confirm via edge function and retry

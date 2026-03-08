@@ -137,7 +137,7 @@ export default function ThiqaAgentDetail() {
         supabase.from('agents').select('*').eq('id', agentId!).single(),
         supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
         supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
-        supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id)').eq('agent_id', agentId!),
+        supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id, email_confirmed)').eq('agent_id', agentId!),
         supabase.from('sms_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
         supabase.from('auth_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
         supabase.from('payment_settings').select('*').eq('agent_id', agentId!).maybeSingle(),

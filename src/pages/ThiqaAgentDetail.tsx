@@ -398,7 +398,7 @@ export default function ThiqaAgentDetail() {
           phone: newUserPhone.trim() || null,
           agent_id: agentId!,
           role: newUserRole,
-          branch_id: newUserBranch || null,
+          branch_id: newUserBranch && newUserBranch !== 'none' ? newUserBranch : null,
         },
       });
 

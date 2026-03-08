@@ -96,22 +96,23 @@ function buildBulkReceiptHtml(
       font-size: 14px;
       line-height: 1.6;
       color: #2d3748;
-      background: #f7fafc;
-      padding: 20px;
+      background: #122143;
+      min-height: 100vh;
+      padding: 24px 16px;
       direction: rtl;
     }
     .container { 
       max-width: 500px; 
       margin: 0 auto; 
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
       overflow: hidden;
     }
     .header {
       text-align: center;
       padding: 25px 20px;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8a 100%);
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
       color: white;
     }
     .header h1 { 

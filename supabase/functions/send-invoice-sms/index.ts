@@ -588,36 +588,36 @@ function buildAbInvoiceHtml(
       font-size: 14px;
       line-height: 1.7;
       color: #2d3748;
-      background: #fff;
-      padding: 25px;
+      background: #122143;
+      min-height: 100vh;
+      padding: 24px 16px;
       direction: rtl;
     }
-    .container { max-width: 800px; margin: 0 auto; }
+    .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); overflow: hidden; }
     .header {
       text-align: center;
-      margin-bottom: 35px;
-      padding-bottom: 25px;
-      border-bottom: 3px solid #1e3a5f;
-      background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
-      padding: 30px;
-      border-radius: 12px;
-      margin-bottom: 30px;
+      margin-bottom: 0;
+      padding: 30px 25px;
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
+      border-radius: 0;
+      border-bottom: none;
+      color: white;
     }
     .header h1 { 
-      color: #1e3a5f; 
+      color: white; 
       font-size: 32px; 
       font-weight: 800;
       margin-bottom: 8px;
       letter-spacing: 1px;
     }
     .header .english-name {
-      color: #4a5568;
+      color: rgba(255,255,255,0.8);
       font-size: 18px;
       font-weight: 500;
       letter-spacing: 2px;
       margin-bottom: 10px;
     }
-    .header p { color: #718096; font-size: 15px; font-weight: 500; }
+    .header p { color: rgba(255,255,255,0.85); font-size: 15px; font-weight: 500; }
     .invoice-meta {
       display: flex;
       justify-content: space-between;

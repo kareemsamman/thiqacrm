@@ -222,7 +222,7 @@ export default function SignaturePage() {
     return (
       <>
         <Helmet>
-          <title>تم التوقيع | AB Insurance CRM</title>
+          <title>تم التوقيع | ثقة للتأمين</title>
           <meta name="description" content="تم حفظ توقيع العميل بنجاح." />
           <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
         </Helmet>

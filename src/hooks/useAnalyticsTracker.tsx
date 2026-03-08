@@ -11,16 +11,15 @@ export function trackEvent(
 ) {
   supabase
     .from("site_analytics_events")
-    .insert({
+    .insert([{
       event_type: eventType,
       page: page || window.location.pathname,
       referrer: document.referrer || null,
       user_agent: navigator.userAgent,
       session_id: SESSION_ID,
       metadata: metadata || {},
-    })
-    .then(() => {})
-    .catch(() => {});
+    }])
+    .then(() => {});
 }
 
 /** Track a page view once on mount */

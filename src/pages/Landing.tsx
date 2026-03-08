@@ -76,12 +76,22 @@ const featureTabs = [
 ];
 
 export default function Landing() {
+  const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");
   const [slideIdx, setSlideIdx] = useState(0);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [testimonialAnim, setTestimonialAnim] = useState<"in" | "out">("in");
   const [faqCategory, setFaqCategory] = useState("general");
+
+  // CMS-driven images with fallbacks
+  const dashboardMockup = ci(content, "dashboard_mockup_image", dashboardMockupDefault);
+  const featuresMockup = ci(content, "features_mockup_image", featuresMockupDefault);
+  const featureProfitEngine = ci(content, "benefit_card_1_image", featureProfitEngineDefault);
+  const featurePaperless = ci(content, "benefit_card_2_image", featurePaperlessDefault);
+  const featureMarketing = ci(content, "benefit_card_3_image", featureMarketingDefault);
+  const sliderBg = ci(content, "slider_bg_image", sliderBgDefault);
+  const gridLogoBg = ci(content, "grid_logo_bg_image", gridLogoBgDefault);
 
   const testimonials = [
     {

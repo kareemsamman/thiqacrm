@@ -270,8 +270,8 @@ export default function Login() {
         <div className="relative z-10 text-center space-y-6">
           <img src={thiqaLogo} alt="ثقة" className="mx-auto w-36 h-36 drop-shadow-2xl" />
           <div>
-            <h1 className="text-4xl font-bold text-white drop-shadow-lg">ثقة للتأمين</h1>
-            <p className="text-lg text-white/80 mt-2 drop-shadow">نظام إدارة التأمين الاحترافي</p>
+            <h1 className="text-4xl font-bold text-white drop-shadow-lg">Thiqa</h1>
+            <p className="text-lg text-white/80 mt-2 drop-shadow">نظام إدارة التأمين</p>
           </div>
         </div>
       </div>

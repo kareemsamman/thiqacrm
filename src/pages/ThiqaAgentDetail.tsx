@@ -12,12 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowRight, Save, CreditCard, Settings, Loader2, Building2,
   MessageSquare, Palette, Users, Shield, Phone, Mail, Image,
-  Upload, Trash2, Eye, EyeOff, Plus, UserPlus, UserMinus,
+  Upload, Trash2, Eye, EyeOff, Plus, UserPlus, UserMinus, CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";

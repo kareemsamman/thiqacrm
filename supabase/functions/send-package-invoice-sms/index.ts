@@ -1015,6 +1015,7 @@ function buildPackageInvoiceHtml(
       </div>
     </div>
   </div>
+  </div>
   
   <!-- Lightbox Modal -->
   <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">

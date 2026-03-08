@@ -294,7 +294,7 @@ export default function Login() {
       {/* Mobile background */}
       <div className="fixed inset-0 lg:hidden -z-10">
         <img src={loginBgMobile} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
       </div>
 
       {/* Left panel - background (desktop) */}
@@ -308,18 +308,18 @@ export default function Login() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:bg-gradient-to-br lg:from-muted/40 lg:to-background">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:bg-gradient-to-br lg:from-muted/40 lg:to-background">
         <div className="w-full max-w-md animate-scale-in">
-          <div className="rounded-3xl border border-white/20 bg-white/70 dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
+          <div className="rounded-3xl border border-white/20 bg-white/95 dark:bg-card/95 lg:bg-white/70 lg:dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
             {/* Header */}
-            <div className="text-center pt-10 pb-4 px-8">
+            <div className="text-center pt-8 sm:pt-10 pb-4 px-5 sm:px-8">
               <img src={thiqaLogo} alt={siteTitle} className="mx-auto h-14 w-14 object-contain lg:hidden mb-4" />
               <h1 className="text-3xl font-bold tracking-tight text-foreground">{siteTitle}</h1>
               <p className="text-muted-foreground mt-1 text-sm">{siteDesc}</p>
             </div>
 
             {/* Content */}
-            <div className="px-8 pb-10 space-y-5">
+            <div className="px-5 sm:px-8 pb-8 sm:pb-10 space-y-5">
               {isInIframe && (
                 <Alert className="border-amber-300/60 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm rounded-xl">
                   <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -377,9 +377,9 @@ export default function Login() {
                         </button>
                       </div>
                     </div>
-                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg flex-row-reverse" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
                       {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
                     </Button>
                   </div>
 

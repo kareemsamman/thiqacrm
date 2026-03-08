@@ -91,26 +91,51 @@ const SEED_ACCIDENT_FEE_PRICES = [
   { service_name: "اعفاء رسوم حادث فوق 24 حتى 2000 شيكل", company_cost: 0, selling_price: 0 },
 ];
 
-// ── Helper: upsert by name, return map of name→id ────────────────────
-async function upsertByName(
+// Helper: delete old seed rows (no FK dependencies) then insert new ones, return name→id map
+async function syncSeedData(
   supabase: any,
   table: string,
-  rows: any[],
+  seedRows: any[],
   agentId: string,
   keyField = "name",
+  dependencyTable?: string,
+  dependencyFk?: string,
 ): Promise<{ inserted: number; idMap: Map<string, string> }> {
+  const seedNames = new Set(seedRows.map((r) => r[keyField]));
+
   const { data: existing, error: readErr } = await supabase
     .from(table)
     .select(`id, ${keyField}`)
     .eq("agent_id", agentId);
   if (readErr) throw readErr;
 
-  const existingMap = new Map<string, string>();
+  const idMap = new Map<string, string>();
+  const idsToDelete: string[] = [];
+
   for (const row of existing ?? []) {
-    existingMap.set(row[keyField], row.id);
+    if (seedNames.has(row[keyField])) {
+      // Check if it has real dependencies
+      if (dependencyTable && dependencyFk) {
+        const { count } = await supabase
+          .from(dependencyTable)
+          .select("id", { count: "exact", head: true })
+          .eq(dependencyFk, row.id);
+        if ((count ?? 0) > 0) {
+          idMap.set(row[keyField], row.id);
+          continue;
+        }
+      }
+      idsToDelete.push(row.id);
+    } else {
+      idMap.set(row[keyField], row.id);
+    }
   }
 
-  const toInsert = rows.filter((r) => !existingMap.has(r[keyField]));
+  if (idsToDelete.length > 0) {
+    await supabase.from(table).delete().in("id", idsToDelete);
+  }
+
+  const toInsert = seedRows.filter((r) => !idMap.has(r[keyField]));
   let insertedCount = 0;
 
   if (toInsert.length > 0) {
@@ -121,11 +146,11 @@ async function upsertByName(
     if (error) throw error;
     insertedCount = data?.length ?? 0;
     for (const row of data ?? []) {
-      existingMap.set(row[keyField], row.id);
+      idMap.set(row[keyField], row.id);
     }
   }
 
-  return { inserted: insertedCount, idMap: existingMap };
+  return { inserted: insertedCount, idMap };
 }
 
 // ── Main handler ─────────────────────────────────────────────────────
@@ -185,19 +210,49 @@ serve(async (req) => {
 
     const results: Record<string, number> = {};
 
-    // 1. Insurance companies (special: category_parent can be null, use name+category key)
+    // Collect all seed company names for cleanup
+    const seedCompanyNames = new Set(SEED_COMPANIES.map((c) => c.name));
+
+    // 1. Insurance companies — delete old seed data (no policies) then re-insert
     const { data: existingCo, error: coReadErr } = await supabase
       .from("insurance_companies").select("id, name, category_parent").eq("agent_id", agentId);
     if (coReadErr) throw coReadErr;
 
-    const coKeyFn = (name: string, cp: any) => `${name}::${(cp ?? []).join("|")}`;
+    // Find existing companies that match seed names but have no policies — safe to delete & re-create
     const coMap = new Map<string, string>();
+    const idsToDelete: string[] = [];
+
     for (const row of existingCo ?? []) {
-      coMap.set(coKeyFn(row.name, row.category_parent), row.id);
-      coMap.set(row.name, row.id); // also by name for pricing lookup
+      if (seedCompanyNames.has(row.name)) {
+        // Check if this company has any policies
+        const { count } = await supabase
+          .from("policies")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", row.id)
+          .is("deleted_at", null);
+
+        if ((count ?? 0) === 0) {
+          idsToDelete.push(row.id);
+        } else {
+          // Has real policies — keep it and map it
+          coMap.set(row.name, row.id);
+        }
+      } else {
+        // Not a seed company, just map it
+        coMap.set(row.name, row.id);
+      }
     }
 
-    const coToInsert = SEED_COMPANIES.filter((r) => !coMap.has(coKeyFn(r.name, r.category_parent)));
+    // Delete orphaned seed companies (and their pricing rules, service prices)
+    if (idsToDelete.length > 0) {
+      await supabase.from("pricing_rules").delete().in("company_id", idsToDelete);
+      await supabase.from("company_road_service_prices").delete().in("company_id", idsToDelete);
+      await supabase.from("company_accident_fee_prices").delete().in("company_id", idsToDelete);
+      await supabase.from("insurance_companies").delete().in("id", idsToDelete);
+    }
+
+    // Insert all seed companies that don't already exist (by name)
+    const coToInsert = SEED_COMPANIES.filter((r) => !coMap.has(r.name));
     if (coToInsert.length > 0) {
       const { data, error } = await supabase
         .from("insurance_companies")
@@ -206,7 +261,6 @@ serve(async (req) => {
       if (error) throw error;
       results.insurance_companies = data?.length ?? 0;
       for (const row of data ?? []) {
-        coMap.set(coKeyFn(row.name, row.category_parent), row.id);
         coMap.set(row.name, row.id);
       }
     } else {
@@ -214,98 +268,84 @@ serve(async (req) => {
     }
 
     // 2. Insurance categories
-    const catRes = await upsertByName(supabase, "insurance_categories", SEED_INSURANCE_CATEGORIES.map(c => ({...c})), agentId, "slug");
+    const catRes = await syncSeedData(supabase, "insurance_categories", SEED_INSURANCE_CATEGORIES.map(c => ({...c})), agentId, "slug");
     results.insurance_categories = catRes.inserted;
 
-    // 3. Road services
-    const rsRes = await upsertByName(supabase, "road_services", SEED_ROAD_SERVICES.map(r => ({...r})), agentId);
+    // 3. Road services (check policies table for road_service_id FK)
+    const rsRes = await syncSeedData(supabase, "road_services", SEED_ROAD_SERVICES.map(r => ({...r})), agentId, "name", "policies", "road_service_id");
     results.road_services = rsRes.inserted;
 
-    // 4. Accident fee services
-    const afRes = await upsertByName(supabase, "accident_fee_services", SEED_ACCIDENT_FEE_SERVICES.map(a => ({...a})), agentId);
+    // 4. Accident fee services (check policies table for accident_fee_service_id FK)
+    const afRes = await syncSeedData(supabase, "accident_fee_services", SEED_ACCIDENT_FEE_SERVICES.map(a => ({...a})), agentId, "name", "policies", "accident_fee_service_id");
     results.accident_fee_services = afRes.inserted;
 
-    // 5. Pricing rules for "اراضي مقدسة"
+    // 5. Pricing rules for "اراضي مقدسة" — always replace (delete old + insert new)
     const aradiCompanyId = coMap.get("اراضي مقدسة");
     if (aradiCompanyId) {
-      const { data: existingRules } = await supabase
-        .from("pricing_rules").select("id").eq("company_id", aradiCompanyId).eq("agent_id", agentId);
-      
-      if (!existingRules || existingRules.length === 0) {
-        const rulesToInsert = SEED_PRICING_RULES.map((r) => ({
-          company_id: aradiCompanyId,
-          agent_id: agentId,
-          policy_type_parent: "THIRD_FULL",
-          rule_type: r.rule_type,
-          car_type: r.car_type,
-          age_band: r.age_band,
-          value: r.value,
-          min_car_value: (r as any).min_car_value ?? null,
-          max_car_value: (r as any).max_car_value ?? null,
-          notes: r.notes,
-        }));
-        const { data, error } = await supabase.from("pricing_rules").insert(rulesToInsert).select("id");
-        if (error) throw error;
-        results.pricing_rules = data?.length ?? 0;
-      } else {
-        results.pricing_rules = 0;
-      }
+      // Delete old rules for this company (seed rules only, safe since company was just re-created or has no policies)
+      await supabase.from("pricing_rules").delete().eq("company_id", aradiCompanyId).eq("agent_id", agentId);
+
+      const rulesToInsert = SEED_PRICING_RULES.map((r) => ({
+        company_id: aradiCompanyId,
+        agent_id: agentId,
+        policy_type_parent: "THIRD_FULL",
+        rule_type: r.rule_type,
+        car_type: r.car_type,
+        age_band: r.age_band,
+        value: r.value,
+        min_car_value: (r as any).min_car_value ?? null,
+        max_car_value: (r as any).max_car_value ?? null,
+        notes: r.notes,
+      }));
+      const { data, error } = await supabase.from("pricing_rules").insert(rulesToInsert).select("id");
+      if (error) throw error;
+      results.pricing_rules = data?.length ?? 0;
     }
 
-    // 6. Road service prices for "شركة اكس"
+    // 6. Road service prices for "شركة اكس" — always replace
     const xCompanyId = coMap.get("شركة اكس");
     if (xCompanyId) {
-      const { data: existingRsp } = await supabase
-        .from("company_road_service_prices").select("id").eq("company_id", xCompanyId).eq("agent_id", agentId);
-      
-      if (!existingRsp || existingRsp.length === 0) {
-        const rspToInsert = SEED_ROAD_SERVICE_PRICES.map((r) => {
-          const serviceId = rsRes.idMap.get(r.service_name);
-          if (!serviceId) return null;
-          return {
-            company_id: xCompanyId,
-            agent_id: agentId,
-            road_service_id: serviceId,
-            car_type: r.car_type,
-            age_band: r.age_band,
-            company_cost: r.company_cost,
-            selling_price: r.selling_price,
-          };
-        }).filter(Boolean);
+      await supabase.from("company_road_service_prices").delete().eq("company_id", xCompanyId).eq("agent_id", agentId);
 
-        if (rspToInsert.length > 0) {
-          const { data, error } = await supabase.from("company_road_service_prices").insert(rspToInsert).select("id");
-          if (error) throw error;
-          results.road_service_prices = data?.length ?? 0;
-        }
-      } else {
-        results.road_service_prices = 0;
+      const rspToInsert = SEED_ROAD_SERVICE_PRICES.map((r) => {
+        const serviceId = rsRes.idMap.get(r.service_name);
+        if (!serviceId) return null;
+        return {
+          company_id: xCompanyId,
+          agent_id: agentId,
+          road_service_id: serviceId,
+          car_type: r.car_type,
+          age_band: r.age_band,
+          company_cost: r.company_cost,
+          selling_price: r.selling_price,
+        };
+      }).filter(Boolean);
+
+      if (rspToInsert.length > 0) {
+        const { data, error } = await supabase.from("company_road_service_prices").insert(rspToInsert).select("id");
+        if (error) throw error;
+        results.road_service_prices = data?.length ?? 0;
       }
 
-      // 7. Accident fee prices for "شركة اكس"
-      const { data: existingAfp } = await supabase
-        .from("company_accident_fee_prices").select("id").eq("company_id", xCompanyId).eq("agent_id", agentId);
-      
-      if (!existingAfp || existingAfp.length === 0) {
-        const afpToInsert = SEED_ACCIDENT_FEE_PRICES.map((r) => {
-          const serviceId = afRes.idMap.get(r.service_name);
-          if (!serviceId) return null;
-          return {
-            company_id: xCompanyId,
-            agent_id: agentId,
-            accident_fee_service_id: serviceId,
-            company_cost: r.company_cost,
-            selling_price: r.selling_price,
-          };
-        }).filter(Boolean);
+      // 7. Accident fee prices for "شركة اكس" — always replace
+      await supabase.from("company_accident_fee_prices").delete().eq("company_id", xCompanyId).eq("agent_id", agentId);
 
-        if (afpToInsert.length > 0) {
-          const { data, error } = await supabase.from("company_accident_fee_prices").insert(afpToInsert).select("id");
-          if (error) throw error;
-          results.accident_fee_prices = data?.length ?? 0;
-        }
-      } else {
-        results.accident_fee_prices = 0;
+      const afpToInsert = SEED_ACCIDENT_FEE_PRICES.map((r) => {
+        const serviceId = afRes.idMap.get(r.service_name);
+        if (!serviceId) return null;
+        return {
+          company_id: xCompanyId,
+          agent_id: agentId,
+          accident_fee_service_id: serviceId,
+          company_cost: r.company_cost,
+          selling_price: r.selling_price,
+        };
+      }).filter(Boolean);
+
+      if (afpToInsert.length > 0) {
+        const { data, error } = await supabase.from("company_accident_fee_prices").insert(afpToInsert).select("id");
+        if (error) throw error;
+        results.accident_fee_prices = data?.length ?? 0;
       }
     }
 

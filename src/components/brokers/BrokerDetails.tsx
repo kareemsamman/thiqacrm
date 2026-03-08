@@ -44,6 +44,7 @@ import { BrokerSmsModal } from "./BrokerSmsModal";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { getInsuranceTypeLabel } from "@/lib/insuranceTypes";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface Broker {
   id: string;

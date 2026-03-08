@@ -267,12 +267,8 @@ export default function Landing() {
           {/* Tab Content */}
           {featureTabs.filter(t => t.id === activeTab).map(tab => (
             <div key={tab.id} className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/[0.06] border-t-0 rounded-b-xl overflow-hidden">
-              {/* Left: Image */}
-              <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center">
-                <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
-              </div>
-              {/* Right: Content */}
-              <div className="p-8 lg:p-12 flex flex-col justify-center">
+              {/* Right (RTL): Content */}
+              <div className="p-8 lg:p-12 flex flex-col justify-center order-1 lg:order-none">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 leading-tight whitespace-pre-line">{tab.title}</h3>
                 <p className="text-white/40 text-sm leading-relaxed mb-8">{tab.desc}</p>
 
@@ -296,6 +292,10 @@ export default function Landing() {
                     <ArrowLeft className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
+              {/* Left (RTL): Image */}
+              <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center order-2 lg:order-none">
+                <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
               </div>
             </div>
           ))}

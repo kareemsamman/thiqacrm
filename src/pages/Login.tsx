@@ -242,6 +242,18 @@ export default function Login() {
       if (!autoLoginError) {
         navigate("/", { replace: true });
       } else if (requiresVerification) {
+        const bypassed = await tryBypassEmailVerification(normalizedEmail);
+        if (bypassed) {
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password: signupPassword,
+          });
+          if (!retryError) {
+            navigate("/", { replace: true });
+            return;
+          }
+        }
+
         const params = new URLSearchParams({ email: normalizedEmail, p: signupPassword });
         navigate(`/verify-email?${params.toString()}`, { replace: true });
       } else {

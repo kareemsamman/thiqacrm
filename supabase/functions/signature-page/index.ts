@@ -414,7 +414,7 @@ function buildSignaturePageHtml(
       touch-action: none;
     }
     .canvas-wrapper.active {
-      border-color: #1e3a5f;
+      border-color: ${primaryColor};
       border-style: solid;
     }
     #signatureCanvas {

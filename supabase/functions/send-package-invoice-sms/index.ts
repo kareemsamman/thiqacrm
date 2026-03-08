@@ -661,7 +661,7 @@ function buildPackageInvoiceHtml(
       border-top: none;
       padding: 16px;
       border-radius: 0 0 8px 8px;
-      background: #fafbfc;
+      background: #ffffff;
     }
     .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .info-item {

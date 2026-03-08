@@ -195,6 +195,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       agentFeatures,
       loading,
       isSubscriptionActive,
+      isSubscriptionPaused,
       isThiqaSuperAdmin,
       isImpersonating,
       impersonatedAgent,

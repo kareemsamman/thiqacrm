@@ -2,7 +2,7 @@ import { AlertTriangle, Pause, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentContext } from "@/hooks/useAgentContext";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
 
 export default function SubscriptionExpired() {
   const { signOut } = useAuth();

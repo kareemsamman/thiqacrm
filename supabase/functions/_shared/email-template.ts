@@ -4,7 +4,7 @@
  */
 
 const EMAIL_BG_URL = "https://ijtybxpguieptamsikjq.supabase.co/storage/v1/object/public/email-assets/email-bg.png";
-const EMAIL_LOGO_URL = "https://ijtybxpguieptamsikjq.supabase.co/storage/v1/object/public/email-assets/thiqa-logo-email.svg";
+const EMAIL_LOGO_URL = "https://ijtybxpguieptamsikjq.supabase.co/storage/v1/object/public/email-assets/thiqa-logo-email.png";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */

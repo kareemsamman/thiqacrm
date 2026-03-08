@@ -556,22 +556,91 @@ export default function ThiqaAgentDetail() {
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // ─── Import data for agent ───
+  // ─── Import data for agent (table-by-table to avoid timeout) ───
+  const IMPORT_TABLE_ORDER = [
+    "branches", "insurance_companies", "insurance_categories", "pricing_rules",
+    "brokers", "clients", "cars", "car_accidents", "policies", "policy_payments",
+    "outside_cheques", "media_files", "invoice_templates", "invoices",
+    "customer_signatures", "sms_settings", "payment_settings", "site_settings", "notifications",
+  ];
+
+  const TABLE_LABELS: Record<string, string> = {
+    branches: "الفروع", insurance_companies: "شركات التأمين", insurance_categories: "فئات التأمين",
+    pricing_rules: "قواعد التسعير", brokers: "الوسطاء", clients: "العملاء", cars: "السيارات",
+    car_accidents: "حوادث السيارات", policies: "الوثائق", policy_payments: "المدفوعات",
+    outside_cheques: "الشيكات", media_files: "الوسائط", invoice_templates: "قوالب الفواتير",
+    invoices: "الفواتير", customer_signatures: "التوقيعات", sms_settings: "إعدادات SMS",
+    payment_settings: "إعدادات الدفع", site_settings: "إعدادات الموقع", notifications: "الإشعارات",
+  };
+
+  const [importTableIndex, setImportTableIndex] = useState(-1);
+  const [importStartTime, setImportStartTime] = useState<number | null>(null);
+  const [importElapsed, setImportElapsed] = useState(0);
+  const [importTotalRows, setImportTotalRows] = useState(0);
+  const [importDoneRows, setImportDoneRows] = useState(0);
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (!importStartTime) return;
+    const interval = setInterval(() => setImportElapsed(Math.floor((Date.now() - importStartTime) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [importStartTime]);
+
   const handleImportData = async () => {
     if (!importFile || !agentId) return;
     setImporting(true);
     setImportResults(null);
     setImportProgress("جاري قراءة الملف...");
+    setImportTableIndex(-1);
+    setImportDoneRows(0);
+    setImportElapsed(0);
+
     try {
       const text = await importFile.text();
-      const data = JSON.parse(text);
-      setImportProgress("جاري رفع البيانات...");
-      const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
-        body: { agent_id: agentId, data },
-      });
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
-      setImportResults(result.results);
+      const importData = JSON.parse(text);
+
+      // Calculate total rows
+      let total = 0;
+      const tablesToProcess: string[] = [];
+      for (const table of IMPORT_TABLE_ORDER) {
+        const rows = importData[table];
+        if (rows && Array.isArray(rows) && rows.length > 0) {
+          total += rows.length;
+          tablesToProcess.push(table);
+        }
+      }
+      setImportTotalRows(total);
+      setImportStartTime(Date.now());
+
+      const allResults: Record<string, { inserted: number; errors: number }> = {};
+      let doneRows = 0;
+
+      for (let i = 0; i < tablesToProcess.length; i++) {
+        const table = tablesToProcess[i];
+        const rows = importData[table];
+        setImportTableIndex(i);
+        setImportProgress(`${TABLE_LABELS[table] || table} (${rows.length} سجل)`);
+
+        const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
+          body: { agent_id: agentId, data: { [table]: rows }, tables: [table] },
+        });
+
+        if (error) {
+          allResults[table] = { inserted: 0, errors: rows.length };
+        } else if (result?.error) {
+          allResults[table] = { inserted: 0, errors: rows.length };
+        } else if (result?.results?.[table]) {
+          allResults[table] = result.results[table];
+        } else {
+          allResults[table] = { inserted: rows.length, errors: 0 };
+        }
+
+        doneRows += rows.length;
+        setImportDoneRows(doneRows);
+        // Merge results live
+        setImportResults({ ...allResults });
+      }
+
       setImportProgress("");
       toast.success("تم استيراد البيانات بنجاح");
       fetchAll();
@@ -580,6 +649,8 @@ export default function ThiqaAgentDetail() {
       setImportProgress("");
     } finally {
       setImporting(false);
+      setImportStartTime(null);
+      setImportTableIndex(-1);
     }
   };
 

@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 
       const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(userId, {
         password,
-        email_confirm: false,
+        email_confirm: skipEmailVerification,
         user_metadata: { full_name: fullName },
       });
 

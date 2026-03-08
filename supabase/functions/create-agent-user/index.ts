@@ -64,6 +64,9 @@ Deno.serve(async (req) => {
 
       userId = existingUser.id;
       reusedExistingUser = true;
+
+      // Update password for existing user
+      await adminClient.auth.admin.updateUserById(userId, { password });
     } else {
       userId = createdUser.user.id;
     }

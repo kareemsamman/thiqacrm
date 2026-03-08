@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { BottomToolbar } from "./BottomToolbar";
 import { AnnouncementPopup } from "./AnnouncementPopup";
 import { TaskPopupReminder } from "@/components/tasks/TaskPopupReminder";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useAgentContext } from "@/hooks/useAgentContext";
 import { useSidebarState } from "@/hooks/useSidebarState";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,9 @@ export function MainLayout({ children, onPolicyComplete }: MainLayoutProps) {
 
       {/* Task reminder popup */}
       {!isThiqaSuperAdmin && <TaskPopupReminder />}
+
+      {/* Onboarding wizard */}
+      {!isThiqaSuperAdmin && <OnboardingWizard />}
     </div>
   );
 }

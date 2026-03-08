@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-
-const SUPER_ADMIN_EMAIL = 'morshed500@gmail.com';
+import { isThiqaSuperAdminEmail } from '@/lib/superAdmin';
 
 interface UserProfile {
   id: string;
@@ -25,8 +24,10 @@ interface AuthContextType {
   branchId: string | null;
   branchName: string | null;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
+const SESSION_KEY = 'admin_session_active';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -38,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [branchName, setBranchName] = useState<string | null>(null);
 
-  // Super admin check based on email - this is the authoritative check
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  // Super admin check based on approved identifiers
+  const isSuperAdmin = isThiqaSuperAdminEmail(user?.email);
 
   const fetchUserProfile = async (userId: string, userEmail: string | undefined) => {
     setProfileLoading(true);
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Check if user has admin role OR is super admin
-      const isSuperAdminUser = userEmail === SUPER_ADMIN_EMAIL;
+      const isSuperAdminUser = isThiqaSuperAdminEmail(userEmail);
       
       if (isSuperAdminUser) {
         // Super admin is always admin
@@ -105,6 +106,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setIsAdmin(false);
     setBranchName(null);
+  };
+
+  const refreshProfile = async () => {
+    if (!user) {
+      setProfile(null);
+      setIsAdmin(false);
+      setBranchName(null);
+      return;
+    }
+
+    const p = await fetchUserProfile(user.id, user.email);
+    setProfile(p);
   };
 
   useEffect(() => {
@@ -164,9 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Admin session guard - force logout for non-super admins on new browser session
   useEffect(() => {
-    const SESSION_KEY = 'admin_session_active';
-    const userEmail = user?.email;
-    const isNonSuperAdmin = userEmail !== SUPER_ADMIN_EMAIL && isAdmin;
+    const isNonSuperAdmin = !isSuperAdmin && isAdmin;
     
     if (!user || !isNonSuperAdmin) {
       return;
@@ -185,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Keep session flag active
     sessionStorage.setItem(SESSION_KEY, 'true');
-  }, [user, isAdmin]);
+  }, [user, isAdmin, isSuperAdmin]);
 
   // CRITICAL: Super admin and admins bypass status checks entirely
   // Order: super admin → admin → active status
@@ -207,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       branchId,
       branchName,
       signOut,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

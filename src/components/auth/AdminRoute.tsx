@@ -33,6 +33,11 @@ export function AdminRoute({ children }: AdminRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
+  // Thiqa super admin should only use Thiqa management routes
+  if (isSuperAdmin) {
+    return <Navigate to="/thiqa/agents" replace />;
+  }
+
   // Not active = no access page
   if (!isActive) {
     return <Navigate to="/no-access" replace />;

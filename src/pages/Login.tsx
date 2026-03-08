@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
+import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 
 type AuthStep = "method" | "otp";
 type AuthMethod = "google" | "email" | "sms";
@@ -23,7 +24,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
   const navigate = useNavigate();
-  const { user, isActive, loading: authLoading } = useAuth();
+  const { user, isActive, isSuperAdmin, loading: authLoading } = useAuth();
   
   // OTP state
   const [authStep, setAuthStep] = useState<AuthStep>("method");
@@ -43,16 +44,16 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      if (user.email !== 'morshed500@gmail.com') {
+      if (!isThiqaSuperAdminEmail(user.email)) {
         sessionStorage.setItem('admin_session_active', 'true');
       }
       if (isActive) {
-        navigate('/', { replace: true });
+        navigate(isSuperAdmin ? '/thiqa/agents' : '/', { replace: true });
       } else {
         navigate('/no-access', { replace: true });
       }
     }
-  }, [user, isActive, authLoading, navigate]);
+  }, [user, isActive, isSuperAdmin, authLoading, navigate]);
 
   useEffect(() => {
     if (countdown > 0) {

@@ -19,7 +19,7 @@ interface ProfileEditDrawerProps {
 }
 
 export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [phone, setPhone] = useState((profile as any)?.phone || "");
@@ -50,8 +50,8 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
 
       if (error) throw error;
       toast.success("تم تحديث الملف الشخصي");
+      await refreshProfile();
       onOpenChange(false);
-      window.location.reload();
     } catch (err: any) {
       console.error('Profile save error:', err);
       toast.error("خطأ: " + err.message);

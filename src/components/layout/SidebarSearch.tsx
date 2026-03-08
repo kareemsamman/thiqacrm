@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { navigationGroups } from "./Sidebar";
 
-const SUPER_ADMIN_EMAIL = "morshed500@gmail.com";
+
 
 interface SidebarSearchProps {
   collapsed: boolean;
@@ -19,15 +19,18 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { profile, isAdmin } = useAuth();
-
-  const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   // Filter groups and items based on role
   const filteredItems = navigationGroups
-    .filter(group => !group.adminOnly || isAdmin)
+    .filter(group => {
+      if (isSuperAdmin) return group.items.some(item => item.thiqaSuperAdminOnly);
+      return !group.adminOnly || isAdmin;
+    })
     .flatMap(group => 
       group.items.filter(item => {
+        if (isSuperAdmin) return !!item.thiqaSuperAdminOnly;
+        if (item.thiqaSuperAdminOnly) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;
         return true;

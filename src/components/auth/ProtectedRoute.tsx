@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isSuperAdmin } = useAuth();
 
-  // CRITICAL: Block during initial auth resolution
+  const location = useLocation();
   // Super admin bypasses profile loading requirement
   const needsProfileLoading = user && !isSuperAdmin && profileLoading && !profile;
   
@@ -28,6 +28,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // No user = go to login
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Thiqa super admin should stay in Thiqa management routes only
+  if (isSuperAdmin && !location.pathname.startsWith('/thiqa')) {
+    return <Navigate to="/thiqa/agents" replace />;
   }
 
   // Super admin and admins always have access (isActive includes this check)

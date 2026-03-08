@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.190.0/crypto/mod.ts";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.16";
+import { buildEmailHtml, otpEmailBody } from "../_shared/email-template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,14 +12,12 @@ interface EmailStartRequest {
   email: string;
 }
 
-// Generate a 6-digit OTP
 function generateOTP(): string {
   const array = new Uint32Array(1);
   crypto.getRandomValues(array);
   return String(array[0] % 1000000).padStart(6, '0');
 }
 
-// Hash OTP for storage
 async function hashOTP(otp: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(otp);
@@ -28,57 +26,11 @@ async function hashOTP(otp: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Send email via SMTP (Hostinger)
-async function sendEmailViaSMTP(
-  smtpHost: string,
-  smtpPort: number,
-  smtpSecure: boolean,
-  smtpUser: string,
-  smtpPassword: string,
-  recipientEmail: string,
-  subject: string,
-  textContent: string,
-  htmlContent: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log(`Sending OTP email via SMTP to ${recipientEmail}`);
-    console.log(`SMTP Host: ${smtpHost}, Port: ${smtpPort}, Secure: ${smtpSecure}`);
-    
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: smtpSecure,
-        auth: {
-          username: smtpUser,
-          password: smtpPassword,
-        },
-      },
-    });
-
-    await client.send({
-      from: smtpUser,
-      to: recipientEmail,
-      subject: subject,
-      content: textContent,
-      html: htmlContent,
-    });
-
-    await client.close();
-    console.log("Email sent successfully via SMTP");
-    return { success: true };
-  } catch (error: unknown) {
-    console.error("SMTP email sending error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Unknown SMTP error" };
-  }
-}
-
-// Pre-initialize Supabase client at module level to avoid cold start delay
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -96,7 +48,6 @@ serve(async (req) => {
     const normalizedEmail = email.toLowerCase().trim();
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // Fetch profile and rate limit in parallel first
     const [profileResult, rateLimitResult] = await Promise.all([
       supabase
         .from("profiles")
@@ -114,7 +65,6 @@ serve(async (req) => {
     const { data: existingProfile, error: profileError } = profileResult;
     const { data: recentOtps } = rateLimitResult;
 
-    // If no profile found, create a pending one
     if (profileError || !existingProfile) {
       console.log("No profile found for email, creating pending profile:", normalizedEmail);
 
@@ -179,14 +129,12 @@ serve(async (req) => {
         );
       }
 
-      // Get IP and User-Agent from request
       const ip_address = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
         || req.headers.get("cf-connecting-ip") 
         || req.headers.get("x-real-ip")
         || null;
       const user_agent = req.headers.get("user-agent") || null;
 
-      // Log attempt in background (don't wait)
       supabase.from("login_attempts").insert({
         email: normalizedEmail,
         identifier: normalizedEmail,
@@ -206,7 +154,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is blocked
     if (existingProfile.status === "blocked") {
       return new Response(
         JSON.stringify({ success: false, error: "تم حظر هذا الحساب. تواصل مع المدير." }),
@@ -214,7 +161,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is still pending
     if (existingProfile.status === "pending") {
       return new Response(
         JSON.stringify({
@@ -226,7 +172,6 @@ serve(async (req) => {
       );
     }
 
-    // Rate limit check
     if (recentOtps && recentOtps.length >= 3) {
       return new Response(
         JSON.stringify({ success: false, error: "تم تجاوز الحد الأقصى للمحاولات. حاول لاحقاً." }),
@@ -234,7 +179,6 @@ serve(async (req) => {
       );
     }
 
-    // Now fetch auth settings using the profile's agent_id
     const agentId = existingProfile.agent_id;
     let authSettingsQuery = supabase.from("auth_settings").select("*");
     if (agentId) {
@@ -242,7 +186,6 @@ serve(async (req) => {
     }
     const { data: authSettings, error: settingsError } = await authSettingsQuery.limit(1).single();
 
-    // Auth settings check
     if (settingsError || !authSettings) {
       console.error("Auth settings error for agent:", agentId, settingsError);
       return new Response(
@@ -258,10 +201,8 @@ serve(async (req) => {
       );
     }
 
-    // Check SMTP configuration
     const smtpHost = authSettings.smtp_host || "smtp.hostinger.com";
     const smtpPort = authSettings.smtp_port || 465;
-    const smtpSecure = authSettings.smtp_secure !== false;
     const smtpUser = authSettings.smtp_user;
     const smtpPassword = authSettings.smtp_password;
 
@@ -272,12 +213,10 @@ serve(async (req) => {
       );
     }
 
-    // Generate OTP and hash in parallel with preparing email content
     const otp = generateOTP();
     const [otpHash] = await Promise.all([hashOTP(otp)]);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // Store OTP
     const { error: insertError } = await supabase
       .from("otp_codes")
       .insert({
@@ -295,40 +234,34 @@ serve(async (req) => {
       );
     }
 
-    // Prepare email content
     const subject = "رمز التحقق - ثقة للتأمين";
     const textContent = `رمز التحقق الخاص بك هو: ${otp}\r\n\r\nهذا الرمز صالح لمدة 5 دقائق فقط.\r\n\r\nإذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.`;
-    const htmlContent = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;"><div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;"><h1 style="color:#2563eb;margin:0 0 8px 0;">ثقة للتأمين</h1><p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p><p style="color:#374151;margin:0 0 20px 0;">رمز التحقق الخاص بك هو:</p><div style="background:#2563eb;color:#fff;font-size:32px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:10px;margin:0 0 20px 0;">${otp}</div><p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"><p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p></div></body></html>`;
+    const htmlContent = buildEmailHtml({
+      body: otpEmailBody(otp),
+      footerText: "إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.",
+    });
 
-    // Send email via SMTP
-    const emailResult = await sendEmailViaSMTP(
-      smtpHost,
-      smtpPort,
-      smtpSecure,
-      smtpUser,
-      smtpPassword,
-      normalizedEmail,
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPassword },
+    });
+
+    await transporter.sendMail({
+      from: `"ثقة للتأمين" <${smtpUser}>`,
+      to: normalizedEmail,
       subject,
-      textContent,
-      htmlContent
-    );
+      text: textContent,
+      html: htmlContent,
+    });
 
-    if (!emailResult.success) {
-      console.error("Email send failed:", emailResult.error);
-      return new Response(
-        JSON.stringify({ success: false, error: `فشل في إرسال البريد الإلكتروني: ${emailResult.error}` }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Get IP and User-Agent from request
     const ip_address = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
       || req.headers.get("cf-connecting-ip") 
       || req.headers.get("x-real-ip")
       || null;
     const user_agent = req.headers.get("user-agent") || null;
 
-    // Log attempt in background (don't await)
     supabase.from("login_attempts").insert({
       email: normalizedEmail,
       identifier: normalizedEmail,

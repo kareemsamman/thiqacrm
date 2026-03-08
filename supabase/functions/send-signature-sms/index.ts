@@ -77,6 +77,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { client_id, policy_id }: SendSignatureSmsRequest = await req.json();
 
     if (!client_id) {

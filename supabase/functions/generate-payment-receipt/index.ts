@@ -565,7 +565,7 @@ serve(async (req) => {
     }
 
     // Generate receipt HTML
-    const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings);
+    const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings, branding);
     
     // Upload to Bunny CDN
     const now = new Date();

@@ -120,6 +120,7 @@ export function OnboardingWizard() {
 
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const previousDoneCountRef = useRef(0);
+  const hasAutoShownRef = useRef(false); // Only auto-show ONCE per session
 
   const refreshCompletedSteps = useCallback(async () => {
     if (!agentId) return { done: new Set<string>(), gainedProgress: false };
@@ -134,7 +135,7 @@ export function OnboardingWizard() {
     return { done, gainedProgress };
   }, [agentId]);
 
-  // Listen for manual trigger from sidebar profile menu
+  // Listen for manual open (sidebar menu) and progress updates (after saving branding/companies)
   useEffect(() => {
     const manualOpenHandler = () => {
       setManualOpen(true);
@@ -155,6 +156,7 @@ export function OnboardingWizard() {
         return;
       }
 
+      // Only re-open if there was actual new progress
       if (gainedProgress) {
         setReady(true);
         setVisible(true);
@@ -170,12 +172,9 @@ export function OnboardingWizard() {
     };
   }, [refreshCompletedSteps, onboardingCompleted, user?.id]);
 
-  // Auto-show onboarding if not completed yet
+  // Auto-show ONCE on first login if not completed — only on dashboard
   useEffect(() => {
-    if (!user || !isAdmin || !agentId) {
-      if (!manualOpen) setVisible(false);
-      return;
-    }
+    if (!user || !isAdmin || !agentId || hasAutoShownRef.current || manualOpen) return;
 
     let cancelled = false;
 
@@ -203,6 +202,8 @@ export function OnboardingWizard() {
           return;
         }
 
+        // Show only once per session
+        hasAutoShownRef.current = true;
         setReady(true);
         setTimeout(() => {
           if (!cancelled) setVisible(true);
@@ -216,30 +217,6 @@ export function OnboardingWizard() {
       cancelled = true;
     };
   }, [user, isAdmin, agentId, manualOpen, refreshCompletedSteps]);
-
-  // Re-check progress periodically while onboarding is still active
-  useEffect(() => {
-    if (!user || !isAdmin || !agentId || onboardingCompleted !== false || manualOpen) return;
-
-    const intervalId = window.setInterval(async () => {
-      if (document.hidden || visible) return;
-
-      const { done, gainedProgress } = await refreshCompletedSteps();
-      if (!gainedProgress) return;
-
-      const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
-      if (allDone && user.id) {
-        await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
-        setOnboardingCompleted(true);
-        return;
-      }
-
-      setReady(true);
-      setVisible(true);
-    }, 4000);
-
-    return () => window.clearInterval(intervalId);
-  }, [user, isAdmin, agentId, onboardingCompleted, manualOpen, visible, refreshCompletedSteps]);
 
   const handleSkip = async () => {
     setVisible(false);

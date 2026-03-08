@@ -81,6 +81,7 @@ export default function Landing() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [testimonialAnim, setTestimonialAnim] = useState<"in" | "out">("in");
+  const [faqCategory, setFaqCategory] = useState("general");
 
   const testimonials = [
     {

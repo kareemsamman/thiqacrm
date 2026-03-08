@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2, Info } from "lucide-react";
@@ -45,29 +45,45 @@ export default function Login() {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }
   }, []);
 
+  const tryBypassEmailVerification = useCallback(async (targetEmail: string) => {
+    const normalizedEmail = targetEmail.trim().toLowerCase();
+    if (!normalizedEmail) return false;
+
+    const { data, error } = await supabase.functions.invoke("registration-otp-verify", {
+      body: { email: normalizedEmail, skip: true },
+    });
+
+    if (error || data?.error) return false;
+    return data?.success === true;
+  }, []);
+
   useEffect(() => {
     if (!authLoading && user) {
       if (!isThiqaSuperAdminEmail(user.email)) {
         sessionStorage.setItem('admin_session_active', 'true');
       }
 
-      // Check if email is confirmed
       const checkEmailConfirmed = async () => {
-        // Check both profile and platform skip setting in parallel
-        const [profileRes, skipRes] = await Promise.all([
-          supabase.from('profiles').select('email_confirmed').eq('id', user.id).single(),
-          supabase.from('thiqa_platform_settings').select('setting_value').eq('setting_key', 'skip_email_verification').maybeSingle(),
-        ]);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email_confirmed')
+          .eq('id', user.id)
+          .maybeSingle();
 
-        const skipEnabled = skipRes.data?.setting_value === "true";
-        const emailConfirmed = profileRes.data?.email_confirmed === true;
+        let emailConfirmed = profile?.email_confirmed === true;
 
-        if (!emailConfirmed && !skipEnabled && !isThiqaSuperAdminEmail(user.email)) {
-          navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
-          return;
+        if (!emailConfirmed && !isThiqaSuperAdminEmail(user.email)) {
+          const bypassed = await tryBypassEmailVerification(user.email || '');
+          if (!bypassed) {
+            navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
+            return;
+          }
+          emailConfirmed = true;
         }
 
-        if (isActive) {
+        if (emailConfirmed || isThiqaSuperAdminEmail(user.email)) {
+          navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
+        } else if (isActive) {
           navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
         } else {
           navigate('/no-access', { replace: true });
@@ -76,7 +92,7 @@ export default function Login() {
 
       checkEmailConfirmed();
     }
-  }, [user, isActive, isSuperAdmin, authLoading, navigate]);
+  }, [user, isActive, isSuperAdmin, authLoading, navigate, tryBypassEmailVerification]);
 
   const handleGoogleLogin = async () => {
     if (isInIframe) { window.open(window.location.href, '_blank'); return; }
@@ -110,21 +126,15 @@ export default function Login() {
         if (error.message.includes("Invalid login credentials")) {
           toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         } else if (isEmailNotConfirmed) {
-          // Check if skip is enabled
-          const { data: skipRes } = await supabase
-            .from('thiqa_platform_settings')
-            .select('setting_value')
-            .eq('setting_key', 'skip_email_verification')
-            .maybeSingle();
+          toast.info("جاري محاولة تفعيل الحساب تلقائياً...");
+          const bypassed = await tryBypassEmailVerification(email.trim());
 
-          if (skipRes?.setting_value === "true") {
-            // Auto-confirm via edge function and retry
-            toast.info("جاري تفعيل الحساب...");
-            await supabase.functions.invoke("registration-otp-verify", {
-              body: { email: email.trim(), skip: true },
+          if (bypassed) {
+            const { error: retryError } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
             });
-            // Retry login
-            const { error: retryError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+
             if (retryError) {
               toast.error("فشل تسجيل الدخول بعد التفعيل");
             } else {
@@ -232,6 +242,18 @@ export default function Login() {
       if (!autoLoginError) {
         navigate("/", { replace: true });
       } else if (requiresVerification) {
+        const bypassed = await tryBypassEmailVerification(normalizedEmail);
+        if (bypassed) {
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password: signupPassword,
+          });
+          if (!retryError) {
+            navigate("/", { replace: true });
+            return;
+          }
+        }
+
         const params = new URLSearchParams({ email: normalizedEmail, p: signupPassword });
         navigate(`/verify-email?${params.toString()}`, { replace: true });
       } else {

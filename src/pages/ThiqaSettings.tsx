@@ -22,8 +22,10 @@ function GeneralSettingsTab() {
     mutationFn: async (newValue: boolean) => {
       const { error } = await supabase
         .from("thiqa_platform_settings")
-        .update({ setting_value: String(newValue), updated_at: new Date().toISOString() })
-        .eq("setting_key", "skip_email_verification");
+        .upsert(
+          { setting_key: "skip_email_verification", setting_value: String(newValue), updated_at: new Date().toISOString() },
+          { onConflict: "setting_key" }
+        );
       if (error) throw error;
     },
     onSuccess: () => {

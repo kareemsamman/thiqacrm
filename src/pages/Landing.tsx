@@ -472,7 +472,14 @@ export default function Landing() {
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
       {/* ═══ Section 6: Testimonials Vertical Slider ═══ */}
-      <section id="testimonials" className="py-24 md:py-36 relative">
+      <section id="testimonials" className="py-24 md:py-36 relative overflow-hidden">
+        {/* Flowing gradient background */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(75, 110, 200, 0.35) 0%, rgba(100, 140, 220, 0.15) 40%, transparent 70%)',
+          }}
+        />
         <div className="relative max-w-6xl mx-auto px-6">
           <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">סיפורי לקוחות</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">

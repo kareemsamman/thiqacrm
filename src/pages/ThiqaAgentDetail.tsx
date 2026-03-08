@@ -222,6 +222,17 @@ export default function ThiqaAgentDetail() {
       received_by: user?.id, notes: paymentNotes || null,
     } as any);
     if (!error) {
+      // Update agent subscription_expires_at to the latest period_end
+      const periodEndStr = format(periodEnd, 'yyyy-MM-dd');
+      const currentExpiry = agent.subscription_expires_at ? agent.subscription_expires_at.split('T')[0] : null;
+      if (!currentExpiry || periodEndStr > currentExpiry) {
+        await supabase.from('agents').update({
+          subscription_expires_at: new Date(periodEndStr).toISOString(),
+          subscription_status: 'active',
+          updated_at: new Date().toISOString(),
+        }).eq('id', agent.id);
+        setAgent(prev => prev ? { ...prev, subscription_expires_at: new Date(periodEndStr).toISOString(), subscription_status: 'active' } : null);
+      }
       toast.success('تم تسجيل الدفعة');
       setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
       const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setFullYear(e.getFullYear() + 1); setPeriodEnd(e);

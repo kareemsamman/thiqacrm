@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgentContext } from "@/hooks/useAgentContext";
 import { Plus, Edit, Trash2, GripVertical, Car, FileText, Loader2, Star, ChevronUp, ChevronDown } from "lucide-react";
 
 interface InsuranceCategory {
@@ -32,6 +33,7 @@ interface InsuranceCategory {
 export default function InsuranceCategories() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const { agentId } = useAgentContext();
   const [categories, setCategories] = useState<InsuranceCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -163,6 +165,7 @@ export default function InsuranceCategories() {
             is_active: formData.is_active,
             is_default: formData.is_default,
             sort_order: maxOrder + 1,
+            agent_id: agentId,
           });
 
         if (error) throw error;

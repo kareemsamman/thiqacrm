@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import {
   Drawer,
   DrawerContent,
@@ -44,6 +45,7 @@ interface CompanyDrawerProps {
 
 export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDrawerProps) {
   const { toast } = useToast();
+  const { agentId } = useAgentContext();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -152,6 +154,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             active: formData.active,
             elzami_commission: formData.category_parents.includes('ELZAMI') ? formData.elzami_commission : 0,
             broker_id: formData.broker_id || null,
+            agent_id: agentId,
           });
 
         if (error) throw error;

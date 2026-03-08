@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ interface AccidentFeeServiceDrawerProps {
 }
 
 export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved }: AccidentFeeServiceDrawerProps) {
+  const { agentId } = useAgentContext();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +73,7 @@ export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved 
         description: formData.description.trim() || null,
         active: formData.active,
         sort_order: formData.sort_order,
+        ...(service ? {} : { agent_id: agentId }),
       };
 
       if (service) {

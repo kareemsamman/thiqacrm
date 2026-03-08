@@ -12,13 +12,15 @@ import {
   FileText,
   CreditCard,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   X,
   Sparkles,
-  ArrowRight,
+  ArrowLeft,
   Palette,
+  Rocket,
+  ListChecks,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface OnboardingStep {
   id: string;
@@ -26,80 +28,49 @@ interface OnboardingStep {
   description: string;
   icon: React.ReactNode;
   targetRoute: string;
-  tips: string[];
+  emoji: string;
 }
 
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "branding",
     title: "العلامة التجارية",
-    description: "خصص مظهر النظام بشعارك واسم وكالتك",
-    icon: <Palette className="h-6 w-6" />,
+    description: "ارفع شعارك واسم وكالتك",
+    icon: <Palette className="h-5 w-5" />,
     targetRoute: "/admin/branding",
-    tips: [
-      "ارفع شعار وكالتك",
-      "أدخل اسم الوكالة بالعربية",
-      "اختر ألوان النظام المفضلة",
-    ],
+    emoji: "🎨",
   },
   {
     id: "companies",
     title: "شركات التأمين",
-    description: "أضف شركات التأمين التي تتعامل معها",
-    icon: <Building2 className="h-6 w-6" />,
+    description: "أضف الشركات التي تتعامل معها",
+    icon: <Building2 className="h-5 w-5" />,
     targetRoute: "/companies",
-    tips: [
-      "أضف كل شركة تأمين تتعامل معها",
-      "أدخل نسبة العمولة لكل شركة",
-      "أضف قواعد التسعير لكل نوع تأمين",
-    ],
+    emoji: "🏢",
   },
   {
     id: "users",
-    title: "المستخدمون والفروع",
-    description: "أضف موظفيك وأنشئ الفروع إن وجدت",
-    icon: <Users className="h-6 w-6" />,
+    title: "المستخدمون",
+    description: "أضف موظفيك وحدد صلاحياتهم",
+    icon: <Users className="h-5 w-5" />,
     targetRoute: "/admin/users",
-    tips: [
-      "أنشئ فروعاً إذا كان لديك أكثر من مكتب",
-      "أضف الموظفين وحدد صلاحياتهم",
-      "عيّن كل موظف لفرعه",
-    ],
+    emoji: "👥",
   },
   {
     id: "clients",
-    title: "العملاء والسيارات",
+    title: "العملاء",
     description: "ابدأ بإضافة عملائك وسياراتهم",
-    icon: <Car className="h-6 w-6" />,
+    icon: <Car className="h-5 w-5" />,
     targetRoute: "/clients",
-    tips: [
-      "أضف بيانات العميل (الاسم، الهوية، الهاتف)",
-      "أضف سيارات العميل مع رقم الرخصة",
-      "يمكنك استيراد البيانات من ملف",
-    ],
+    emoji: "🚗",
   },
   {
     id: "policies",
     title: "الوثائق",
     description: "أنشئ أول وثيقة تأمين",
-    icon: <FileText className="h-6 w-6" />,
+    icon: <FileText className="h-5 w-5" />,
     targetRoute: "/policies",
-    tips: [
-      "اختر نوع التأمين (إلزامي، شامل، إلخ)",
-      "حدد الشركة والسعر",
-      "سجّل الدفعات المستلمة",
-    ],
-  },
-  {
-    id: "payments",
-    title: "إعدادات الدفع",
-    description: "فعّل طرق الدفع الإلكتروني",
-    icon: <CreditCard className="h-6 w-6" />,
-    targetRoute: "/admin/payment-settings",
-    tips: [
-      "فعّل Tranzila للدفع بالبطاقة",
-      "أضف بيانات الحساب البنكي للتحويلات",
-    ],
+    emoji: "📄",
   },
 ];
 
@@ -107,7 +78,6 @@ const ONBOARDING_KEY = "thiqa_onboarding_completed";
 
 async function detectCompletedSteps(agentId: string): Promise<Set<string>> {
   const done = new Set<string>();
-
   try {
     const [agentRes, companiesRes, profilesRes, clientsRes, policiesRes] = await Promise.all([
       supabase.from("agents").select("logo_url, name_ar").eq("id", agentId).single(),
@@ -117,28 +87,16 @@ async function detectCompletedSteps(agentId: string): Promise<Set<string>> {
       supabase.from("policies").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
     ]);
 
-    // Branding: has logo or custom name
     if (agentRes.data?.logo_url || (agentRes.data?.name_ar && agentRes.data.name_ar.length > 2)) {
       done.add("branding");
     }
-
-    // Companies: at least 1
     if ((companiesRes.count ?? 0) > 0) done.add("companies");
-
-    // Users: more than 1 profile (the admin themselves)
     if ((profilesRes.count ?? 0) > 1) done.add("users");
-
-    // Clients: at least 1
     if ((clientsRes.count ?? 0) > 0) done.add("clients");
-
-    // Policies: at least 1
     if ((policiesRes.count ?? 0) > 0) done.add("policies");
-
-    // Payments: we consider this optional / skip detection
   } catch (e) {
     console.error("Onboarding detection error:", e);
   }
-
   return done;
 }
 
@@ -148,11 +106,10 @@ export function OnboardingWizard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [visible, setVisible] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
-  // Only show on dashboard
   const isDashboard = location.pathname === "/" || location.pathname === "";
 
   useEffect(() => {
@@ -165,200 +122,194 @@ export function OnboardingWizard() {
     const completed = localStorage.getItem(key);
     if (completed) return;
 
-    // Detect completed steps then show
     let cancelled = false;
     detectCompletedSteps(agentId).then((done) => {
       if (cancelled) return;
       setCompletedSteps(done);
 
-      // Find first incomplete step
-      const firstIncomplete = ONBOARDING_STEPS.findIndex((s) => !done.has(s.id));
-      if (firstIncomplete === -1) {
-        // All done - mark onboarding as completed
+      const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
+      if (allDone) {
         localStorage.setItem(key, "true");
         return;
       }
 
-      setCurrentStep(firstIncomplete);
       setReady(true);
-      setTimeout(() => setVisible(true), 800);
+      setTimeout(() => setVisible(true), 500);
     });
 
     return () => { cancelled = true; };
   }, [user, isAdmin, agentId, isDashboard]);
 
   const handleSkip = () => {
-    if (user) {
-      localStorage.setItem(`${ONBOARDING_KEY}_${user.id}`, "true");
-    }
-    setVisible(false);
-  };
-
-  const handleComplete = () => {
-    if (user) {
-      localStorage.setItem(`${ONBOARDING_KEY}_${user.id}`, "true");
-    }
+    if (user) localStorage.setItem(`${ONBOARDING_KEY}_${user.id}`, "true");
     setVisible(false);
   };
 
   const handleGoToStep = (step: OnboardingStep) => {
-    setCompletedSteps((prev) => new Set(prev).add(step.id));
     setVisible(false);
     navigate(step.targetRoute);
   };
 
-  const handleNext = () => {
-    if (currentStep < ONBOARDING_STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+  const handleSeedData = async () => {
+    if (!agentId) return;
+    setSeeding(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('seed-agent-data', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
 
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      const seeded = data?.seeded || {};
+      const parts: string[] = [];
+      if (seeded.insurance_companies) parts.push(`${seeded.insurance_companies} شركة تأمين`);
+      if (seeded.insurance_categories) parts.push(`${seeded.insurance_categories} نوع تأمين`);
+      if (seeded.road_services) parts.push(`${seeded.road_services} خدمة طريق`);
+      if (seeded.accident_fee_services) parts.push(`${seeded.accident_fee_services} خدمة إعفاء`);
+
+      if (parts.length > 0) {
+        toast.success(`تم إضافة بيانات تجريبية: ${parts.join('، ')}`);
+        // Re-detect
+        const done = await detectCompletedSteps(agentId);
+        setCompletedSteps(done);
+      } else {
+        toast.info('البيانات التجريبية موجودة مسبقاً');
+      }
+    } catch (e: any) {
+      console.error('Seed error:', e);
+      toast.error('فشل في إضافة البيانات التجريبية');
+    } finally {
+      setSeeding(false);
     }
   };
 
   if (!visible || !ready) return null;
 
-  const step = ONBOARDING_STEPS[currentStep];
-  const isStepDone = completedSteps.has(step.id);
-  const progress = ((currentStep + 1) / ONBOARDING_STEPS.length) * 100;
+  const doneCount = ONBOARDING_STEPS.filter(s => completedSteps.has(s.id)).length;
+  const progress = (doneCount / ONBOARDING_STEPS.length) * 100;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center" dir="rtl">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleSkip} />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" dir="rtl">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleSkip} />
 
-      {/* Card */}
-      <div className="relative w-full max-w-lg mx-4 rounded-3xl border border-white/20 bg-card shadow-2xl overflow-hidden animate-scale-in">
-        {/* Progress bar */}
-        <div className="h-1 bg-muted">
-          <div className="h-full bg-primary transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
-        </div>
-
+      <div className="relative w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden animate-scale-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span className="text-sm font-semibold text-primary">دليل البداية</span>
-            <span className="text-xs text-muted-foreground">({currentStep + 1}/{ONBOARDING_STEPS.length})</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={handleSkip} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Step dots */}
-        <div className="flex items-center justify-center gap-2 px-6 pb-4">
-          {ONBOARDING_STEPS.map((s, i) => (
-            <button
-              key={s.id}
-              onClick={() => setCurrentStep(i)}
-              className={cn(
-                "h-2 rounded-full transition-all duration-300",
-                i === currentStep
-                  ? "w-8 bg-primary"
-                  : completedSteps.has(s.id)
-                  ? "w-2 bg-green-500"
-                  : "w-2 bg-muted-foreground/20"
-              )}
-            />
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="px-6 pb-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className={cn(
-              "flex h-14 w-14 items-center justify-center rounded-2xl shrink-0",
-              isStepDone ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
-            )}>
-              {isStepDone ? <CheckCircle2 className="h-6 w-6" /> : step.icon}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-foreground">{step.title}</h2>
-                {isStepDone && (
-                  <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                    مكتمل ✓
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">{step.description}</p>
-            </div>
-          </div>
-
-          {/* Tips */}
-          <div className="space-y-2 bg-muted/50 rounded-2xl p-4 mb-4">
-            <p className="text-xs font-semibold text-muted-foreground mb-2">نصائح:</p>
-            {step.tips.map((tip, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <span className="text-sm text-foreground">{tip}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Go to page button */}
-          <Button
-            className="w-full h-11 rounded-xl gap-2 mb-3"
-            onClick={() => handleGoToStep(step)}
-          >
-            {isStepDone ? `مراجعة ${step.title}` : `الذهاب إلى ${step.title}`}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Footer navigation */}
-        <div className="flex items-center justify-between px-6 pb-5 gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrev}
-            disabled={currentStep === 0}
-            className="gap-1 rounded-xl"
-          >
-            <ChevronRight className="h-4 w-4" />
-            السابق
-          </Button>
-
+        <div className="relative bg-primary/5 px-6 pt-6 pb-4">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={handleSkip}
-            className="text-muted-foreground text-xs"
+            className="absolute left-3 top-3 h-8 w-8 text-muted-foreground hover:text-foreground"
           >
-            تخطي الدليل
+            <X className="h-4 w-4" />
           </Button>
 
-          {currentStep < ONBOARDING_STEPS.length - 1 ? (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Rocket className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">مرحباً بك! 👋</h2>
+              <p className="text-xs text-muted-foreground">دليل إعداد سريع لوكالتك</p>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+              {doneCount}/{ONBOARDING_STEPS.length}
+            </span>
+          </div>
+        </div>
+
+        {/* Steps list */}
+        <div className="px-4 py-3 space-y-1.5 max-h-[50vh] overflow-y-auto">
+          {ONBOARDING_STEPS.map((step) => {
+            const isDone = completedSteps.has(step.id);
+            return (
+              <button
+                key={step.id}
+                onClick={() => handleGoToStep(step)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 rounded-xl text-right transition-all duration-200",
+                  "hover:bg-muted/80 active:scale-[0.98]",
+                  isDone
+                    ? "bg-primary/5 border border-primary/20"
+                    : "bg-muted/40 border border-transparent hover:border-border"
+                )}
+              >
+                {/* Icon */}
+                <div className={cn(
+                  "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 text-lg",
+                  isDone ? "bg-primary/10" : "bg-muted"
+                )}>
+                  {isDone ? (
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  ) : (
+                    <span>{step.emoji}</span>
+                  )}
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "text-sm font-semibold",
+                    isDone ? "text-primary" : "text-foreground"
+                  )}>
+                    {step.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                </div>
+
+                {/* Arrow */}
+                <ArrowLeft className={cn(
+                  "h-4 w-4 shrink-0",
+                  isDone ? "text-primary/50" : "text-muted-foreground/50"
+                )} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer actions */}
+        <div className="px-4 pb-4 pt-2 space-y-2 border-t border-border/50">
+          {/* Seed data button */}
+          <Button
+            variant="outline"
+            className="w-full h-10 gap-2 text-sm rounded-xl"
+            onClick={handleSeedData}
+            disabled={seeding}
+          >
+            {seeding ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ListChecks className="h-4 w-4" />
+            )}
+            {seeding ? 'جاري إضافة البيانات...' : 'إضافة بيانات تجريبية للبداية'}
+          </Button>
+
+          <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={handleNext}
-              className="gap-1 rounded-xl"
+              onClick={handleSkip}
+              className="flex-1 text-xs text-muted-foreground h-9"
             >
-              التالي
-              <ChevronLeft className="h-4 w-4" />
+              تخطي الدليل
             </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={handleComplete}
-              className="gap-1 rounded-xl"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              إنهاء
-            </Button>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Hook to reset onboarding (for settings)
 export function useResetOnboarding() {
   const { user } = useAuth();
   return () => {

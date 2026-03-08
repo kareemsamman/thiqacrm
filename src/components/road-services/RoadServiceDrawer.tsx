@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ const CAR_TYPES: { value: CarType; label: string }[] = [
 ];
 
 export function RoadServiceDrawer({ open, onOpenChange, service, onSaved }: RoadServiceDrawerProps) {
+  const { agentId } = useAgentContext();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -105,6 +107,7 @@ export function RoadServiceDrawer({ open, onOpenChange, service, onSaved }: Road
         allowed_car_types: formData.allowed_car_types,
         active: formData.active,
         sort_order: formData.sort_order,
+        ...(service ? {} : { agent_id: agentId }),
       };
 
       if (service) {

@@ -142,8 +142,8 @@ Deno.serve(async (req) => {
 </html>`;
 
       const bunnyStorageKey = Deno.env.get('BUNNY_API_KEY');
-      const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || 'ab-storage';
-      const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+      const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || 'kareem';
+      const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://kareem.b-cdn.net';
 
       if (!bunnyStorageKey) {
         return new Response(JSON.stringify({ error: 'Storage not configured' }), {

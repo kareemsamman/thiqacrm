@@ -167,7 +167,7 @@ async function uploadToBunnyCDN(
       return null;
     }
     
-    const cdnBaseUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const cdnBaseUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://kareem.b-cdn.net';
     const cdnUrl = `${cdnBaseUrl}/${storagePath}`;
     console.log(`Uploaded to CDN: ${cdnUrl}`);
     

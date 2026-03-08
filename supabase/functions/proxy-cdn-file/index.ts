@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const ALLOWED_PREFIX = Deno.env.get('BUNNY_CDN_URL') ? `${Deno.env.get('BUNNY_CDN_URL')}/` : "https://cdn.basheer-ab.com/";
+const ALLOWED_PREFIX = Deno.env.get('BUNNY_CDN_URL') ? `${Deno.env.get('BUNNY_CDN_URL')}/` : "https://kareem.b-cdn.net/";
 
 function corsHeaders(origin: string | null) {
   const allowOrigin = origin ?? "*";

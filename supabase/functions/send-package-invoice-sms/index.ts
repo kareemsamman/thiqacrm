@@ -265,7 +265,7 @@ serve(async (req) => {
     // Build policy file URLs (all files from all policies)
     // Normalize CDN URLs (replace old b-cdn.net with custom domain)
     const policyFileUrls = hasAnyFiles 
-      ? insuranceFiles.map(f => f.cdn_url.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/'))
+      ? insuranceFiles.map(f => f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/'))
       : [];
     
     // Build all policy URLs with labels for SMS - include ALL files
@@ -456,7 +456,7 @@ function buildPackageInvoiceHtml(
   // Normalize CDN URLs
   const normalizedFiles = policyFiles.map(f => ({
     ...f,
-    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', 'https://cdn.basheer-ab.com/')
+    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/')
   }));
   
   const filesHtml = normalizedFiles.length > 0 ? `
@@ -1004,7 +1004,7 @@ function buildPackageInvoiceHtml(
       <p class="thank-you">شكراً لثقتكم بنا 🙏</p>
       ${contactFooterHtml}
       <p style="margin-top: 10px;">تاريخ الإصدار: ${formatDate(new Date().toISOString())}</p>
-      <p class="signature">Basheer</p>
+      <p class="signature">${branding.companyName}</p>
       <div class="action-buttons no-print">
         <button class="print-button" onclick="window.print()">🖨️ طباعة الفاتورة</button>
         <button class="share-button" onclick="shareInvoice()">📲 مشاركة الفاتورة</button>

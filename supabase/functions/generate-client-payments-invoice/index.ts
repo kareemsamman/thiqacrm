@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
+import { getAgentBranding, resolveAgentId, buildLogoHtml, type AgentBranding } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,7 +67,8 @@ function buildComprehensiveInvoiceHtml(
   client: any,
   payments: any[],
   totals: { totalInsurance: number; totalPaid: number; totalRemaining: number },
-  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string }
+  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string },
+  branding: AgentBranding
 ): string {
   // Build single unified payments table with car number
   const paymentRows = payments.map(payment => {
@@ -354,8 +356,9 @@ function buildComprehensiveInvoiceHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
-      <p class="english-name">BASHEER INSURANCE</p>
+      ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.companyName}" style="max-height:60px;object-fit:contain;margin:0 auto 8px auto;display:block;" />` : ''}
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<p class="english-name">${branding.companyNameEn}</p>` : ''}
       <p class="invoice-title">📋 فاتورة شاملة بالدفعات</p>
       <p class="invoice-date">تاريخ الإصدار: ${formatDate(new Date().toISOString())}</p>
     </div>
@@ -482,7 +485,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bunnyApiKey = Deno.env.get('BUNNY_API_KEY');
     const bunnyStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE');
-    const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://kareem.b-cdn.net';
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -496,6 +499,10 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch dynamic branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
 
     const { client_id, send_sms } = await req.json();
 
@@ -600,7 +607,7 @@ serve(async (req) => {
       totalInsurance,
       totalPaid,
       totalRemaining,
-    }, companySettings);
+    }, companySettings, branding);
 
     // If no Bunny credentials, return HTML directly
     if (!bunnyApiKey || !bunnyStorageZone) {

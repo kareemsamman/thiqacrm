@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAgentBranding, resolveAgentId } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,6 +125,10 @@ Deno.serve(async (req) => {
     const phoneLinks = (smsSettings.company_phone_links as any[]) || [];
     const phones = phoneLinks.map((p: any) => p.phone).filter(Boolean).join(' | ');
 
+    // Fetch dynamic branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     // Build message
     let finalMessage = message || '';
     
@@ -180,7 +185,7 @@ Deno.serve(async (req) => {
 
 عليك تسديد المبلغ: ₪${totalRemaining.toLocaleString()}${policySection}
 
-AB للتأمين`;
+${branding.companyName}`;
 
       // Add location if available
       if (companyLocation) {

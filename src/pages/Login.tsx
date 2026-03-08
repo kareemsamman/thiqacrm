@@ -23,7 +23,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isInIframe, setIsInIframe] = useState(false);
   const navigate = useNavigate();
-  const { user, isActive, loading: authLoading } = useAuth();
+  const { user, isActive, isSuperAdmin, loading: authLoading } = useAuth();
   
   // OTP state
   const [authStep, setAuthStep] = useState<AuthStep>("method");

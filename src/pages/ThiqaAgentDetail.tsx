@@ -172,12 +172,12 @@ export default function ThiqaAgentDetail() {
     if (!agent || !paymentAmount) return;
     const { error } = await supabase.from('agent_subscription_payments').insert({
       agent_id: agent.id, amount: parseFloat(paymentAmount), plan: agent.plan,
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: format(paymentDate, 'yyyy-MM-dd'),
       received_by: user?.id, notes: paymentNotes || null,
     });
     if (!error) {
       toast.success('تم تسجيل الدفعة');
-      setPaymentAmount(""); setPaymentNotes("");
+      setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
       fetchAll();
     }
   };

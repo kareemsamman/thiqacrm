@@ -294,7 +294,7 @@ export default function Login() {
       {/* Mobile background */}
       <div className="fixed inset-0 lg:hidden -z-10">
         <img src={loginBgMobile} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
       </div>
 
       {/* Left panel - background (desktop) */}

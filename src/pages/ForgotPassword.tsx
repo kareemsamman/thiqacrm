@@ -22,10 +22,14 @@ export default function ForgotPassword() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { data, error } = await supabase.functions.invoke("send-password-reset", {
+        body: {
+          email: email.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setSent(true);
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ في إرسال رابط إعادة التعيين");

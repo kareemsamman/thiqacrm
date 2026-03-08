@@ -890,8 +890,7 @@ function generateReportHtml(
 
       <div class="footer">
         <div class="footer-brand">
-          <div class="footer-brand-ar">بشير للتأمينات</div>
-          <div class="footer-brand-en">BASHEER INSURANCE</div>
+          <div class="footer-brand-ar">${companyName}</div>
         </div>
         ${(companySettings.company_email || (companySettings.company_phones && companySettings.company_phones.length > 0) || companySettings.company_whatsapp || companySettings.company_location) ? `
         <div class="contact-info" style="margin: 12px 0; padding: 10px; background: #f0fdfa; border-radius: 8px; display: inline-block; text-align: center;">

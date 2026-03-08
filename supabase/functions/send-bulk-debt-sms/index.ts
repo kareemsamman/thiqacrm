@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
 الوثائق:
 ${policyLines}
 
-AB للتأمين`;
+${siteTitle}`;
 
         // Add location if available
         if (companyLocation) {

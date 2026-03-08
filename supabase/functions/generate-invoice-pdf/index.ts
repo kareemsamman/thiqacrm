@@ -663,7 +663,7 @@ function buildAbInvoiceHtml(
     </div>
 
     <div class="footer">
-      <p>شكراً لثقتكم بنا - بشير للتأمينات</p>
+      <p>شكراً لثقتكم بنا - ${companyName}</p>
       <p style="margin-top: 5px;">هذه الفاتورة تم إنشاؤها إلكترونياً وهي صالحة بدون توقيع</p>
     </div>
   </div>

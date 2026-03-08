@@ -504,7 +504,7 @@ function generateReportHtml(
     </div>
     
     <div class="footer">
-      © بشير للتأمين - جميع الحقوق محفوظة | تم إنشاء هذا التقرير تلقائياً
+      © ${agentName} - جميع الحقوق محفوظة | تم إنشاء هذا التقرير تلقائياً
     </div>
   </div>
 </body>

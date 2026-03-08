@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
       phone = '0' + phone;
     }
 
-    const companyName = 'مكتب بشير للتأمين';
+    const companyName = siteSettings?.site_title || 'وكالة التأمين';
 
     // Build SMS message
     const message = `رسالة من ${companyName}:

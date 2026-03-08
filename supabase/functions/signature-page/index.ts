@@ -596,8 +596,8 @@ function buildSignaturePageHtml(
   <div class="container">
     <div class="header">
       ${logoSection}
-      <h1>بشير للتأمين</h1>
-      <div class="english">BASHEER INSURANCE</div>
+      <h1>${companyName}</h1>
+      ${companyNameEn ? `<div class="english">${companyNameEn}</div>` : ''}
       <div class="welcome">مرحباً بك</div>
       <div class="client-name">${clientName}</div>
     </div>

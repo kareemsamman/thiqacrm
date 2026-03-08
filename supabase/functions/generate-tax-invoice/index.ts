@@ -486,7 +486,7 @@ function generateHtml(
     </div>
     <div class="rivhit-status" id="rivhitStatus"></div>
     <div class="footer">
-      © بشير للتأمين - جميع الحقوق محفوظة | تم إنشاء هذه الفاتورة تلقائياً
+      © ${agentName} - جميع الحقوق محفوظة | تم إنشاء هذه الفاتورة تلقائياً
     </div>
   </div>
 

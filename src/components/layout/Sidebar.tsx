@@ -360,8 +360,8 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative group",
                         isActiveRoute
-                          ? "bg-[hsl(var(--sidebar-active)/0.12)] text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "glass-dark bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))] border-r-2 border-[hsl(var(--sidebar-active))]"
+                          : "text-sidebar-foreground hover:bg-[hsl(var(--sidebar-glass-bg))] hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <item.icon className={cn("h-4 w-4 flex-shrink-0 transition-colors", isActiveRoute ? "text-[hsl(var(--sidebar-active))]" : "group-hover:text-sidebar-accent-foreground")} />

@@ -612,6 +612,153 @@ export type Database = {
           },
         ]
       }
+      agent_feature_flags: {
+        Row: {
+          agent_id: string
+          enabled: boolean | null
+          feature_key: string
+          id: string
+        }
+        Insert: {
+          agent_id: string
+          enabled?: boolean | null
+          feature_key: string
+          id?: string
+        }
+        Update: {
+          agent_id?: string
+          enabled?: boolean | null
+          feature_key?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_feature_flags_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_subscription_payments: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_date: string
+          plan: string
+          received_by: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          plan: string
+          received_by?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          plan?: string
+          received_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_subscription_payments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_users: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_users_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          logo_url: string | null
+          monthly_price: number | null
+          name: string
+          name_ar: string | null
+          notes: string | null
+          phone: string | null
+          plan: string
+          subscription_expires_at: string | null
+          subscription_status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          logo_url?: string | null
+          monthly_price?: number | null
+          name: string
+          name_ar?: string | null
+          notes?: string | null
+          phone?: string | null
+          plan?: string
+          subscription_expires_at?: string | null
+          subscription_status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          logo_url?: string | null
+          monthly_price?: number | null
+          name?: string
+          name_ar?: string | null
+          notes?: string | null
+          phone?: string | null
+          plan?: string
+          subscription_expires_at?: string | null
+          subscription_status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       announcement_dismissals: {
         Row: {
           announcement_id: string
@@ -4861,6 +5008,10 @@ export type Database = {
       }
     }
     Functions: {
+      agent_matches: {
+        Args: { _row_agent_id: string; _user_id: string }
+        Returns: boolean
+      }
       calculate_policy_company_payment: {
         Args: {
           p_age_band: Database["public"]["Enums"]["age_band"]
@@ -5083,6 +5234,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_user_agent_id: { Args: { _user_id: string }; Returns: string }
       get_user_branch_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -5109,6 +5261,7 @@ export type Database = {
         Returns: string
       }
       is_active_user: { Args: { _user_id: string }; Returns: boolean }
+      is_agent_active: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       report_client_debts:
         | {

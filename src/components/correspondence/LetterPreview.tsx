@@ -43,7 +43,7 @@ export function LetterPreview({ title, recipientName, bodyHtml, createdAt, class
         }
         
         setCompanyInfo({
-          company_name: 'AB تأمين',
+          company_name: 'ثقة للتأمين',
           company_phone_links: phoneLinks as CompanyInfo['company_phone_links'],
           company_location: data?.company_location || undefined,
         });

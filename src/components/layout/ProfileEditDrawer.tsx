@@ -11,7 +11,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { User, Phone, Mail, Save, Loader2 } from "lucide-react";
+import { User, Phone, Mail, Save, Loader2, Lock, Eye, EyeOff } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface ProfileEditDrawerProps {
   open: boolean;
@@ -24,11 +25,18 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [phone, setPhone] = useState((profile as any)?.phone || "");
 
-  // Sync state when drawer opens
+  // Password change
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
   const handleOpenChange = (val: boolean) => {
     if (val) {
       setFullName(profile?.full_name || "");
       setPhone((profile as any)?.phone || "");
+      setNewPassword("");
+      setConfirmPassword("");
     }
     onOpenChange(val);
   };
@@ -37,7 +45,6 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
     if (!user) return;
     setSaving(true);
     try {
-      // Use upsert to handle case where profile row might not exist
       const { error } = await supabase
         .from("profiles")
         .upsert({
@@ -57,6 +64,29 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
       toast.error("خطأ: " + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("كلمة المرور غير متطابقة");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("تم تغيير كلمة المرور بنجاح");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "خطأ في تغيير كلمة المرور");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -136,6 +166,65 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
             )}
             حفظ التغييرات
           </Button>
+
+          <Separator className="my-4" />
+
+          {/* Password Change Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              تغيير كلمة المرور
+            </h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="6 أحرف على الأقل"
+                  dir="ltr"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="أعد إدخال كلمة المرور"
+                dir="ltr"
+                autoComplete="new-password"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={handlePasswordChange}
+              disabled={changingPassword || !newPassword || !confirmPassword}
+              className="w-full"
+            >
+              {changingPassword ? (
+                <Loader2 className="h-4 w-4 animate-spin ml-2" />
+              ) : (
+                <Lock className="h-4 w-4 ml-2" />
+              )}
+              تغيير كلمة المرور
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

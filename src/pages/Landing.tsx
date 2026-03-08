@@ -328,9 +328,10 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ Testimonials + Stats ═══ */}
       <section id="testimonials" className="py-24 md:py-36 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-6">
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
             בואו תשמעו מה יש להגיד

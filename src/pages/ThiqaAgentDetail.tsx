@@ -12,12 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowRight, Save, CreditCard, Settings, Loader2, Building2,
   MessageSquare, Palette, Users, Shield, Phone, Mail, Image,
-  Upload, Trash2, Eye, EyeOff, Plus, UserPlus, UserMinus,
+  Upload, Trash2, Eye, EyeOff, Plus, UserPlus, UserMinus, CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,6 +84,8 @@ export default function ThiqaAgentDetail() {
   const [newUserBranch, setNewUserBranch] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState("info");
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (agentId) fetchAll();
@@ -168,12 +172,12 @@ export default function ThiqaAgentDetail() {
     if (!agent || !paymentAmount) return;
     const { error } = await supabase.from('agent_subscription_payments').insert({
       agent_id: agent.id, amount: parseFloat(paymentAmount), plan: agent.plan,
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: format(paymentDate, 'yyyy-MM-dd'),
       received_by: user?.id, notes: paymentNotes || null,
     });
     if (!error) {
       toast.success('تم تسجيل الدفعة');
-      setPaymentAmount(""); setPaymentNotes("");
+      setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
       fetchAll();
     }
   };
@@ -407,7 +411,7 @@ export default function ThiqaAgentDetail() {
           </div>
         </div>
 
-        <Tabs defaultValue="info" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
             <TabsList className="inline-flex h-auto gap-1 w-max md:w-auto md:flex-wrap">
               <TabsTrigger value="info" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />معلومات</TabsTrigger>
@@ -806,6 +810,20 @@ export default function ThiqaAgentDetail() {
                   <div className="flex-1">
                     <Label>المبلغ (₪)</Label>
                     <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder={`${agent.monthly_price || 300}`} />
+                  </div>
+                  <div className="flex-1">
+                    <Label>التاريخ</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-right font-normal", !paymentDate && "text-muted-foreground")}>
+                          <CalendarIcon className="ml-2 h-4 w-4" />
+                          {paymentDate ? format(paymentDate, "dd/MM/yyyy") : "اختر تاريخ"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={paymentDate} onSelect={(d) => d && setPaymentDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="flex-1">
                     <Label>ملاحظات</Label>

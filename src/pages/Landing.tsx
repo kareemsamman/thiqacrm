@@ -77,6 +77,7 @@ const featureTabs = [
 ];
 
 export default function Landing() {
+  usePageView("/landing");
   const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");

@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
           phone: phone?.trim() || null,
           status: "active",
           agent_id: agentData.id,
+          email_confirmed: skipEmailVerification,
         },
         { onConflict: "id" },
       );

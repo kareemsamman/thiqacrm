@@ -99,13 +99,15 @@ serve(async (req) => {
       });
     }
 
-    // Get signature template from SMS settings
+    // Use branding signature fields as defaults, allow template override
     let templateContent = {
       logo_url: branding.logoUrl as string | null,
-      header_html: '<h2>نموذج الموافقة على الخصوصية</h2>',
-      body_html: `<p>مرحباً.</p><p>أقرّ بأنني قرأت وفهمت سياسة الخصوصية، وأوافق على قيام <strong>${branding.companyName}</strong> بجمع واستخدام ومعالجة بياناتي الشخصية للأغراض المتعلقة بخدمات التأمين والتواصل وإتمام الإجراءات اللازمة.</p><p>بالتوقيع أدناه، أؤكد صحة البيانات وأمنح موافقتي على ما ورد أعلاه.</p>`,
-      footer_html: `<p>© ${branding.companyName} - جميع الحقوق محفوظة</p>`,
+      header_html: branding.signatureHeaderHtml,
+      body_html: branding.signatureBodyHtml.replace(/الشركة/g, branding.companyName),
+      footer_html: branding.signatureFooterHtml.replace(/جميع الحقوق محفوظة/g, `© ${branding.companyName} - جميع الحقوق محفوظة`),
     };
+
+    const primaryColor = branding.signaturePrimaryColor;
 
     const { data: smsSettings } = await supabase
       .from("sms_settings")

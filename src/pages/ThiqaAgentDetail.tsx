@@ -487,7 +487,7 @@ export default function ThiqaAgentDetail() {
     setEditingUser(au);
     setEditUserName(p?.full_name || '');
     setEditUserPhone(p?.phone || '');
-    setEditUserBranch(p?.branch_id || '');
+    setEditUserBranch(p?.branch_id || 'none');
   };
 
   const saveEditUser = async () => {

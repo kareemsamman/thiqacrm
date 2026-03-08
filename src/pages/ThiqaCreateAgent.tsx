@@ -97,7 +97,7 @@ export default function ThiqaCreateAgent() {
             <CardDescription>سيتم تهيئة جميع الإعدادات (SMS، Tranzila، العلامة التجارية) تلقائياً</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label>الاسم (English) *</Label>
                 <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Agent Name" />

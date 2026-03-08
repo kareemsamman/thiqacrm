@@ -557,7 +557,7 @@ serve(async (req) => {
 
     if (!bunnyApiKey || !bunnyStorageZone) {
       // Return HTML directly without storing
-      const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings);
+      const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings, branding);
       return new Response(receiptHtml, {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" }

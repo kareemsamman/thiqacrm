@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -12,12 +11,16 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Megaphone, Plus, Trash2, Calendar } from "lucide-react";
+import { Megaphone, Plus, Trash2, Calendar, Building2 } from "lucide-react";
 import { format, addDays } from "date-fns";
-import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
-
-const SUPER_ADMIN_EMAIL = "morshed500@gmail.com";
 
 interface Announcement {
   id: string;
@@ -28,12 +31,19 @@ interface Announcement {
   show_once: boolean;
   is_active: boolean;
   created_at: string;
+  agent_id: string | null;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  name_ar: string | null;
 }
 
 export default function AnnouncementSettings() {
-  const { user, profile } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -42,29 +52,26 @@ export default function AnnouncementSettings() {
   const [content, setContent] = useState("");
   const [daysToShow, setDaysToShow] = useState(7);
   const [showOnce, setShowOnce] = useState(false);
-
-  // Check if super admin
-  const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
+  const [targetAgentId, setTargetAgentId] = useState<string>("all");
 
   useEffect(() => {
-    if (!isSuperAdmin) {
-      navigate("/");
-      return;
-    }
-    fetchAnnouncements();
-  }, [isSuperAdmin, navigate]);
+    fetchAll();
+  }, []);
 
-  const fetchAnnouncements = async () => {
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const fetchAll = async () => {
+    const [annRes, agentRes] = await Promise.all([
+      supabase
+        .from("announcements")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("agents")
+        .select("id, name, name_ar")
+        .order("name_ar"),
+    ]);
 
-    if (error) {
-      toast.error("خطأ في جلب الإعلانات");
-    } else {
-      setAnnouncements(data || []);
-    }
+    if (!annRes.error) setAnnouncements(annRes.data || []);
+    if (!agentRes.error) setAgents(agentRes.data || []);
     setLoading(false);
   };
 
@@ -86,6 +93,7 @@ export default function AnnouncementSettings() {
       show_once: showOnce,
       is_active: true,
       created_by_admin_id: profile?.id,
+      agent_id: targetAgentId === "all" ? null : targetAgentId,
     });
 
     if (error) {
@@ -96,7 +104,8 @@ export default function AnnouncementSettings() {
       setContent("");
       setDaysToShow(7);
       setShowOnce(false);
-      fetchAnnouncements();
+      setTargetAgentId("all");
+      fetchAll();
     }
     setSaving(false);
   };
@@ -107,32 +116,30 @@ export default function AnnouncementSettings() {
       .update({ is_active: !currentActive })
       .eq("id", id);
 
-    if (error) {
-      toast.error("خطأ في تحديث الإعلان");
-    } else {
-      fetchAnnouncements();
-    }
+    if (!error) fetchAll();
+    else toast.error("خطأ في تحديث الإعلان");
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("announcements").delete().eq("id", id);
-
-    if (error) {
-      toast.error("خطأ في حذف الإعلان");
-    } else {
+    if (!error) {
       toast.success("تم حذف الإعلان");
-      fetchAnnouncements();
-    }
+      fetchAll();
+    } else toast.error("خطأ في حذف الإعلان");
   };
 
-  if (!isSuperAdmin) return null;
+  const getAgentName = (agentId: string | null) => {
+    if (!agentId) return "جميع الوكلاء";
+    const a = agents.find((ag) => ag.id === agentId);
+    return a ? (a.name_ar || a.name) : agentId;
+  };
 
   return (
     <MainLayout>
       <div className="p-4 md:p-6 space-y-6">
         <Header
-          title="إعدادات الإعلانات"
-          subtitle="إنشاء إعلانات تظهر لجميع المستخدمين"
+          title="إعلانات النظام"
+          subtitle="إنشاء إعلانات تظهر للوكلاء ومستخدميهم"
         />
 
         {/* Create New Announcement */}
@@ -163,7 +170,24 @@ export default function AnnouncementSettings() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>الوكيل المستهدف</Label>
+                <Select value={targetAgentId} onValueChange={setTargetAgentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الوكيل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع الوكلاء</SelectItem>
+                    {agents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name_ar || a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>عدد أيام العرض</Label>
                 <Input
@@ -181,20 +205,11 @@ export default function AnnouncementSettings() {
               <div className="space-y-2">
                 <Label>طريقة العرض</Label>
                 <div className="flex items-center gap-3 pt-2">
-                  <Switch
-                    checked={showOnce}
-                    onCheckedChange={setShowOnce}
-                    id="show-once"
-                  />
+                  <Switch checked={showOnce} onCheckedChange={setShowOnce} id="show-once" />
                   <Label htmlFor="show-once" className="cursor-pointer">
-                    {showOnce ? "مرة واحدة فقط" : "في كل مرة يفتح الصفحة"}
+                    {showOnce ? "مرة واحدة فقط" : "في كل مرة"}
                   </Label>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {showOnce
-                    ? "سيظهر للمستخدم مرة واحدة فقط"
-                    : "سيظهر في كل مرة يفتح المستخدم الصفحة حتى ينتهي"}
-                </p>
               </div>
             </div>
 
@@ -227,10 +242,7 @@ export default function AnnouncementSettings() {
                   const isActive = ann.is_active && !isExpired;
 
                   return (
-                    <div
-                      key={ann.id}
-                      className="border rounded-lg p-4 space-y-3"
-                    >
+                    <div key={ann.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -242,9 +254,11 @@ export default function AnnouncementSettings() {
                             ) : (
                               <Badge variant="outline">متوقف</Badge>
                             )}
-                            {ann.show_once && (
-                              <Badge variant="outline">مرة واحدة</Badge>
-                            )}
+                            {ann.show_once && <Badge variant="outline">مرة واحدة</Badge>}
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3" />
+                              {getAgentName(ann.agent_id)}
+                            </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
                             {ann.content}
@@ -261,9 +275,7 @@ export default function AnnouncementSettings() {
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={ann.is_active}
-                            onCheckedChange={() =>
-                              handleToggleActive(ann.id, ann.is_active)
-                            }
+                            onCheckedChange={() => handleToggleActive(ann.id, ann.is_active)}
                           />
                           <Button
                             variant="ghost"

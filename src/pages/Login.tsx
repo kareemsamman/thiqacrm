@@ -201,6 +201,14 @@ export default function Login() {
 
   const siteTitle = "Thiqa";
   const siteDesc = "نظام إدارة التأمين";
+  const canSubmitSignup =
+    !!firstName.trim() &&
+    !!lastName.trim() &&
+    signupEmail.includes("@") &&
+    signupPassword.length >= 6 &&
+    signupPassword === signupConfirmPassword &&
+    (!signupPhone.trim() || digitsOnly(signupPhone).length === 10) &&
+    !loading;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row relative" dir="rtl">

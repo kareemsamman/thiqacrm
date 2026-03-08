@@ -381,15 +381,15 @@ export default function ThiqaAgentDetail() {
 
   // ─── Change user role ───
   const changeUserRole = async (userId: string, newRole: 'admin' | 'worker') => {
-    await supabase.from('user_roles').upsert(
-      { user_id: userId, role: newRole, agent_id: agentId! },
-      { onConflict: 'user_id,role' }
-    );
-    // Delete old role if different
-    if (newRole === 'admin') {
-      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'worker').eq('agent_id', agentId!);
-    } else {
-      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin').eq('agent_id', agentId!);
+    // Delete all existing roles for this user in this agent
+    await supabase.from('user_roles').delete().eq('user_id', userId).eq('agent_id', agentId!);
+    // Insert the new role
+    const { error } = await supabase.from('user_roles').insert({
+      user_id: userId, role: newRole, agent_id: agentId!,
+    });
+    if (error) {
+      toast.error('خطأ في تغيير الصلاحية: ' + error.message);
+      return;
     }
     setUserRoles(prev => ({ ...prev, [userId]: newRole }));
     toast.success('تم تغيير الصلاحية');

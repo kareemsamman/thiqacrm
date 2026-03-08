@@ -92,7 +92,7 @@ export default function ThiqaAgentDetail() {
   const [activeTab, setActiveTab] = useState("info");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [periodStart, setPeriodStart] = useState<Date>(new Date());
-  const [periodEnd, setPeriodEnd] = useState<Date>(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; });
+  const [periodEnd, setPeriodEnd] = useState<Date>(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d; });
   const [deleteAgentOpen, setDeleteAgentOpen] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);

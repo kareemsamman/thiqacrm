@@ -63,6 +63,13 @@ import ActivityLog from "./pages/ActivityLog";
 import BrandingSettings from "./pages/BrandingSettings";
 import XServiceSettings from "./pages/XServiceSettings";
 import { SiteHelmet } from "@/components/layout/SiteHelmet";
+import { AgentProvider } from "@/hooks/useAgentContext";
+import { ThiqaAdminRoute } from "@/components/auth/ThiqaAdminRoute";
+import SubscriptionExpired from "./pages/SubscriptionExpired";
+import ThiqaAgents from "./pages/ThiqaAgents";
+import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
+import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
+import ThiqaPayments from "./pages/ThiqaPayments";
 
 const queryClient = new QueryClient({
   defaultOptions: {

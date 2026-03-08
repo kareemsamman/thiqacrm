@@ -45,7 +45,6 @@ import {
   Loader2,
   RefreshCw,
   Building2,
-  Phone,
   History,
   UserPlus,
   Plus,
@@ -65,7 +64,7 @@ interface UserProfile {
   created_at: string;
   updated_at: string;
   branch_id: string | null;
-  pbx_extension: string | null;
+  
 }
 
 interface UserRole {
@@ -382,33 +381,6 @@ export default function AdminUsers() {
     }
   };
 
-  const handleChangeExtension = async (userId: string, extension: string) => {
-    setActionLoading(userId);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ pbx_extension: extension || null } as any)
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث رقم التحويلة بنجاح",
-      });
-
-      fetchUsers();
-    } catch (error) {
-      console.error('Error changing extension:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث رقم التحويلة",
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const pendingUsers = users.filter(u => u.status === 'pending');
   const activeUsers = users.filter(u => u.status === 'active');
@@ -574,15 +546,15 @@ export default function AdminUsers() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="pending" className="space-y-4">
+        <Tabs defaultValue="active" className="space-y-4">
           <TabsList className="grid w-full max-w-xl grid-cols-4">
-            <TabsTrigger value="pending" className="gap-2">
-              <Clock className="h-4 w-4" />
-              معلق ({pendingUsers.length})
-            </TabsTrigger>
             <TabsTrigger value="active" className="gap-2">
               <CheckCircle className="h-4 w-4" />
               نشط ({activeUsers.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="gap-2">
+              <Clock className="h-4 w-4" />
+              معلق ({pendingUsers.length})
             </TabsTrigger>
             <TabsTrigger value="blocked" className="gap-2">
               <XCircle className="h-4 w-4" />
@@ -708,12 +680,6 @@ export default function AdminUsers() {
                       <TableHead className="text-right">البريد الإلكتروني</TableHead>
                       <TableHead className="text-right">الفرع</TableHead>
                       <TableHead className="text-right">الدور</TableHead>
-                      <TableHead className="text-right">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          التحويلة
-                        </div>
-                      </TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
@@ -762,27 +728,6 @@ export default function AdminUsers() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>
-                          <input
-                            type="text"
-                            className="w-20 px-2 py-1 text-sm border rounded bg-background text-center ltr-input"
-                            placeholder="101"
-                            defaultValue={user.pbx_extension || ''}
-                            onBlur={(e) => {
-                              const newValue = e.target.value.trim();
-                              if (newValue !== (user.pbx_extension || '')) {
-                                handleChangeExtension(user.id, newValue);
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            disabled={actionLoading === user.id}
-                          />
-                        </TableCell>
-                        <TableCell>{getStatusBadge(user.status)}</TableCell>
                         <TableCell>
                           {user.email !== 'morshed500@gmail.com' && (
                             <Button

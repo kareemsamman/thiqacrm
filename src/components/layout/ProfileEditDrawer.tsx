@@ -11,8 +11,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { User, Phone, Mail, Save, Loader2, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Phone, Mail, Save, Loader2, Lock, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface ProfileEditDrawerProps {
   open: boolean;
@@ -30,6 +31,7 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSectionOpen, setPasswordSectionOpen] = useState(false);
 
   const handleOpenChange = (val: boolean) => {
     if (val) {
@@ -37,6 +39,7 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
       setPhone((profile as any)?.phone || "");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordSectionOpen(false);
     }
     onOpenChange(val);
   };
@@ -83,6 +86,7 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
       toast.success("تم تغيير كلمة المرور بنجاح");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordSectionOpen(false);
     } catch (err: any) {
       toast.error(err.message || "خطأ في تغيير كلمة المرور");
     } finally {
@@ -95,30 +99,32 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-80 sm:w-96" dir="rtl">
-        <SheetHeader className="mb-6">
-          <SheetTitle>الملف الشخصي</SheetTitle>
+      <SheetContent side="right" className="w-80 sm:w-96 overflow-y-auto" dir="rtl">
+        <SheetHeader className="mb-4">
+          <SheetTitle className="text-lg">الملف الشخصي</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col items-center gap-3 mb-8">
+        {/* Avatar & Email */}
+        <div className="flex flex-col items-center gap-2 mb-6">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
               alt={userName}
-              className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/20"
+              className="h-16 w-16 rounded-full object-cover ring-2 ring-primary/20"
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-lg">
-              <span className="text-3xl font-bold text-primary-foreground">{initial}</span>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-lg">
+              <span className="text-2xl font-bold text-primary-foreground">{initial}</span>
             </div>
           )}
-          <p className="text-sm text-muted-foreground">{profile?.email}</p>
+          <p className="text-xs text-muted-foreground">{profile?.email}</p>
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
+        {/* Profile Fields */}
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="fullName" className="text-xs flex items-center gap-1.5 text-muted-foreground">
+              <User className="h-3.5 w-3.5" />
               الاسم الكامل
             </Label>
             <Input
@@ -127,26 +133,27 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
               onChange={(e) => setFullName(e.target.value)}
               placeholder="أدخل اسمك"
               dir="rtl"
+              className="h-9"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs flex items-center gap-1.5 text-muted-foreground">
+              <Mail className="h-3.5 w-3.5" />
               البريد الإلكتروني
             </Label>
             <Input
               id="email"
               value={profile?.email || ""}
               disabled
-              className="opacity-60"
+              className="h-9 opacity-50 cursor-not-allowed"
               dir="ltr"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+          <div className="space-y-1.5">
+            <Label htmlFor="phone" className="text-xs flex items-center gap-1.5 text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" />
               رقم الهاتف
             </Label>
             <Input
@@ -155,10 +162,11 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
               onChange={(e) => setPhone(e.target.value)}
               placeholder="05xxxxxxxx"
               dir="ltr"
+              className="h-9"
             />
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full mt-4">
+          <Button onClick={handleSave} disabled={saving} className="w-full h-9 text-sm">
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin ml-2" />
             ) : (
@@ -167,63 +175,81 @@ export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps
             حفظ التغييرات
           </Button>
 
-          <Separator className="my-4" />
+          <Separator />
 
-          {/* Password Change Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Lock className="h-4 w-4 text-muted-foreground" />
+          {/* Collapsible Password Section */}
+          <button
+            type="button"
+            onClick={() => setPasswordSectionOpen(!passwordSectionOpen)}
+            className="w-full flex items-center justify-between py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
               تغيير كلمة المرور
-            </h3>
+            </span>
+            {passwordSectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
-              <div className="relative">
+          <div className={cn(
+            "overflow-hidden transition-all duration-200",
+            passwordSectionOpen ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
+          )}>
+            <div className="space-y-3 pb-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword" className="text-xs">كلمة المرور الجديدة</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="6 أحرف على الأقل"
+                    dir="ltr"
+                    autoComplete="new-password"
+                    className="h-9 pl-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword" className="text-xs">تأكيد كلمة المرور</Label>
                 <Input
-                  id="newPassword"
+                  id="confirmPassword"
                   type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="6 أحرف على الأقل"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="أعد إدخال كلمة المرور"
                   dir="ltr"
                   autoComplete="new-password"
+                  className="h-9"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="أعد إدخال كلمة المرور"
-                dir="ltr"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <Button
-              variant="outline"
-              onClick={handlePasswordChange}
-              disabled={changingPassword || !newPassword || !confirmPassword}
-              className="w-full"
-            >
-              {changingPassword ? (
-                <Loader2 className="h-4 w-4 animate-spin ml-2" />
-              ) : (
-                <Lock className="h-4 w-4 ml-2" />
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-xs text-destructive">كلمة المرور غير متطابقة</p>
               )}
-              تغيير كلمة المرور
-            </Button>
+
+              <Button
+                variant="outline"
+                onClick={handlePasswordChange}
+                disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                className="w-full h-9 text-sm"
+              >
+                {changingPassword ? (
+                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                ) : (
+                  <Lock className="h-4 w-4 ml-2" />
+                )}
+                تغيير كلمة المرور
+              </Button>
+            </div>
           </div>
         </div>
       </SheetContent>

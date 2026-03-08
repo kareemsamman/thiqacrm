@@ -506,10 +506,10 @@ export function Sidebar() {
         </SheetContent>
       </Sheet>
 
-      {/* Desktop sidebar - hidden on mobile */}
+      {/* Desktop sidebar - floating with margin */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-40 h-screen border-l border-sidebar-border bg-sidebar transition-all duration-300 shadow-sm hidden md:block",
+          "fixed right-2 top-2 bottom-2 z-40 rounded-2xl border border-sidebar-border glass-dark transition-all duration-300 shadow-lg hidden md:block overflow-hidden",
           collapsed ? "w-16" : "w-64"
         )}
       >

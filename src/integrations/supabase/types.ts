@@ -730,6 +730,8 @@ export type Database = {
           id: string
           notes: string | null
           payment_date: string
+          period_end: string | null
+          period_start: string | null
           plan: string
           received_by: string | null
         }
@@ -740,6 +742,8 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_date?: string
+          period_end?: string | null
+          period_start?: string | null
           plan: string
           received_by?: string | null
         }
@@ -750,6 +754,8 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_date?: string
+          period_end?: string | null
+          period_start?: string | null
           plan?: string
           received_by?: string | null
         }

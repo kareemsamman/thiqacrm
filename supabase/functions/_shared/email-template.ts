@@ -150,3 +150,21 @@ export function welcomeAgentEmailBody(agentName: string): string {
     <p style="margin:28px 0 0;color:#999;font-size:13px;line-height:1.6;">يمكنك البدء فوراً بتسجيل الدخول إلى حسابك.</p>
   `;
 }
+
+/** Super admin notification: new agent registered */
+export function newAgentAdminNotifyBody(agentName: string, agentEmail: string, agentPhone: string | null): string {
+  return `
+    <h2 style="margin:0 0 6px;color:#111;font-size:22px;font-weight:700;">وكيل جديد سجّل في المنصة 🆕</h2>
+    <p style="margin:0 0 24px;color:#666;font-size:15px;line-height:1.8;">تم تسجيل وكيل جديد على منصة ثقة للتأمين:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;max-width:400px;">
+      <tr>
+        <td style="background:#f8f9fa;border-radius:10px;padding:20px 24px;text-align:right;">
+          <p style="margin:0 0 10px;color:#333;font-size:14px;line-height:1.8;"><strong>الاسم:</strong> ${agentName}</p>
+          <p style="margin:0 0 10px;color:#333;font-size:14px;line-height:1.8;"><strong>البريد:</strong> ${agentEmail}</p>
+          <p style="margin:0;color:#333;font-size:14px;line-height:1.8;"><strong>الهاتف:</strong> ${agentPhone || "غير متوفر"}</p>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:28px 0 0;color:#999;font-size:13px;line-height:1.6;">يمكنك مراجعة الحساب من لوحة تحكم المنصة.</p>
+  `;
+}

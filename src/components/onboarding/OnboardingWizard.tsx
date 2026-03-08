@@ -364,12 +364,12 @@ export function OnboardingWizard() {
 
                 <div className="flex-1 min-w-0">
                   <p className={cn(
-                    "text-sm font-semibold",
-                    isDone ? "text-primary" : "text-foreground"
+                    "text-sm font-semibold transition-all",
+                    isDone ? "text-primary line-through decoration-2 decoration-primary/60" : "text-foreground"
                   )}>
                     {step.title}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                  <p className={cn("text-xs truncate", isDone ? "text-primary/70 line-through decoration-primary/40" : "text-muted-foreground")}>{step.description}</p>
                 </div>
 
                 <ArrowLeft className={cn(

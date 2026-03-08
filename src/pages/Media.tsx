@@ -337,7 +337,7 @@ export default function Media() {
   return (
     <MainLayout>
       <Helmet>
-        <title>الوسائط | AB Insurance CRM</title>
+        <title>الوسائط | ثقة للتأمين</title>
       </Helmet>
 
       <div className="space-y-6">

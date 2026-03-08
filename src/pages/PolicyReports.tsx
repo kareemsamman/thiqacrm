@@ -856,7 +856,7 @@ export default function PolicyReports() {
   return (
     <MainLayout>
       <Helmet>
-        <title>تقارير الوثائق | AB Insurance CRM</title>
+        <title>تقارير الوثائق | ثقة للتأمين</title>
       </Helmet>
 
       <div className="space-y-6">

@@ -246,7 +246,7 @@ export default function SignaturePage() {
   return (
     <>
       <Helmet>
-        <title>توقيع العميل | AB Insurance CRM</title>
+        <title>توقيع العميل | ثقة للتأمين</title>
         <meta name="description" content="توقيع العميل على نموذج التأمين عبر رابط آمن لمرة واحدة." />
         <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
       </Helmet>

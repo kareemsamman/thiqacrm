@@ -269,8 +269,8 @@ serve(async (req) => {
             headers: {
               "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
               "Content-Type": "application/json",
-              "HTTP-Referer": "https://basheer-ab.lovable.app",
-              "X-Title": "AB Insurance CRM - Cheque Scanner",
+              "HTTP-Referer": "https://thiqacrm.lovable.app",
+              "X-Title": "Thiqa Insurance CRM - Cheque Scanner",
             },
             body: JSON.stringify({
               model: "google/gemini-2.5-flash",

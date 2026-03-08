@@ -75,17 +75,29 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 async function detectCompletedSteps(agentId: string): Promise<Set<string>> {
   const done = new Set<string>();
   try {
-    const [agentRes, companiesRes, profilesRes, clientsRes, policiesRes] = await Promise.all([
+    const [agentRes, siteSettingsRes, companiesRes, profilesRes, clientsRes, policiesRes] = await Promise.all([
       supabase.from("agents").select("logo_url, name_ar").eq("id", agentId).single(),
+      supabase
+        .from("site_settings")
+        .select("logo_url, site_title, site_description")
+        .eq("agent_id", agentId)
+        .maybeSingle(),
       supabase.from("insurance_companies").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
       supabase.from("profiles").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
       supabase.from("clients").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
       supabase.from("policies").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
     ]);
 
-    if (agentRes.data?.logo_url || (agentRes.data?.name_ar && agentRes.data.name_ar.length > 2)) {
-      done.add("branding");
-    }
+    const agentBrandingReady =
+      Boolean(agentRes.data?.logo_url) ||
+      Boolean(agentRes.data?.name_ar && agentRes.data.name_ar.trim().length > 2);
+
+    const siteBrandingReady =
+      Boolean(siteSettingsRes.data?.logo_url) ||
+      Boolean(siteSettingsRes.data?.site_title && siteSettingsRes.data.site_title.trim().length > 0) ||
+      Boolean(siteSettingsRes.data?.site_description && siteSettingsRes.data.site_description.trim().length > 0);
+
+    if (agentBrandingReady || siteBrandingReady) done.add("branding");
     if ((companiesRes.count ?? 0) > 0) done.add("companies");
     if ((profilesRes.count ?? 0) > 1) done.add("users");
     if ((clientsRes.count ?? 0) > 0) done.add("clients");

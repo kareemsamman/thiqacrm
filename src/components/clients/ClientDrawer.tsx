@@ -301,7 +301,13 @@ export function ClientDrawer({ open, onOpenChange, client, onSaved }: ClientDraw
       onSaved();
     } catch (error: any) {
       console.error('Save error:', error);
-      toast.error('فشل حفظ البيانات');
+      if (error?.code === '23505' && error?.message?.includes('id_number')) {
+        toast.error('رقم الهوية مسجل مسبقاً لعميل آخر');
+      } else if (error?.code === '23505' && error?.message?.includes('car_number')) {
+        toast.error('رقم السيارة مسجل مسبقاً');
+      } else {
+        toast.error('فشل حفظ البيانات');
+      }
     } finally {
       setSaving(false);
     }

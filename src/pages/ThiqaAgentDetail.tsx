@@ -578,18 +578,8 @@ export default function ThiqaAgentDetail() {
     payment_settings: "إعدادات الدفع", site_settings: "إعدادات الموقع", notifications: "الإشعارات",
   };
 
-  const [importTableIndex, setImportTableIndex] = useState(-1);
-  const [importStartTime, setImportStartTime] = useState<number | null>(null);
-  const [importElapsed, setImportElapsed] = useState(0);
-  const [importTotalRows, setImportTotalRows] = useState(0);
-  const [importDoneRows, setImportDoneRows] = useState(0);
 
-  // Elapsed time ticker
-  useEffect(() => {
-    if (!importStartTime) return;
-    const interval = setInterval(() => setImportElapsed(Math.floor((Date.now() - importStartTime) / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, [importStartTime]);
+
 
   const handleImportData = async () => {
     if (!importFile || !agentId) return;

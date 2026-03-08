@@ -173,9 +173,11 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     fetchAgentContext();
   }, [user, authLoading, isSuperAdmin, impersonatedAgentId]);
 
+  const subscriptionStatus = agent?.subscription_status;
   const isSubscriptionActive = isThiqaSuperAdmin || isImpersonating || !agent || 
-    agent.subscription_status === 'active' &&
-    (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date());
+    (subscriptionStatus === 'active' &&
+    (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date()));
+  const isSubscriptionPaused = subscriptionStatus === 'paused' || subscriptionStatus === 'suspended';
 
   const hasFeature = (featureKey: string): boolean => {
     if (isThiqaSuperAdmin || isImpersonating) return true;

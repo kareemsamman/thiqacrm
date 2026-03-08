@@ -64,6 +64,8 @@ export default function ThiqaAgentDetail() {
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);
+  const [agentStats, setAgentStats] = useState<{clients: number; cars: number; policies: number} | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [agentUsers, setAgentUsers] = useState<any[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [branches, setBranches] = useState<any[]>([]);
@@ -122,6 +124,24 @@ export default function ThiqaAgentDetail() {
     setUserRoles(rm);
     if (branchRes.data) setBranches(branchRes.data);
     setLoading(false);
+    // Fetch stats in background
+    fetchAgentStats();
+  };
+
+  const fetchAgentStats = async () => {
+    if (!agentId) return;
+    setStatsLoading(true);
+    const [clientsRes, carsRes, policiesRes] = await Promise.all([
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('agent_id', agentId),
+      supabase.from('cars').select('id', { count: 'exact', head: true }).eq('agent_id', agentId).is('deleted_at', null),
+      supabase.from('policies').select('id', { count: 'exact', head: true }).eq('agent_id', agentId),
+    ]);
+    setAgentStats({
+      clients: clientsRes.count || 0,
+      cars: carsRes.count || 0,
+      policies: policiesRes.count || 0,
+    });
+    setStatsLoading(false);
   };
 
   // ─── Save agent info ───
@@ -422,6 +442,7 @@ export default function ThiqaAgentDetail() {
               <TabsTrigger value="tranzila" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />Tranzila</TabsTrigger>
               <TabsTrigger value="features" className="text-xs md:text-sm px-2 md:px-3"><Settings className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />الميزات</TabsTrigger>
               <TabsTrigger value="payments" className="text-xs md:text-sm px-2 md:px-3"><CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />المدفوعات</TabsTrigger>
+              <TabsTrigger value="stats" className="text-xs md:text-sm px-2 md:px-3"><Building2 className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1" />إحصائيات</TabsTrigger>
             </TabsList>
           </div>
 
@@ -855,6 +876,43 @@ export default function ThiqaAgentDetail() {
                     </tbody>
                   </table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ STATS TAB ═══════════ */}
+          <TabsContent value="stats">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />إحصائيات الوكيل</CardTitle>
+                <CardDescription>عدد العملاء والسيارات والوثائق المسجلة</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+                  </div>
+                ) : agentStats ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border-2 text-center p-6">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.clients.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">عملاء</p>
+                    </Card>
+                    <Card className="border-2 text-center p-6">
+                      <Building2 className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.cars.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">سيارات</p>
+                    </Card>
+                    <Card className="border-2 text-center p-6">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.policies.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">وثائق تأمين</p>
+                    </Card>
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">لا توجد بيانات</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -154,6 +154,7 @@ export function CompanyDrawer({ open, onClose, company, onSuccess }: CompanyDraw
             active: formData.active,
             elzami_commission: formData.category_parents.includes('ELZAMI') ? formData.elzami_commission : 0,
             broker_id: formData.broker_id || null,
+            agent_id: agentId,
           });
 
         if (error) throw error;

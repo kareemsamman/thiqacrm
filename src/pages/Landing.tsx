@@ -222,30 +222,30 @@ export default function Landing() {
 
       <section id="features" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">البيت الرقمي لوكالتك</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">{ct(content, "benefits_section_label", "البيت الرقمي لوكالتك")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-            كل الأدوات لإدارة الوكالة تحت سقف واحد
+            {ct(content, "benefits_section_title", "كل الأدوات لإدارة الوكالة تحت سقف واحد")}
           </h2>
           <p className="text-white/40 text-sm max-w-xl mx-auto mb-16">
-            بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
+            {ct(content, "benefits_section_subtitle", "بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.")}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
             {[
               {
                 img: featureProfitEngine,
-                title: "محرك حساب أرباح تلقائي.",
-                desc: "إدارة تدفقات الشيكات، تحصيل بطاقات ائتمان وتسوية مع الوسطاء وشركات التأمين بدقة 100%. بدون خسارة عمولات وبدون حسابات يدوية.",
+                title: ct(content, "benefit_card_1_title", "محرك حساب أرباح تلقائي."),
+                desc: ct(content, "benefit_card_1_desc", "إدارة تدفقات الشيكات، تحصيل بطاقات ائتمان وتسوية مع الوسطاء وشركات التأمين بدقة 100%. بدون خسارة عمولات وبدون حسابات يدوية."),
               },
               {
                 img: featurePaperless,
-                title: "صفر أوراق، أقصى سرعة.",
-                desc: "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.",
+                title: ct(content, "benefit_card_2_title", "صفر أوراق، أقصى سرعة."),
+                desc: ct(content, "benefit_card_2_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال."),
               },
               {
                 img: featureMarketing,
-                title: "تحويل البيانات إلى مبيعات.",
-                desc: "نظام تسويق مدمج لإرسال حملات عبر SMS وبريد إلكتروني. تذكيرات تلقائية للتجديدات، تحديثات عروض والحفاظ على العملاء بشكل فعّال.",
+                title: ct(content, "benefit_card_3_title", "تحويل البيانات إلى مبيعات."),
+                desc: ct(content, "benefit_card_3_desc", "نظام تسويق مدمج لإرسال حملات عبر SMS وبريد إلكتروني. تذكيرات تلقائية للتجديدات، تحديثات عروض والحفاظ على العملاء بشكل فعّال."),
               },
             ].map((card, i) => (
               <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden text-center">

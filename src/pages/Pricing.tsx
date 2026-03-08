@@ -58,6 +58,7 @@ const plans = [
 ];
 
 export default function Pricing() {
+  usePageView("/pricing");
   const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [yearly, setYearly] = useState(false);

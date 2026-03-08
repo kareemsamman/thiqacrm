@@ -55,7 +55,6 @@ Deno.serve(async (req) => {
 
     if (linkError) {
       console.error("Generate link error:", linkError);
-      // Don't reveal if user exists or not
       return new Response(
         JSON.stringify({ success: true, message: "إذا كان البريد مسجلاً، سيتم إرسال رابط إعادة التعيين" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -66,13 +65,11 @@ Deno.serve(async (req) => {
     if (!recoveryLink) throw new Error("فشل في إنشاء رابط إعادة التعيين");
 
     // Build branded Arabic email
-    const htmlContent = `
-<!doctype html>
+    const htmlContent = `<!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>=?UTF-8?B?${btoa(unescape(encodeURIComponent("إعادة تعيين كلمة المرور")))}?=</title>
   </head>
   <body style="margin:0;padding:20px;background:#f4f5f7;font-family:'Cairo','Segoe UI',Arial,sans-serif;direction:rtl;text-align:center;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:20px;padding:0;box-shadow:0 8px 30px rgba(0,0,0,0.06);overflow:hidden;">
@@ -86,7 +83,7 @@ Deno.serve(async (req) => {
       <!-- Body -->
       <div style="padding:32px 28px 36px;">
         <div style="width:56px;height:56px;background:#f0f0f0;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;">🔑</span>
+          <span style="font-size:28px;">&#x1F511;</span>
         </div>
         
         <h2 style="margin:0 0 10px;color:#171717;font-size:22px;font-weight:700;">إعادة تعيين كلمة المرور</h2>
@@ -113,7 +110,7 @@ Deno.serve(async (req) => {
       </div>
     </div>
     
-    <p style="margin:20px 0 0;color:#b0b0b0;font-size:10px;">© ${new Date().getFullYear()} Thiqa Insurance Platform</p>
+    <p style="margin:20px 0 0;color:#b0b0b0;font-size:10px;">&#xA9; ${new Date().getFullYear()} Thiqa Insurance Platform</p>
   </body>
 </html>`;
 
@@ -129,10 +126,10 @@ Deno.serve(async (req) => {
     });
 
     await client.send({
-      from: `${smtp.senderName} <${smtp.user}>`,
+      from: `"${smtp.senderName}" <${smtp.user}>`,
       to: normalizedEmail,
       subject: `=?UTF-8?B?${subjectB64}?=`,
-      content: `لقد طلبت إعادة تعيين كلمة المرور. استخدم هذا الرابط: ${recoveryLink}`,
+      content: "auto",
       html: htmlContent,
     });
 

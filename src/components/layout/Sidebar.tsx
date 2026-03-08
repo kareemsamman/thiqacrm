@@ -269,18 +269,24 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            {siteSettings?.logo_url ? (
+            {isThiqaSuperAdmin ? (
+              <img src={thiqaLogo} alt="Thiqa" className="h-12 w-12 rounded-lg object-contain" />
+            ) : siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
             ) : (
               <img src={thiqaLogo} alt="ثقة" className="h-9 w-9 rounded-lg object-contain" />
             )}
-            <span className="text-base font-semibold text-sidebar-foreground">
-              {siteSettings?.site_title || 'ثقة للتأمين'}
-            </span>
+            {!isThiqaSuperAdmin && (
+              <span className="text-base font-semibold text-sidebar-foreground">
+                {siteSettings?.site_title || 'ثقة للتأمين'}
+              </span>
+            )}
           </div>
         )}
         {collapsed && (
-          siteSettings?.logo_url ? (
+          isThiqaSuperAdmin ? (
+            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-12 w-12 rounded-lg object-contain" />
+          ) : siteSettings?.logo_url ? (
             <img src={siteSettings.logo_url} alt="Logo" className="mx-auto h-9 w-9 rounded-lg object-contain" />
           ) : (
             <img src={thiqaLogo} alt="ثقة" className="mx-auto h-9 w-9 rounded-lg object-contain" />

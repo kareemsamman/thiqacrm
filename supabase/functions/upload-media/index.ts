@@ -289,6 +289,7 @@ serve(async (req) => {
         entity_id: entityId,
         uploaded_by: user.id,
         branch_id: userBranchId,
+        agent_id: agentId,
       })
       .select()
       .single();

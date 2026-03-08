@@ -133,8 +133,6 @@ export default function BrandingSettings() {
         og_image_url: ogImageUrl,
       });
       toast.success("تم حفظ الإعدادات بنجاح");
-      // Refresh onboarding wizard and open it when progress is updated
-      setTimeout(() => window.dispatchEvent(new Event('onboarding-progress-updated')), 300);
     } catch {
       toast.error("فشل في حفظ الإعدادات");
     }

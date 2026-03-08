@@ -8,32 +8,12 @@ const corsHeaders = {
 
 // ── Seed Data ────────────────────────────────────────────────────────
 const SEED_COMPANIES = [
-  // ELZAMI
-  { name: "Clal Jia", name_ar: "כלל ירושלים", category_parent: ["ELZAMI"], elzami_commission: 100 },
-  { name: "אנקור", name_ar: "אנקור", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  { name: "شلومو", name_ar: "شلومو", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  { name: "منورا", name_ar: "منورا", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  { name: "هبول", name_ar: "هبول", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  { name: "هرئل", name_ar: "هرئل", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  { name: "وي شور", name_ar: "وي شور", category_parent: ["ELZAMI"], elzami_commission: 0 },
-  // THIRD_FULL
-  { name: "כלל", name_ar: "כלל", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "פנקס", name_ar: "פנקס", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "أهلية", name_ar: "أهلية", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
+  // 1 ELZAMI company
+  { name: "כלל", name_ar: "כלל", category_parent: ["ELZAMI"], elzami_commission: 100 },
+  // 1 THIRD_FULL company (with pricing rules)
   { name: "اراضي مقدسة", name_ar: "اراضي مقدسة", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "ترست", name_ar: "ترست", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "تكافل", name_ar: "تكافل", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "شركة المشرق", name_ar: "شركة المشرق", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "شركة فلسطين كرمل", name_ar: "شركة فلسطين كرمل", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  { name: "فلسطين", name_ar: "فلسطين الحج عامر", category_parent: ["THIRD_FULL"], elzami_commission: 0 },
-  // ROAD_SERVICE
-  { name: "tik tak", name_ar: "tik tak", category_parent: ["ROAD_SERVICE"], elzami_commission: 0 },
-  { name: "שגריר", name_ar: "שגריר", category_parent: ["ROAD_SERVICE"], elzami_commission: 0 },
-  { name: "الوسيط", name_ar: "الوسيط", category_parent: ["ROAD_SERVICE"], elzami_commission: 0 },
+  // 1 ROAD_SERVICE company (X Service - with service & accident fee prices)
   { name: "شركة اكس", name_ar: "شركة اكس", category_parent: ["ROAD_SERVICE"], elzami_commission: 0 },
-  { name: "كوبل", name_ar: "كوبل", category_parent: ["ROAD_SERVICE"], elzami_commission: 0 },
-  // No category
-  { name: "معفي من الدفع", name_ar: "معفي من الدفع", category_parent: null, elzami_commission: 0 },
 ];
 
 const SEED_INSURANCE_CATEGORIES = [

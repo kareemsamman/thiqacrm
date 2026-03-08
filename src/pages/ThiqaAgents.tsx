@@ -184,7 +184,7 @@ export default function ThiqaAgents() {
                       </td>
                       <td className="p-3 text-muted-foreground">{agent.email}</td>
                       <td className="p-3">{planBadge(agent.plan)}</td>
-                      <td className="p-3">{statusBadge(agent.subscription_status)}</td>
+                      <td className="p-3">{statusBadge(agent)}</td>
                       <td className="p-3 text-muted-foreground">
                         {agent.subscription_expires_at 
                           ? format(new Date(agent.subscription_expires_at), 'dd/MM/yyyy')

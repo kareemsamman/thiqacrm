@@ -48,7 +48,7 @@ export default function Login() {
         sessionStorage.setItem('admin_session_active', 'true');
       }
       if (isActive) {
-        navigate(isSuperAdmin ? '/thiqa/agents' : '/', { replace: true });
+        navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
       } else {
         navigate('/no-access', { replace: true });
       }

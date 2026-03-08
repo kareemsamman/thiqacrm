@@ -26,10 +26,11 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, isActive, isSuperAdmin, loading: authLoading } = useAuth();
   
-  // OTP state
+  // OTP state (for SMS only now)
   const [authStep, setAuthStep] = useState<AuthStep>("method");
   const [authMethod, setAuthMethod] = useState<AuthMethod>("google");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [countdown, setCountdown] = useState(0);

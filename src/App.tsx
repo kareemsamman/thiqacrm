@@ -378,6 +378,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             </RecentClientProvider>
+            </SidebarStateProvider>
             </AgentProvider>
             </SessionTrackerWrapper>
           </AuthProvider>

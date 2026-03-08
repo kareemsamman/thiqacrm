@@ -82,17 +82,16 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ Section 2: כל הכלים — Screenshots tilted ═══ */}
-      <section id="features" className="py-24 md:py-36 relative bg-[#0a0e1a]">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
+      {/* ═══ Section 2: כל הכלים — Screenshots ═══ */}
+      <section id="features" className="py-24 md:py-36 relative bg-[#0c1329]">
         <div className="relative max-w-6xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight">
             כל הכלים לניהול הסוכנות
             <br />
-            <span className="text-white/60">תחת קורת גג אחת</span>
+            <span className="text-white/50">תחת קורת גג אחת</span>
           </h2>
 
-          {/* Perspective mockups */}
+          {/* Mockup screenshots */}
           <div className="mt-16 relative flex justify-center">
             <div className="relative w-full max-w-5xl">
               <div className="absolute inset-0 bg-[#3355cc]/[0.08] rounded-[32px] blur-[60px]" />
@@ -113,6 +112,36 @@ export default function Landing() {
           </Button>
         </div>
       </section>
+
+      {/* ═══ Diagonal divider ═══ */}
+      <img src={sectionDivider} alt="" className="w-full h-auto block" />
+
+      {/* ═══ Features bar ═══ */}
+      <section className="py-16 md:py-20 bg-[#151a2a]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
+            {[
+              { icon: Users, title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה" },
+              { icon: CreditCard, title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות" },
+              { icon: MessageSquare, title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות" },
+              { icon: BarChart3, title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת" },
+            ].map((item, i) => (
+              <div key={i} className="text-center flex flex-col items-center gap-3">
+                <div className="h-14 w-14 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center">
+                  <item.icon className="h-6 w-6 text-white/60" />
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold text-white/90">{item.title}</p>
+                  <p className="text-[13px] text-white/40">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Diagonal divider ═══ */}
+      <img src={sectionDivider} alt="" className="w-full h-auto block" />
 
       {/* ═══ Section 3: Feature breakdown with stats ═══ */}
       <section className="py-24 md:py-36 relative">

@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         name_ar: fullName,
         email: normalizedEmail,
         phone: phone?.trim() || null,
-        plan: "trial",
+        plan: "basic",
         subscription_status: "active",
         subscription_expires_at: trialEnd.toISOString(),
         monthly_price: 0,

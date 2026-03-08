@@ -430,7 +430,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56" dir="rtl">
+          <DropdownMenuContent align="end" side="top" className="w-56 [direction:rtl]">
             <div className="px-3 py-2 border-b">
               <p className="text-sm font-medium">{userName}</p>
               <p className="text-xs text-muted-foreground">{profile?.email}</p>

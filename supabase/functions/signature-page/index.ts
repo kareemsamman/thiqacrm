@@ -399,7 +399,7 @@ function buildSignaturePageHtml(
       margin-bottom: 20px;
     }
     .signature-section h3 {
-      color: #1e3a5f;
+      color: ${primaryColor};
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 15px;

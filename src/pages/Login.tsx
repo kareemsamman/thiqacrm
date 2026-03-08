@@ -126,21 +126,15 @@ export default function Login() {
         if (error.message.includes("Invalid login credentials")) {
           toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         } else if (isEmailNotConfirmed) {
-          // Check if skip is enabled
-          const { data: skipRes } = await supabase
-            .from('thiqa_platform_settings')
-            .select('setting_value')
-            .eq('setting_key', 'skip_email_verification')
-            .maybeSingle();
+          toast.info("جاري محاولة تفعيل الحساب تلقائياً...");
+          const bypassed = await tryBypassEmailVerification(email.trim());
 
-          if (skipRes?.setting_value === "true") {
-            // Auto-confirm via edge function and retry
-            toast.info("جاري تفعيل الحساب...");
-            await supabase.functions.invoke("registration-otp-verify", {
-              body: { email: email.trim(), skip: true },
+          if (bypassed) {
+            const { error: retryError } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
             });
-            // Retry login
-            const { error: retryError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+
             if (retryError) {
               toast.error("فشل تسجيل الدخول بعد التفعيل");
             } else {

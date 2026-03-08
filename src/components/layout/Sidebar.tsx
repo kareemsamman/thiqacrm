@@ -104,7 +104,6 @@ export const navigationGroups: NavGroup[] = [
       { name: "السيارات", href: "/cars", icon: Car },
       { name: "الوثائق", href: "/policies", icon: FileText },
       { name: "جهات الاتصال", href: "/contacts", icon: Contact },
-      { name: "Whatsapp Leads", href: "/leads", icon: MessageSquare },
     ],
   },
   {
@@ -154,9 +153,7 @@ export const navigationGroups: NavGroup[] = [
       { name: "أنواع التأمين", href: "/admin/insurance-categories", icon: FileText },
       { name: "خدمات الطريق", href: "/admin/road-services", icon: Truck },
       { name: "إعفاء رسوم الحادث", href: "/admin/accident-fee-services", icon: Shield },
-      { name: "قوالب الفواتير", href: "/admin/invoice-templates", icon: FileText },
       { name: "توقيعات العملاء", href: "/admin/customer-signatures", icon: FileSignature },
-      { name: "إعدادات الدفع", href: "/admin/payment-settings", icon: CreditCard },
       { name: "سجل الرسائل", href: "/sms-history", icon: History },
       { name: "العلامة التجارية", href: "/admin/branding", icon: Palette },
     ],

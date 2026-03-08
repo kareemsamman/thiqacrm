@@ -24,11 +24,36 @@ export default function VerifyEmail() {
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
-  // Send OTP on mount
+  // Check bypass on mount — if skip is enabled, auto-confirm and redirect
   useEffect(() => {
-    if (email) {
+    if (!email) return;
+
+    const checkBypass = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("registration-otp-verify", {
+          body: { email, skip: true },
+        });
+        if (!error && data?.success) {
+          toast.success("تم تفعيل الحساب تلقائياً!");
+          // Try auto-login if password is in URL
+          const pw = new URLSearchParams(window.location.search).get("p");
+          if (pw) {
+            const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password: pw });
+            if (!loginErr) {
+              navigate("/", { replace: true });
+              return;
+            }
+          }
+          navigate("/login", { replace: true });
+          return;
+        }
+      } catch {}
+
+      // Not bypassed — send OTP as normal
       sendOtp();
-    }
+    };
+
+    checkBypass();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -47,7 +47,12 @@ import {
   Building2,
   Phone,
   History,
+  UserPlus,
+  Plus,
 } from "lucide-react";
+import { useAgentContext } from "@/hooks/useAgentContext";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { UserSessionsTab } from "@/components/admin/UserSessionsTab";

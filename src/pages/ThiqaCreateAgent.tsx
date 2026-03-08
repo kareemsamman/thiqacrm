@@ -18,7 +18,7 @@ export default function ThiqaCreateAgent() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    name: '', name_ar: '', email: '', phone: '', plan: 'basic', notes: '',
+    name: '', name_ar: '', email: '', phone: '', plan: 'free_trial', notes: '',
   });
 
   const handleSubmit = async () => {

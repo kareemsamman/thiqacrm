@@ -113,8 +113,8 @@ export const navigationGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { name: "تقارير الوثائق", href: "/reports/policies", icon: BarChart3, badge: 'renewals' },
-      { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true },
-      { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true },
+      { name: "تقرير الشركات", href: "/reports/company-settlement", icon: BarChart3, adminOnly: true, featureKey: 'company_settlement' },
+      { name: "التقارير المالية", href: "/reports/financial", icon: Wallet, adminOnly: true, featureKey: 'financial_reports' },
     ],
   },
   {

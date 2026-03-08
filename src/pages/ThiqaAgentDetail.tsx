@@ -74,6 +74,12 @@ export default function ThiqaAgentDetail() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "worker">("worker");
+  const [newUserBranch, setNewUserBranch] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
 
   useEffect(() => {

@@ -183,7 +183,7 @@ export default function Landing() {
                 boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
               }}
             >
-              احصل على 35 يوم مجاناً
+              {ct(content, "hero_cta", "احصل على 35 يوم مجاناً")}
             </button>
           </div>
         </div>

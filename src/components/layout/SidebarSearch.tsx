@@ -89,7 +89,7 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
   return (
     <div ref={containerRef} className="px-3 py-2 border-b border-sidebar-border">
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sidebar-foreground/60 pointer-events-none" />
         <Input
           ref={inputRef}
           placeholder="ابحث عن صفحة..."
@@ -100,31 +100,31 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
           }}
           onFocus={() => setShowResults(true)}
           onKeyDown={handleKeyDown}
-          className="pr-9 text-right text-sm h-9 bg-sidebar-accent/50 border-sidebar-border"
+          className="pr-9 text-right text-sm h-9 glass-dark text-sidebar-foreground placeholder:text-sidebar-foreground/40 border-0 focus-visible:ring-1 focus-visible:ring-[hsl(var(--sidebar-active))]/30"
           dir="rtl"
         />
         
         {/* Results dropdown */}
         {showResults && query.trim() && (
-          <div className="absolute top-full right-0 mt-1 w-full bg-popover border border-border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+          <div className="absolute top-full right-0 mt-1 w-full glass-dark rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
             {results.length > 0 ? (
               results.map((item) => (
                 <button
                   key={item.href}
                   onClick={() => handleSelect(item.href)}
                   className={cn(
-                    "flex items-center gap-3 w-full px-3 py-2 text-sm text-right",
-                    "hover:bg-muted transition-colors",
+                    "flex items-center gap-3 w-full px-3 py-2 text-sm text-right text-sidebar-foreground",
+                    "hover:bg-[hsl(var(--sidebar-active))]/10 transition-colors",
                     "first:rounded-t-lg last:rounded-b-lg"
                   )}
                   dir="rtl"
                 >
-                  <item.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <item.icon className="h-4 w-4 text-sidebar-foreground/50 flex-shrink-0" />
                   <span>{item.name}</span>
                 </button>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+              <div className="px-3 py-2 text-sm text-sidebar-foreground/40 text-center">
                 لا توجد نتائج
               </div>
             )}

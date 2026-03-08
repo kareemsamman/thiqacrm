@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Info } from "lucide-react";
+import { useLandingContent, ct } from "@/hooks/useLandingContent";
 import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import sectionDividerDark from "@/assets/landing/section-divider-dark.png";
 

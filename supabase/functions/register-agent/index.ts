@@ -5,16 +5,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const EMAIL_EXISTS_REGEX = /already been registered|email_exists/i;
+
+type AdminClient = ReturnType<typeof createClient>;
+
+async function findAuthUserByEmail(adminClient: AdminClient, normalizedEmail: string) {
+  const perPage = 200;
+
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    const found = data.users.find((u) => (u.email || "").toLowerCase() === normalizedEmail);
+    if (found) return found;
+
+    if (data.users.length < perPage) break;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  let adminClient: AdminClient | null = null;
+  let createdAuthUserId: string | null = null;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const adminClient = createClient(supabaseUrl, serviceKey);
+    adminClient = createClient(supabaseUrl, serviceKey);
 
-    const { first_name, last_name, email, password, phone, birth_date } = await req.json();
+    const { first_name, last_name, email, password, phone } = await req.json();
 
     if (!first_name || !last_name || !email || !password) {
       throw new Error("جميع الحقول مطلوبة");
@@ -25,26 +48,53 @@ Deno.serve(async (req) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const fullName = `${first_name.trim()} ${last_name.trim()}`;
+    const fullName = `${String(first_name).trim()} ${String(last_name).trim()}`;
 
-    // Create auth user with email confirmation required
+    let userId: string | null = null;
+
     const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
       email: normalizedEmail,
       password,
-      email_confirm: false, // Requires email confirmation
+      email_confirm: false,
       user_metadata: { full_name: fullName },
     });
 
     if (createError) {
-      if (/already been registered|email_exists/i.test(createError.message || "")) {
+      if (!EMAIL_EXISTS_REGEX.test(createError.message || "")) {
+        throw createError;
+      }
+
+      const { data: existingProfile, error: profileLookupError } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (profileLookupError) throw profileLookupError;
+
+      if (existingProfile?.id) {
         throw new Error("هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.");
       }
-      throw createError;
+
+      const existingAuthUser = await findAuthUserByEmail(adminClient, normalizedEmail);
+      if (!existingAuthUser) {
+        throw new Error("هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.");
+      }
+
+      userId = existingAuthUser.id;
+
+      const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: false,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (updateAuthError) throw updateAuthError;
+    } else {
+      userId = createdUser.user.id;
+      createdAuthUserId = userId;
     }
 
-    const userId = createdUser.user.id;
-
-    // Create agent with 35-day free trial
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 35);
 
@@ -65,63 +115,79 @@ Deno.serve(async (req) => {
 
     if (agentError) throw agentError;
 
-    // Create profile
     const { error: profileError } = await adminClient
       .from("profiles")
-      .upsert({
-        id: userId,
-        email: normalizedEmail,
-        full_name: fullName,
-        phone: phone?.trim() || null,
-        status: "active",
-        agent_id: agentData.id,
-      }, { onConflict: "id" });
+      .upsert(
+        {
+          id: userId,
+          email: normalizedEmail,
+          full_name: fullName,
+          phone: phone?.trim() || null,
+          status: "active",
+          agent_id: agentData.id,
+        },
+        { onConflict: "id" },
+      );
 
     if (profileError) throw profileError;
 
-    // Create agent_user link
     const { error: linkError } = await adminClient
       .from("agent_users")
-      .insert({
-        agent_id: agentData.id,
-        user_id: userId,
-      });
+      .upsert(
+        {
+          agent_id: agentData.id,
+          user_id: userId,
+        },
+        { onConflict: "user_id" },
+      );
 
     if (linkError) throw linkError;
 
-    // Grant admin role
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: "admin",
-      });
+      .upsert(
+        {
+          user_id: userId,
+          role: "admin",
+        },
+        { onConflict: "user_id,role" },
+      );
 
-    if (roleError) console.error("Role assignment error:", roleError);
+    if (roleError) {
+      console.error("Role assignment error:", roleError);
+    }
 
-    // Send OTP to email for verification
     const { error: otpError } = await adminClient.auth.admin.generateLink({
       type: "signup",
       email: normalizedEmail,
       password,
     });
 
-    if (otpError) console.error("OTP send error:", otpError);
+    if (otpError) {
+      console.error("OTP send error:", otpError);
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.",
         agent_id: agentData.id,
         user_id: userId,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: any) {
+    if (createdAuthUserId && adminClient) {
+      const { error: rollbackError } = await adminClient.auth.admin.deleteUser(createdAuthUserId);
+      if (rollbackError) {
+        console.error("Rollback auth user error:", rollbackError);
+      }
+    }
+
     console.error("Registration error:", error);
     return new Response(
       JSON.stringify({ error: error.message || "حدث خطأ غير متوقع" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

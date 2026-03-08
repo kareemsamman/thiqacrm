@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
+type SignupFeedback = { type: "success" | "error" | "info"; message: string };
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function Login() {
   
   // Signup validation errors (shown after attempted submit)
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
+  const [signupFeedback, setSignupFeedback] = useState<SignupFeedback | null>(null);
 
   useEffect(() => {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }
@@ -107,6 +109,24 @@ export default function Login() {
     }
   };
 
+  const extractInvokeErrorMessage = async (rawError: unknown) => {
+    if (!(rawError instanceof Error)) return "حدث خطأ غير متوقع";
+
+    const response = (rawError as Error & { context?: Response }).context;
+    if (response && typeof response.json === "function") {
+      try {
+        const payload = await response.clone().json();
+        if (payload?.error || payload?.message) {
+          return payload.error || payload.message;
+        }
+      } catch {
+        // noop - fallback to normal error parsing
+      }
+    }
+
+    return extractFunctionMessage(rawError.message);
+  };
+
   const validateSignupForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
@@ -119,13 +139,20 @@ export default function Login() {
   };
 
   const handleSignup = async () => {
+    setSignupFeedback(null);
+
     const errors = validateSignupForm();
     setSignupErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      setSignupFeedback({ type: "error", message: "يرجى تصحيح الأخطاء قبل إكمال التسجيل" });
+      return;
+    }
 
     setLoading(true);
+    setSignupFeedback({ type: "info", message: "جارٍ إنشاء وكالة جديدة..." });
+
     try {
-      const { data, error } = await supabase.functions.invoke('register-agent', {
+      const { data, error } = await supabase.functions.invoke("register-agent", {
         body: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
@@ -135,19 +162,33 @@ export default function Login() {
         },
       });
 
-      if (error) throw new Error(extractFunctionMessage(error.message));
+      if (error) {
+        const parsedError = await extractInvokeErrorMessage(error);
+        throw new Error(parsedError);
+      }
+
       if (data?.error) throw new Error(data.error);
 
-      toast.success(data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.");
+      const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.";
+      toast.success(successMessage);
+      setSignupFeedback({ type: "success", message: successMessage });
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
-      setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
-      setSignupConfirmPassword(""); setSignupPhone("");
+      setFirstName("");
+      setLastName("");
+      setSignupEmail("");
+      setSignupPassword("");
+      setSignupConfirmPassword("");
+      setSignupPhone("");
       setSignupErrors({});
     } catch (e: unknown) {
-      toast.error(extractFunctionMessage(e instanceof Error ? e.message : "حدث خطأ غير متوقع"));
-    } finally { setLoading(false); }
+      const errorMessage = await extractInvokeErrorMessage(e);
+      setSignupFeedback({ type: "error", message: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (authLoading) {
@@ -160,6 +201,14 @@ export default function Login() {
 
   const siteTitle = "Thiqa";
   const siteDesc = "نظام إدارة التأمين";
+  const canSubmitSignup =
+    !!firstName.trim() &&
+    !!lastName.trim() &&
+    signupEmail.includes("@") &&
+    signupPassword.length >= 6 &&
+    signupPassword === signupConfirmPassword &&
+    (!signupPhone.trim() || digitsOnly(signupPhone).length === 10) &&
+    !loading;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row relative" dir="rtl">
@@ -303,16 +352,20 @@ export default function Login() {
                     <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — هذا التسجيل ينشئ وكالة جديدة مستقلة</p>
                   </div>
 
+                  <div className="rounded-xl border border-border/60 bg-secondary/40 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">هذا النموذج مخصص لتسجيل <span className="font-semibold text-foreground">وكالة جديدة</span> فقط، وليس لإضافة مستخدم داخل وكالة موجودة.</p>
+                  </div>
+
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأول *</Label>
-                        <Input value={firstName} onChange={(e) => { setFirstName(e.target.value); setSignupErrors(prev => ({ ...prev, firstName: "" })); }} placeholder="محمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.firstName ? "border-destructive" : ""}`} disabled={loading} />
+                        <Input value={firstName} onChange={(e) => { setFirstName(e.target.value); setSignupErrors(prev => ({ ...prev, firstName: "" })); setSignupFeedback(null); }} placeholder="محمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.firstName ? "border-destructive" : ""}`} disabled={loading} />
                         {signupErrors.firstName && <p className="text-xs text-destructive">{signupErrors.firstName}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأخير *</Label>
-                        <Input value={lastName} onChange={(e) => { setLastName(e.target.value); setSignupErrors(prev => ({ ...prev, lastName: "" })); }} placeholder="أحمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.lastName ? "border-destructive" : ""}`} disabled={loading} />
+                        <Input value={lastName} onChange={(e) => { setLastName(e.target.value); setSignupErrors(prev => ({ ...prev, lastName: "" })); setSignupFeedback(null); }} placeholder="أحمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.lastName ? "border-destructive" : ""}`} disabled={loading} />
                         {signupErrors.lastName && <p className="text-xs text-destructive">{signupErrors.lastName}</p>}
                       </div>
                     </div>
@@ -320,32 +373,53 @@ export default function Login() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">البريد الإلكتروني *</Label>
-                        <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
+                        <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); setSignupFeedback(null); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
                         {signupErrors.signupEmail && <p className="text-xs text-destructive">{signupErrors.signupEmail}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">رقم الهاتف (10 أرقام)</Label>
-                        <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
+                        <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); setSignupFeedback(null); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
                         {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">كلمة المرور *</Label>
-                        <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); setSignupFeedback(null); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
                         {signupErrors.signupPassword && <p className="text-xs text-destructive">{signupErrors.signupPassword}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">تأكيد كلمة المرور *</Label>
-                        <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                        <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); setSignupFeedback(null); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
                         {signupErrors.signupConfirmPassword && <p className="text-xs text-destructive">{signupErrors.signupConfirmPassword}</p>}
                       </div>
                     </div>
 
-                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>
+                    <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={!canSubmitSignup}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
                       {loading ? "جاري التسجيل..." : "تسجيل وكيل جديد"}
                     </Button>
+
+                    {signupFeedback && (
+                      <div
+                        className={`rounded-xl border p-3 text-sm flex items-start gap-2 ${
+                          signupFeedback.type === "success"
+                            ? "border-success/30 bg-success/10 text-success"
+                            : signupFeedback.type === "error"
+                            ? "border-destructive/30 bg-destructive/10 text-destructive"
+                            : "border-primary/30 bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {signupFeedback.type === "success" ? (
+                          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                        ) : signupFeedback.type === "error" ? (
+                          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        ) : (
+                          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                        )}
+                        <p className="leading-5">{signupFeedback.message}</p>
+                      </div>
+                    )}
                   </div>
 
                   <Separator />

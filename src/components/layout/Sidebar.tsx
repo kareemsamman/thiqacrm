@@ -58,6 +58,8 @@ interface NavItem {
   icon: LucideIcon;
   adminOnly?: boolean;
   superAdminOnly?: boolean;
+  thiqaSuperAdminOnly?: boolean;
+  featureKey?: string;
   badge?: 'notifications' | 'debt' | 'tasks' | 'claims' | 'accidents' | 'renewals';
 }
 

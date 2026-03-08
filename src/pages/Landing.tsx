@@ -132,7 +132,7 @@ export default function Landing() {
             <a href="/pricing" className="hover:text-white transition-colors">الأسعار</a>
           </div>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-6 py-2 text-[13px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',
@@ -169,7 +169,7 @@ export default function Landing() {
           </p>
           <div className="mt-10">
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/login?view=signup")}
               className="text-[16px] font-bold text-white/90 hover:text-white transition-colors px-10 py-4"
               style={{
                 borderRadius: '100px',
@@ -255,7 +255,7 @@ export default function Landing() {
           </div>
 
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-10 py-4 text-[15px] font-bold text-white hover:text-white transition-colors"
             style={{
               borderRadius: '100px',
@@ -320,7 +320,7 @@ export default function Landing() {
 
                 <div className="mt-8">
                   <button
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate("/login?view=signup")}
                     className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-colors bg-white/[0.04] border border-white/[0.08] rounded-lg"
                   >
                     ابدأ التجربة الآن
@@ -389,7 +389,7 @@ export default function Landing() {
                           <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
                           <p className="text-sm text-white/50 leading-relaxed mb-8">{slides[slideIdx].desc}</p>
                           <button
-                            onClick={() => navigate("/login")}
+                            onClick={() => navigate("/login?view=signup")}
                             className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/70 hover:text-white transition-colors bg-white/[0.06] border border-white/[0.1] rounded-lg w-fit"
                           >
                             <ArrowLeft className="h-4 w-4" />
@@ -443,7 +443,7 @@ export default function Landing() {
             ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.
           </p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-8 py-3 text-[14px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',
@@ -645,7 +645,7 @@ export default function Landing() {
           </h2>
           <Button
             size="lg"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="bg-white text-[#1a1a2e] hover:bg-white/90 rounded-full px-10 h-[52px] text-sm font-bold shadow-lg"
           >
             ابدأ الآن مجاناً

@@ -74,7 +74,7 @@ export default function Pricing() {
             <a href="/pricing" className="text-white">الأسعار</a>
           </div>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-6 py-2 text-[13px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',
@@ -145,7 +145,7 @@ export default function Pricing() {
               {/* CTA */}
               <div className="px-8 py-6 border-t border-dashed border-white/[0.06]">
                 <button
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate("/login?view=signup")}
                   className="w-full py-3.5 rounded-full bg-white text-[#171719] font-bold text-sm hover:bg-white/90 transition-colors"
                 >
                   انضم لخطة {plan.name} مجاناً

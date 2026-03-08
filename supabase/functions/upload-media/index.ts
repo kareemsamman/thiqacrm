@@ -274,7 +274,7 @@ serve(async (req) => {
     }
 
     // Construct CDN URL from env
-    const cdnBaseUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const cdnBaseUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://kareem.b-cdn.net';
     const cdnUrl = `${cdnBaseUrl}/${storagePath}`;
 
     // Save to database with user's branch_id

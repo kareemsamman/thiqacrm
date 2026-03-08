@@ -166,15 +166,11 @@ export default function Landing() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center px-6 pt-20">
-          <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight">
-            نظام CRM الأذكى
-            <br />
-            لوكالات التأمين التي تريد أن تربح أكثر
+          <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight whitespace-pre-line">
+            {ct(content, "hero_title", "نظام CRM الأذكى\nلوكالات التأمين التي تريد أن تربح أكثر")}
           </h1>
-          <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
-            حل شامل لإدارة الوثائق، الأموال والتسويق. سريع، آمن
-            <br className="hidden md:block" />
-            ومصمم للعمل على نطاق واسع.
+          <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
+            {ct(content, "hero_subtitle", "حل شامل لإدارة الوثائق، الأموال والتسويق. سريع، آمن\nومصمم للعمل على نطاق واسع.")}
           </p>
           <div className="mt-10">
             <button

@@ -8,49 +8,49 @@ const plans = [
   {
     id: "starter",
     name: "Starter",
-    desc: "מתאים לסוכנים עצמאיים שמתחילים את הדרך",
+    desc: "مناسب للوكلاء المستقلين في بداية الطريق",
     monthlyPrice: 240,
     yearlyPrice: 200,
     badge: null,
     features: [
-      { text: "ניהול עד 200 לקוחות", info: true },
-      { text: "הפקת פוליסות בסיסית", info: true },
-      { text: "דוחות כספיים חודשיים", info: false },
-      { text: "תמיכה במייל", info: false },
-      { text: "ייבוא נתונים בסיסי", info: true },
-      { text: "גיבוי יומי אוטומטי", info: true },
+      { text: "إدارة حتى 200 عميل", info: true },
+      { text: "إصدار وثائق أساسي", info: true },
+      { text: "تقارير مالية شهرية", info: false },
+      { text: "دعم عبر البريد الإلكتروني", info: false },
+      { text: "استيراد بيانات أساسي", info: true },
+      { text: "نسخ احتياطي يومي تلقائي", info: true },
     ],
   },
   {
     id: "basic",
     name: "Basic",
-    desc: "מתאים לסוכנויות ביטוח קטנות ובינוניות",
+    desc: "مناسب لوكالات التأمين الصغيرة والمتوسطة",
     monthlyPrice: 240,
     yearlyPrice: 200,
-    badge: "פופולרי",
+    badge: "الأكثر شعبية",
     features: [
-      { text: "ניהול לקוחות ללא הגבלה", info: true },
-      { text: "הפקת פוליסות מתקדמת", info: true },
-      { text: "ניהול תביעות מלא", info: false },
-      { text: "SMS ותזכורות אוטומטיות", info: true },
-      { text: "דוחות כספיים מלאים", info: true },
-      { text: "חתימה דיגיטלית", info: true },
+      { text: "إدارة عملاء بلا حدود", info: true },
+      { text: "إصدار وثائق متقدم", info: true },
+      { text: "إدارة مطالبات كاملة", info: false },
+      { text: "SMS وتذكيرات تلقائية", info: true },
+      { text: "تقارير مالية كاملة", info: true },
+      { text: "توقيع رقمي", info: true },
     ],
   },
   {
     id: "pro",
     name: "Pro",
-    desc: "מתאים לסוכנויות גדולות עם צוות עובדים",
+    desc: "مناسب للوكالات الكبيرة مع فريق عمل",
     monthlyPrice: 240,
     yearlyPrice: 200,
     badge: null,
     features: [
-      { text: "כל מה שב-Basic", info: false },
-      { text: "ניהול סניפים והרשאות", info: true },
-      { text: "API ואינטגרציות מתקדמות", info: true },
-      { text: "דוחות מותאמים אישית", info: false },
-      { text: "תמיכה VIP ומנהל לקוח", info: true },
-      { text: "סנכרון חברות ביטוח", info: true },
+      { text: "كل ما في Basic", info: false },
+      { text: "إدارة فروع وصلاحيات", info: true },
+      { text: "API وتكاملات متقدمة", info: true },
+      { text: "تقارير مخصصة", info: false },
+      { text: "دعم VIP ومدير حساب", info: true },
+      { text: "مزامنة شركات التأمين", info: true },
     ],
   },
 ];
@@ -68,10 +68,10 @@ export default function Pricing() {
             <img src={thiqaLogo} alt="Thiqa" />
           </a>
           <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
-            <a href="/landing#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>
-            <a href="/landing#demo" className="hover:text-white transition-colors">איך זה עובד</a>
-            <a href="/landing#faq" className="hover:text-white transition-colors">שאלות ותשובות</a>
-            <a href="/pricing" className="text-white">מחירון</a>
+            <a href="/landing#features" className="hover:text-white transition-colors">لماذا نحن مختلفون</a>
+            <a href="/landing#demo" className="hover:text-white transition-colors">كيف يعمل</a>
+            <a href="/landing#faq" className="hover:text-white transition-colors">أسئلة وأجوبة</a>
+            <a href="/pricing" className="text-white">الأسعار</a>
           </div>
           <button
             onClick={() => navigate("/login")}
@@ -82,19 +82,19 @@ export default function Pricing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            קבלו 35 ימים בחינם
+            احصل على 35 يوم مجاناً
           </button>
         </div>
       </nav>
 
       {/* ═══ Pricing Hero ═══ */}
       <section className="pt-32 pb-20 text-center px-6">
-        <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">מחירון</p>
+        <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">الأسعار</p>
         <h1 className="text-4xl md:text-[3.2rem] font-bold mb-4 leading-tight">
-          בחרו את התוכנית המתאימה לכם
+          جرّب نظام CRM لمدة 35 يوم مجاناً *
         </h1>
         <p className="text-white/40 text-base max-w-xl mx-auto">
-          כל התוכניות כוללות 35 ימי ניסיון בחינם — בלי כרטיס אשראי.
+          * جميع الميزات مفتوحة بالكامل — بدون بطاقة ائتمان.
         </p>
       </section>
 
@@ -122,7 +122,7 @@ export default function Pricing() {
               {/* Price */}
               <div className="px-8 py-6 border-t border-dashed border-white/[0.06]">
                 <div className="flex items-baseline gap-2 justify-end">
-                  <span className="text-sm text-white/40">₪ לחודש</span>
+                  <span className="text-sm text-white/40">₪ شهرياً</span>
                   <span className="text-6xl font-extrabold text-white/90 tracking-tight">
                     {yearly ? plan.yearlyPrice : plan.monthlyPrice}
                   </span>
@@ -131,7 +131,7 @@ export default function Pricing() {
 
               {/* Yearly toggle */}
               <div className="px-8 py-4 border-t border-dashed border-white/[0.06] flex items-center justify-end gap-3">
-                <span className="text-sm text-white/50">שנתי</span>
+                <span className="text-sm text-white/50">سنوي</span>
                 <button
                   onClick={() => setYearly(!yearly)}
                   className={`relative w-12 h-7 rounded-full transition-colors ${yearly ? "bg-[#a78bfa]" : "bg-white/10"}`}
@@ -148,13 +148,13 @@ export default function Pricing() {
                   onClick={() => navigate("/login")}
                   className="w-full py-3.5 rounded-full bg-white text-[#171719] font-bold text-sm hover:bg-white/90 transition-colors"
                 >
-                  הצטרפו למסלול {plan.name} בחינם
+                  انضم لخطة {plan.name} مجاناً
                 </button>
               </div>
 
               {/* Features */}
               <div className="px-8 pt-2 pb-8 border-t border-dashed border-white/[0.06]">
-                <p className="font-bold text-sm text-white/80 mb-4 text-right">מה בחבילה זו?</p>
+                <p className="font-bold text-sm text-white/80 mb-4 text-right">ماذا تشمل هذه الخطة؟</p>
                 <ul className="space-y-3">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-white/50">
@@ -178,9 +178,9 @@ export default function Pricing() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col divide-y divide-white/[0.06]">
             {[
-              { title: "מידע", items: ["מרכז העזרה", "יצירת קשר"] },
-              { title: "תנאים ומדיניות", items: ["תנאי שימוש", "מדיניות פרטיות", "נגישות"] },
-              { title: "תמיכה", items: ["צ'אט תמיכה", "שאלות נפוצות", "info@thiqa.co.il"] },
+              { title: "معلومات", items: ["مركز المساعدة", "اتصل بنا"] },
+              { title: "شروط وسياسات", items: ["شروط الاستخدام", "سياسة الخصوصية", "إمكانية الوصول"] },
+              { title: "الدعم", items: ["دردشة الدعم", "أسئلة شائعة", "info@thiqa.co.il"] },
             ].map((section, idx) => (
               <details key={idx} className="group py-6">
                 <summary className="flex items-center justify-between cursor-pointer list-none">
@@ -203,7 +203,7 @@ export default function Pricing() {
             <div className="h-1.5 w-1.5 rounded-full bg-white/20" />
           </div>
 
-          <p className="text-sm text-white/20 text-center mb-12">כל הזכויות שמורות © Thiqa {new Date().getFullYear()}</p>
+          <p className="text-sm text-white/20 text-center mb-12">جميع الحقوق محفوظة © Thiqa {new Date().getFullYear()}</p>
 
           <div className="flex justify-center overflow-hidden">
             <img src={thiqaLogo} alt="Thiqa" className="w-[80%] md:w-[60%] max-w-[700px] opacity-[0.08]" />

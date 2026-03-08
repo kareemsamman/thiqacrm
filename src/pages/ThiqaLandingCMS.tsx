@@ -128,7 +128,7 @@ export default function ThiqaLandingCMS() {
         .select("*")
         .order("section_key");
       if (error) throw error;
-      return data as ContentRow[];
+      return (data as any) as ContentRow[];
     },
   });
 

@@ -88,15 +88,17 @@ export default function ThiqaAgentDetail() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes] = await Promise.all([
+    const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes, rolesRes, branchRes] = await Promise.all([
       supabase.from('agents').select('*').eq('id', agentId!).single(),
       supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
       supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
-      supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone)').eq('agent_id', agentId!),
+      supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id)').eq('agent_id', agentId!),
       supabase.from('sms_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('auth_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('payment_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('site_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
+      supabase.from('user_roles').select('user_id, role').eq('agent_id', agentId!),
+      supabase.from('branches').select('id, name, name_ar').eq('agent_id', agentId!),
     ]);
 
     if (agentRes.data) setAgent(agentRes.data as AgentDetail);
@@ -109,6 +111,11 @@ export default function ThiqaAgentDetail() {
     if (authRes.data) setAuthSettings(authRes.data);
     if (payRes.data) setPaymentSettings(payRes.data);
     if (siteRes.data) setSiteSettings(siteRes.data);
+    // Roles map
+    const rm: Record<string, string> = {};
+    if (rolesRes.data) rolesRes.data.forEach((r: any) => { rm[r.user_id] = r.role; });
+    setUserRoles(rm);
+    if (branchRes.data) setBranches(branchRes.data);
     setLoading(false);
   };
 

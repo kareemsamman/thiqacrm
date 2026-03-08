@@ -356,8 +356,9 @@ function buildComprehensiveInvoiceHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
-      <p class="english-name">BASHEER INSURANCE</p>
+      ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.companyName}" style="max-height:60px;object-fit:contain;margin:0 auto 8px auto;display:block;" />` : ''}
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<p class="english-name">${branding.companyNameEn}</p>` : ''}
       <p class="invoice-title">📋 فاتورة شاملة بالدفعات</p>
       <p class="invoice-date">تاريخ الإصدار: ${formatDate(new Date().toISOString())}</p>
     </div>

@@ -443,7 +443,7 @@ export default function Landing() {
             ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.
           </p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-8 py-3 text-[14px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',

@@ -88,7 +88,25 @@ Deno.serve(async (req) => {
     if (insertError) throw new Error("فشل في إنشاء رمز التحقق");
 
     // Send email
-    const htmlContent = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;"><div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;"><h1 style="color:#1a1a2e;margin:0 0 8px 0;">Thiqa</h1><p style="color:#6b7280;margin:0 0 20px 0;">نظام إدارة التأمين</p><p style="color:#374151;margin:0 0 20px 0;">رمز تأكيد البريد الإلكتروني:</p><div style="background:#1a1a2e;color:#fff;font-size:40px;font-weight:bold;padding:20px;border-radius:10px;letter-spacing:12px;margin:0 0 20px 0;">${otp}</div><p style="color:#6b7280;margin:0 0 20px 0;">هذا الرمز صالح لمدة 5 دقائق فقط.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"><p style="color:#9ca3af;font-size:12px;margin:0;">إذا لم تسجّل في ثقة للتأمين، يرجى تجاهل هذه الرسالة.</p></div></body></html>`;
+    const htmlContent = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;padding:20px;direction:rtl;text-align:center;background:#f3f4f6;">
+  <div style="max-width:500px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="margin-bottom:20px;">
+      <h1 style="color:#122143;margin:0 0 4px 0;font-size:28px;">Thiqa</h1>
+      <p style="color:#6b7280;margin:0;font-size:14px;">&#1606;&#1592;&#1575;&#1605; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1571;&#1605;&#1610;&#1606;</p>
+    </div>
+    <div style="background:#f9fafb;border-radius:10px;padding:24px;margin:0 0 20px 0;">
+      <p style="color:#374151;margin:0 0 16px 0;font-size:15px;">&#1585;&#1605;&#1586; &#1578;&#1571;&#1603;&#1610;&#1583; &#1575;&#1604;&#1576;&#1585;&#1610;&#1583; &#1575;&#1604;&#1573;&#1604;&#1603;&#1578;&#1585;&#1608;&#1606;&#1610;:</p>
+      <div style="background:#122143;color:#fff;font-size:36px;font-weight:bold;padding:16px 20px;border-radius:10px;letter-spacing:14px;display:inline-block;">${otp}</div>
+    </div>
+    <p style="color:#6b7280;margin:0 0 16px 0;font-size:13px;">&#1607;&#1584;&#1575; &#1575;&#1604;&#1585;&#1605;&#1586; &#1589;&#1575;&#1604;&#1581; &#1604;&#1605;&#1583;&#1577; 5 &#1583;&#1602;&#1575;&#1574;&#1602; &#1601;&#1602;&#1591;.</p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+    <p style="color:#9ca3af;font-size:11px;margin:0;">&#1573;&#1584;&#1575; &#1604;&#1605; &#1578;&#1587;&#1580;&#1617;&#1604; &#1601;&#1610; &#1579;&#1602;&#1577; &#1604;&#1604;&#1578;&#1571;&#1605;&#1610;&#1606;&#1548; &#1610;&#1585;&#1580;&#1609; &#1578;&#1580;&#1575;&#1607;&#1604; &#1607;&#1584;&#1607; &#1575;&#1604;&#1585;&#1587;&#1575;&#1604;&#1577;.</p>
+  </div>
+</body>
+</html>`;
 
     const client = new SMTPClient({
       connection: {
@@ -102,9 +120,10 @@ Deno.serve(async (req) => {
     await client.send({
       from: `${smtp.senderName} <${smtp.user}>`,
       to: normalizedEmail,
-      subject: "رمز تأكيد التسجيل - Thiqa",
-      content: `رمز التحقق الخاص بك هو: ${otp}\nهذا الرمز صالح لمدة 5 دقائق.`,
+      subject: "=?UTF-8?B?" + base64Encode(new TextEncoder().encode("رمز تأكيد التسجيل - Thiqa")) + "?=",
+      content: "auto",
       html: htmlContent,
+      encoding: "base64",
     });
 
     await client.close();

@@ -98,11 +98,21 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
+  const validateSignupForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
+    if (!lastName.trim()) errors.lastName = "الاسم الأخير مطلوب";
+    if (!signupEmail || !signupEmail.includes("@")) errors.signupEmail = "يرجى إدخال بريد إلكتروني صحيح";
+    if (signupPhone.trim() && digitsOnly(signupPhone).length !== 10) errors.signupPhone = "رقم الهاتف يجب أن يكون 10 أرقام";
+    if (!signupPassword || signupPassword.length < 6) errors.signupPassword = "كلمة المرور 6 أحرف على الأقل";
+    if (signupPassword !== signupConfirmPassword) errors.signupConfirmPassword = "كلمة المرور غير متطابقة";
+    return errors;
+  };
+
   const handleSignup = async () => {
-    if (!firstName.trim() || !lastName.trim()) { toast.error("يرجى إدخال الاسم الأول والأخير"); return; }
-    if (!signupEmail || !signupEmail.includes("@")) { toast.error("يرجى إدخال بريد إلكتروني صحيح"); return; }
-    if (!signupPassword || signupPassword.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
-    if (signupPassword !== signupConfirmPassword) { toast.error("كلمة المرور غير متطابقة"); return; }
+    const errors = validateSignupForm();
+    setSignupErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setLoading(true);
     try {
@@ -112,7 +122,7 @@ export default function Login() {
           last_name: lastName.trim(),
           email: signupEmail.trim(),
           password: signupPassword,
-          phone: signupPhone.trim() || null,
+          phone: digitsOnly(signupPhone) || null,
           birth_date: birthDate || null,
         },
       });
@@ -124,9 +134,9 @@ export default function Login() {
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
-      // Clear signup form
       setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
       setSignupConfirmPassword(""); setSignupPhone(""); setBirthDate("");
+      setSignupErrors({});
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
     } finally { setLoading(false); }

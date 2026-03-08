@@ -684,7 +684,51 @@ export default function AdminUsers() {
                       <TableHead className="text-right">الحالة</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
-                        <TableCell>{getStatusBadge(user.status)}</TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {activeUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">
+                          {user.full_name || 'غير محدد'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <bdi>{user.email}</bdi>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={user.branch_id || ''}
+                            onValueChange={(value) => handleChangeBranch(user.id, value)}
+                            disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="اختر الفرع" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {branches.map(branch => (
+                                <SelectItem key={branch.id} value={branch.id}>
+                                  {branch.name_ar || branch.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={user.role || 'worker'}
+                            onValueChange={(value: 'admin' | 'worker') => 
+                              handleChangeRole(user.id, value)
+                            }
+                            disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="worker">موظف</SelectItem>
+                              <SelectItem value="admin">مدير</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           {user.email !== 'morshed500@gmail.com' && (
                             <Button

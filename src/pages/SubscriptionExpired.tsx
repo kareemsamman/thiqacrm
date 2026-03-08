@@ -2,7 +2,7 @@ import { AlertTriangle, Pause, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentContext } from "@/hooks/useAgentContext";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
 
 export default function SubscriptionExpired() {
   const { signOut } = useAuth();
@@ -13,7 +13,9 @@ export default function SubscriptionExpired() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
       <div className="max-w-md w-full text-center space-y-6">
-        <img src={thiqaLogo} alt="ثقة" className="h-16 w-16 mx-auto" />
+        <div className="mx-auto h-16 w-16 rounded-xl bg-primary flex items-center justify-center">
+          <img src={thiqaLogoIcon} alt="ثقة" className="h-10 w-10 object-contain" />
+        </div>
         
         <div className={`rounded-2xl border p-8 space-y-4 ${isPaused ? 'border-warning/20 bg-warning/5' : 'border-destructive/20 bg-destructive/5'}`}>
           <div className="flex justify-center">

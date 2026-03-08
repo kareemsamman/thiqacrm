@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
+import thiqaLogoDark from "@/assets/thiqa-logo-dark.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 
 export default function ResetPassword() {
@@ -70,9 +70,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-md animate-scale-in">
         <div className="rounded-3xl border border-white/20 bg-white/95 dark:bg-card/95 lg:bg-white/70 lg:dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
           <div className="text-center pt-8 pb-4 px-5 sm:px-8">
-            <div className="mx-auto h-14 w-14 rounded-xl bg-primary flex items-center justify-center mb-4">
-              <img src={thiqaLogoIcon} alt="ثقة" className="h-9 w-9 object-contain" />
-            </div>
+            <img src={thiqaLogoDark} alt="ثقة" className="mx-auto h-10 w-auto object-contain mb-2" />
             <h1 className="text-2xl font-bold text-foreground">تعيين كلمة مرور جديدة</h1>
             <p className="text-muted-foreground mt-1 text-sm">أدخل كلمة المرور الجديدة</p>
           </div>

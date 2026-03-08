@@ -456,7 +456,8 @@ function buildAbInvoiceHtml(
   remaining: number,
   policyFiles: { cdn_url: string; original_name: string; mime_type: string }[],
   policyChildren: any[] = [],
-  companySettings: { company_email?: string; company_phones?: string[]; company_whatsapp?: string; company_location?: string }
+  companySettings: { company_email?: string; company_phones?: string[]; company_whatsapp?: string; company_location?: string },
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const client = policy.client || {};
   const car = policy.car || {};

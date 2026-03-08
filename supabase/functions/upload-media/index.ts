@@ -132,6 +132,21 @@ serve(async (req) => {
 
     const userBranchId = profile.branch_id;
 
+    // Get the user's agent_id for folder isolation
+    const { data: agentUser } = await supabase
+      .from('agent_users')
+      .select('agent_id')
+      .eq('user_id', user.id)
+      .single();
+
+    const agentId = agentUser?.agent_id;
+    if (!agentId) {
+      return new Response(JSON.stringify({ error: 'User not linked to any agent' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Rate limiting - check uploads in last hour
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
     const { data: recentUploads, count: uploadCount } = await supabase

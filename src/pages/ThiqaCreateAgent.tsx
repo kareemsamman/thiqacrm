@@ -34,9 +34,9 @@ export default function ThiqaCreateAgent() {
       .insert({
         name: form.name, name_ar: form.name_ar || null,
         email: form.email, phone: form.phone || null,
-        plan: form.plan === 'free_trial' ? 'basic' : form.plan,
-        monthly_price: form.plan === 'pro' ? 500 : form.plan === 'basic' ? 300 : 0,
-        subscription_status: form.plan === 'free_trial' ? 'trial' : 'active',
+        plan: form.plan === 'free_trial' ? 'pro' : form.plan,
+        monthly_price: form.plan === 'free_trial' ? 0 : form.plan === 'pro' ? 500 : 300,
+        subscription_status: 'active',
         subscription_expires_at: new Date(Date.now() + (form.plan === 'free_trial' ? 35 : 30) * 24 * 60 * 60 * 1000).toISOString(),
         notes: form.notes || null,
       })

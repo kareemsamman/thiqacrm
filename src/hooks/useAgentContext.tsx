@@ -113,7 +113,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   }, [user, authLoading, isThiqaSuperAdmin]);
 
   const isSubscriptionActive = isThiqaSuperAdmin || !agent || 
-    (agent.subscription_status === 'active' || agent.subscription_status === 'trial') &&
+    agent.subscription_status === 'active' &&
     (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date());
 
   const hasFeature = (featureKey: string): boolean => {

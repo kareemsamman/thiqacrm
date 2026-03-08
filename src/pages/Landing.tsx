@@ -380,6 +380,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
         <div className="relative max-w-5xl mx-auto px-6">

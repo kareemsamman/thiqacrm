@@ -227,7 +227,7 @@ serve(async (req) => {
     const totalRemaining = totalPrice - totalPaid;
 
     // Generate Package Invoice HTML with files and policy children
-    const packageInvoiceHtml = buildPackageInvoiceHtml(policies, paymentsByPolicy, totalPrice, totalPaid, totalRemaining, insuranceFiles || [], policyChildren || [], companySettings);
+    const packageInvoiceHtml = buildPackageInvoiceHtml(policies, paymentsByPolicy, totalPrice, totalPaid, totalRemaining, insuranceFiles || [], policyChildren || [], companySettings, branding);
     
     const now = new Date();
     const year = now.getFullYear();

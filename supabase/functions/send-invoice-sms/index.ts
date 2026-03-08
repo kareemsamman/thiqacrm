@@ -1052,7 +1052,7 @@ function buildAbInvoiceHtml(
 
     <div class="signature-section">
       <div class="signature-box">
-        <div class="basheer-signature">Basheer</div>
+        <div class="basheer-signature">${branding.companyName}</div>
         <div class="signature-line">التوقيع المعتمد</div>
       </div>
     </div>

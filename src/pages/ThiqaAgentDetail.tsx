@@ -398,7 +398,7 @@ export default function ThiqaAgentDetail() {
           phone: newUserPhone.trim() || null,
           agent_id: agentId!,
           role: newUserRole,
-          branch_id: newUserBranch || null,
+          branch_id: newUserBranch && newUserBranch !== 'none' ? newUserBranch : null,
         },
       });
 
@@ -759,7 +759,7 @@ export default function ThiqaAgentDetail() {
                         <Select value={newUserBranch} onValueChange={setNewUserBranch}>
                           <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">بدون فرع</SelectItem>
+                            <SelectItem value="none">بدون فرع</SelectItem>
                             {branches.map((b: any) => (
                               <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
                             ))}

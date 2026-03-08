@@ -337,7 +337,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               open={isOpen}
               onOpenChange={() => toggleGroup(group.name)}
             >
-              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 hover:text-sidebar-foreground/60 hover:bg-[hsl(var(--sidebar-glass-bg))] rounded-lg transition-all duration-200 uppercase tracking-wide">
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-sm font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground/80 hover:bg-[hsl(var(--sidebar-glass-bg))] rounded-lg transition-all duration-200 uppercase tracking-wide">
                 <div className="flex items-center gap-2">
                   <GroupIcon className="h-3.5 w-3.5" />
                   <span>{group.name}</span>

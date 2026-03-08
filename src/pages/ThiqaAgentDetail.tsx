@@ -496,7 +496,7 @@ export default function ThiqaAgentDetail() {
     const { error } = await supabase.from('profiles').update({
       full_name: editUserName || null,
       phone: editUserPhone || null,
-      branch_id: editUserBranch || null,
+      branch_id: editUserBranch === 'none' ? null : editUserBranch || null,
     }).eq('id', editingUser.user_id);
     setSavingUser(false);
     if (error) { toast.error('خطأ في تحديث المستخدم'); return; }

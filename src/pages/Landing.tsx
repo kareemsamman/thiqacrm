@@ -148,11 +148,6 @@ export default function Landing() {
           </button>
         </div>
       </section>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ═══ Section 4: "אל תחכו לחידוש, חייגו אותו" ═══ */}
       <section className="py-24 md:py-36 relative overflow-hidden">

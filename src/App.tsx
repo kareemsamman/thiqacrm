@@ -78,6 +78,7 @@ import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
 import Pricing from "./pages/Pricing";
 import ResetPassword from "./pages/ResetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 
 const queryClient = new QueryClient({
   defaultOptions: {

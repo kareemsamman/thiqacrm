@@ -182,6 +182,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   onNavigate?: () => void;
 }) {
   const [signingOut, setSigningOut] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const location = useLocation();
   const navigate = useNavigate();

@@ -107,6 +107,7 @@ export default function ThiqaAgentDetail() {
   const [editUserName, setEditUserName] = useState("");
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserBranch, setEditUserBranch] = useState("");
+  const [editUserPassword, setEditUserPassword] = useState("");
   const [savingUser, setSavingUser] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -504,18 +505,44 @@ export default function ThiqaAgentDetail() {
     setEditUserName(p?.full_name || '');
     setEditUserPhone(p?.phone || '');
     setEditUserBranch(p?.branch_id || 'none');
+    setEditUserPassword('');
   };
 
   const saveEditUser = async () => {
     if (!editingUser) return;
     setSavingUser(true);
+    
+    // Update profile
     const { error } = await supabase.from('profiles').update({
       full_name: editUserName || null,
       phone: editUserPhone || null,
       branch_id: editUserBranch === 'none' ? null : editUserBranch || null,
     }).eq('id', editingUser.user_id);
+    
+    if (error) { 
+      setSavingUser(false);
+      toast.error('خطأ في تحديث المستخدم'); 
+      return; 
+    }
+
+    // Update password if provided
+    if (editUserPassword.trim()) {
+      if (editUserPassword.length < 6) {
+        setSavingUser(false);
+        toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+        return;
+      }
+      const { data: pwData, error: pwError } = await supabase.functions.invoke('update-user-password', {
+        body: { user_id: editingUser.user_id, new_password: editUserPassword },
+      });
+      if (pwError || pwData?.error) {
+        setSavingUser(false);
+        toast.error(pwData?.error || 'خطأ في تحديث كلمة المرور');
+        return;
+      }
+    }
+
     setSavingUser(false);
-    if (error) { toast.error('خطأ في تحديث المستخدم'); return; }
     toast.success('تم تحديث المستخدم');
     setEditingUser(null);
     fetchAll();
@@ -1242,6 +1269,18 @@ export default function ThiqaAgentDetail() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>كلمة مرور جديدة</Label>
+              <Input
+                type="password"
+                value={editUserPassword}
+                onChange={e => setEditUserPassword(e.target.value)}
+                placeholder="اتركه فارغاً للإبقاء على الحالي"
+                dir="ltr"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">6 أحرف على الأقل</p>
             </div>
           </div>
           <DialogFooter className="gap-2">

@@ -315,11 +315,11 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                       className={cn(
                         "flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 relative",
                         isActiveRoute
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-[hsl(var(--sidebar-active)/0.15)] text-[hsl(var(--sidebar-active))]"
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
-                      <item.icon className={cn("h-5 w-5", isActiveRoute && "text-primary")} />
+                      <item.icon className={cn("h-5 w-5", isActiveRoute && "text-[hsl(var(--sidebar-active))]")} />
                       {renderBadge(item)}
                     </NavLink>
                   );

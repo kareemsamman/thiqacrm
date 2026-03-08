@@ -13,7 +13,6 @@ import thiqaLogo from "@/assets/thiqa-logo.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";
-import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
@@ -36,7 +35,6 @@ export default function Login() {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   
   // Signup validation errors (shown after attempted submit)
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
@@ -98,6 +96,17 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
+  const extractFunctionMessage = (raw: string) => {
+    const match = raw.match(/\{.*\}$/);
+    if (!match) return raw;
+    try {
+      const payload = JSON.parse(match[0]);
+      return payload?.error || payload?.message || raw;
+    } catch {
+      return raw;
+    }
+  };
+
   const validateSignupForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
@@ -123,22 +132,21 @@ export default function Login() {
           email: signupEmail.trim(),
           password: signupPassword,
           phone: digitsOnly(signupPhone) || null,
-          birth_date: birthDate || null,
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(extractFunctionMessage(error.message));
       if (data?.error) throw new Error(data.error);
 
-      toast.success("تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.");
+      toast.success(data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.");
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
       setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
-      setSignupConfirmPassword(""); setSignupPhone(""); setBirthDate("");
+      setSignupConfirmPassword(""); setSignupPhone("");
       setSignupErrors({});
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      toast.error(extractFunctionMessage(e instanceof Error ? e.message : "حدث خطأ غير متوقع"));
     } finally { setLoading(false); }
   };
 

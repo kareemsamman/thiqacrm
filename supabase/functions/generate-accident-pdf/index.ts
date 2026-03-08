@@ -117,7 +117,7 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const bunnyStorageKey = Deno.env.get("BUNNY_API_KEY");
     const bunnyAccountKey = Deno.env.get("BUNNY_ACCOUNT_API_KEY"); // For CDN purge
-    const bunnyStorageZone = Deno.env.get("BUNNY_STORAGE_ZONE") || "basheer-ab";
+    const bunnyStorageZone = Deno.env.get("BUNNY_STORAGE_ZONE") || "kareem";
     const bunnyCdnUrl = Deno.env.get('BUNNY_CDN_URL') || "https://kareem.b-cdn.net";
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

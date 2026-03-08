@@ -121,8 +121,8 @@ async function uploadToBunny(
   fileName: string
 ): Promise<string | null> {
   const BUNNY_API_KEY = Deno.env.get("BUNNY_API_KEY");
-  const BUNNY_STORAGE_ZONE = Deno.env.get("BUNNY_STORAGE_ZONE") || "ab-insurance";
-  const BUNNY_CDN_URL = Deno.env.get("BUNNY_CDN_URL") || "https://cdn.basheer-ab.com";
+  const BUNNY_STORAGE_ZONE = Deno.env.get("BUNNY_STORAGE_ZONE") || "kareem";
+  const BUNNY_CDN_URL = Deno.env.get("BUNNY_CDN_URL") || "https://kareem.b-cdn.net";
   
   if (!BUNNY_API_KEY) {
     console.error("[Bunny] BUNNY_API_KEY not configured - using data URL fallback");

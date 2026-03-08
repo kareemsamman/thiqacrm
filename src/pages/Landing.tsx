@@ -655,26 +655,24 @@ export default function Landing() {
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
       {/* ═══ CTA ═══ */}
-      <section className="py-24 md:py-36 relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-white/[0.03] rounded-full blur-[120px]" />
-        </div>
-        <div className="relative max-w-3xl mx-auto text-center px-6">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold mb-4 leading-tight">
-            כי לסוכנות שלכם מגיע יותר
-            <br />
-            <span className="text-white/50">מניהול רגיל.</span>
+      <section className="relative overflow-hidden rounded-2xl mx-4 md:mx-8 lg:mx-16 my-8">
+        {/* Dreamy gradient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(135deg, #6b7fbc 0%, #a8b5d6 20%, #d4b8a0 40%, #c9a88a 55%, #9eadd4 75%, #7b93c8 100%)',
+          }}
+        />
+        <div className="relative py-20 md:py-28 text-center px-6">
+          <h2 className="text-3xl md:text-[2.8rem] font-bold mb-8 leading-tight text-[#1a1a2e]">
+            כי לסוכנות שלכם מגיע יותר מניהול רגיל.
           </h2>
-          <p className="text-white/40 text-base mb-10">
-            התחילו תקופת ניסיון חינם ל-35 יום — בלי כרטיס אשראי.
-          </p>
           <Button
             size="lg"
             onClick={() => navigate("/login")}
-            className="bg-white text-[#080b16] hover:bg-white/90 rounded-full px-10 h-[56px] text-base font-bold gap-2 shadow-xl shadow-white/[0.06]"
+            className="bg-white text-[#1a1a2e] hover:bg-white/90 rounded-full px-10 h-[52px] text-sm font-bold shadow-lg"
           >
             התחילו עכשיו בחינם
-            <ArrowLeft className="h-5 w-5" />
           </Button>
         </div>
       </section>

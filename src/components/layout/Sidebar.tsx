@@ -268,14 +268,14 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
             {isThiqaSuperAdmin ? (
               <img src={thiqaLogo} alt="Thiqa" className="rounded-lg object-contain" />
             ) : siteSettings?.logo_url ? (
-              <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
+              <>
+                <img src={siteSettings.logo_url} alt="Logo" className="h-9 w-9 rounded-lg object-contain" />
+                <span className="text-base font-semibold text-sidebar-foreground">
+                  {siteSettings?.site_title || ''}
+                </span>
+              </>
             ) : (
-              <img src={thiqaLogo} alt="ثقة" className="h-9 w-9 rounded-lg object-contain" />
-            )}
-            {!isThiqaSuperAdmin && (
-              <span className="text-base font-semibold text-sidebar-foreground">
-                {siteSettings?.site_title || 'Thiqa'}
-              </span>
+              <img src={thiqaLogoIcon} alt="ثقة" className="h-9 w-9 rounded-lg object-contain" />
             )}
           </div>
         )}

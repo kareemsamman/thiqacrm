@@ -320,10 +320,10 @@ function buildDetailedReportHtml(clients: ClientWithPolicies[], totalPolicies: n
     
     /* Header */
     .report-header {
-      background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
       color: white;
       padding: 24px 32px;
-      border-radius: 12px 12px 0 0;
+      border-radius: 0;
       display: flex;
       justify-content: space-between;
       align-items: center;

@@ -91,9 +91,17 @@ export default function ThiqaAgentDetail() {
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState("info");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [periodStart, setPeriodStart] = useState<Date>(new Date());
+  const [periodEnd, setPeriodEnd] = useState<Date>(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; });
   const [deleteAgentOpen, setDeleteAgentOpen] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState("");
+  const [editPaymentNotes, setEditPaymentNotes] = useState("");
+  const [editPeriodStart, setEditPeriodStart] = useState<Date>(new Date());
+  const [editPeriodEnd, setEditPeriodEnd] = useState<Date>(new Date());
+  const [savingPayment, setSavingPayment] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserName, setEditUserName] = useState("");
   const [editUserPhone, setEditUserPhone] = useState("");

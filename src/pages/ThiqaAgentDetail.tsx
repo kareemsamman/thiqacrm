@@ -220,25 +220,31 @@ export default function ThiqaAgentDetail() {
   // ─── Record payment ───
   const recordPayment = async () => {
     if (!agent || !paymentAmount) return;
+
+    // Mark all existing active payments as done
+    await supabase.from('agent_subscription_payments')
+      .update({ status: 'done' } as any)
+      .eq('agent_id', agent.id)
+      .eq('status', 'active');
+
     const { error } = await supabase.from('agent_subscription_payments').insert({
       agent_id: agent.id, amount: parseFloat(paymentAmount), plan: agent.plan,
       payment_date: format(paymentDate, 'yyyy-MM-dd'),
       period_start: format(periodStart, 'yyyy-MM-dd'),
       period_end: format(periodEnd, 'yyyy-MM-dd'),
       received_by: user?.id, notes: paymentNotes || null,
+      status: 'active',
     } as any);
     if (!error) {
-      // Update agent subscription_expires_at to the latest period_end
+      // Always update agent expiry to the new period_end
       const periodEndStr = format(periodEnd, 'yyyy-MM-dd');
-      const currentExpiry = agent.subscription_expires_at ? agent.subscription_expires_at.split('T')[0] : null;
-      if (!currentExpiry || periodEndStr > currentExpiry) {
-        await supabase.from('agents').update({
-          subscription_expires_at: new Date(periodEndStr).toISOString(),
-          subscription_status: 'active',
-          updated_at: new Date().toISOString(),
-        }).eq('id', agent.id);
-        setAgent(prev => prev ? { ...prev, subscription_expires_at: new Date(periodEndStr).toISOString(), subscription_status: 'active' } : null);
-      }
+      await supabase.from('agents').update({
+        subscription_expires_at: new Date(periodEndStr).toISOString(),
+        subscription_status: 'active',
+        updated_at: new Date().toISOString(),
+      }).eq('id', agent.id);
+      setAgent(prev => prev ? { ...prev, subscription_expires_at: new Date(periodEndStr).toISOString(), subscription_status: 'active' } : null);
+      
       toast.success('تم تسجيل الدفعة');
       setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
       const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setMonth(e.getMonth() + 1); setPeriodEnd(e);

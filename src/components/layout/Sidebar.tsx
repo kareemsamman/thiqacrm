@@ -474,7 +474,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
 }
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebarState();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 

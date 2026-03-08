@@ -73,6 +73,7 @@ export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved 
         description: formData.description.trim() || null,
         active: formData.active,
         sort_order: formData.sort_order,
+        ...(service ? {} : { agent_id: agentId }),
       };
 
       if (service) {

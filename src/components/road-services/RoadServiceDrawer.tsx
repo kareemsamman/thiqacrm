@@ -107,6 +107,7 @@ export function RoadServiceDrawer({ open, onOpenChange, service, onSaved }: Road
         allowed_car_types: formData.allowed_car_types,
         active: formData.active,
         sort_order: formData.sort_order,
+        ...(service ? {} : { agent_id: agentId }),
       };
 
       if (service) {

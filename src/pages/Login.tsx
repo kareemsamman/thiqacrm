@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 
 type AuthStep = "method" | "otp";
 type AuthMethod = "google" | "email" | "sms";

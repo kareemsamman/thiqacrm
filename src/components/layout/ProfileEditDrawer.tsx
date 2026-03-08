@@ -19,7 +19,7 @@ interface ProfileEditDrawerProps {
 }
 
 export function ProfileEditDrawer({ open, onOpenChange }: ProfileEditDrawerProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [phone, setPhone] = useState((profile as any)?.phone || "");

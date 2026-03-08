@@ -81,8 +81,6 @@ interface NavGroup {
   defaultOpen?: boolean;
 }
 
-const SUPER_ADMIN_EMAIL = "morshed500@gmail.com";
-
 // Navigation structure with groups - exported for NavigationSearch
 export const navigationGroups: NavGroup[] = [
   {

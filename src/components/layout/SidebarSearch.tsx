@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { navigationGroups } from "./Sidebar";
 
-const SUPER_ADMIN_EMAIL = "morshed500@gmail.com";
+
 
 interface SidebarSearchProps {
   collapsed: boolean;

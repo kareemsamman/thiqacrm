@@ -218,11 +218,25 @@ export default function Login() {
 
       const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح!";
       toast.success(successMessage);
-      
-      // Redirect to email verification page
-      const params = new URLSearchParams({ email: signupEmail.trim(), p: signupPassword });
-      navigate(`/verify-email?${params.toString()}`, { replace: true });
-    } catch (e: unknown) {
+
+      const normalizedEmail = signupEmail.trim();
+      const { error: autoLoginError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: signupPassword,
+      });
+
+      const requiresVerification =
+        (autoLoginError as any)?.code === "email_not_confirmed" ||
+        autoLoginError?.message?.includes("Email not confirmed");
+
+      if (!autoLoginError) {
+        navigate("/", { replace: true });
+      } else if (requiresVerification) {
+        const params = new URLSearchParams({ email: normalizedEmail, p: signupPassword });
+        navigate(`/verify-email?${params.toString()}`, { replace: true });
+      } else {
+        throw new Error(autoLoginError.message || "تم إنشاء الحساب لكن تعذر تسجيل الدخول تلقائياً");
+      }
       const errorMessage = await extractInvokeErrorMessage(e);
       setSignupFeedback({ type: "error", message: errorMessage });
       toast.error(errorMessage);

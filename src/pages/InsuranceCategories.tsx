@@ -33,6 +33,7 @@ interface InsuranceCategory {
 export default function InsuranceCategories() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const { agentId } = useAgentContext();
   const [categories, setCategories] = useState<InsuranceCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

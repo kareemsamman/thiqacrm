@@ -342,40 +342,45 @@ export default function Landing() {
 
             return (
               <>
-                <div className="relative flex items-center justify-center gap-6 px-6">
+                <div className="relative flex items-stretch justify-center px-0 lg:px-0">
                   {/* Previous slide peek */}
-                  <div className="hidden lg:block w-[200px] flex-shrink-0 opacity-40 scale-90 transition-all duration-500">
-                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] p-8 min-h-[350px]">
-                      <h3 className="text-lg font-bold mb-3">{slides[(slideIdx - 1 + slides.length) % slides.length].title}</h3>
+                  <div className="hidden lg:flex w-[180px] flex-shrink-0 opacity-50 transition-all duration-500">
+                    <div className="rounded-2xl overflow-hidden bg-white/[0.08] border border-white/[0.06] p-6 flex items-center justify-center w-full">
+                      <h3 className="text-base font-bold text-center text-white/70">{slides[(slideIdx - 1 + slides.length) % slides.length].title}</h3>
                     </div>
                   </div>
 
                   {/* Active slide */}
-                  <div className="w-full max-w-3xl transition-all duration-500">
-                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] grid grid-cols-1 md:grid-cols-2 gap-0 min-h-[350px]">
-                      {/* Content side */}
-                      <div className="p-8 md:p-10 flex flex-col justify-center">
-                        <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
-                        <p className="text-sm text-white/50 leading-relaxed mb-8">{slides[slideIdx].desc}</p>
+                  <div className="w-full max-w-4xl transition-all duration-500 mx-4 lg:mx-6">
+                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] flex flex-col">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 flex-1">
+                        {/* Image side */}
+                        <div className="flex items-center justify-center p-6 md:p-8 order-2 md:order-1">
+                          <img src={featuresMockup} alt="" className="max-h-[260px] object-contain rounded-lg" loading="lazy" />
+                        </div>
+                        {/* Content side */}
+                        <div className="p-8 md:p-10 flex flex-col justify-center order-1 md:order-2">
+                          <h3 className="text-xl md:text-2xl font-bold mb-4">{slides[slideIdx].title}</h3>
+                          <p className="text-sm text-white/50 leading-relaxed">{slides[slideIdx].desc}</p>
+                        </div>
+                      </div>
+                      {/* CTA bar at bottom */}
+                      <div className="border-t border-white/[0.06]">
                         <button
                           onClick={() => navigate("/login")}
-                          className="flex items-center gap-2 px-5 py-3 text-sm font-bold text-white/70 hover:text-white transition-colors bg-white/[0.06] border border-white/[0.1] rounded-lg w-fit"
+                          className="flex items-center gap-2 w-full px-8 py-4 text-sm font-bold text-white/60 hover:text-white transition-colors"
                         >
-                          {slides[slideIdx].cta}
                           <ArrowLeft className="h-4 w-4" />
+                          {slides[slideIdx].cta}
                         </button>
-                      </div>
-                      {/* Image side */}
-                      <div className="flex items-center justify-center p-6">
-                        <img src={featuresMockup} alt="" className="max-h-[280px] object-contain rounded-lg" loading="lazy" />
                       </div>
                     </div>
                   </div>
 
                   {/* Next slide peek */}
-                  <div className="hidden lg:block w-[200px] flex-shrink-0 opacity-40 scale-90 transition-all duration-500">
-                    <div className="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-sm border border-white/[0.08] p-8 min-h-[350px]">
-                      <h3 className="text-lg font-bold mb-3">{slides[(slideIdx + 1) % slides.length].title}</h3>
+                  <div className="hidden lg:flex w-[180px] flex-shrink-0 opacity-50 transition-all duration-500">
+                    <div className="rounded-2xl overflow-hidden bg-white/[0.08] border border-white/[0.06] p-6 flex items-center justify-center w-full">
+                      <h3 className="text-base font-bold text-center text-white/70">{slides[(slideIdx + 1) % slides.length].title}</h3>
                     </div>
                   </div>
                 </div>

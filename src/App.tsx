@@ -107,6 +107,7 @@ const App = () => (
               <Route path="/landing" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/subscription-expired" element={<SubscriptionExpired />} />
               {/* Thiqa Super Admin routes */}
               <Route path="/thiqa" element={<ThiqaAdminRoute><ThiqaDashboard /></ThiqaAdminRoute>} />

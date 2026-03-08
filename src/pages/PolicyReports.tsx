@@ -807,8 +807,8 @@ export default function PolicyReports() {
       
       // Build addons from other policies
       const addons = policies
-        .filter((p: RenewalPolicy) => p.id !== mainPolicy.id)
-        .map((p: RenewalPolicy) => ({
+        .filter((p: any) => p.id !== (mainPolicy as any).id)
+        .map((p: any) => ({
           type: p.policy_type_parent.toLowerCase() as 'elzami' | 'third_full' | 'road_service' | 'accident_fee_exemption',
           companyId: p.company_id || '',
           insurancePrice: p.insurance_price,
@@ -816,16 +816,17 @@ export default function PolicyReports() {
         }));
       
       // Prepare renewal data
+      const mp = mainPolicy as any;
       const renewal: RenewalData = {
         clientId: client.client_id,
-        carId: mainPolicy.car_id,
+        carId: mp.car_id,
         categorySlug: 'THIRD_FULL', // For cars
-        policyTypeParent: mainPolicy.policy_type_parent,
-        policyTypeChild: mainPolicy.policy_type_child || undefined,
-        companyId: mainPolicy.company_id || '',
-        insurancePrice: mainPolicy.insurance_price,
+        policyTypeParent: mp.policy_type_parent,
+        policyTypeChild: mp.policy_type_child || undefined,
+        companyId: mp.company_id || '',
+        insurancePrice: mp.insurance_price,
         packageAddons: addons.length > 0 ? addons : undefined,
-        originalEndDate: mainPolicy.end_date,
+        originalEndDate: mp.end_date,
       };
       
       setRenewalData(renewal);

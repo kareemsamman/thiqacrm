@@ -43,7 +43,7 @@ export function useAdminSessionGuard({
       // This is a new browser session after browser was closed
       // Force logout
       console.log('[AdminSessionGuard] New browser session detected for admin, forcing logout');
-      supabase.auth.signOut().then(() => {
+      (supabase.auth as any).signOut().then(() => {
         window.location.href = '/login';
       });
       return;

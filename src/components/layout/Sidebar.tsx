@@ -337,15 +337,15 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               open={isOpen}
               onOpenChange={() => toggleGroup(group.name)}
             >
-              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent rounded-lg transition-colors uppercase tracking-wide">
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 hover:text-sidebar-foreground/60 hover:bg-[hsl(var(--sidebar-glass-bg))] rounded-lg transition-all duration-200 uppercase tracking-wide">
                 <div className="flex items-center gap-2">
                   <GroupIcon className="h-3.5 w-3.5" />
                   <span>{group.name}</span>
                 </div>
                 <ChevronDown 
                   className={cn(
-                    "h-3 w-3 transition-transform duration-200",
-                    isOpen && "rotate-180"
+                    "h-3 w-3 transition-transform duration-300 text-sidebar-foreground/30",
+                    isOpen && "rotate-180 text-[hsl(var(--sidebar-active))]/60"
                   )} 
                 />
               </CollapsibleTrigger>

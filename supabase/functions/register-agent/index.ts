@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "تم إنشاء الحساب. يرجى تأكيد بريدك الإلكتروني.",
+        message: "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.",
         agent_id: agentData.id,
         user_id: userId,
       }),

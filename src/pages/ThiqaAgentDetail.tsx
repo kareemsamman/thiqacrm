@@ -518,17 +518,17 @@ export default function ThiqaAgentDetail() {
                 </div>
 
                 {/* Users table */}
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-right p-3">المستخدم</th>
-                        <th className="text-right p-3">الإيميل</th>
-                        <th className="text-right p-3">الهاتف</th>
-                        <th className="text-right p-3">الصلاحية</th>
-                        <th className="text-right p-3">الفرع</th>
-                        <th className="text-right p-3">الحالة</th>
-                        <th className="text-right p-3">إجراء</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المستخدم</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الإيميل</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الهاتف</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الصلاحية</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap hidden md:table-cell">الفرع</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الحالة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">إجراء</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -538,12 +538,12 @@ export default function ThiqaAgentDetail() {
                         const branchName = p?.branch_id ? branches.find((b: any) => b.id === p.branch_id) : null;
                         return (
                           <tr key={au.id} className="border-t">
-                            <td className="p-3 font-medium">{p?.full_name || '—'}</td>
-                            <td className="p-3 text-muted-foreground">{p?.email || '—'}</td>
-                            <td className="p-3 text-muted-foreground">{p?.phone || '—'}</td>
-                            <td className="p-3">
+                            <td className="p-2 md:p-3 font-medium text-xs md:text-sm">{p?.full_name || '—'}</td>
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm truncate max-w-[120px] md:max-w-none">{p?.email || '—'}</td>
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm hidden md:table-cell">{p?.phone || '—'}</td>
+                            <td className="p-2 md:p-3">
                               <Select value={role || 'worker'} onValueChange={(v) => changeUserRole(au.user_id, v as 'admin' | 'worker')}>
-                                <SelectTrigger className="h-8 w-28">
+                                <SelectTrigger className="h-7 md:h-8 w-20 md:w-28 text-xs md:text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -552,22 +552,22 @@ export default function ThiqaAgentDetail() {
                                 </SelectContent>
                               </Select>
                             </td>
-                            <td className="p-3 text-muted-foreground text-xs">
+                            <td className="p-2 md:p-3 text-muted-foreground text-xs hidden md:table-cell">
                               {branchName ? (branchName.name_ar || branchName.name) : '—'}
                             </td>
-                            <td className="p-3">
-                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
+                            <td className="p-2 md:p-3">
+                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
-                            <td className="p-3">
-                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeUserFromAgent(au.user_id)}>
-                                <UserMinus className="h-4 w-4" />
+                            <td className="p-2 md:p-3">
+                              <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
+                                <UserMinus className="h-3.5 w-3.5" />
                               </Button>
                             </td>
                           </tr>
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>
+                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground text-sm">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>

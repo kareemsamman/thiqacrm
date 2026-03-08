@@ -107,6 +107,7 @@ const App = () => (
             <RecentClientProvider>
             <Routes>
               <Route path="/landing" element={<Landing />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
               <Route path="/verify-email" element={<VerifyEmail />} />

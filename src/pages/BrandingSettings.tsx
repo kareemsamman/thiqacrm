@@ -133,6 +133,8 @@ export default function BrandingSettings() {
         og_image_url: ogImageUrl,
       });
       toast.success("تم حفظ الإعدادات بنجاح");
+      // Show onboarding wizard with branding marked as done
+      setTimeout(() => window.dispatchEvent(new Event('show-onboarding')), 300);
     } catch {
       toast.error("فشل في حفظ الإعدادات");
     }

@@ -101,10 +101,15 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
+        const isEmailNotConfirmed =
+          (error as any)?.code === "email_not_confirmed" ||
+          error.message.includes("Email not confirmed");
+
         if (error.message.includes("Invalid login credentials")) {
           toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
-        } else if (error.message.includes("Email not confirmed")) {
-          toast.error("البريد الإلكتروني غير مؤكد. تحقق من بريدك.");
+        } else if (isEmailNotConfirmed) {
+          toast.info("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
+          navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, { replace: true });
         } else {
           toast.error(error.message);
         }

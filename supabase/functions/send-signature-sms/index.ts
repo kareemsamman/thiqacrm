@@ -187,7 +187,8 @@ serve(async (req) => {
       signatureToken,
       tokenExpiresAt,
       templateContent,
-      supabaseUrl
+      supabaseUrl,
+      branding
     );
 
     // Upload signature page to Bunny CDN as .html file

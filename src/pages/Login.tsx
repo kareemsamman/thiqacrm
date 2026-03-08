@@ -315,7 +315,9 @@ export default function Login() {
           <div className="rounded-3xl border border-white/20 bg-white/95 dark:bg-card/95 lg:bg-white/70 lg:dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
             {/* Header */}
             <div className="text-center pt-8 sm:pt-10 pb-4 px-5 sm:px-8">
-              <img src={thiqaLogo} alt={siteTitle} className="mx-auto h-14 w-14 object-contain lg:hidden mb-4" />
+              <div className="mx-auto h-14 w-14 rounded-xl bg-primary flex items-center justify-center lg:hidden mb-4">
+                <img src={thiqaLogoIcon} alt={siteTitle} className="h-9 w-9 object-contain" />
+              </div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">{siteTitle}</h1>
               <p className="text-muted-foreground mt-1 text-sm">{siteDesc}</p>
             </div>

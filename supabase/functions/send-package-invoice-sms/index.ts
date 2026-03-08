@@ -907,6 +907,7 @@ function buildPackageInvoiceHtml(
       <div class="package-badge">📦 باقة ${policies.length} وثائق</div>
     </div>
 
+    <div class="container-body">
     <div class="summary-cards">
       <div class="summary-card total">
         <strong>إجمالي الباقة</strong>

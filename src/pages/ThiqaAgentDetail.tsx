@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useParams, useNavigate } from "react-router-dom";
@@ -88,6 +89,14 @@ export default function ThiqaAgentDetail() {
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState("info");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [deleteAgentOpen, setDeleteAgentOpen] = useState(false);
+  const [deletingAgent, setDeletingAgent] = useState(false);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserName, setEditUserName] = useState("");
+  const [editUserPhone, setEditUserPhone] = useState("");
+  const [editUserBranch, setEditUserBranch] = useState("");
+  const [savingUser, setSavingUser] = useState(false);
 
   useEffect(() => {
     if (agentId) fetchAll();
@@ -379,6 +388,66 @@ export default function ThiqaAgentDetail() {
     toast.success('تم تغيير الصلاحية');
   };
 
+  // ─── Delete agent ───
+  const deleteAgent = async () => {
+    setDeletingAgent(true);
+    try {
+      // Delete related data first
+      await Promise.all([
+        supabase.from('agent_subscription_payments').delete().eq('agent_id', agentId!),
+        supabase.from('agent_feature_flags').delete().eq('agent_id', agentId!),
+        supabase.from('agent_users').delete().eq('agent_id', agentId!),
+        supabase.from('user_roles').delete().eq('agent_id', agentId!),
+        supabase.from('sms_settings').delete().eq('agent_id', agentId!),
+        supabase.from('auth_settings').delete().eq('agent_id', agentId!),
+        supabase.from('payment_settings').delete().eq('agent_id', agentId!),
+        supabase.from('site_settings').delete().eq('agent_id', agentId!),
+      ]);
+      const { error } = await supabase.from('agents').delete().eq('id', agentId!);
+      if (error) throw error;
+      toast.success('تم حذف الوكيل بنجاح');
+      navigate('/thiqa/agents');
+    } catch (err: any) {
+      toast.error(err.message || 'خطأ في حذف الوكيل');
+    } finally {
+      setDeletingAgent(false);
+      setDeleteAgentOpen(false);
+    }
+  };
+
+  // ─── Delete payment ───
+  const deletePayment = async (paymentId: string) => {
+    const { error } = await supabase.from('agent_subscription_payments').delete().eq('id', paymentId);
+    if (error) { toast.error('خطأ في حذف الدفعة'); return; }
+    toast.success('تم حذف الدفعة');
+    setDeletePaymentId(null);
+    fetchAll();
+  };
+
+  // ─── Edit user ───
+  const openEditUser = (au: any) => {
+    const p = au.profiles;
+    setEditingUser(au);
+    setEditUserName(p?.full_name || '');
+    setEditUserPhone(p?.phone || '');
+    setEditUserBranch(p?.branch_id || '');
+  };
+
+  const saveEditUser = async () => {
+    if (!editingUser) return;
+    setSavingUser(true);
+    const { error } = await supabase.from('profiles').update({
+      full_name: editUserName || null,
+      phone: editUserPhone || null,
+      branch_id: editUserBranch || null,
+    }).eq('id', editingUser.user_id);
+    setSavingUser(false);
+    if (error) { toast.error('خطأ في تحديث المستخدم'); return; }
+    toast.success('تم تحديث المستخدم');
+    setEditingUser(null);
+    fetchAll();
+  };
+
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
   if (loading) {
@@ -429,6 +498,10 @@ export default function ThiqaAgentDetail() {
               </div>
             </div>
           </div>
+          <Button variant="destructive" size="sm" className="flex-shrink-0 text-xs" onClick={() => setDeleteAgentOpen(true)}>
+            <Trash2 className="h-3.5 w-3.5 ml-1" />
+            حذف الوكيل
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -605,9 +678,14 @@ export default function ThiqaAgentDetail() {
                               <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-2 md:p-3">
-                              <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
-                                <UserMinus className="h-3.5 w-3.5" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditUser(au)}>
+                                  <Settings className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
+                                  <UserMinus className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -861,6 +939,7 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الخطة</th>
                         <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">ملاحظات</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap w-[60px]">إجراء</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -870,9 +949,14 @@ export default function ThiqaAgentDetail() {
                           <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
                           <td className="p-2 md:p-3"><Badge variant="outline" className="text-[10px] md:text-xs">{p.plan}</Badge></td>
                           <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm">{p.notes || '—'}</td>
+                          <td className="p-2 md:p-3">
+                            <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => setDeletePaymentId(p.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -918,6 +1002,63 @@ export default function ThiqaAgentDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Agent Dialog */}
+      <DeleteConfirmDialog
+        open={deleteAgentOpen}
+        onOpenChange={setDeleteAgentOpen}
+        onConfirm={deleteAgent}
+        title="حذف الوكيل"
+        description={`هل أنت متأكد من حذف الوكيل "${agent.name_ar || agent.name}"؟ سيتم حذف جميع بياناته بشكل نهائي.`}
+        loading={deletingAgent}
+      />
+
+      {/* Delete Payment Dialog */}
+      <DeleteConfirmDialog
+        open={!!deletePaymentId}
+        onOpenChange={(open) => !open && setDeletePaymentId(null)}
+        onConfirm={() => deletePaymentId && deletePayment(deletePaymentId)}
+        title="حذف الدفعة"
+        description="هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء."
+      />
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل المستخدم</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editUserName} onChange={e => setEditUserName(e.target.value)} placeholder="الاسم" />
+            </div>
+            <div className="space-y-2">
+              <Label>الهاتف</Label>
+              <Input value={editUserPhone} onChange={e => setEditUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+            </div>
+            <div className="space-y-2">
+              <Label>الفرع</Label>
+              <Select value={editUserBranch} onValueChange={setEditUserBranch}>
+                <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">بدون فرع</SelectItem>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingUser(null)}>إلغاء</Button>
+            <Button onClick={saveEditUser} disabled={savingUser}>
+              {savingUser && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

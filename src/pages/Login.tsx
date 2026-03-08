@@ -265,8 +265,13 @@ export default function Login() {
   const siteDesc = settings?.site_description || "نظام إدارة التأمين";
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left panel - background image with logo overlay */}
+    <div className="min-h-screen flex flex-col lg:flex-row relative">
+      {/* Mobile background */}
+      <div className="fixed inset-0 lg:hidden -z-10">
+        <img src={loginBgMobile} alt="" className="w-full h-full object-cover" />
+      </div>
+
+      {/* Left panel - background image with logo overlay (desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
         <img src="/images/thiqa-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-primary/10" />
@@ -276,7 +281,7 @@ export default function Login() {
       </div>
 
       {/* Right panel - login form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
+      <div className="flex-1 flex items-center justify-center p-6 lg:bg-background">
         <Card className="w-full max-w-md border-0 shadow-xl animate-scale-in bg-card">
           <CardHeader className="text-center space-y-4 pb-2">
             <img src={logoSrc} alt={siteTitle} className="mx-auto h-16 w-16 object-contain lg:hidden" />

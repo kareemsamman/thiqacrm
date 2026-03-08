@@ -64,7 +64,7 @@ interface UserProfile {
   created_at: string;
   updated_at: string;
   branch_id: string | null;
-  pbx_extension: string | null;
+  
 }
 
 interface UserRole {

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.190.0/crypto/mod.ts";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.16";
+import { buildEmailHtml, registrationOtpEmailBody } from "../_shared/email-template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +31,6 @@ async function getSmtpSettings(adminClient: any) {
   const map: Record<string, string> = {};
   (data || []).forEach((r: any) => { map[r.setting_key] = r.setting_value || ""; });
 
-  // Fallback to env vars if DB values are empty
   return {
     host: map.smtp_host || Deno.env.get("THIQA_SMTP_HOST") || "smtp.hostinger.com",
     port: parseInt(map.smtp_port || Deno.env.get("THIQA_SMTP_PORT") || "465"),
@@ -59,7 +59,6 @@ Deno.serve(async (req) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Rate limit: max 3 OTPs per 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: recentOtps } = await adminClient
       .from("otp_codes")
@@ -76,7 +75,6 @@ Deno.serve(async (req) => {
     const otpHash = await hashOTP(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // Store OTP
     const { error: insertError } = await adminClient.from("otp_codes").insert({
       identifier: normalizedEmail,
       channel: "registration",
@@ -86,48 +84,26 @@ Deno.serve(async (req) => {
 
     if (insertError) throw new Error("فشل في إنشاء رمز التحقق");
 
-    // Send email
-    const htmlContent = `
-<!doctype html>
-<html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>رمز تأكيد التسجيل</title>
-  </head>
-  <body style="margin:0;padding:20px;background:#f3f4f6;font-family:Arial,sans-serif;direction:rtl;text-align:center;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-      <h1 style="margin:0;color:#122143;font-size:30px;">Thiqa</h1>
-      <p style="margin:8px 0 24px;color:#6b7280;font-size:14px;">نظام إدارة التأمين</p>
-
-      <p style="margin:0 0 14px;color:#374151;font-size:16px;">رمز تأكيد البريد الإلكتروني:</p>
-      <div style="display:inline-block;background:#122143;color:#ffffff;border-radius:12px;padding:14px 24px;font-size:38px;font-weight:700;letter-spacing:10px;">${otp}</div>
-
-      <p style="margin:18px 0 0;color:#6b7280;font-size:13px;">هذا الرمز صالح لمدة 5 دقائق فقط.</p>
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0;" />
-      <p style="margin:0;color:#9ca3af;font-size:11px;">إذا لم تسجّل في ثقة للتأمين، يرجى تجاهل هذه الرسالة.</p>
-    </div>
-  </body>
-</html>`;
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtp.host,
-        port: smtp.port,
-        tls: true,
-        auth: { username: smtp.user, password: smtp.password },
-      },
+    const textContent = `رمز التحقق الخاص بك هو: ${otp}\nهذا الرمز صالح لمدة 5 دقائق.`;
+    const htmlContent = buildEmailHtml({
+      body: registrationOtpEmailBody(otp),
+      footerText: "إذا لم تسجّل في ثقة للتأمين، يرجى تجاهل هذه الرسالة.",
     });
 
-    await client.send({
-      from: `${smtp.senderName} <${smtp.user}>`,
+    const transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.port === 465,
+      auth: { user: smtp.user, pass: smtp.password },
+    });
+
+    await transporter.sendMail({
+      from: `"${smtp.senderName}" <${smtp.user}>`,
       to: normalizedEmail,
       subject: "رمز تأكيد التسجيل - Thiqa",
-      content: `رمز التحقق الخاص بك هو: ${otp}\nهذا الرمز صالح لمدة 5 دقائق.`,
+      text: textContent,
       html: htmlContent,
     });
-
-    await client.close();
 
     return new Response(
       JSON.stringify({ success: true, message: "تم إرسال رمز التحقق إلى بريدك الإلكتروني" }),

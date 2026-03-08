@@ -199,7 +199,7 @@ export default function SignaturePage() {
     return (
       <>
         <Helmet>
-          <title>رابط توقيع غير صالح | AB Insurance CRM</title>
+          <title>رابط توقيع غير صالح | ثقة للتأمين</title>
           <meta name="description" content="رابط التوقيع غير صالح أو منتهي." />
           <link rel="canonical" href={typeof window !== "undefined" ? window.location.href : "/"} />
         </Helmet>

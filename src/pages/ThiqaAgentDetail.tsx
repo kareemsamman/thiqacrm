@@ -781,7 +781,7 @@ export default function ThiqaAgentDetail() {
                 <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />سجل المدفوعات</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
                   <div className="flex-1">
                     <Label>المبلغ (₪)</Label>
                     <Input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder={`${agent.monthly_price || 300}`} />
@@ -790,29 +790,29 @@ export default function ThiqaAgentDetail() {
                     <Label>ملاحظات</Label>
                     <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="اختياري" />
                   </div>
-                  <Button onClick={recordPayment} disabled={!paymentAmount}>تسجيل الدفعة + تمديد شهر</Button>
+                  <Button onClick={recordPayment} disabled={!paymentAmount} className="w-full md:w-auto text-xs md:text-sm whitespace-nowrap">تسجيل الدفعة + تمديد شهر</Button>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[400px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-right p-3">التاريخ</th>
-                        <th className="text-right p-3">المبلغ</th>
-                        <th className="text-right p-3">الخطة</th>
-                        <th className="text-right p-3">ملاحظات</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">التاريخ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">المبلغ</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">الخطة</th>
+                        <th className="text-right p-2 md:p-3 text-xs md:text-sm whitespace-nowrap">ملاحظات</th>
                       </tr>
                     </thead>
                     <tbody>
                       {payments.map((p: any) => (
                         <tr key={p.id} className="border-t">
-                          <td className="p-3">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
-                          <td className="p-3 font-medium">₪{p.amount}</td>
-                          <td className="p-3"><Badge variant="outline">{p.plan}</Badge></td>
-                          <td className="p-3 text-muted-foreground">{p.notes || '—'}</td>
+                          <td className="p-2 md:p-3 text-xs md:text-sm">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
+                          <td className="p-2 md:p-3 font-medium text-xs md:text-sm">₪{p.amount}</td>
+                          <td className="p-2 md:p-3"><Badge variant="outline" className="text-[10px] md:text-xs">{p.plan}</Badge></td>
+                          <td className="p-2 md:p-3 text-muted-foreground text-xs md:text-sm">{p.notes || '—'}</td>
                         </tr>
                       ))}
-                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا توجد مدفوعات</td></tr>}
+                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-sm">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>

@@ -69,19 +69,19 @@ export default function ThiqaAgents() {
 
   return (
     <MainLayout>
-      <div className="space-y-6" dir="rtl">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 md:space-y-6" dir="rtl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">إدارة الوكلاء</h1>
-            <p className="text-muted-foreground">إدارة وكلاء التأمين المشتركين في منصة ثقة</p>
+            <h1 className="text-xl md:text-2xl font-bold">إدارة الوكلاء</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">إدارة وكلاء التأمين المشتركين في منصة ثقة</p>
           </div>
-          <Button onClick={() => navigate('/thiqa/agents/new')}>
+          <Button onClick={() => navigate('/thiqa/agents/new')} size="sm" className="w-full sm:w-auto">
             <Plus className="h-4 w-4 ml-2" />
             وكيل جديد
           </Button>
         </div>
 
-        <div className="relative max-w-sm">
+        <div className="relative max-w-full sm:max-w-sm">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="بحث بالاسم أو الإيميل..."
@@ -96,57 +96,92 @@ export default function ThiqaAgents() {
             {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-right p-3 font-medium">الوكيل</th>
-                  <th className="text-right p-3 font-medium">الإيميل</th>
-                  <th className="text-right p-3 font-medium">الخطة</th>
-                  <th className="text-right p-3 font-medium">الحالة</th>
-                  <th className="text-right p-3 font-medium">انتهاء الاشتراك</th>
-                  <th className="text-right p-3 font-medium">السعر</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAgents.map(agent => (
-                  <tr 
-                    key={agent.id} 
-                    className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/thiqa/agents/${agent.id}`)}
-                  >
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Building2 className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{agent.name_ar || agent.name}</div>
-                          {agent.phone && <div className="text-xs text-muted-foreground">{agent.phone}</div>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-muted-foreground">{agent.email}</td>
-                    <td className="p-3">{planBadge(agent.plan)}</td>
-                    <td className="p-3">{statusBadge(agent.subscription_status)}</td>
-                    <td className="p-3 text-muted-foreground">
-                      {agent.subscription_expires_at 
-                        ? format(new Date(agent.subscription_expires_at), 'dd/MM/yyyy')
-                        : '—'}
-                    </td>
-                    <td className="p-3 font-medium">{agent.monthly_price ? `₪${agent.monthly_price}` : '—'}</td>
-                  </tr>
-                ))}
-                {filteredAgents.length === 0 && (
+          <>
+            {/* Mobile cards view */}
+            <div className="md:hidden space-y-3">
+              {filteredAgents.map(agent => (
+                <div 
+                  key={agent.id}
+                  className="glass-card p-4 rounded-xl cursor-pointer active:scale-[0.98] transition-transform"
+                  onClick={() => navigate(`/thiqa/agents/${agent.id}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate">{agent.name_ar || agent.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{agent.email}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {statusBadge(agent.subscription_status)}
+                      {planBadge(agent.plan)}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t text-xs text-muted-foreground">
+                    <span>انتهاء: {agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'dd/MM/yyyy') : '—'}</span>
+                    <span className="font-medium text-foreground">{agent.monthly_price ? `₪${agent.monthly_price}` : '—'}</span>
+                  </div>
+                </div>
+              ))}
+              {filteredAgents.length === 0 && (
+                <div className="p-8 text-center text-muted-foreground text-sm">لا يوجد وكلاء</div>
+              )}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="border rounded-lg overflow-hidden hidden md:block">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                      لا يوجد وكلاء
-                    </td>
+                    <th className="text-right p-3 font-medium">الوكيل</th>
+                    <th className="text-right p-3 font-medium">الإيميل</th>
+                    <th className="text-right p-3 font-medium">الخطة</th>
+                    <th className="text-right p-3 font-medium">الحالة</th>
+                    <th className="text-right p-3 font-medium">انتهاء الاشتراك</th>
+                    <th className="text-right p-3 font-medium">السعر</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredAgents.map(agent => (
+                    <tr 
+                      key={agent.id} 
+                      className="border-t hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/thiqa/agents/${agent.id}`)}
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{agent.name_ar || agent.name}</div>
+                            {agent.phone && <div className="text-xs text-muted-foreground">{agent.phone}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-muted-foreground">{agent.email}</td>
+                      <td className="p-3">{planBadge(agent.plan)}</td>
+                      <td className="p-3">{statusBadge(agent.subscription_status)}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {agent.subscription_expires_at 
+                          ? format(new Date(agent.subscription_expires_at), 'dd/MM/yyyy')
+                          : '—'}
+                      </td>
+                      <td className="p-3 font-medium">{agent.monthly_price ? `₪${agent.monthly_price}` : '—'}</td>
+                    </tr>
+                  ))}
+                  {filteredAgents.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        لا يوجد وكلاء
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </MainLayout>

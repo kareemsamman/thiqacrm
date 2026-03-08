@@ -607,7 +607,7 @@ serve(async (req) => {
       totalInsurance,
       totalPaid,
       totalRemaining,
-    }, companySettings);
+    }, companySettings, branding);
 
     // If no Bunny credentials, return HTML directly
     if (!bunnyApiKey || !bunnyStorageZone) {

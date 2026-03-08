@@ -1004,7 +1004,7 @@ function buildPackageInvoiceHtml(
       <p class="thank-you">شكراً لثقتكم بنا 🙏</p>
       ${contactFooterHtml}
       <p style="margin-top: 10px;">تاريخ الإصدار: ${formatDate(new Date().toISOString())}</p>
-      <p class="signature">Basheer</p>
+      <p class="signature">${branding.companyName}</p>
       <div class="action-buttons no-print">
         <button class="print-button" onclick="window.print()">🖨️ طباعة الفاتورة</button>
         <button class="share-button" onclick="shareInvoice()">📲 مشاركة الفاتورة</button>

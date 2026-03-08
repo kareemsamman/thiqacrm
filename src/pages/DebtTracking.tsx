@@ -136,7 +136,7 @@ export default function DebtTracking() {
 
       if (clientError) throw clientError;
 
-      const total = Number(clientRows?.[0]?.total_rows ?? 0) || 0;
+      const total = Number((clientRows as any)?.[0]?.total_rows ?? 0) || 0;
       setTotalRows(total);
 
       const baseClients: ClientDebt[] = (clientRows || []).map((r: any) => ({

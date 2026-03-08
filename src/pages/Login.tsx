@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ExternalLink, AlertCircle, Mail, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";
+import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
+import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
 

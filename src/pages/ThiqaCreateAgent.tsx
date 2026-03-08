@@ -80,7 +80,7 @@ export default function ThiqaCreateAgent() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 max-w-2xl" dir="rtl">
+      <div className="space-y-6 max-w-2xl px-1" dir="rtl">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/thiqa/agents')}>
             <ArrowRight className="h-5 w-5" />

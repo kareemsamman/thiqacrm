@@ -734,6 +734,7 @@ export type Database = {
           period_start: string | null
           plan: string
           received_by: string | null
+          status: string
         }
         Insert: {
           agent_id: string
@@ -746,6 +747,7 @@ export type Database = {
           period_start?: string | null
           plan: string
           received_by?: string | null
+          status?: string
         }
         Update: {
           agent_id?: string
@@ -758,6 +760,7 @@ export type Database = {
           period_start?: string | null
           plan?: string
           received_by?: string | null
+          status?: string
         }
         Relationships: [
           {

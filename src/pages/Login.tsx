@@ -269,12 +269,8 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
         <img src="/images/thiqa-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-primary/10" />
-        <div className="relative z-10 text-center space-y-6">
+        <div className="relative z-10 text-center">
           <img src={thiqaLogo} alt="ثقة" className="mx-auto w-36 h-36 drop-shadow-2xl" />
-          <div>
-            <h1 className="text-4xl font-bold text-white drop-shadow-lg">Thiqa</h1>
-            <p className="text-lg text-white/80 mt-2 drop-shadow">نظام إدارة التأمين</p>
-          </div>
         </div>
       </div>
 

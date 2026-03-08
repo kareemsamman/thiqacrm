@@ -112,6 +112,20 @@ export function OnboardingWizard() {
 
   const isDashboard = location.pathname === "/" || location.pathname === "";
 
+  // Listen for manual trigger from sidebar
+  useEffect(() => {
+    const handler = () => {
+      if (!user || !isAdmin || !agentId) return;
+      setReady(true);
+      setVisible(true);
+      if (agentId) {
+        detectCompletedSteps(agentId).then(setCompletedSteps);
+      }
+    };
+    window.addEventListener('show-onboarding', handler);
+    return () => window.removeEventListener('show-onboarding', handler);
+  }, [user, isAdmin, agentId]);
+
   useEffect(() => {
     if (!user || !isAdmin || !agentId || !isDashboard) {
       setVisible(false);

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ArrowRight, CheckCircle2, Mail } from "lucide-react";
 import { toast } from "sonner";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 
 export default function ForgotPassword() {

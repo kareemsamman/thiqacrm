@@ -158,7 +158,7 @@ export default function Landing() {
 
       {/* ═══ Section 2: Features bar ═══ */}
       <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
-      <section className="py-16 md:py-20 bg-[#1e1e20]">
+      <section className="py-16 md:py-20 bg-[#171719]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
             {[

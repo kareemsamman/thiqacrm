@@ -15,12 +15,12 @@ export interface SiteSettings {
 export function useSiteSettings() {
   return useQuery({
     queryKey: ["site-settings"],
-    queryFn: async (): Promise<SiteSettings> => {
+    queryFn: async (): Promise<SiteSettings | null> => {
       const { data, error } = await supabase
         .from("site_settings")
         .select("*")
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data as SiteSettings;

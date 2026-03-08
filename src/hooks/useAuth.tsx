@@ -106,6 +106,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBranchName(null);
   };
 
+  const refreshProfile = async () => {
+    if (!user) {
+      setProfile(null);
+      setIsAdmin(false);
+      setBranchName(null);
+      return;
+    }
+
+    const p = await fetchUserProfile(user.id, user.email);
+    setProfile(p);
+  };
+
   useEffect(() => {
     let isMounted = true;
     

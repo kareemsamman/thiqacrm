@@ -432,9 +432,9 @@ export default function Landing() {
       {/* ═══ Section 5: Grid Logo ═══ */}
       <section className="relative py-24 md:py-36 overflow-hidden bg-[#171719]">
         <div className="relative z-10 text-center px-6">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">حل شامل وبسيط</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">{ct(content, "grid_label", "حل شامل وبسيط")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-10">
-            كل ما تحتاجه الوكالة، تحت سقف واحد
+            {ct(content, "grid_title", "كل ما تحتاجه الوكالة، تحت سقف واحد")}
           </h2>
         </div>
 
@@ -443,10 +443,8 @@ export default function Landing() {
         </div>
 
         <div className="relative z-10 text-center px-6 mt-10">
-          <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed">
-            إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة
-            <br />
-            ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.
+          <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed whitespace-pre-line">
+            {ct(content, "grid_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة\nومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.")}
           </p>
           <button
             onClick={() => navigate("/login?view=signup")}
@@ -457,7 +455,7 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            احصل على 35 يوم مجاناً
+            {ct(content, "hero_cta", "احصل على 35 يوم مجاناً")}
           </button>
         </div>
       </section>

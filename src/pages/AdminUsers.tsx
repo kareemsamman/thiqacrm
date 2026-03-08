@@ -88,6 +88,7 @@ interface LoginAttempt {
 export default function AdminUsers() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { branches, getBranchName } = useBranches();
+  const { agentId } = useAgentContext();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loginAttempts, setLoginAttempts] = useState<LoginAttempt[]>([]);
@@ -101,6 +102,48 @@ export default function AdminUsers() {
     action: 'approve' | 'block' | 'unblock';
     userName: string;
   } | null>(null);
+
+  // Create user form state
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "worker">("worker");
+  const [newUserBranch, setNewUserBranch] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+
+  const handleCreateUser = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim() || !agentId) return;
+    setCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-agent-user', {
+        body: {
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          full_name: newUserName.trim() || null,
+          phone: newUserPhone.trim() || null,
+          agent_id: agentId,
+          role: newUserRole,
+          branch_id: newUserBranch && newUserBranch !== 'none' ? newUserBranch : null,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "تم الإنشاء", description: "تم إنشاء المستخدم بنجاح" });
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserPhone("");
+      setNewUserRole("worker");
+      setNewUserBranch("");
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message || "فشل في إنشاء المستخدم", variant: "destructive" });
+    } finally {
+      setCreatingUser(false);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);

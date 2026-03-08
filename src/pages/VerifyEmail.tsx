@@ -62,8 +62,6 @@ export default function VerifyEmail() {
       setFeedback({ type: "error", message: "يرجى إدخال الرمز المكون من 4 أرقام" });
       return;
     }
-      return;
-    }
 
     setLoading(true);
     setFeedback(null);

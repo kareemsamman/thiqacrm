@@ -602,6 +602,7 @@ function buildPackageInvoiceHtml(
       direction: rtl;
     }
     .container { max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); overflow: hidden; }
+    .container-body { padding: 24px 30px; }
     .header {
       text-align: center;
       margin-bottom: 0;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
   ChevronLeft, CheckCircle, Star, ArrowLeft, Play,
   Users, FileText, CreditCard, BarChart3, Bell, MessageSquare,
   Phone, Shield
@@ -14,8 +15,67 @@ import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
 import featurePaperless from "@/assets/landing/feature-paperless.png";
 import featureMarketing from "@/assets/landing/feature-marketing.png";
 
+const featureTabs = [
+  {
+    id: "invoicing",
+    label: "הפקה וחיתום",
+    num: "01",
+    title: "הפקת פוליסות בלחיצה אחת.",
+    desc: "יצירת פוליסות חדשות, חידושים וחבילות ביטוח מותאמות — עם חישוב מחיר אוטומטי לפי כללי התמחור של כל חברת ביטוח.",
+    stats: [
+      { value: "3", unit: "דקות", label: "זמן ממוצע להפקת פוליסה חדשה מלאה." },
+      { value: "100%", unit: "", label: "דיוק בחישוב מחירים ועמלות אוטומטי." },
+    ],
+  },
+  {
+    id: "claims",
+    label: "ניהול תביעות",
+    num: "02",
+    title: "תביעות נסגרות מהר יותר,\nבלי ״פינג-פונג״ מיילים.",
+    desc: "ניהול תביעות חכם עם עדכונים אוטומטיים ללקוח, איסוף מסמכים דיגיטלי וסנכרון מלא מול חברות הביטוח. הלקוח נשאר מעודכן, ואתם פנויים למכירה הבאה.",
+    stats: [
+      { value: "12", unit: "דקות", label: "הזמן הממוצע שנחסך לסוכן על פתיחת תביעה ועדכון הסטטוס מול חברות הביטוח, בזכות סנכרון נתונים אוטומטי." },
+      { value: "65%", unit: "", label: "קיצור בזמן איסוף המסמכים מהלקוח. המערכת שולחת דרישות אוטומטיות ומתחילה את הקבצים ישירות בתיק התביעה ללא מגע יד אדם." },
+    ],
+  },
+  {
+    id: "marketing",
+    label: "אוטומציה שיווקית",
+    num: "03",
+    title: "שיווק אוטומטי שעובד בשבילך.",
+    desc: "שליחת SMS וקמפיינים אוטומטיים ללקוחות, תזכורות חידוש, עדכוני מבצעים ושימור לקוחות — הכל ללא מאמץ ידני.",
+    stats: [
+      { value: "40%", unit: "", label: "עלייה בשיעור חידוש פוליסות בזכות תזכורות אוטומטיות." },
+      { value: "5K+", unit: "", label: "הודעות SMS נשלחות מדי חודש דרך המערכת." },
+    ],
+  },
+  {
+    id: "bi",
+    label: "בקרה ו-BI",
+    num: "04",
+    title: "שליטה מלאה על הנתונים.",
+    desc: "דוחות רווחיות, מעקב עמלות, ניתוח ביצועי סוכנים ומבט-על על כל הסניפים — בזמן אמת ובלחיצה אחת.",
+    stats: [
+      { value: "50%", unit: "", label: "חיסכון בזמן הפקת דוחות כספיים." },
+      { value: "∞", unit: "", label: "דוחות מותאמים אישית ללא הגבלה." },
+    ],
+  },
+  {
+    id: "cx",
+    label: "חוויית לקוח",
+    num: "05",
+    title: "חוויית לקוח שמוכרת בעד עצמה.",
+    desc: "חתימות דיגיטליות, פורטל לקוח, תקשורת ישירה ב-WhatsApp ומעקב אחרי כל אינטראקציה — הלקוחות שלכם ירגישו את ההבדל.",
+    stats: [
+      { value: "95%", unit: "", label: "שביעות רצון לקוחות מהממשק הדיגיטלי." },
+      { value: "24/7", unit: "", label: "גישה עצמאית ללקוח לפוליסות והמסמכים." },
+    ],
+  },
+];
+
 export default function Landing() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("claims");
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>

@@ -13,7 +13,6 @@ import thiqaLogo from "@/assets/thiqa-logo.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";
-import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
 import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
@@ -36,7 +35,6 @@ export default function Login() {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   
   // Signup validation errors (shown after attempted submit)
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
@@ -98,6 +96,17 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
+  const extractFunctionMessage = (raw: string) => {
+    const match = raw.match(/\{.*\}$/);
+    if (!match) return raw;
+    try {
+      const payload = JSON.parse(match[0]);
+      return payload?.error || payload?.message || raw;
+    } catch {
+      return raw;
+    }
+  };
+
   const validateSignupForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
@@ -123,22 +132,21 @@ export default function Login() {
           email: signupEmail.trim(),
           password: signupPassword,
           phone: digitsOnly(signupPhone) || null,
-          birth_date: birthDate || null,
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(extractFunctionMessage(error.message));
       if (data?.error) throw new Error(data.error);
 
-      toast.success("تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.");
+      toast.success(data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.");
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
       setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
-      setSignupConfirmPassword(""); setSignupPhone(""); setBirthDate("");
+      setSignupConfirmPassword(""); setSignupPhone("");
       setSignupErrors({});
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      toast.error(extractFunctionMessage(e instanceof Error ? e.message : "حدث خطأ غير متوقع"));
     } finally { setLoading(false); }
   };
 
@@ -283,7 +291,7 @@ export default function Login() {
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/40" /></div>
                         <div className="relative flex justify-center text-xs">
-                          <span className="bg-white/70 dark:bg-card/70 backdrop-blur-sm px-3 text-muted-foreground">أو أنشئ حساب يدوياً</span>
+                          <span className="bg-white/70 dark:bg-card/70 backdrop-blur-sm px-3 text-muted-foreground">أو سجّل وكالة جديدة يدوياً</span>
                         </div>
                       </div>
                     </>
@@ -292,7 +300,7 @@ export default function Login() {
                   {/* 35-day free trial banner */}
                   <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
                     <p className="text-sm font-bold text-primary">🎉 35 يوم مجاناً!</p>
-                    <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — جرّب النظام بالكامل مجاناً</p>
+                    <p className="text-xs text-muted-foreground mt-1">لا حاجة لإدخال أي وسيلة دفع — هذا التسجيل ينشئ وكالة جديدة مستقلة</p>
                   </div>
 
                   <div className="space-y-3">
@@ -321,12 +329,6 @@ export default function Login() {
                         {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
                       </div>
                     </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">تاريخ الميلاد</Label>
-                      <ArabicDatePicker value={birthDate} onChange={(val) => setBirthDate(val)} isBirthDate disabled={loading} className="rounded-xl" />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">كلمة المرور *</Label>
@@ -342,7 +344,7 @@ export default function Login() {
 
                     <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
-                      {loading ? "جاري التسجيل..." : "إنشاء حساب"}
+                      {loading ? "جاري التسجيل..." : "تسجيل وكيل جديد"}
                     </Button>
                   </div>
 

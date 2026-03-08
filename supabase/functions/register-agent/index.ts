@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         name_ar: fullName,
         email: normalizedEmail,
         phone: phone?.trim() || null,
-        plan: "trial",
+        plan: "basic",
         subscription_status: "active",
         subscription_expires_at: trialEnd.toISOString(),
         monthly_price: 0,
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "تم إنشاء الحساب. يرجى تأكيد بريدك الإلكتروني.",
+        message: "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.",
         agent_id: agentData.id,
         user_id: userId,
       }),

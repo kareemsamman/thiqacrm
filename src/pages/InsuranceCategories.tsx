@@ -165,6 +165,7 @@ export default function InsuranceCategories() {
             is_active: formData.is_active,
             is_default: formData.is_default,
             sort_order: maxOrder + 1,
+            agent_id: agentId,
           });
 
         if (error) throw error;

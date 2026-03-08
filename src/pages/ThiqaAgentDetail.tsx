@@ -861,6 +861,43 @@ export default function ThiqaAgentDetail() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ═══════════ STATS TAB ═══════════ */}
+          <TabsContent value="stats">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />إحصائيات الوكيل</CardTitle>
+                <CardDescription>عدد العملاء والسيارات والوثائق المسجلة</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+                  </div>
+                ) : agentStats ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border-2 text-center p-6">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.clients.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">عملاء</p>
+                    </Card>
+                    <Card className="border-2 text-center p-6">
+                      <Building2 className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.cars.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">سيارات</p>
+                    </Card>
+                    <Card className="border-2 text-center p-6">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="text-3xl font-bold">{agentStats.policies.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground mt-1">وثائق تأمين</p>
+                    </Card>
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">لا توجد بيانات</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </MainLayout>

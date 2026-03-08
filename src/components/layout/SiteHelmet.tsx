@@ -1,13 +1,10 @@
 import { Helmet } from "react-helmet-async";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { useAgentContext } from "@/hooks/useAgentContext";
 
 export function SiteHelmet() {
   const { data: settings } = useSiteSettings();
-  const { agent } = useAgentContext();
 
-  // Use agent name if available, otherwise "Thiqa"
-  const title = agent?.name_ar || agent?.name || "Thiqa";
+  const title = settings?.site_title || "Thiqa";
   const description = settings?.site_description || "نظام إدارة التأمين";
 
   return (

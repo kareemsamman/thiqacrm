@@ -62,6 +62,8 @@ export default function ThiqaAgentDetail() {
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);
   const [agentUsers, setAgentUsers] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string>>({});
+  const [branches, setBranches] = useState<any[]>([]);
   const [smsSettings, setSmsSettings] = useState<any>(null);
   const [authSettings, setAuthSettings] = useState<any>(null);
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
@@ -72,6 +74,12 @@ export default function ThiqaAgentDetail() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "worker">("worker");
+  const [newUserBranch, setNewUserBranch] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -80,15 +88,17 @@ export default function ThiqaAgentDetail() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes] = await Promise.all([
+    const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes, rolesRes, branchRes] = await Promise.all([
       supabase.from('agents').select('*').eq('id', agentId!).single(),
       supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
       supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
-      supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone)').eq('agent_id', agentId!),
+      supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone, branch_id)').eq('agent_id', agentId!),
       supabase.from('sms_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('auth_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('payment_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
       supabase.from('site_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
+      supabase.from('user_roles').select('user_id, role').eq('agent_id', agentId!),
+      supabase.from('branches').select('id, name, name_ar').eq('agent_id', agentId!),
     ]);
 
     if (agentRes.data) setAgent(agentRes.data as AgentDetail);
@@ -101,6 +111,11 @@ export default function ThiqaAgentDetail() {
     if (authRes.data) setAuthSettings(authRes.data);
     if (payRes.data) setPaymentSettings(payRes.data);
     if (siteRes.data) setSiteSettings(siteRes.data);
+    // Roles map
+    const rm: Record<string, string> = {};
+    if (rolesRes.data) rolesRes.data.forEach((r: any) => { rm[r.user_id] = r.role; });
+    setUserRoles(rm);
+    if (branchRes.data) setBranches(branchRes.data);
     setLoading(false);
   };
 
@@ -255,29 +270,40 @@ export default function ThiqaAgentDetail() {
     toast.success('تم حفظ العلامة التجارية');
   };
 
-  // ─── Add user to agent ───
-  const addUserToAgent = async () => {
-    if (!newUserEmail.trim()) return;
-    // Find user profile by email
-    const { data: profile } = await supabase
-      .from('profiles').select('id, email, full_name')
-      .eq('email', newUserEmail.trim()).maybeSingle();
-    if (!profile) {
-      toast.error('المستخدم غير موجود. يجب أن يسجل دخول أولاً.');
+  // ─── Create new user for agent ───
+  const createUserForAgent = async () => {
+    if (!newUserEmail.trim() || !newUserPassword.trim()) {
+      toast.error('يرجى إدخال البريد الإلكتروني وكلمة المرور');
       return;
     }
-    // Check if already assigned
-    const existing = agentUsers.find((u: any) => u.user_id === profile.id);
-    if (existing) { toast.error('المستخدم مربوط بالفعل'); return; }
-    // Also update profile agent_id
-    const [{ error: linkError }, { error: profileError }] = await Promise.all([
-      supabase.from('agent_users').insert({ agent_id: agentId!, user_id: profile.id }),
-      supabase.from('profiles').update({ agent_id: agentId! }).eq('id', profile.id),
-    ]);
-    if (linkError) { toast.error(linkError.message); return; }
-    toast.success('تم إضافة المستخدم');
-    setNewUserEmail('');
-    fetchAll();
+    if (newUserPassword.length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-agent-user', {
+        body: {
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          full_name: newUserName.trim() || null,
+          phone: newUserPhone.trim() || null,
+          agent_id: agentId!,
+          role: newUserRole,
+          branch_id: newUserBranch || null,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success('تم إنشاء المستخدم بنجاح');
+      setNewUserEmail(''); setNewUserPassword(''); setNewUserName(''); setNewUserPhone('');
+      setNewUserRole('worker'); setNewUserBranch('');
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'خطأ في إنشاء المستخدم');
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   // ─── Remove user from agent ───
@@ -285,9 +311,26 @@ export default function ThiqaAgentDetail() {
     await Promise.all([
       supabase.from('agent_users').delete().eq('agent_id', agentId!).eq('user_id', userId),
       supabase.from('profiles').update({ agent_id: null }).eq('id', userId),
+      supabase.from('user_roles').delete().eq('user_id', userId).eq('agent_id', agentId!),
     ]);
     toast.success('تم إزالة المستخدم');
     fetchAll();
+  };
+
+  // ─── Change user role ───
+  const changeUserRole = async (userId: string, newRole: 'admin' | 'worker') => {
+    await supabase.from('user_roles').upsert(
+      { user_id: userId, role: newRole, agent_id: agentId! },
+      { onConflict: 'user_id,role' }
+    );
+    // Delete old role if different
+    if (newRole === 'admin') {
+      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'worker').eq('agent_id', agentId!);
+    } else {
+      await supabase.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin').eq('agent_id', agentId!);
+    }
+    setUserRoles(prev => ({ ...prev, [userId]: newRole }));
+    toast.success('تم تغيير الصلاحية');
   };
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
@@ -417,19 +460,61 @@ export default function ThiqaAgentDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>مستخدمو الوكيل</CardTitle>
-                <CardDescription>المستخدمون المربوطون بهذا الوكيل — يمكنهم الوصول لبياناته</CardDescription>
+                <CardDescription>إنشاء مستخدمين وتحديد صلاحياتهم وفروعهم</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <Label>إضافة مستخدم بالإيميل</Label>
-                    <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+              <CardContent className="space-y-6">
+                {/* Create user form */}
+                <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2"><UserPlus className="h-4 w-4" />إنشاء مستخدم جديد</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>الاسم الكامل</Label>
+                      <Input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="مثال: أحمد محمد" />
+                    </div>
+                    <div>
+                      <Label>البريد الإلكتروني *</Label>
+                      <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" type="email" />
+                    </div>
+                    <div>
+                      <Label>كلمة المرور *</Label>
+                      <Input value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="6 أحرف على الأقل" dir="ltr" type="password" />
+                    </div>
+                    <div>
+                      <Label>الهاتف</Label>
+                      <Input value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" />
+                    </div>
+                    <div>
+                      <Label>الصلاحية *</Label>
+                      <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as 'admin' | 'worker')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">مدير (Admin)</SelectItem>
+                          <SelectItem value="worker">موظف (Worker)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {branches.length > 0 && (
+                      <div>
+                        <Label>الفرع</Label>
+                        <Select value={newUserBranch} onValueChange={setNewUserBranch}>
+                          <SelectTrigger><SelectValue placeholder="بدون فرع" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">بدون فرع</SelectItem>
+                            {branches.map((b: any) => (
+                              <SelectItem key={b.id} value={b.id}>{b.name_ar || b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                  <Button onClick={addUserToAgent} disabled={!newUserEmail.trim()}>
-                    <UserPlus className="h-4 w-4 ml-2" />إضافة
+                  <Button onClick={createUserForAgent} disabled={creatingUser || !newUserEmail.trim() || !newUserPassword.trim()}>
+                    {creatingUser ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
+                    إنشاء المستخدم
                   </Button>
                 </div>
 
+                {/* Users table */}
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
@@ -437,6 +522,8 @@ export default function ThiqaAgentDetail() {
                         <th className="text-right p-3">المستخدم</th>
                         <th className="text-right p-3">الإيميل</th>
                         <th className="text-right p-3">الهاتف</th>
+                        <th className="text-right p-3">الصلاحية</th>
+                        <th className="text-right p-3">الفرع</th>
                         <th className="text-right p-3">الحالة</th>
                         <th className="text-right p-3">إجراء</th>
                       </tr>
@@ -444,13 +531,29 @@ export default function ThiqaAgentDetail() {
                     <tbody>
                       {agentUsers.map((au: any) => {
                         const p = au.profiles;
+                        const role = userRoles[au.user_id];
+                        const branchName = p?.branch_id ? branches.find((b: any) => b.id === p.branch_id) : null;
                         return (
                           <tr key={au.id} className="border-t">
                             <td className="p-3 font-medium">{p?.full_name || '—'}</td>
                             <td className="p-3 text-muted-foreground">{p?.email || '—'}</td>
                             <td className="p-3 text-muted-foreground">{p?.phone || '—'}</td>
                             <td className="p-3">
-                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status || '—'}</Badge>
+                              <Select value={role || 'worker'} onValueChange={(v) => changeUserRole(au.user_id, v as 'admin' | 'worker')}>
+                                <SelectTrigger className="h-8 w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">مدير</SelectItem>
+                                  <SelectItem value="worker">موظف</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">
+                              {branchName ? (branchName.name_ar || branchName.name) : '—'}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-3">
                               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeUserFromAgent(au.user_id)}>
@@ -461,7 +564,7 @@ export default function ThiqaAgentDetail() {
                         );
                       })}
                       {agentUsers.length === 0 && (
-                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون مربوطون</td></tr>
+                        <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>
                       )}
                     </tbody>
                   </table>

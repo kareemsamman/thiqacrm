@@ -293,6 +293,10 @@ export default function Landing() {
                   </button>
                 </div>
               </div>
+              {/* Left (RTL): Image */}
+              <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center order-2 lg:order-none">
+                <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
+              </div>
             </div>
           ))}
         </div>

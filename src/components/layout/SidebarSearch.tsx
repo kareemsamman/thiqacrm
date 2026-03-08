@@ -87,9 +87,9 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
   if (collapsed) return null;
 
   return (
-    <div ref={containerRef} className="px-3 py-2 border-b border-sidebar-border">
+    <div ref={containerRef} className="px-3 py-2 border-b border-white/[0.08]">
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sidebar-foreground/60 pointer-events-none" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
           ref={inputRef}
           placeholder="ابحث عن صفحة..."
@@ -100,7 +100,7 @@ export function SidebarSearch({ collapsed, onNavigate }: SidebarSearchProps) {
           }}
           onFocus={() => setShowResults(true)}
           onKeyDown={handleKeyDown}
-          className="pr-9 text-right text-sm h-9 glass-dark text-sidebar-foreground placeholder:text-sidebar-foreground/40 border-0 focus-visible:ring-1 focus-visible:ring-[hsl(var(--sidebar-active))]/30"
+          className="pr-9 text-right text-sm h-9 bg-white/90 backdrop-blur-md text-foreground placeholder:text-muted-foreground border border-white/20 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-white/30"
           dir="rtl"
         />
         

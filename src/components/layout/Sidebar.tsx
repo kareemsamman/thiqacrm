@@ -509,7 +509,7 @@ export function Sidebar() {
       {/* Desktop sidebar - floating with margin */}
       <aside
         className={cn(
-          "fixed right-2 top-2 bottom-2 z-40 rounded-2xl border border-sidebar-border glass-dark transition-all duration-300 shadow-lg hidden md:block overflow-hidden",
+          "fixed right-2 top-2 bottom-2 z-40 rounded-2xl border border-white/[0.08] bg-[#122143] transition-all duration-300 shadow-lg hidden md:block overflow-hidden",
           collapsed ? "w-16" : "w-64"
         )}
       >

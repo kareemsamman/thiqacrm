@@ -63,7 +63,8 @@ function buildPaymentReceiptHtml(
   policy: any,
   client: any,
   car: any,
-  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string }
+  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string },
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const paymentTypeLabel = PAYMENT_TYPE_LABELS[payment.payment_type] || payment.payment_type;
   const policyTypeLabel = POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent;

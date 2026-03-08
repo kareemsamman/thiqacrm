@@ -1548,7 +1548,7 @@ export function PolicyWizard({
     <>
       <Dialog open={open && !isCollapsed} onOpenChange={handleClose}>
         <DialogContent 
-          className="max-w-5xl w-[95vw] max-h-[95vh] overflow-hidden flex flex-col" 
+          className="max-w-5xl w-[95vw] sm:max-h-[95vh] max-h-[100dvh] overflow-hidden flex flex-col sm:rounded-2xl rounded-none p-3 sm:p-6" 
           dir="rtl"
         >
           <DialogHeader className="flex-shrink-0 pb-4 border-b">

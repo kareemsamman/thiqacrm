@@ -35,11 +35,20 @@ import {
   FileWarning,
   Mail,
   LucideIcon,
+  UserCircle,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SidebarNotificationBadge } from "./SidebarNotificationBadge";
 import { SidebarDebtBadge } from "./SidebarDebtBadge";
 import { SidebarTaskBadge } from "./SidebarTaskBadge";
@@ -47,6 +56,7 @@ import { SidebarClaimsBadge } from "./SidebarClaimsBadge";
 import { SidebarAccidentsBadge } from "./SidebarAccidentsBadge";
 import { SidebarRenewalsBadge } from "./SidebarRenewalsBadge";
 import { SidebarSearch } from "./SidebarSearch";
+import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { Palette, Link2, Crown } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAgentContext } from "@/hooks/useAgentContext";

@@ -84,19 +84,19 @@ export default function Pricing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            احصل على 35 يوم مجاناً
+            {ct(content, "navbar_cta", "احصل على 35 يوم مجاناً")}
           </button>
         </div>
       </nav>
 
       {/* ═══ Pricing Hero ═══ */}
       <section className="pt-32 pb-20 text-center px-6">
-        <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">الأسعار</p>
+        <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">{ct(content, "pricing_label", "الأسعار")}</p>
         <h1 className="text-4xl md:text-[3.2rem] font-bold mb-4 leading-tight">
-          جرّب نظام CRM لمدة 35 يوم مجاناً *
+          {ct(content, "pricing_title", "جرّب نظام CRM لمدة 35 يوم مجاناً *")}
         </h1>
         <p className="text-white/40 text-base max-w-xl mx-auto">
-          * جميع الميزات مفتوحة بالكامل — بدون بطاقة ائتمان.
+          {ct(content, "pricing_subtitle", "* جميع الميزات مفتوحة بالكامل — بدون بطاقة ائتمان.")}
         </p>
       </section>
 

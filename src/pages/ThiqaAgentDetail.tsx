@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 import { useAgentContext } from "@/hooks/useAgentContext";
+import { DateInputPicker } from "@/components/shared/DateInputPicker";
 
 // ─── Feature flags ───
 const ALL_FEATURES = [

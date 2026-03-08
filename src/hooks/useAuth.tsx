@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-
-const SUPER_ADMIN_EMAIL = 'morshed500@gmail.com';
+import { isThiqaSuperAdminEmail } from '@/lib/superAdmin';
 
 interface UserProfile {
   id: string;

@@ -93,8 +93,31 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ═══ Section 2: Features bar ═══ */}
+      <section className="py-16 md:py-20 bg-[#1e1e20]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
+            {[
+              { icon: Users, title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה" },
+              { icon: CreditCard, title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות" },
+              { icon: MessageSquare, title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות" },
+              { icon: BarChart3, title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת" },
+            ].map((item, i) => (
+              <div key={i} className="text-center flex flex-col items-center gap-3">
+                <div className="h-14 w-14 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center">
+                  <item.icon className="h-6 w-6 text-white/60" />
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold text-white/90">{item.title}</p>
+                  <p className="text-[13px] text-white/40">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {/* ═══ Section 2: 3 Feature Cards ═══ */}
+
       <section id="features" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <p className="text-sm text-white/40 mb-4 tracking-wide">הבית הדיגיטלי של הסוכנות שלך</p>

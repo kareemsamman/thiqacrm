@@ -201,10 +201,7 @@ export function OnboardingWizard() {
     if (!agentId) return;
     setSeeding(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('seed-agent-data', {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
+      const { data, error } = await supabase.functions.invoke('seed-agent-data');
       if (error) throw error;
 
       const seeded = data?.seeded || {};

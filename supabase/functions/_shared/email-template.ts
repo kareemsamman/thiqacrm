@@ -4,7 +4,7 @@
  */
 
 const EMAIL_BG_URL = "https://thiqacrm.lovable.app/images/email-bg.png";
-const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-dark.svg";
+const EMAIL_LOGO_URL = "https://thiqacrm.lovable.app/images/thiqa-logo-email.png";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */
@@ -43,7 +43,7 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
           <tr>
             <td align="center" style="padding-bottom:28px;">
-              <img src="${EMAIL_LOGO_URL}" alt="Thiqa" width="155" height="41" style="display:block;margin:0 auto;height:auto;max-width:155px;" />
+              <img src="${EMAIL_LOGO_URL}" alt="Thiqa" width="140" height="140" style="display:block;margin:0 auto;height:auto;max-width:140px;" />
             </td>
           </tr>
         </table>
@@ -77,12 +77,14 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
 /** OTP code email body */
 export function otpEmailBody(otp: string): string {
   return `
-    <div style="width:56px;height:56px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:26px;">&#x1F511;</span>
-    </div>
+    <table role="presentation" width="56" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px;">
+      <tr><td align="center" style="width:56px;height:56px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;font-size:26px;line-height:56px;">&#x1F511;</td></tr>
+    </table>
     <h2 style="margin:0 0 8px;color:#171717;font-size:22px;font-weight:700;">رمز التحقق</h2>
     <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.7;">أدخل الرمز التالي لإتمام عملية تسجيل الدخول:</p>
-    <div style="display:inline-block;background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;border-radius:14px;padding:16px 32px;font-size:36px;font-weight:800;letter-spacing:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);">${otp}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+      <tr><td style="background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;border-radius:14px;padding:16px 32px;font-size:36px;font-weight:800;letter-spacing:12px;">${otp}</td></tr>
+    </table>
     <p style="margin:20px 0 0;color:#9ca3af;font-size:13px;line-height:1.6;">هذا الرمز صالح لمدة 5 دقائق فقط.</p>
   `;
 }
@@ -90,12 +92,14 @@ export function otpEmailBody(otp: string): string {
 /** Registration OTP email body */
 export function registrationOtpEmailBody(otp: string): string {
   return `
-    <div style="width:56px;height:56px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:26px;">&#x2709;&#xFE0F;</span>
-    </div>
+    <table role="presentation" width="56" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px;">
+      <tr><td align="center" style="width:56px;height:56px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;font-size:26px;line-height:56px;">&#x2709;&#xFE0F;</td></tr>
+    </table>
     <h2 style="margin:0 0 8px;color:#171717;font-size:22px;font-weight:700;">تأكيد البريد الإلكتروني</h2>
     <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.7;">أدخل الرمز التالي لتأكيد بريدك الإلكتروني:</p>
-    <div style="display:inline-block;background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;border-radius:14px;padding:16px 32px;font-size:36px;font-weight:800;letter-spacing:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);">${otp}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+      <tr><td style="background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;border-radius:14px;padding:16px 32px;font-size:36px;font-weight:800;letter-spacing:12px;">${otp}</td></tr>
+    </table>
     <p style="margin:20px 0 0;color:#9ca3af;font-size:13px;line-height:1.6;">هذا الرمز صالح لمدة 5 دقائق فقط.</p>
   `;
 }
@@ -103,17 +107,21 @@ export function registrationOtpEmailBody(otp: string): string {
 /** Password reset email body */
 export function passwordResetEmailBody(recoveryLink: string): string {
   return `
-    <div style="width:56px;height:56px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:26px;">&#x1F511;</span>
-    </div>
+    <table role="presentation" width="56" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px;">
+      <tr><td align="center" style="width:56px;height:56px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:50%;font-size:26px;line-height:56px;">&#x1F511;</td></tr>
+    </table>
     <h2 style="margin:0 0 10px;color:#171717;font-size:22px;font-weight:700;">إعادة تعيين كلمة المرور</h2>
     <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.7;">
       لقد طلبت إعادة تعيين كلمة المرور الخاصة بك.<br/>
       اضغط على الزر أدناه لاختيار كلمة مرور جديدة:
     </p>
-    <a href="${recoveryLink}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:12px;font-size:16px;font-weight:600;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(0,0,0,0.2);">
-      إعادة تعيين كلمة المرور
-    </a>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+      <tr><td>
+        <a href="${recoveryLink}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#171717,#2d2d3a);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:12px;font-size:16px;font-weight:600;letter-spacing:0.5px;">
+          إعادة تعيين كلمة المرور
+        </a>
+      </td></tr>
+    </table>
     <p style="margin:24px 0 0;color:#9ca3af;font-size:13px;line-height:1.6;">
       هذا الرابط صالح لمدة ساعة واحدة فقط.
     </p>
@@ -123,14 +131,16 @@ export function passwordResetEmailBody(recoveryLink: string): string {
 /** SMTP test email body */
 export function smtpTestEmailBody(smtpHost: string, smtpPort: number): string {
   return `
-    <div style="width:56px;height:56px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:26px;">&#x2705;</span>
-    </div>
+    <table role="presentation" width="56" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px;">
+      <tr><td align="center" style="width:56px;height:56px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;font-size:26px;line-height:56px;">&#x2705;</td></tr>
+    </table>
     <h2 style="margin:0 0 10px;color:#171717;font-size:22px;font-weight:700;">اختبار SMTP ناجح!</h2>
     <p style="margin:0 0 8px;color:#374151;font-size:16px;line-height:1.7;">تم إرسال هذه الرسالة بنجاح من منصة <strong>ثقة للتأمين</strong>.</p>
     <p style="margin:0 0 20px;color:#374151;font-size:16px;">إعدادات البريد الإلكتروني تعمل بشكل صحيح! &#x2709;&#xFE0F;</p>
-    <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:8px;">
-      <p style="margin:0;color:#9ca3af;font-size:12px;direction:ltr;text-align:center;">SMTP Host: ${smtpHost}<br/>SMTP Port: ${smtpPort}</p>
-    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:8px;">
+        <p style="margin:0;color:#9ca3af;font-size:12px;direction:ltr;text-align:center;">SMTP Host: ${smtpHost}<br/>SMTP Port: ${smtpPort}</p>
+      </td></tr>
+    </table>
   `;
 }

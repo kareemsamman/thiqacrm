@@ -27,6 +27,20 @@ Deno.serve(async (req) => {
 
     // If skip mode (auto-confirm without OTP)
     if (skip === true) {
+      const { data: skipSetting, error: skipSettingError } = await adminClient
+        .from("thiqa_platform_settings")
+        .select("setting_value")
+        .eq("setting_key", "skip_email_verification")
+        .maybeSingle();
+
+      if (skipSettingError) {
+        throw new Error("تعذر قراءة إعدادات المنصة");
+      }
+
+      if (skipSetting?.setting_value !== "true") {
+        throw new Error("تخطي تفعيل البريد الإلكتروني غير مفعل");
+      }
+
       const { data: profile } = await adminClient
         .from("profiles")
         .select("id")

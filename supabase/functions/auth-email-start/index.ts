@@ -226,6 +226,14 @@ serve(async (req) => {
       );
     }
 
+    // Rate limit check
+    if (recentOtps && recentOtps.length >= 3) {
+      return new Response(
+        JSON.stringify({ success: false, error: "تم تجاوز الحد الأقصى للمحاولات. حاول لاحقاً." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Now fetch auth settings using the profile's agent_id
     const agentId = existingProfile.agent_id;
     let authSettingsQuery = supabase.from("auth_settings").select("*");
@@ -240,6 +248,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: "خطأ في إعدادات المصادقة. يرجى التواصل مع المدير." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!authSettings.email_otp_enabled) {
+      return new Response(
+        JSON.stringify({ success: false, error: "تسجيل الدخول بالبريد غير مفعل. يرجى التواصل مع المدير لتفعيله." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 

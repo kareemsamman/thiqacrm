@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentContext } from "@/hooks/useAgentContext";
@@ -11,7 +11,6 @@ import {
   Car,
   FileText,
   CreditCard,
-  Settings,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -106,25 +105,87 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 
 const ONBOARDING_KEY = "thiqa_onboarding_completed";
 
+async function detectCompletedSteps(agentId: string): Promise<Set<string>> {
+  const done = new Set<string>();
+
+  try {
+    const [agentRes, companiesRes, profilesRes, clientsRes, policiesRes] = await Promise.all([
+      supabase.from("agents").select("logo_url, name_ar").eq("id", agentId).single(),
+      supabase.from("insurance_companies").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
+      supabase.from("clients").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
+      supabase.from("policies").select("id", { count: "exact", head: true }).eq("agent_id", agentId),
+    ]);
+
+    // Branding: has logo or custom name
+    if (agentRes.data?.logo_url || (agentRes.data?.name_ar && agentRes.data.name_ar.length > 2)) {
+      done.add("branding");
+    }
+
+    // Companies: at least 1
+    if ((companiesRes.count ?? 0) > 0) done.add("companies");
+
+    // Users: more than 1 profile (the admin themselves)
+    if ((profilesRes.count ?? 0) > 1) done.add("users");
+
+    // Clients: at least 1
+    if ((clientsRes.count ?? 0) > 0) done.add("clients");
+
+    // Policies: at least 1
+    if ((policiesRes.count ?? 0) > 0) done.add("policies");
+
+    // Payments: we consider this optional / skip detection
+  } catch (e) {
+    console.error("Onboarding detection error:", e);
+  }
+
+  return done;
+}
+
 export function OnboardingWizard() {
   const { user, isAdmin } = useAuth();
   const { agentId } = useAgentContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const [visible, setVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [ready, setReady] = useState(false);
+
+  // Only show on dashboard
+  const isDashboard = location.pathname === "/" || location.pathname === "";
 
   useEffect(() => {
-    if (!user || !isAdmin || !agentId) return;
-    
+    if (!user || !isAdmin || !agentId || !isDashboard) {
+      setVisible(false);
+      return;
+    }
+
     const key = `${ONBOARDING_KEY}_${user.id}`;
     const completed = localStorage.getItem(key);
-    if (!completed) {
-      // Delay to not overlap with page load
-      const timer = setTimeout(() => setVisible(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, isAdmin, agentId]);
+    if (completed) return;
+
+    // Detect completed steps then show
+    let cancelled = false;
+    detectCompletedSteps(agentId).then((done) => {
+      if (cancelled) return;
+      setCompletedSteps(done);
+
+      // Find first incomplete step
+      const firstIncomplete = ONBOARDING_STEPS.findIndex((s) => !done.has(s.id));
+      if (firstIncomplete === -1) {
+        // All done - mark onboarding as completed
+        localStorage.setItem(key, "true");
+        return;
+      }
+
+      setCurrentStep(firstIncomplete);
+      setReady(true);
+      setTimeout(() => setVisible(true), 800);
+    });
+
+    return () => { cancelled = true; };
+  }, [user, isAdmin, agentId, isDashboard]);
 
   const handleSkip = () => {
     if (user) {
@@ -141,9 +202,9 @@ export function OnboardingWizard() {
   };
 
   const handleGoToStep = (step: OnboardingStep) => {
-    setCompletedSteps(prev => new Set(prev).add(step.id));
-    navigate(step.targetRoute);
+    setCompletedSteps((prev) => new Set(prev).add(step.id));
     setVisible(false);
+    navigate(step.targetRoute);
   };
 
   const handleNext = () => {
@@ -158,16 +219,17 @@ export function OnboardingWizard() {
     }
   };
 
-  if (!visible) return null;
+  if (!visible || !ready) return null;
 
   const step = ONBOARDING_STEPS[currentStep];
+  const isStepDone = completedSteps.has(step.id);
   const progress = ((currentStep + 1) / ONBOARDING_STEPS.length) * 100;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center" dir="rtl">
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleSkip} />
-      
+
       {/* Card */}
       <div className="relative w-full max-w-lg mx-4 rounded-3xl border border-white/20 bg-card shadow-2xl overflow-hidden animate-scale-in">
         {/* Progress bar */}
@@ -195,7 +257,11 @@ export function OnboardingWizard() {
               onClick={() => setCurrentStep(i)}
               className={cn(
                 "h-2 rounded-full transition-all duration-300",
-                i === currentStep ? "w-8 bg-primary" : completedSteps.has(s.id) ? "w-2 bg-primary/50" : "w-2 bg-muted-foreground/20"
+                i === currentStep
+                  ? "w-8 bg-primary"
+                  : completedSteps.has(s.id)
+                  ? "w-2 bg-green-500"
+                  : "w-2 bg-muted-foreground/20"
               )}
             />
           ))}
@@ -204,11 +270,21 @@ export function OnboardingWizard() {
         {/* Content */}
         <div className="px-6 pb-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0">
-              {step.icon}
+            <div className={cn(
+              "flex h-14 w-14 items-center justify-center rounded-2xl shrink-0",
+              isStepDone ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
+            )}>
+              {isStepDone ? <CheckCircle2 className="h-6 w-6" /> : step.icon}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-foreground">{step.title}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-foreground">{step.title}</h2>
+                {isStepDone && (
+                  <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                    مكتمل ✓
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">{step.description}</p>
             </div>
           </div>
@@ -229,7 +305,7 @@ export function OnboardingWizard() {
             className="w-full h-11 rounded-xl gap-2 mb-3"
             onClick={() => handleGoToStep(step)}
           >
-            الذهاب إلى {step.title}
+            {isStepDone ? `مراجعة ${step.title}` : `الذهاب إلى ${step.title}`}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

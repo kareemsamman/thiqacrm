@@ -149,7 +149,7 @@ export default function ThiqaCreateAgent() {
             {/* What gets created */}
             <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
               <p className="font-medium text-sm">عند الإنشاء سيتم تهيئة:</p>
-              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-muted-foreground">
                 {['حساب الوكيل', 'إعدادات SMS (019)', 'إعدادات Tranzila', 'العلامة التجارية', 'إعدادات المصادقة', 'أعلام الميزات'].map(item => (
                   <div key={item} className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />

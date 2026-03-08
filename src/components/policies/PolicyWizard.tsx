@@ -1153,22 +1153,19 @@ export function PolicyWizard({
 
       if (!policyIdToUse) throw new Error('Policy ID is required');
 
-      // If using temp policy, check existing payments already in DB (e.g. from Tranzila)
-      let existingPaymentIds = new Set<string>();
+      // If using temp policy, remove stale payments (e.g. visa from cancelled Tranzila attempt)
+      // before inserting the final set from wizard state
       if (useTempPolicy) {
-        const { data: existingPayments } = await supabase
+        await supabase
           .from('policy_payments')
-          .select('id')
+          .delete()
           .eq('policy_id', policyIdToUse)
-          .eq('refused', false);
-        if (existingPayments) {
-          existingPayments.forEach(ep => existingPaymentIds.add(ep.id));
-        }
+          .eq('locked', false);
       }
 
       // Create payments (skip visa payments that were already created by Tranzila)
       const nonVisaPayments = payments.filter(p => p.payment_type !== 'visa' || !p.tranzila_paid);
-      if (nonVisaPayments.length > 0 && existingPaymentIds.size === 0) {
+      if (nonVisaPayments.length > 0) {
         const paymentInserts = nonVisaPayments
           .filter(p => p.payment_type !== 'visa') // Skip visa - already handled by Tranzila
           .map(p => ({

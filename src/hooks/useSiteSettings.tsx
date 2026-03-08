@@ -15,15 +15,15 @@ export interface SiteSettings {
 export function useSiteSettings() {
   return useQuery({
     queryKey: ["site-settings"],
-    queryFn: async (): Promise<SiteSettings> => {
+    queryFn: async (): Promise<SiteSettings | null> => {
       const { data, error } = await supabase
         .from("site_settings")
         .select("*")
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return data as SiteSettings;
+      return (data as SiteSettings) || null;
     },
     staleTime: 1000 * 60 * 30, // 30 minutes
   });

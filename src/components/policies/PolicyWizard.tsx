@@ -1708,44 +1708,50 @@ export function PolicyWizard({
           </div>
 
           {/* Footer with navigation */}
-          <div className="flex-shrink-0 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+          <div className="flex-shrink-0 pt-3 sm:pt-4 border-t">
+            <div className="flex items-center justify-between gap-2">
+              <div>
                 {canGoPrev && (
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={handlePrev}
                     disabled={saving}
+                    className="sm:size-default"
                   >
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                    السابق
+                    <ArrowRight className="h-4 w-4 ml-1 sm:ml-2" />
+                    <span className="hidden sm:inline">السابق</span>
                   </Button>
                 )}
               </div>
 
-              <div className="flex gap-2">
+              <div>
                 {currentStep < steps.length ? (
                   <Button
                     onClick={handleNext}
                     disabled={!canGoNext || saving}
+                    size="sm"
+                    className="sm:size-default"
                   >
                     التالي
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
                   </Button>
                 ) : (
                   <Button
                     onClick={handleSave}
                     disabled={saving || paymentsExceedPrice || payments.some(p => p.payment_type === 'visa' && !p.tranzila_paid && (p.amount || 0) > 0)}
-                    className="min-w-32"
+                    className="min-w-24 sm:min-w-32"
+                    size="sm"
                   >
                     {saving ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                        جاري الحفظ...
+                        <Loader2 className="h-4 w-4 animate-spin ml-1 sm:ml-2" />
+                        <span className="hidden sm:inline">جاري الحفظ...</span>
+                        <span className="sm:hidden">حفظ...</span>
                       </>
                     ) : (
                       <>
-                        <Save className="h-4 w-4 ml-2" />
+                        <Save className="h-4 w-4 ml-1 sm:ml-2" />
                         حفظ الوثيقة
                       </>
                     )}

@@ -14,7 +14,7 @@ export default function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen text-white overflow-x-hidden" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+    <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
 
       {/* ═══ Navbar ═══ */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md">

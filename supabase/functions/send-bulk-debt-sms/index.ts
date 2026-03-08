@@ -72,6 +72,11 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const brandingData = await getAgentBranding(supabase, agentId);
+    const siteTitle = brandingData.companyName;
+
     const { filter_days, search } = await req.json();
 
     console.log(`Bulk SMS request - filter_days: ${filter_days}, search: ${search}`);

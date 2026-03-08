@@ -436,6 +436,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { payment_ids, total_amount }: BulkReceiptRequest = await req.json();
 
     if (!payment_ids || payment_ids.length === 0) {

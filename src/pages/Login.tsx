@@ -24,7 +24,8 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, isActive, isSuperAdmin, loading: authLoading } = useAuth();
   
-  const [pageView, setPageView] = useState<PageView>("login");
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [pageView, setPageView] = useState<PageView>(searchParams.get("view") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

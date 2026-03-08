@@ -90,36 +90,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ Section 2: כל הכלים — Screenshots ═══ */}
-      <section id="features" className="py-24 md:py-36 relative bg-[#0c1329]">
-        <div className="relative max-w-6xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight">
-            כל הכלים לניהול הסוכנות
-            <br />
-            <span className="text-white/50">תחת קורת גג אחת</span>
-          </h2>
-
-          {/* Mockup screenshots */}
-          <div className="mt-16 relative flex justify-center">
-            <div className="relative w-full max-w-5xl">
-              <div className="absolute inset-0 bg-[#3355cc]/[0.08] rounded-[32px] blur-[60px]" />
-              <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6">
-                <img src={dashboardMockup} alt="" className="rounded-2xl border border-white/[0.06] shadow-2xl w-full" loading="lazy" />
-                <img src={featuresMockup} alt="" className="rounded-2xl border border-white/[0.06] shadow-2xl w-full" loading="lazy" />
-              </div>
-            </div>
-          </div>
-
-          <Button
-            size="lg"
-            onClick={() => navigate("/login")}
-            className="mt-12 bg-white text-[#080b16] hover:bg-white/90 rounded-full px-8 h-[52px] text-[15px] font-bold gap-2"
-          >
-            צפו בדמו
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </div>
-      </section>
 
       {/* ═══ Diagonal divider ═══ */}
       <img src={sectionDivider} alt="" className="w-full h-auto block" />

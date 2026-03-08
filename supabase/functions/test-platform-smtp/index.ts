@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.16";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,19 +59,9 @@ serve(async (req) => {
 
     console.log(`Testing platform SMTP: ${smtpHost}:${smtpPort} user=${smtpUser}`);
 
-    try {
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpHost,
-          port: smtpPort,
-          tls: smtpPort === 465,
-          auth: { username: smtpUser, password: smtpPassword },
-        },
-      });
+    const textContent = `اختبار SMTP ناجح!\n\nتم إرسال هذه الرسالة من منصة ثقة للتأمين.\nإعدادات البريد تعمل بشكل صحيح.\n\nSMTP Host: ${smtpHost}\nSMTP Port: ${smtpPort}`;
 
-      const textContent = `اختبار SMTP ناجح!\n\nتم إرسال هذه الرسالة من منصة ثقة للتأمين.\nإعدادات البريد تعمل بشكل صحيح.\n\nSMTP Host: ${smtpHost}\nSMTP Port: ${smtpPort}`;
-
-      const htmlContent = `<!DOCTYPE html>
+    const htmlContent = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head><meta charset="UTF-8"></head>
 <body style="font-family: Arial, sans-serif; padding: 20px; direction: rtl; text-align: right; background-color: #f3f4f6;">
@@ -88,18 +78,25 @@ serve(async (req) => {
 </body>
 </html>`;
 
-      // Use Base64-encoded subject for proper Arabic rendering
-      const subjectB64 = btoa(unescape(encodeURIComponent("اختبار إعدادات SMTP - منصة ثقة")));
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+      });
 
-      await client.send({
+      await transporter.sendMail({
         from: `"${senderName}" <${smtpUser}>`,
         to: testEmail,
-        subject: `=?UTF-8?B?${subjectB64}?=`,
-        content: "auto",
+        subject: "اختبار إعدادات SMTP - منصة ثقة",
+        text: textContent,
         html: htmlContent,
       });
 
-      await client.close();
       console.log("Platform SMTP test email sent successfully");
 
       return new Response(

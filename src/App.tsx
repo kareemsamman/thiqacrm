@@ -70,6 +70,7 @@ import ThiqaAgents from "./pages/ThiqaAgents";
 import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
 import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
+import ThiqaDashboard from "./pages/ThiqaDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {

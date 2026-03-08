@@ -20,8 +20,7 @@ export default function Landing() {
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/[0.05] border-b border-white/[0.08]">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <img src={thiqaLogo} alt="Thiqa" className="h-8 w-8" />
-            <span className="text-lg font-bold tracking-tight">Thiqa</span>
+            <img src={thiqaLogo} alt="Thiqa" className="h-10 w-10" />
           </div>
           <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
             <a href="#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>
@@ -29,13 +28,18 @@ export default function Landing() {
             <a href="#faq" className="hover:text-white transition-colors">שאלות ותשובות</a>
             <a href="#pricing" className="hover:text-white transition-colors">מחירון</a>
           </div>
-          <Button
+          <button
             onClick={() => navigate("/login")}
-            size="sm"
-            className="bg-white text-black hover:bg-white/90 rounded-full px-6 text-[13px] font-bold shadow-lg"
+            className="px-6 py-2 text-[13px] font-bold text-white/90 hover:text-white transition-colors"
+            style={{
+              borderRadius: '100px',
+              border: '2px solid rgba(255, 255, 255, 0.40)',
+              background: 'rgba(255, 255, 255, 0.10)',
+              boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
+            }}
           >
             קבלו 35 ימים בחינם
-          </Button>
+          </button>
         </div>
       </nav>
 

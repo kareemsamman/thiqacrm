@@ -114,6 +114,7 @@ export default function ThiqaAgentDetail() {
         name: agent.name, name_ar: agent.name_ar, email: agent.email,
         phone: agent.phone, plan: agent.plan,
         subscription_status: agent.subscription_status,
+        subscription_expires_at: agent.subscription_expires_at,
         monthly_price: agent.monthly_price, notes: agent.notes,
         updated_at: new Date().toISOString(),
       })
@@ -332,8 +333,8 @@ export default function ThiqaAgentDetail() {
               <h1 className="text-2xl font-bold">{agent.name_ar || agent.name}</h1>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>{agent.email}</span>
-                <Badge className={agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive'}>
-                  {agent.subscription_status === 'active' ? 'فعال' : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
+                <Badge className={agent.subscription_status === 'active' || agent.subscription_status === 'trial' ? 'bg-green-600' : 'bg-destructive'}>
+                  {agent.subscription_status === 'active' ? 'فعال' : agent.subscription_status === 'trial' ? 'تجربة مجانية' : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
                 </Badge>
                 <Badge variant="outline">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
               </div>
@@ -381,6 +382,7 @@ export default function ThiqaAgentDetail() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">فعال</SelectItem>
+                        <SelectItem value="trial">تجربة مجانية</SelectItem>
                         <SelectItem value="suspended">معلّق</SelectItem>
                         <SelectItem value="expired">منتهي</SelectItem>
                       </SelectContent>
@@ -388,7 +390,11 @@ export default function ThiqaAgentDetail() {
                   </div>
                   <div>
                     <Label>تاريخ انتهاء الاشتراك</Label>
-                    <Input value={agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'yyyy-MM-dd') : ''} disabled className="opacity-60" />
+                    <Input 
+                      type="date"
+                      value={agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'yyyy-MM-dd') : ''} 
+                      onChange={e => setAgent({...agent, subscription_expires_at: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                    />
                   </div>
                   <div>
                     <Label>السعر الشهري</Label>

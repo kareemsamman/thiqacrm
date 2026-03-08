@@ -138,7 +138,9 @@ export default function VerifyEmail() {
       <div className="w-full max-w-md animate-scale-in">
         <div className="rounded-3xl border border-white/20 bg-white/70 dark:bg-card/70 backdrop-blur-xl shadow-2xl shadow-black/10 overflow-hidden">
           <div className="text-center pt-10 pb-4 px-8">
-            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-14 w-14 object-contain mb-4" />
+            <div className="mx-auto h-14 w-14 rounded-xl bg-primary flex items-center justify-center mb-4">
+              <img src={thiqaLogoIcon} alt="Thiqa" className="h-9 w-9 object-contain" />
+            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">تأكيد البريد الإلكتروني</h1>
             <p className="text-muted-foreground mt-2 text-sm">
               أرسلنا رمز تحقق مكون من 4 أرقام إلى

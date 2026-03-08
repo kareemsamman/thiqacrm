@@ -119,8 +119,6 @@ export function OnboardingWizard() {
   const [manualOpen, setManualOpen] = useState(false);
 
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
-  const previousDoneCountRef = useRef(0);
-  const hasAutoShownRef = useRef(false); // Only auto-show ONCE per session
 
   const refreshCompletedSteps = useCallback(async () => {
     if (!agentId) return { done: new Set<string>(), gainedProgress: false };

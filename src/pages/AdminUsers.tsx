@@ -45,7 +45,6 @@ import {
   Loader2,
   RefreshCw,
   Building2,
-  Phone,
   History,
   UserPlus,
   Plus,

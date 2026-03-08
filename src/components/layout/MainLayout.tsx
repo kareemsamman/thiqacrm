@@ -5,6 +5,7 @@ import { BottomToolbar } from "./BottomToolbar";
 import { AnnouncementPopup } from "./AnnouncementPopup";
 import { TaskPopupReminder } from "@/components/tasks/TaskPopupReminder";
 import { useAgentContext } from "@/hooks/useAgentContext";
+import { useSidebarState } from "@/hooks/useSidebarState";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Building2 } from "lucide-react";
 
@@ -15,12 +16,16 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, onPolicyComplete }: MainLayoutProps) {
   const { isThiqaSuperAdmin, isImpersonating, impersonatedAgent, stopImpersonation } = useAgentContext();
+  const { collapsed } = useSidebarState();
   const navigate = useNavigate();
 
   const handleExitImpersonation = () => {
     stopImpersonation();
     navigate('/thiqa');
   };
+
+  // Desktop sidebar: 64px collapsed (w-16) + 8px gap, 256px expanded (w-64) + 8px gap
+  const sidebarMargin = collapsed ? 'md:mr-[4.5rem]' : 'md:mr-[17.5rem]';
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -47,7 +52,7 @@ export function MainLayout({ children, onPolicyComplete }: MainLayoutProps) {
       <Sidebar />
 
       {/* Main content - responsive margins */}
-      <main className={`min-h-screen transition-all duration-300 p-3 pt-16 md:pt-6 md:p-6 md:mr-[17.5rem] ${isThiqaSuperAdmin ? 'pb-6' : 'pb-40'} ${isImpersonating ? 'mt-10' : ''}`}>
+      <main className={`min-h-screen transition-all duration-300 p-3 pt-16 md:pt-6 md:p-6 ${sidebarMargin} ${isThiqaSuperAdmin ? 'pb-6' : 'pb-40'} ${isImpersonating ? 'mt-10' : ''}`}>
         <div className="max-w-full">{children}</div>
       </main>
 

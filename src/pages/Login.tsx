@@ -386,24 +386,7 @@ export default function Login() {
                     <button
                       type="button"
                       className="w-full text-center text-sm text-primary hover:underline"
-                      onClick={async () => {
-                        if (!email || !email.includes("@")) {
-                          toast.error("يرجى إدخال البريد الإلكتروني أولاً");
-                          return;
-                        }
-                        setLoading(true);
-                        try {
-                          const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-                            redirectTo: `${window.location.origin}/reset-password`,
-                          });
-                          if (error) throw error;
-                          toast.success("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني");
-                        } catch (e: any) {
-                          toast.error(e.message || "حدث خطأ");
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
+                      onClick={() => navigate("/forgot-password")}
                     >
                       نسيت كلمة المرور؟
                     </button>

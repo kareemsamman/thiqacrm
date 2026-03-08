@@ -92,7 +92,7 @@ export default function Login() {
 
       checkEmailConfirmed();
     }
-  }, [user, isActive, isSuperAdmin, authLoading, navigate]);
+  }, [user, isActive, isSuperAdmin, authLoading, navigate, tryBypassEmailVerification]);
 
   const handleGoogleLogin = async () => {
     if (isInIframe) { window.open(window.location.href, '_blank'); return; }

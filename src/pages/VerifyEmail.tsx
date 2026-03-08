@@ -57,8 +57,11 @@ export default function VerifyEmail() {
   }, [email]);
 
   const handleVerify = async () => {
-    if (code.length !== 4) {
+    const trimmedCode = code.replace(/\D/g, "").slice(0, 4);
+    if (trimmedCode.length !== 4) {
       setFeedback({ type: "error", message: "يرجى إدخال الرمز المكون من 4 أرقام" });
+      return;
+    }
       return;
     }
 

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -9,6 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isSuperAdmin } = useAuth();
+  const { isImpersonating } = useAgentContext();
 
   const location = useLocation();
   // Super admin bypasses profile loading requirement
@@ -30,8 +32,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // Thiqa super admin should stay in Thiqa management routes only
-  if (isSuperAdmin && !location.pathname.startsWith('/thiqa')) {
+  // Thiqa super admin should stay in Thiqa management routes only (unless impersonating)
+  if (isSuperAdmin && !isImpersonating && !location.pathname.startsWith('/thiqa')) {
     return <Navigate to="/thiqa" replace />;
   }
 

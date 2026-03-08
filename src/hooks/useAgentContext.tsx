@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -22,7 +22,11 @@ interface AgentContextType {
   loading: boolean;
   isSubscriptionActive: boolean;
   isThiqaSuperAdmin: boolean;
+  isImpersonating: boolean;
+  impersonatedAgent: AgentInfo | null;
   hasFeature: (featureKey: string) => boolean;
+  startImpersonation: (agentId: string) => void;
+  stopImpersonation: () => void;
 }
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
@@ -36,14 +40,35 @@ const BASIC_BLOCKED_FEATURES = [
   'cheques',
 ];
 
+const IMPERSONATION_KEY = 'thiqa_impersonate_agent_id';
+
 export function AgentProvider({ children }: { children: ReactNode }) {
   const { user, isSuperAdmin, loading: authLoading } = useAuth();
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agent, setAgent] = useState<AgentInfo | null>(null);
   const [agentFeatures, setAgentFeatures] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [impersonatedAgentId, setImpersonatedAgentId] = useState<string | null>(
+    () => sessionStorage.getItem(IMPERSONATION_KEY)
+  );
+  const [impersonatedAgent, setImpersonatedAgent] = useState<AgentInfo | null>(null);
 
-  const isThiqaSuperAdmin = isSuperAdmin;
+  const isThiqaSuperAdmin = isSuperAdmin && !impersonatedAgentId;
+  const isImpersonating = isSuperAdmin && !!impersonatedAgentId;
+
+  const startImpersonation = useCallback((id: string) => {
+    sessionStorage.setItem(IMPERSONATION_KEY, id);
+    setImpersonatedAgentId(id);
+  }, []);
+
+  const stopImpersonation = useCallback(() => {
+    sessionStorage.removeItem(IMPERSONATION_KEY);
+    setImpersonatedAgentId(null);
+    setImpersonatedAgent(null);
+    setAgentId(null);
+    setAgent(null);
+    setAgentFeatures({});
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -51,19 +76,58 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       setAgentId(null);
       setAgent(null);
       setAgentFeatures({});
+      setImpersonatedAgent(null);
       setLoading(false);
       return;
     }
 
-    // Super admin doesn't need agent context
-    if (isThiqaSuperAdmin) {
+    // Super admin impersonating an agent
+    if (isSuperAdmin && impersonatedAgentId) {
+      const fetchImpersonatedAgent = async () => {
+        setLoading(true);
+        try {
+          const { data: agentData } = await supabase
+            .from('agents')
+            .select('*')
+            .eq('id', impersonatedAgentId)
+            .single();
+
+          if (agentData) {
+            setAgent(agentData as AgentInfo);
+            setImpersonatedAgent(agentData as AgentInfo);
+            setAgentId(impersonatedAgentId);
+          }
+
+          const { data: flags } = await supabase
+            .from('agent_feature_flags')
+            .select('feature_key, enabled')
+            .eq('agent_id', impersonatedAgentId);
+
+          const featureMap: Record<string, boolean> = {};
+          if (flags) {
+            flags.forEach((f: any) => {
+              featureMap[f.feature_key] = f.enabled;
+            });
+          }
+          setAgentFeatures(featureMap);
+        } catch (error) {
+          console.error('Error fetching impersonated agent:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchImpersonatedAgent();
+      return;
+    }
+
+    // Super admin without impersonation
+    if (isSuperAdmin) {
       setLoading(false);
       return;
     }
 
     const fetchAgentContext = async () => {
       try {
-        // 1. Get agent_id from agent_users
         const { data: agentUser } = await supabase
           .from('agent_users')
           .select('agent_id')
@@ -71,14 +135,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           .single();
 
         if (!agentUser) {
-          // No agent mapping - legacy user or not assigned
           setLoading(false);
           return;
         }
 
         setAgentId(agentUser.agent_id);
 
-        // 2. Get agent details
         const { data: agentData } = await supabase
           .from('agents')
           .select('*')
@@ -89,7 +151,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           setAgent(agentData as AgentInfo);
         }
 
-        // 3. Get feature flags
         const { data: flags } = await supabase
           .from('agent_feature_flags')
           .select('feature_key, enabled')
@@ -110,24 +171,18 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     };
 
     fetchAgentContext();
-  }, [user, authLoading, isThiqaSuperAdmin]);
+  }, [user, authLoading, isSuperAdmin, impersonatedAgentId]);
 
-  const isSubscriptionActive = isThiqaSuperAdmin || !agent || 
+  const isSubscriptionActive = isThiqaSuperAdmin || isImpersonating || !agent || 
     agent.subscription_status === 'active' &&
     (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date());
 
   const hasFeature = (featureKey: string): boolean => {
-    // Super admin has all features
-    if (isThiqaSuperAdmin) return true;
-    // No agent = legacy mode, everything enabled
+    if (isThiqaSuperAdmin || isImpersonating) return true;
     if (!agent) return true;
-    // Check explicit flag override first
     if (featureKey in agentFeatures) return agentFeatures[featureKey];
-    // Pro plan: everything enabled by default
     if (agent.plan === 'pro') return true;
-    // Basic plan: check if feature is blocked
     if (BASIC_BLOCKED_FEATURES.includes(featureKey)) return false;
-    // Default: enabled
     return true;
   };
 
@@ -139,7 +194,11 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       loading,
       isSubscriptionActive,
       isThiqaSuperAdmin,
+      isImpersonating,
+      impersonatedAgent,
       hasFeature,
+      startImpersonation,
+      stopImpersonation,
     }}>
       {children}
     </AgentContext.Provider>

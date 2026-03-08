@@ -5798,6 +5798,7 @@ export type Database = {
         Returns: number
       }
       dashboard_total_client_debt: { Args: never; Returns: number }
+      enforce_agent_isolation: { Args: { _agent_id: string }; Returns: boolean }
       find_missing_packages: {
         Args: never
         Returns: {

@@ -6,17 +6,17 @@ import {
   Users, FileText, CreditCard, BarChart3, Bell, MessageSquare,
   Phone, Shield
 } from "lucide-react";
+import { useLandingContent, ct, ci } from "@/hooks/useLandingContent";
 import thiqaLogo from "@/assets/thiqa-logo-full.svg";
-import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
-import featuresMockup from "@/assets/landing/features-mockup.png";
+import dashboardMockupDefault from "@/assets/landing/dashboard-mockup.png";
+import featuresMockupDefault from "@/assets/landing/features-mockup.png";
 import sectionDivider from "@/assets/landing/section-divider.png";
 import sectionDividerDark from "@/assets/landing/section-divider-dark.png";
-import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
-import featurePaperless from "@/assets/landing/feature-paperless.png";
-import featureMarketing from "@/assets/landing/feature-marketing.png";
-import sliderBg from "@/assets/landing/slider-bg.png";
-import gridLogoBg from "@/assets/landing/grid-logo-bg.png";
-
+import featureProfitEngineDefault from "@/assets/landing/feature-profit-engine.png";
+import featurePaperlessDefault from "@/assets/landing/feature-paperless.png";
+import featureMarketingDefault from "@/assets/landing/feature-marketing.png";
+import sliderBgDefault from "@/assets/landing/slider-bg.png";
+import gridLogoBgDefault from "@/assets/landing/grid-logo-bg.png";
 const featureTabs = [
   {
     id: "invoicing",
@@ -76,12 +76,22 @@ const featureTabs = [
 ];
 
 export default function Landing() {
+  const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("claims");
   const [slideIdx, setSlideIdx] = useState(0);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [testimonialAnim, setTestimonialAnim] = useState<"in" | "out">("in");
   const [faqCategory, setFaqCategory] = useState("general");
+
+  // CMS-driven images with fallbacks
+  const dashboardMockup = ci(content, "dashboard_mockup_image", dashboardMockupDefault);
+  const featuresMockup = ci(content, "features_mockup_image", featuresMockupDefault);
+  const featureProfitEngine = ci(content, "benefit_card_1_image", featureProfitEngineDefault);
+  const featurePaperless = ci(content, "benefit_card_2_image", featurePaperlessDefault);
+  const featureMarketing = ci(content, "benefit_card_3_image", featureMarketingDefault);
+  const sliderBg = ci(content, "slider_bg_image", sliderBgDefault);
+  const gridLogoBg = ci(content, "grid_logo_bg_image", gridLogoBgDefault);
 
   const testimonials = [
     {
@@ -140,7 +150,7 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            احصل على 35 يوم مجاناً
+            {ct(content, "navbar_cta", "احصل على 35 يوم مجاناً")}
           </button>
         </div>
       </nav>
@@ -149,23 +159,18 @@ export default function Landing() {
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="/images/hero-gradient-bg.png" 
+            src={ci(content, "hero_bg_image", "/images/hero-gradient-bg.png")} 
             alt="" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/20" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center px-6 pt-20">
-          <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight">
-            نظام CRM الأذكى
-            <br />
-            لوكالات التأمين التي تريد أن تربح أكثر
+          <h1 className="text-[2.2rem] md:text-[3.2rem] lg:text-[4rem] font-extrabold leading-[1.15] tracking-tight whitespace-pre-line">
+            {ct(content, "hero_title", "نظام CRM الأذكى\nلوكالات التأمين التي تريد أن تربح أكثر")}
           </h1>
-          <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
-            حل شامل لإدارة الوثائق، الأموال والتسويق. سريع، آمن
-            <br className="hidden md:block" />
-            ومصمم للعمل على نطاق واسع.
+          <p className="mt-6 text-[15px] md:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
+            {ct(content, "hero_subtitle", "حل شامل لإدارة الوثائق، الأموال والتسويق. سريع، آمن\nومصمم للعمل على نطاق واسع.")}
           </p>
           <div className="mt-10">
             <button
@@ -178,13 +183,14 @@ export default function Landing() {
                 boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
               }}
             >
-              احصل على 35 يوم مجاناً
+              {ct(content, "hero_cta", "احصل على 35 يوم مجاناً")}
             </button>
           </div>
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto mt-16 px-6">
           <div className="relative rounded-t-xl overflow-hidden border border-white/[0.1] border-b-0 shadow-2xl shadow-black/50">
+            <img src={dashboardMockup} alt="Thiqa CRM Dashboard" className="w-full block" loading="lazy" />
             <img src="/images/dashboard-mockup.png" alt="Thiqa CRM Dashboard" className="w-full block" loading="lazy" />
           </div>
         </div>
@@ -216,30 +222,30 @@ export default function Landing() {
 
       <section id="features" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">البيت الرقمي لوكالتك</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">{ct(content, "benefits_section_label", "البيت الرقمي لوكالتك")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-            كل الأدوات لإدارة الوكالة تحت سقف واحد
+            {ct(content, "benefits_section_title", "كل الأدوات لإدارة الوكالة تحت سقف واحد")}
           </h2>
           <p className="text-white/40 text-sm max-w-xl mx-auto mb-16">
-            بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
+            {ct(content, "benefits_section_subtitle", "بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.")}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
             {[
               {
                 img: featureProfitEngine,
-                title: "محرك حساب أرباح تلقائي.",
-                desc: "إدارة تدفقات الشيكات، تحصيل بطاقات ائتمان وتسوية مع الوسطاء وشركات التأمين بدقة 100%. بدون خسارة عمولات وبدون حسابات يدوية.",
+                title: ct(content, "benefit_card_1_title", "محرك حساب أرباح تلقائي."),
+                desc: ct(content, "benefit_card_1_desc", "إدارة تدفقات الشيكات، تحصيل بطاقات ائتمان وتسوية مع الوسطاء وشركات التأمين بدقة 100%. بدون خسارة عمولات وبدون حسابات يدوية."),
               },
               {
                 img: featurePaperless,
-                title: "صفر أوراق، أقصى سرعة.",
-                desc: "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.",
+                title: ct(content, "benefit_card_2_title", "صفر أوراق، أقصى سرعة."),
+                desc: ct(content, "benefit_card_2_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال."),
               },
               {
                 img: featureMarketing,
-                title: "تحويل البيانات إلى مبيعات.",
-                desc: "نظام تسويق مدمج لإرسال حملات عبر SMS وبريد إلكتروني. تذكيرات تلقائية للتجديدات، تحديثات عروض والحفاظ على العملاء بشكل فعّال.",
+                title: ct(content, "benefit_card_3_title", "تحويل البيانات إلى مبيعات."),
+                desc: ct(content, "benefit_card_3_desc", "نظام تسويق مدمج لإرسال حملات عبر SMS وبريد إلكتروني. تذكيرات تلقائية للتجديدات، تحديثات عروض والحفاظ على العملاء بشكل فعّال."),
               },
             ].map((card, i) => (
               <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden text-center">
@@ -273,12 +279,12 @@ export default function Landing() {
       <section id="demo" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">لماذا Thiqa بالذات؟</p>
+            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">{ct(content, "showcase_label", "لماذا Thiqa بالذات؟")}</p>
             <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-              كل الأدوات لإدارة الوكالة تحت سقف واحد
+              {ct(content, "showcase_title", "كل الأدوات لإدارة الوكالة تحت سقف واحد")}
             </h2>
             <p className="text-white/40 text-sm max-w-xl mx-auto">
-              بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
+              {ct(content, "showcase_subtitle", "بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.")}
             </p>
           </div>
 
@@ -345,7 +351,7 @@ export default function Landing() {
 
         <div className="relative z-10">
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            لا تنتظر التجديد. اصنعه بنفسك
+            {ct(content, "slider_title", "لا تنتظر التجديد. اصنعه بنفسك")}
           </h2>
 
           {(() => {
@@ -426,9 +432,9 @@ export default function Landing() {
       {/* ═══ Section 5: Grid Logo ═══ */}
       <section className="relative py-24 md:py-36 overflow-hidden bg-[#171719]">
         <div className="relative z-10 text-center px-6">
-          <p className="text-sm text-white/40 mb-4 tracking-wide">حل شامل وبسيط</p>
+          <p className="text-sm text-white/40 mb-4 tracking-wide">{ct(content, "grid_label", "حل شامل وبسيط")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-10">
-            كل ما تحتاجه الوكالة، تحت سقف واحد
+            {ct(content, "grid_title", "كل ما تحتاجه الوكالة، تحت سقف واحد")}
           </h2>
         </div>
 
@@ -437,10 +443,8 @@ export default function Landing() {
         </div>
 
         <div className="relative z-10 text-center px-6 mt-10">
-          <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed">
-            إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة
-            <br />
-            ومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.
+          <p className="text-sm text-white/40 max-w-xl mx-auto mb-8 leading-relaxed whitespace-pre-line">
+            {ct(content, "grid_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة\nومتابعة كاملة لدورة حياة الوثيقة — كل شيء من الكمبيوتر أو الجوال.")}
           </p>
           <button
             onClick={() => navigate("/login?view=signup")}
@@ -451,7 +455,7 @@ export default function Landing() {
               background: 'rgba(255, 255, 255, 0.10)',
             }}
           >
-            احصل على 35 يوم مجاناً
+            {ct(content, "hero_cta", "احصل على 35 يوم مجاناً")}
           </button>
         </div>
       </section>
@@ -467,9 +471,9 @@ export default function Landing() {
           }}
         />
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">قصص العملاء</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">{ct(content, "testimonials_label", "قصص العملاء")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            تعالوا اسمعوا ماذا يقول وكلاؤنا
+            {ct(content, "testimonials_title", "تعالوا اسمعوا ماذا يقول وكلاؤنا")}
           </h2>
 
           <div className="relative">
@@ -504,12 +508,12 @@ export default function Landing() {
               >
                 <div className="p-8 md:p-10 border-b md:border-b-0 md:border-l border-white/[0.06] flex flex-col justify-center gap-8 order-2 md:order-1">
                   <div>
-                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">320+</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">{ct(content, "testimonials_stat_1", "320+")}</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">{ct(content, "testimonials_stat_1_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة")}</p>
                   </div>
                   <div>
-                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">50%</div>
-                    <p className="text-sm text-white/50 mt-2 leading-relaxed">إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة</p>
+                    <div className="text-5xl md:text-6xl font-extrabold text-white/90 ltr-nums">{ct(content, "testimonials_stat_2", "50%")}</div>
+                    <p className="text-sm text-white/50 mt-2 leading-relaxed">{ct(content, "testimonials_stat_2_desc", "إرسال وثائق للتوقيع الرقمي عبر SMS، إدارة مستندات آمنة في السحابة ومتابعة كاملة")}</p>
                   </div>
                 </div>
 
@@ -560,9 +564,9 @@ export default function Landing() {
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
         <div className="relative max-w-6xl mx-auto px-6">
-          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">أسئلة وأجوبة</p>
+          <p className="text-sm text-[#7ba4f7] text-center mb-4 tracking-wide">{ct(content, "faq_label", "أسئلة وأجوبة")}</p>
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
-            كل ما يهمك معرفته عن Thiqa
+            {ct(content, "faq_title", "كل ما يهمك معرفته عن Thiqa")}
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 md:gap-12">

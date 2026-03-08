@@ -235,7 +235,7 @@ export default function ThiqaAgentDetail() {
       }
       toast.success('تم تسجيل الدفعة');
       setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
-      const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setFullYear(e.getFullYear() + 1); setPeriodEnd(e);
+      const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setMonth(e.getMonth() + 1); setPeriodEnd(e);
       fetchAll();
     }
   };

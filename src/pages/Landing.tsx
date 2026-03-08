@@ -320,7 +320,7 @@ export default function Landing() {
 
                 <div className="mt-8">
                   <button
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate("/login?view=signup")}
                     className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-colors bg-white/[0.04] border border-white/[0.08] rounded-lg"
                   >
                     ابدأ التجربة الآن

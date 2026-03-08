@@ -377,11 +377,36 @@ export default function Login() {
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                    </div>
+                   </div>
                     <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
                       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
                       {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
                     </Button>
+
+                    <button
+                      type="button"
+                      className="w-full text-center text-sm text-primary hover:underline"
+                      onClick={async () => {
+                        if (!email || !email.includes("@")) {
+                          toast.error("يرجى إدخال البريد الإلكتروني أولاً");
+                          return;
+                        }
+                        setLoading(true);
+                        try {
+                          const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+                            redirectTo: `${window.location.origin}/reset-password`,
+                          });
+                          if (error) throw error;
+                          toast.success("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني");
+                        } catch (e: any) {
+                          toast.error(e.message || "حدث خطأ");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      نسيت كلمة المرور؟
+                    </button>
                   </div>
 
                   <Separator />

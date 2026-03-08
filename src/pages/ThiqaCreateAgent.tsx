@@ -80,7 +80,7 @@ export default function ThiqaCreateAgent() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 max-w-2xl" dir="rtl">
+      <div className="space-y-6 max-w-2xl px-1" dir="rtl">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/thiqa/agents')}>
             <ArrowRight className="h-5 w-5" />
@@ -97,7 +97,7 @@ export default function ThiqaCreateAgent() {
             <CardDescription>سيتم تهيئة جميع الإعدادات (SMS، Tranzila، العلامة التجارية) تلقائياً</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label>الاسم (English) *</Label>
                 <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Agent Name" />
@@ -149,7 +149,7 @@ export default function ThiqaCreateAgent() {
             {/* What gets created */}
             <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
               <p className="font-medium text-sm">عند الإنشاء سيتم تهيئة:</p>
-              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-muted-foreground">
                 {['حساب الوكيل', 'إعدادات SMS (019)', 'إعدادات Tranzila', 'العلامة التجارية', 'إعدادات المصادقة', 'أعلام الميزات'].map(item => (
                   <div key={item} className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />

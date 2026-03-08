@@ -77,6 +77,7 @@ import ThiqaLandingCMS from "./pages/ThiqaLandingCMS";
 import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
 import Pricing from "./pages/Pricing";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/no-access" element={<NoAccess />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/subscription-expired" element={<SubscriptionExpired />} />
               {/* Thiqa Super Admin routes */}
               <Route path="/thiqa" element={<ThiqaAdminRoute><ThiqaDashboard /></ThiqaAdminRoute>} />

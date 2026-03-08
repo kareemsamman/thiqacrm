@@ -10,7 +10,7 @@ interface WizardStepperProps {
 
 export function WizardStepper({ steps, currentStep, onStepClick }: WizardStepperProps) {
   return (
-    <div className="flex items-center justify-center gap-2 mb-6">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2 sm:mb-6 overflow-x-auto">
       {steps.map((step, index) => {
         const Icon = step.icon;
         const isActive = step.id === currentStep;
@@ -24,7 +24,7 @@ export function WizardStepper({ steps, currentStep, onStepClick }: WizardStepper
               onClick={() => canClick && onStepClick(step.id)}
               disabled={!canClick}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200",
+                "flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all duration-200",
                 "focus:outline-none focus:ring-2 focus:ring-primary/50",
                 isActive && "bg-primary text-primary-foreground shadow-lg scale-105",
                 isCompleted && !isActive && "bg-success/10 text-success border border-success/30 hover:bg-success/20",
@@ -33,20 +33,20 @@ export function WizardStepper({ steps, currentStep, onStepClick }: WizardStepper
               )}
             >
               <div className={cn(
-                "w-7 h-7 rounded-full flex items-center justify-center text-sm font-semibold",
+                "w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold",
                 isActive && "bg-primary-foreground/20",
                 isCompleted && "bg-success text-success-foreground",
                 !isActive && !isCompleted && "bg-muted-foreground/20"
               )}>
-                {isCompleted ? <Check className="h-4 w-4" /> : step.id}
+                {isCompleted ? <Check className="h-3 w-3 sm:h-4 sm:w-4" /> : step.id}
               </div>
               <span className="hidden sm:inline font-medium">{step.title}</span>
-              <Icon className="h-4 w-4 sm:hidden" />
+              <Icon className="h-3.5 w-3.5 sm:hidden" />
             </button>
             
             {index < steps.length - 1 && (
               <div className={cn(
-                "w-8 h-0.5 mx-1",
+                "w-4 sm:w-8 h-0.5 mx-0.5 sm:mx-1",
                 step.isValid && steps[index + 1]?.isUnlocked 
                   ? "bg-success/50" 
                   : "bg-border"

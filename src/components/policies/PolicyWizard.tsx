@@ -1548,15 +1548,15 @@ export function PolicyWizard({
     <>
       <Dialog open={open && !isCollapsed} onOpenChange={handleClose}>
         <DialogContent 
-          className="max-w-5xl w-[95vw] max-h-[95vh] overflow-hidden flex flex-col" 
+          className="max-w-5xl w-[95vw] sm:max-h-[95vh] max-h-[100dvh] overflow-hidden flex flex-col sm:rounded-2xl rounded-none p-3 sm:p-6" 
           dir="rtl"
         >
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
+          <DialogHeader className="flex-shrink-0 pb-2 sm:pb-4 border-b">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <DialogTitle className="text-base sm:text-xl font-bold flex items-center gap-2">
                 إضافة وثيقة جديدة
                 {selectedCategory && (
-                  <span className="text-sm font-normal text-muted-foreground">
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground">
                     ({selectedCategory.name_ar || selectedCategory.name})
                   </span>
                 )}
@@ -1574,7 +1574,7 @@ export function PolicyWizard({
           </DialogHeader>
 
           {/* Wizard Stepper */}
-          <div className="flex-shrink-0 py-4">
+          <div className="flex-shrink-0 py-2 sm:py-4">
             <WizardStepper
               steps={steps}
               currentStep={currentStep}
@@ -1708,44 +1708,50 @@ export function PolicyWizard({
           </div>
 
           {/* Footer with navigation */}
-          <div className="flex-shrink-0 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+          <div className="flex-shrink-0 pt-3 sm:pt-4 border-t">
+            <div className="flex items-center justify-between gap-2">
+              <div>
                 {canGoPrev && (
                   <Button
                     variant="outline"
+                    size="sm"
                     onClick={handlePrev}
                     disabled={saving}
+                    className="sm:size-default"
                   >
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                    السابق
+                    <ArrowRight className="h-4 w-4 ml-1 sm:ml-2" />
+                    <span className="hidden sm:inline">السابق</span>
                   </Button>
                 )}
               </div>
 
-              <div className="flex gap-2">
+              <div>
                 {currentStep < steps.length ? (
                   <Button
                     onClick={handleNext}
                     disabled={!canGoNext || saving}
+                    size="sm"
+                    className="sm:size-default"
                   >
                     التالي
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
                   </Button>
                 ) : (
                   <Button
                     onClick={handleSave}
                     disabled={saving || paymentsExceedPrice || payments.some(p => p.payment_type === 'visa' && !p.tranzila_paid && (p.amount || 0) > 0)}
-                    className="min-w-32"
+                    className="min-w-24 sm:min-w-32"
+                    size="sm"
                   >
                     {saving ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                        جاري الحفظ...
+                        <Loader2 className="h-4 w-4 animate-spin ml-1 sm:ml-2" />
+                        <span className="hidden sm:inline">جاري الحفظ...</span>
+                        <span className="sm:hidden">حفظ...</span>
                       </>
                     ) : (
                       <>
-                        <Save className="h-4 w-4 ml-2" />
+                        <Save className="h-4 w-4 ml-1 sm:ml-2" />
                         حفظ الوثيقة
                       </>
                     )}

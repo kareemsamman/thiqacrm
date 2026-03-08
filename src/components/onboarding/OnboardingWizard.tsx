@@ -135,7 +135,7 @@ export function OnboardingWizard() {
     return { done, gainedProgress };
   }, [agentId]);
 
-  // Listen for manual open (sidebar menu) and progress updates (after saving branding/companies)
+  // Listen for manual open only (sidebar menu click)
   useEffect(() => {
     const manualOpenHandler = () => {
       setManualOpen(true);
@@ -144,39 +144,16 @@ export function OnboardingWizard() {
       refreshCompletedSteps();
     };
 
-    const progressUpdatedHandler = async () => {
-      if (onboardingCompleted) return;
-
-      const { done, gainedProgress } = await refreshCompletedSteps();
-      const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
-
-      if (allDone && user?.id) {
-        await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
-        setOnboardingCompleted(true);
-        return;
-      }
-
-      // Only re-open if there was actual new progress
-      if (gainedProgress) {
-        setReady(true);
-        setVisible(true);
-      }
-    };
-
     window.addEventListener("show-onboarding", manualOpenHandler);
-    window.addEventListener("onboarding-progress-updated", progressUpdatedHandler);
 
     return () => {
       window.removeEventListener("show-onboarding", manualOpenHandler);
-      window.removeEventListener("onboarding-progress-updated", progressUpdatedHandler);
     };
-  }, [refreshCompletedSteps, onboardingCompleted, user?.id]);
+  }, [refreshCompletedSteps]);
 
-  // Auto-show ONCE on first login if not completed — only on dashboard
+  // On mount, just load onboarding_completed flag (no auto-show)
   useEffect(() => {
-    if (!user || !isAdmin || !agentId || hasAutoShownRef.current || manualOpen) return;
-
-    let cancelled = false;
+    if (!user || !isAdmin || !agentId) return;
 
     (async () => {
       try {
@@ -186,37 +163,13 @@ export function OnboardingWizard() {
           .eq("id", user.id)
           .single();
 
-        if (cancelled) return;
-
         const isCompleted = Boolean((profile as any)?.onboarding_completed);
         setOnboardingCompleted(isCompleted);
-        if (isCompleted) return;
-
-        const { done } = await refreshCompletedSteps();
-        if (cancelled) return;
-
-        const allDone = ONBOARDING_STEPS.every((s) => done.has(s.id));
-        if (allDone) {
-          await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
-          setOnboardingCompleted(true);
-          return;
-        }
-
-        // Show only once per session
-        hasAutoShownRef.current = true;
-        setReady(true);
-        setTimeout(() => {
-          if (!cancelled) setVisible(true);
-        }, 500);
       } catch (e) {
         console.error("Onboarding check error:", e);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, isAdmin, agentId, manualOpen, refreshCompletedSteps]);
+  }, [user, isAdmin, agentId]);
 
   const handleSkip = async () => {
     setVisible(false);

@@ -190,6 +190,7 @@ export default function Landing() {
 
         <div className="relative z-10 max-w-5xl mx-auto mt-16 px-6">
           <div className="relative rounded-t-xl overflow-hidden border border-white/[0.1] border-b-0 shadow-2xl shadow-black/50">
+            <img src={dashboardMockup} alt="Thiqa CRM Dashboard" className="w-full block" loading="lazy" />
             <img src="/images/dashboard-mockup.png" alt="Thiqa CRM Dashboard" className="w-full block" loading="lazy" />
           </div>
         </div>

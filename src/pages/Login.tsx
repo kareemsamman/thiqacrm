@@ -109,6 +109,24 @@ export default function Login() {
     }
   };
 
+  const extractInvokeErrorMessage = async (rawError: unknown) => {
+    if (!(rawError instanceof Error)) return "حدث خطأ غير متوقع";
+
+    const response = (rawError as Error & { context?: Response }).context;
+    if (response && typeof response.json === "function") {
+      try {
+        const payload = await response.clone().json();
+        if (payload?.error || payload?.message) {
+          return payload.error || payload.message;
+        }
+      } catch {
+        // noop - fallback to normal error parsing
+      }
+    }
+
+    return extractFunctionMessage(rawError.message);
+  };
+
   const validateSignupForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
@@ -121,13 +139,20 @@ export default function Login() {
   };
 
   const handleSignup = async () => {
+    setSignupFeedback(null);
+
     const errors = validateSignupForm();
     setSignupErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      setSignupFeedback({ type: "error", message: "يرجى تصحيح الأخطاء قبل إكمال التسجيل" });
+      return;
+    }
 
     setLoading(true);
+    setSignupFeedback({ type: "info", message: "جارٍ إنشاء وكالة جديدة..." });
+
     try {
-      const { data, error } = await supabase.functions.invoke('register-agent', {
+      const { data, error } = await supabase.functions.invoke("register-agent", {
         body: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
@@ -137,19 +162,33 @@ export default function Login() {
         },
       });
 
-      if (error) throw new Error(extractFunctionMessage(error.message));
+      if (error) {
+        const parsedError = await extractInvokeErrorMessage(error);
+        throw new Error(parsedError);
+      }
+
       if (data?.error) throw new Error(data.error);
 
-      toast.success(data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.");
+      const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح. لديك 35 يوم مجاناً بدون أي وسيلة دفع.";
+      toast.success(successMessage);
+      setSignupFeedback({ type: "success", message: successMessage });
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
-      setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
-      setSignupConfirmPassword(""); setSignupPhone("");
+      setFirstName("");
+      setLastName("");
+      setSignupEmail("");
+      setSignupPassword("");
+      setSignupConfirmPassword("");
+      setSignupPhone("");
       setSignupErrors({});
     } catch (e: unknown) {
-      toast.error(extractFunctionMessage(e instanceof Error ? e.message : "حدث خطأ غير متوقع"));
-    } finally { setLoading(false); }
+      const errorMessage = await extractInvokeErrorMessage(e);
+      setSignupFeedback({ type: "error", message: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (authLoading) {

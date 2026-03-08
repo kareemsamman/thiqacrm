@@ -382,33 +382,6 @@ export default function AdminUsers() {
     }
   };
 
-  const handleChangeExtension = async (userId: string, extension: string) => {
-    setActionLoading(userId);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ pbx_extension: extension || null } as any)
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      toast({
-        title: "تم التحديث",
-        description: "تم تحديث رقم التحويلة بنجاح",
-      });
-
-      fetchUsers();
-    } catch (error) {
-      console.error('Error changing extension:', error);
-      toast({
-        title: "خطأ",
-        description: "فشل في تحديث رقم التحويلة",
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const pendingUsers = users.filter(u => u.status === 'pending');
   const activeUsers = users.filter(u => u.status === 'active');

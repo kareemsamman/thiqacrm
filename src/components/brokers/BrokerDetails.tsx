@@ -651,7 +651,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         open={smsModalOpen}
         onOpenChange={setSmsModalOpen}
         broker={{ id: broker.id, name: broker.name, phone: broker.phone }}
-        defaultMessage={`مرحباً ${broker.name}،\n\nنود إعلامك بتحديثات جديدة على حسابك.\n\nبشير للتأمينات 🚗`}
+        defaultMessage={`مرحباً ${broker.name}،\n\nنود إعلامك بتحديثات جديدة على حسابك.\n\n${siteSettings?.site_title || 'وكالة التأمين'} 🚗`}
       />
     </MainLayout>
   );

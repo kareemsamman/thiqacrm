@@ -41,6 +41,7 @@ const CAR_TYPES: { value: CarType; label: string }[] = [
 ];
 
 export function RoadServiceDrawer({ open, onOpenChange, service, onSaved }: RoadServiceDrawerProps) {
+  const { agentId } = useAgentContext();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',

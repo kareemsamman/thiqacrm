@@ -17,10 +17,10 @@ export default function Landing() {
     <div className="min-h-screen text-white overflow-x-hidden" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
 
       {/* ═══ Navbar ═══ */}
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/[0.05] border-b border-white/[0.08]">
+      <nav className="fixed top-0 inset-x-0 z-50 bg-black/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <img src={thiqaLogo} alt="Thiqa" className="h-10 w-10" />
+            <img src={thiqaLogo} alt="Thiqa" className="h-12 w-12" />
           </div>
           <div className="hidden md:flex items-center gap-10 text-[14px] text-white/70 font-medium">
             <a href="#features" className="hover:text-white transition-colors">במה אנחנו שונים</a>
@@ -35,7 +35,6 @@ export default function Landing() {
               borderRadius: '100px',
               border: '2px solid rgba(255, 255, 255, 0.40)',
               background: 'rgba(255, 255, 255, 0.10)',
-              boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
             }}
           >
             קבלו 35 ימים בחינם

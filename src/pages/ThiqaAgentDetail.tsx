@@ -63,6 +63,7 @@ export default function ThiqaAgentDetail() {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { startImpersonation } = useAgentContext();
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);

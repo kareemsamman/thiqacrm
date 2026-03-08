@@ -279,12 +279,12 @@ export default function Landing() {
       <section id="demo" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">لماذا Thiqa بالذات؟</p>
+            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">{ct(content, "showcase_label", "لماذا Thiqa بالذات؟")}</p>
             <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
-              كل الأدوات لإدارة الوكالة تحت سقف واحد
+              {ct(content, "showcase_title", "كل الأدوات لإدارة الوكالة تحت سقف واحد")}
             </h2>
             <p className="text-white/40 text-sm max-w-xl mx-auto">
-              بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.
+              {ct(content, "showcase_subtitle", "بنية تقنية متقدمة توفر لك الوقت، تمنع الأخطاء وتزيد الربحية.")}
             </p>
           </div>
 

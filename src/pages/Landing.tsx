@@ -14,6 +14,7 @@ import sectionDividerDark from "@/assets/landing/section-divider-dark.png";
 import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
 import featurePaperless from "@/assets/landing/feature-paperless.png";
 import featureMarketing from "@/assets/landing/feature-marketing.png";
+import sliderBg from "@/assets/landing/slider-bg.png";
 
 const featureTabs = [
   {

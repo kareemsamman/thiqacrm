@@ -497,6 +497,10 @@ export default function ThiqaAgentDetail() {
               </div>
             </div>
           </div>
+          <Button variant="destructive" size="sm" className="flex-shrink-0 text-xs" onClick={() => setDeleteAgentOpen(true)}>
+            <Trash2 className="h-3.5 w-3.5 ml-1" />
+            حذف الوكيل
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

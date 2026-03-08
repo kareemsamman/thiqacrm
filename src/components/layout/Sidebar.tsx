@@ -60,7 +60,7 @@ import { ProfileEditDrawer } from "./ProfileEditDrawer";
 import { Palette, Link2, Crown, HelpCircle } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useAgentContext } from "@/hooks/useAgentContext";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
 import { useSidebarState } from "@/hooks/useSidebarState";
 

@@ -9,6 +9,9 @@ import thiqaLogo from "@/assets/thiqa-logo.svg";
 import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
 import featuresMockup from "@/assets/landing/features-mockup.png";
 import sectionDivider from "@/assets/landing/section-divider.png";
+import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
+import featurePaperless from "@/assets/landing/feature-paperless.png";
+import featureMarketing from "@/assets/landing/feature-marketing.png";
 
 export default function Landing() {
   const navigate = useNavigate();

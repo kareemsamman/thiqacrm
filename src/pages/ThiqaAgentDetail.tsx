@@ -7,15 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowRight, Save, CreditCard, Settings, Loader2 } from "lucide-react";
+import {
+  ArrowRight, Save, CreditCard, Settings, Loader2, Building2,
+  MessageSquare, Palette, Users, Shield, Phone, Mail, Image,
+  Upload, Trash2, Eye, EyeOff, Plus, UserPlus, UserMinus,
+} from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { DeleteConfirmDialog } from "@/components/shared/DeleteConfirmDialog";
 
+// ─── Feature flags ───
 const ALL_FEATURES = [
   { key: 'sms', label: 'إرسال SMS', description: 'إرسال رسائل نصية للعملاء' },
   { key: 'financial_reports', label: 'التقارير المالية', description: 'عرض التقارير المالية' },
@@ -27,6 +34,10 @@ const ALL_FEATURES = [
   { key: 'accident_reports', label: 'بلاغات الحوادث', description: 'إدارة بلاغات الحوادث' },
   { key: 'repair_claims', label: 'المطالبات', description: 'إدارة مطالبات التصليح' },
   { key: 'marketing_sms', label: 'SMS تسويقية', description: 'حملات SMS تسويقية' },
+  { key: 'road_services', label: 'خدمات الطريق', description: 'إدارة خدمات الطريق' },
+  { key: 'accident_fees', label: 'رسوم الحوادث', description: 'إعفاء رسوم الحادث' },
+  { key: 'correspondence', label: 'التوريسات', description: 'إدارة المراسلات' },
+  { key: 'ippbx', label: 'Click2Call / PBX', description: 'الاتصال عبر المقسم' },
 ];
 
 interface AgentDetail {
@@ -50,10 +61,18 @@ export default function ThiqaAgentDetail() {
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);
+  const [agentUsers, setAgentUsers] = useState<any[]>([]);
+  const [smsSettings, setSmsSettings] = useState<any>(null);
+  const [authSettings, setAuthSettings] = useState<any>(null);
+  const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (agentId) fetchAll();
@@ -61,181 +80,291 @@ export default function ThiqaAgentDetail() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [agentRes, flagsRes, paymentsRes] = await Promise.all([
+    const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes] = await Promise.all([
       supabase.from('agents').select('*').eq('id', agentId!).single(),
       supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
-      supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }),
+      supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
+      supabase.from('agent_users').select('*, profiles:user_id(id, email, full_name, status, phone)').eq('agent_id', agentId!),
+      supabase.from('sms_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
+      supabase.from('auth_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
+      supabase.from('payment_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
+      supabase.from('site_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
     ]);
-    
+
     if (agentRes.data) setAgent(agentRes.data as AgentDetail);
-    
     const featureMap: Record<string, boolean> = {};
-    if (flagsRes.data) {
-      flagsRes.data.forEach((f: any) => { featureMap[f.feature_key] = f.enabled; });
-    }
+    if (flagsRes.data) flagsRes.data.forEach((f: any) => { featureMap[f.feature_key] = f.enabled; });
     setFeatures(featureMap);
-    
     if (paymentsRes.data) setPayments(paymentsRes.data);
+    if (usersRes.data) setAgentUsers(usersRes.data);
+    if (smsRes.data) setSmsSettings(smsRes.data);
+    if (authRes.data) setAuthSettings(authRes.data);
+    if (payRes.data) setPaymentSettings(payRes.data);
+    if (siteRes.data) setSiteSettings(siteRes.data);
     setLoading(false);
   };
 
+  // ─── Save agent info ───
   const saveAgent = async () => {
     if (!agent) return;
     setSaving(true);
     const { error } = await supabase
       .from('agents')
       .update({
-        name: agent.name,
-        name_ar: agent.name_ar,
-        email: agent.email,
-        phone: agent.phone,
-        plan: agent.plan,
+        name: agent.name, name_ar: agent.name_ar, email: agent.email,
+        phone: agent.phone, plan: agent.plan,
         subscription_status: agent.subscription_status,
-        monthly_price: agent.monthly_price,
-        notes: agent.notes,
+        monthly_price: agent.monthly_price, notes: agent.notes,
         updated_at: new Date().toISOString(),
       })
       .eq('id', agent.id);
-    
     setSaving(false);
-    if (error) {
-      toast.error('خطأ في الحفظ');
-    } else {
-      toast.success('تم الحفظ بنجاح');
-    }
+    error ? toast.error('خطأ في الحفظ') : toast.success('تم الحفظ');
   };
 
+  // ─── Toggle feature ───
   const toggleFeature = async (key: string, enabled: boolean) => {
     setFeatures(prev => ({ ...prev, [key]: enabled }));
-    
-    // Upsert feature flag
-    const { error } = await supabase
-      .from('agent_feature_flags')
-      .upsert({
-        agent_id: agentId!,
-        feature_key: key,
-        enabled,
-      }, { onConflict: 'agent_id,feature_key' });
-    
-    if (error) toast.error('خطأ في تحديث الميزة');
+    await supabase.from('agent_feature_flags')
+      .upsert({ agent_id: agentId!, feature_key: key, enabled }, { onConflict: 'agent_id,feature_key' });
   };
 
+  // ─── Extend subscription ───
   const extendSubscription = async () => {
     if (!agent) return;
-    const currentExpiry = agent.subscription_expires_at 
-      ? new Date(agent.subscription_expires_at)
-      : new Date();
-    
-    // Add 1 month
-    const newExpiry = new Date(currentExpiry);
-    newExpiry.setMonth(newExpiry.getMonth() + 1);
-    
-    const { error } = await supabase
-      .from('agents')
-      .update({
-        subscription_expires_at: newExpiry.toISOString(),
-        subscription_status: 'active',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', agent.id);
-    
-    if (error) {
-      toast.error('خطأ في التمديد');
-    } else {
-      toast.success('تم تمديد الاشتراك شهر واحد');
-      setAgent(prev => prev ? { ...prev, subscription_expires_at: newExpiry.toISOString(), subscription_status: 'active' } : null);
+    const cur = agent.subscription_expires_at ? new Date(agent.subscription_expires_at) : new Date();
+    const newExp = new Date(cur);
+    newExp.setMonth(newExp.getMonth() + 1);
+    const { error } = await supabase.from('agents').update({
+      subscription_expires_at: newExp.toISOString(),
+      subscription_status: 'active',
+      updated_at: new Date().toISOString(),
+    }).eq('id', agent.id);
+    if (!error) {
+      toast.success('تم تمديد الاشتراك شهر');
+      setAgent(prev => prev ? { ...prev, subscription_expires_at: newExp.toISOString(), subscription_status: 'active' } : null);
     }
   };
 
+  // ─── Record payment ───
   const recordPayment = async () => {
     if (!agent || !paymentAmount) return;
-    
-    const { error } = await supabase
-      .from('agent_subscription_payments')
-      .insert({
-        agent_id: agent.id,
-        amount: parseFloat(paymentAmount),
-        plan: agent.plan,
-        payment_date: new Date().toISOString().split('T')[0],
-        received_by: user?.id,
-        notes: paymentNotes || null,
-      });
-    
-    if (error) {
-      toast.error('خطأ في تسجيل الدفعة');
-    } else {
+    const { error } = await supabase.from('agent_subscription_payments').insert({
+      agent_id: agent.id, amount: parseFloat(paymentAmount), plan: agent.plan,
+      payment_date: new Date().toISOString().split('T')[0],
+      received_by: user?.id, notes: paymentNotes || null,
+    });
+    if (!error) {
       toast.success('تم تسجيل الدفعة');
-      setPaymentAmount("");
-      setPaymentNotes("");
+      setPaymentAmount(""); setPaymentNotes("");
       fetchAll();
     }
   };
 
+  // ─── Save SMS settings ───
+  const saveSmsSettings = async () => {
+    setSavingSection('sms');
+    if (smsSettings?.id) {
+      await supabase.from('sms_settings').update({
+        sms_user: smsSettings.sms_user, sms_token: smsSettings.sms_token,
+        sms_source: smsSettings.sms_source, is_enabled: smsSettings.is_enabled,
+        updated_at: new Date().toISOString(),
+      }).eq('id', smsSettings.id);
+    } else {
+      const { data } = await supabase.from('sms_settings').insert({
+        agent_id: agentId!, provider: '019',
+        sms_user: smsSettings?.sms_user || '', sms_token: smsSettings?.sms_token || '',
+        sms_source: smsSettings?.sms_source || '', is_enabled: smsSettings?.is_enabled ?? false,
+      }).select().single();
+      if (data) setSmsSettings(data);
+    }
+    setSavingSection(null);
+    toast.success('تم حفظ إعدادات SMS');
+  };
+
+  // ─── Save auth settings ───
+  const saveAuthSettings = async () => {
+    setSavingSection('auth');
+    if (authSettings?.id) {
+      await supabase.from('auth_settings').update({
+        sms_otp_enabled: authSettings.sms_otp_enabled,
+        sms_019_user: authSettings.sms_019_user, sms_019_token: authSettings.sms_019_token,
+        sms_019_source: authSettings.sms_019_source,
+        email_otp_enabled: authSettings.email_otp_enabled,
+        smtp_host: authSettings.smtp_host, smtp_port: authSettings.smtp_port,
+        smtp_user: authSettings.smtp_user, smtp_password: authSettings.smtp_password,
+        ippbx_enabled: authSettings.ippbx_enabled,
+        ippbx_token_id: authSettings.ippbx_token_id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', authSettings.id);
+    } else {
+      const { data } = await supabase.from('auth_settings').insert({
+        agent_id: agentId!, ...authSettings,
+      }).select().single();
+      if (data) setAuthSettings(data);
+    }
+    setSavingSection(null);
+    toast.success('تم حفظ إعدادات المصادقة');
+  };
+
+  // ─── Save payment/Tranzila settings ───
+  const savePaymentSettings = async () => {
+    setSavingSection('payment');
+    if (paymentSettings?.id) {
+      await supabase.from('payment_settings').update({
+        terminal_name: paymentSettings.terminal_name,
+        api_password: paymentSettings.api_password,
+        is_enabled: paymentSettings.is_enabled,
+        test_mode: paymentSettings.test_mode,
+        sandbox_terminal_name: paymentSettings.sandbox_terminal_name,
+        success_url: paymentSettings.success_url,
+        fail_url: paymentSettings.fail_url,
+        notify_url: paymentSettings.notify_url,
+        updated_at: new Date().toISOString(),
+      }).eq('id', paymentSettings.id);
+    } else {
+      const { data } = await supabase.from('payment_settings').insert({
+        agent_id: agentId!, provider: 'tranzila', ...paymentSettings,
+      }).select().single();
+      if (data) setPaymentSettings(data);
+    }
+    setSavingSection(null);
+    toast.success('تم حفظ إعدادات الدفع');
+  };
+
+  // ─── Save site/branding settings ───
+  const saveSiteSettings = async () => {
+    setSavingSection('site');
+    if (siteSettings?.id) {
+      await supabase.from('site_settings').update({
+        site_title: siteSettings.site_title, site_description: siteSettings.site_description,
+        logo_url: siteSettings.logo_url, favicon_url: siteSettings.favicon_url,
+        og_image_url: siteSettings.og_image_url,
+        updated_at: new Date().toISOString(),
+      }).eq('id', siteSettings.id);
+    } else {
+      const { data } = await supabase.from('site_settings').insert({
+        agent_id: agentId!, site_title: siteSettings?.site_title || '',
+        site_description: siteSettings?.site_description || '',
+        logo_url: siteSettings?.logo_url || null,
+      }).select().single();
+      if (data) setSiteSettings(data);
+    }
+    setSavingSection(null);
+    toast.success('تم حفظ العلامة التجارية');
+  };
+
+  // ─── Add user to agent ───
+  const addUserToAgent = async () => {
+    if (!newUserEmail.trim()) return;
+    // Find user profile by email
+    const { data: profile } = await supabase
+      .from('profiles').select('id, email, full_name')
+      .eq('email', newUserEmail.trim()).maybeSingle();
+    if (!profile) {
+      toast.error('المستخدم غير موجود. يجب أن يسجل دخول أولاً.');
+      return;
+    }
+    // Check if already assigned
+    const existing = agentUsers.find((u: any) => u.user_id === profile.id);
+    if (existing) { toast.error('المستخدم مربوط بالفعل'); return; }
+    // Also update profile agent_id
+    const [{ error: linkError }, { error: profileError }] = await Promise.all([
+      supabase.from('agent_users').insert({ agent_id: agentId!, user_id: profile.id }),
+      supabase.from('profiles').update({ agent_id: agentId! }).eq('id', profile.id),
+    ]);
+    if (linkError) { toast.error(linkError.message); return; }
+    toast.success('تم إضافة المستخدم');
+    setNewUserEmail('');
+    fetchAll();
+  };
+
+  // ─── Remove user from agent ───
+  const removeUserFromAgent = async (userId: string) => {
+    await Promise.all([
+      supabase.from('agent_users').delete().eq('agent_id', agentId!).eq('user_id', userId),
+      supabase.from('profiles').update({ agent_id: null }).eq('id', userId),
+    ]);
+    toast.success('تم إزالة المستخدم');
+    fetchAll();
+  };
+
+  const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
+
   if (loading) {
-    return (
-      <MainLayout>
-        <div className="space-y-4 p-4">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </MainLayout>
-    );
+    return <MainLayout><div className="space-y-4 p-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div></MainLayout>;
+  }
+  if (!agent) {
+    return <MainLayout><div className="p-8 text-center text-muted-foreground">الوكيل غير موجود</div></MainLayout>;
   }
 
-  if (!agent) {
-    return (
-      <MainLayout>
-        <div className="p-8 text-center text-muted-foreground">الوكيل غير موجود</div>
-      </MainLayout>
-    );
-  }
+  const initSms = () => smsSettings || { sms_user: '', sms_token: '', sms_source: '', is_enabled: false };
+  const initAuth = () => authSettings || {
+    email_otp_enabled: false, sms_otp_enabled: false,
+    smtp_host: '', smtp_port: 465, smtp_user: '', smtp_password: '',
+    sms_019_user: '', sms_019_token: '', sms_019_source: '',
+    ippbx_enabled: false, ippbx_token_id: '',
+  };
+  const initPay = () => paymentSettings || {
+    terminal_name: '', api_password: '', is_enabled: false,
+    test_mode: true, sandbox_terminal_name: 'demo5964',
+    success_url: '', fail_url: '', notify_url: '',
+  };
+  const initSite = () => siteSettings || { site_title: '', site_description: '', logo_url: null, favicon_url: null, og_image_url: null };
 
   return (
     <MainLayout>
-      <div className="space-y-6 max-w-4xl" dir="rtl">
+      <div className="space-y-6 max-w-5xl" dir="rtl">
+        {/* Header */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/thiqa/agents')}>
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{agent.name_ar || agent.name}</h1>
-            <p className="text-muted-foreground">{agent.email}</p>
+          <div className="flex items-center gap-3 flex-1">
+            {agent.logo_url ? (
+              <img src={agent.logo_url} alt="" className="h-12 w-12 rounded-lg object-contain border" />
+            ) : (
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Building2 className="h-6 w-6 text-primary" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold">{agent.name_ar || agent.name}</h1>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{agent.email}</span>
+                <Badge className={agent.subscription_status === 'active' ? 'bg-green-600' : 'bg-destructive'}>
+                  {agent.subscription_status === 'active' ? 'فعال' : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
+                </Badge>
+                <Badge variant="outline">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
+              </div>
+            </div>
           </div>
         </div>
 
         <Tabs defaultValue="info" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="info">معلومات الوكيل</TabsTrigger>
-            <TabsTrigger value="features">الميزات</TabsTrigger>
-            <TabsTrigger value="payments">المدفوعات</TabsTrigger>
+          <TabsList className="flex-wrap h-auto gap-1">
+            <TabsTrigger value="info"><Settings className="h-4 w-4 ml-1" />معلومات</TabsTrigger>
+            <TabsTrigger value="users"><Users className="h-4 w-4 ml-1" />المستخدمون</TabsTrigger>
+            <TabsTrigger value="branding"><Palette className="h-4 w-4 ml-1" />العلامة التجارية</TabsTrigger>
+            <TabsTrigger value="sms"><MessageSquare className="h-4 w-4 ml-1" />SMS 019</TabsTrigger>
+            <TabsTrigger value="auth"><Shield className="h-4 w-4 ml-1" />المصادقة</TabsTrigger>
+            <TabsTrigger value="tranzila"><CreditCard className="h-4 w-4 ml-1" />Tranzila</TabsTrigger>
+            <TabsTrigger value="features"><Settings className="h-4 w-4 ml-1" />الميزات</TabsTrigger>
+            <TabsTrigger value="payments"><CreditCard className="h-4 w-4 ml-1" />المدفوعات</TabsTrigger>
           </TabsList>
 
+          {/* ═══════════ INFO TAB ═══════════ */}
           <TabsContent value="info">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  بيانات الوكيل
-                </CardTitle>
+                <CardTitle>بيانات الوكيل</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>الاسم (English)</Label>
-                    <Input value={agent.name} onChange={e => setAgent({...agent, name: e.target.value})} />
-                  </div>
-                  <div>
-                    <Label>الاسم (عربي)</Label>
-                    <Input value={agent.name_ar || ''} onChange={e => setAgent({...agent, name_ar: e.target.value})} />
-                  </div>
-                  <div>
-                    <Label>الإيميل</Label>
-                    <Input value={agent.email} onChange={e => setAgent({...agent, email: e.target.value})} />
-                  </div>
-                  <div>
-                    <Label>الهاتف</Label>
-                    <Input value={agent.phone || ''} onChange={e => setAgent({...agent, phone: e.target.value})} />
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label>الاسم (English)</Label><Input value={agent.name} onChange={e => setAgent({...agent, name: e.target.value})} /></div>
+                  <div><Label>الاسم (عربي)</Label><Input value={agent.name_ar || ''} onChange={e => setAgent({...agent, name_ar: e.target.value})} /></div>
+                  <div><Label>الإيميل</Label><Input value={agent.email} onChange={e => setAgent({...agent, email: e.target.value})} /></div>
+                  <div><Label>الهاتف</Label><Input value={agent.phone || ''} onChange={e => setAgent({...agent, phone: e.target.value})} /></div>
                   <div>
                     <Label>الخطة</Label>
                     <Select value={agent.plan} onValueChange={v => setAgent({...agent, plan: v, monthly_price: v === 'pro' ? 500 : 300})}>
@@ -257,40 +386,275 @@ export default function ThiqaAgentDetail() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>تاريخ انتهاء الاشتراك</Label>
+                    <Input value={agent.subscription_expires_at ? format(new Date(agent.subscription_expires_at), 'yyyy-MM-dd') : ''} disabled className="opacity-60" />
+                  </div>
+                  <div>
+                    <Label>السعر الشهري</Label>
+                    <Input type="number" value={agent.monthly_price || ''} onChange={e => setAgent({...agent, monthly_price: parseFloat(e.target.value) || null})} />
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-3 pt-4">
+                <div><Label>ملاحظات</Label><Textarea value={agent.notes || ''} onChange={e => setAgent({...agent, notes: e.target.value})} /></div>
+                <div className="flex gap-3 pt-2">
                   <Button onClick={saveAgent} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
                     حفظ التغييرات
                   </Button>
-                  <Button variant="outline" onClick={extendSubscription}>
-                    تمديد شهر واحد
-                  </Button>
+                  <Button variant="outline" onClick={extendSubscription}>تمديد شهر واحد</Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* ═══════════ USERS TAB ═══════════ */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle>مستخدمو الوكيل</CardTitle>
+                <CardDescription>المستخدمون المربوطون بهذا الوكيل — يمكنهم الوصول لبياناته</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <Label>إضافة مستخدم بالإيميل</Label>
+                    <Input value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+                  </div>
+                  <Button onClick={addUserToAgent} disabled={!newUserEmail.trim()}>
+                    <UserPlus className="h-4 w-4 ml-2" />إضافة
+                  </Button>
+                </div>
+
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-right p-3">المستخدم</th>
+                        <th className="text-right p-3">الإيميل</th>
+                        <th className="text-right p-3">الهاتف</th>
+                        <th className="text-right p-3">الحالة</th>
+                        <th className="text-right p-3">إجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agentUsers.map((au: any) => {
+                        const p = au.profiles;
+                        return (
+                          <tr key={au.id} className="border-t">
+                            <td className="p-3 font-medium">{p?.full_name || '—'}</td>
+                            <td className="p-3 text-muted-foreground">{p?.email || '—'}</td>
+                            <td className="p-3 text-muted-foreground">{p?.phone || '—'}</td>
+                            <td className="p-3">
+                              <Badge variant={p?.status === 'active' ? 'default' : 'secondary'}>{p?.status || '—'}</Badge>
+                            </td>
+                            <td className="p-3">
+                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeUserFromAgent(au.user_id)}>
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {agentUsers.length === 0 && (
+                        <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون مربوطون</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ BRANDING TAB ═══════════ */}
+          <TabsContent value="branding">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" />العلامة التجارية</CardTitle>
+                <CardDescription>الشعار واسم الموقع والوصف</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label>اسم الموقع</Label><Input value={initSite().site_title} onChange={e => setSiteSettings({...initSite(), ...siteSettings, site_title: e.target.value})} placeholder="مثال: AB للتأمين" /></div>
+                  <div><Label>وصف الموقع</Label><Input value={initSite().site_description} onChange={e => setSiteSettings({...initSite(), ...siteSettings, site_description: e.target.value})} /></div>
+                  <div><Label>رابط الشعار (Logo URL)</Label><Input value={initSite().logo_url || ''} onChange={e => setSiteSettings({...initSite(), ...siteSettings, logo_url: e.target.value || null})} placeholder="https://cdn.example.com/logo.png" dir="ltr" /></div>
+                  <div><Label>رابط Favicon</Label><Input value={initSite().favicon_url || ''} onChange={e => setSiteSettings({...initSite(), ...siteSettings, favicon_url: e.target.value || null})} placeholder="https://cdn.example.com/favicon.ico" dir="ltr" /></div>
+                </div>
+                {initSite().logo_url && (
+                  <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                    <img src={initSite().logo_url} alt="Logo" className="h-14 w-auto rounded object-contain" />
+                    <span className="text-sm text-muted-foreground">الشعار الحالي</span>
+                  </div>
+                )}
+                <Button onClick={saveSiteSettings} disabled={savingSection === 'site'}>
+                  {savingSection === 'site' ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                  حفظ العلامة التجارية
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ SMS 019 TAB ═══════════ */}
+          <TabsContent value="sms">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" />إعدادات SMS — 019</CardTitle>
+                <CardDescription>بيانات حساب 019 لإرسال الرسائل النصية</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Switch checked={initSms().is_enabled} onCheckedChange={v => setSmsSettings({...initSms(), ...smsSettings, is_enabled: v})} />
+                  <Label>تفعيل SMS</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><Label>اسم المستخدم (019)</Label><Input value={initSms().sms_user} onChange={e => setSmsSettings({...initSms(), ...smsSettings, sms_user: e.target.value})} dir="ltr" /></div>
+                  <div>
+                    <Label>Token (019)</Label>
+                    <div className="relative">
+                      <Input type={showTokens.smsToken ? 'text' : 'password'} value={initSms().sms_token} onChange={e => setSmsSettings({...initSms(), ...smsSettings, sms_token: e.target.value})} dir="ltr" />
+                      <Button variant="ghost" size="icon" className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => toggleToken('smsToken')}>
+                        {showTokens.smsToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div><Label>رقم المصدر</Label><Input value={initSms().sms_source} onChange={e => setSmsSettings({...initSms(), ...smsSettings, sms_source: e.target.value})} dir="ltr" /></div>
+                </div>
+                <Button onClick={saveSmsSettings} disabled={savingSection === 'sms'}>
+                  {savingSection === 'sms' ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                  حفظ إعدادات SMS
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ AUTH TAB ═══════════ */}
+          <TabsContent value="auth">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Phone className="h-5 w-5" />SMS OTP (019)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Switch checked={initAuth().sms_otp_enabled} onCheckedChange={v => setAuthSettings({...initAuth(), ...authSettings, sms_otp_enabled: v})} />
+                    <Label>تفعيل تسجيل الدخول بـ SMS</Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><Label>مستخدم 019</Label><Input value={initAuth().sms_019_user || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_user: e.target.value})} dir="ltr" /></div>
+                    <div>
+                      <Label>Token 019</Label>
+                      <div className="relative">
+                        <Input type={showTokens.authSms ? 'text' : 'password'} value={initAuth().sms_019_token || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_token: e.target.value})} dir="ltr" />
+                        <Button variant="ghost" size="icon" className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => toggleToken('authSms')}>
+                          {showTokens.authSms ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div><Label>رقم المصدر</Label><Input value={initAuth().sms_019_source || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_source: e.target.value})} dir="ltr" /></div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Email OTP (SMTP)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Switch checked={initAuth().email_otp_enabled} onCheckedChange={v => setAuthSettings({...initAuth(), ...authSettings, email_otp_enabled: v})} />
+                    <Label>تفعيل تسجيل الدخول بالإيميل</Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><Label>SMTP Host</Label><Input value={initAuth().smtp_host || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, smtp_host: e.target.value})} dir="ltr" /></div>
+                    <div><Label>SMTP Port</Label><Input type="number" value={initAuth().smtp_port || 465} onChange={e => setAuthSettings({...initAuth(), ...authSettings, smtp_port: parseInt(e.target.value)})} /></div>
+                    <div><Label>SMTP User</Label><Input value={initAuth().smtp_user || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, smtp_user: e.target.value})} dir="ltr" /></div>
+                    <div>
+                      <Label>SMTP Password</Label>
+                      <div className="relative">
+                        <Input type={showTokens.smtp ? 'text' : 'password'} value={initAuth().smtp_password || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, smtp_password: e.target.value})} dir="ltr" />
+                        <Button variant="ghost" size="icon" className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => toggleToken('smtp')}>
+                          {showTokens.smtp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Phone className="h-5 w-5" />IPPBX / Click2Call</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Switch checked={initAuth().ippbx_enabled ?? false} onCheckedChange={v => setAuthSettings({...initAuth(), ...authSettings, ippbx_enabled: v})} />
+                    <Label>تفعيل Click2Call</Label>
+                  </div>
+                  <div><Label>IPPBX Token ID</Label><Input value={initAuth().ippbx_token_id || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, ippbx_token_id: e.target.value})} dir="ltr" /></div>
+                </CardContent>
+              </Card>
+              <Button onClick={saveAuthSettings} disabled={savingSection === 'auth'}>
+                {savingSection === 'auth' ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                حفظ إعدادات المصادقة
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* ═══════════ TRANZILA TAB ═══════════ */}
+          <TabsContent value="tranzila">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />إعدادات Tranzila</CardTitle>
+                <CardDescription>بوابة الدفع الإلكتروني</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Switch checked={initPay().is_enabled} onCheckedChange={v => setPaymentSettings({...initPay(), ...paymentSettings, is_enabled: v})} />
+                  <Label>تفعيل الدفع الإلكتروني</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={initPay().test_mode} onCheckedChange={v => setPaymentSettings({...initPay(), ...paymentSettings, test_mode: v})} />
+                  <Label>وضع الاختبار (Sandbox)</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label>Terminal Name</Label><Input value={initPay().terminal_name || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, terminal_name: e.target.value})} dir="ltr" /></div>
+                  <div>
+                    <Label>API Password</Label>
+                    <div className="relative">
+                      <Input type={showTokens.tranzila ? 'text' : 'password'} value={initPay().api_password || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, api_password: e.target.value})} dir="ltr" />
+                      <Button variant="ghost" size="icon" className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => toggleToken('tranzila')}>
+                        {showTokens.tranzila ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div><Label>Sandbox Terminal</Label><Input value={initPay().sandbox_terminal_name || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, sandbox_terminal_name: e.target.value})} dir="ltr" /></div>
+                  <div><Label>Success URL</Label><Input value={initPay().success_url || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, success_url: e.target.value})} dir="ltr" /></div>
+                  <div><Label>Fail URL</Label><Input value={initPay().fail_url || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, fail_url: e.target.value})} dir="ltr" /></div>
+                  <div><Label>Notify URL (Webhook)</Label><Input value={initPay().notify_url || ''} onChange={e => setPaymentSettings({...initPay(), ...paymentSettings, notify_url: e.target.value})} dir="ltr" /></div>
+                </div>
+                <Button onClick={savePaymentSettings} disabled={savingSection === 'payment'}>
+                  {savingSection === 'payment' ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Save className="h-4 w-4 ml-2" />}
+                  حفظ إعدادات Tranzila
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ═══════════ FEATURES TAB ═══════════ */}
           <TabsContent value="features">
             <Card>
               <CardHeader>
                 <CardTitle>ميزات الوكيل</CardTitle>
+                <CardDescription>تحكم بالميزات المتاحة لهذا الوكيل</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {ALL_FEATURES.map(feature => {
                     const isEnabled = features[feature.key] ?? (agent.plan === 'pro');
                     return (
                       <div key={feature.key} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
-                          <div className="font-medium">{feature.label}</div>
+                          <div className="font-medium text-sm">{feature.label}</div>
                           <div className="text-xs text-muted-foreground">{feature.description}</div>
                         </div>
-                        <Switch
-                          checked={isEnabled}
-                          onCheckedChange={v => toggleFeature(feature.key, v)}
-                        />
+                        <Switch checked={isEnabled} onCheckedChange={v => toggleFeature(feature.key, v)} />
                       </div>
                     );
                   })}
@@ -299,15 +663,13 @@ export default function ThiqaAgentDetail() {
             </Card>
           </TabsContent>
 
+          {/* ═══════════ PAYMENTS TAB ═══════════ */}
           <TabsContent value="payments">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  تسجيل دفعة جديدة
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" />سجل المدفوعات</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex gap-3 items-end">
                   <div className="flex-1">
                     <Label>المبلغ (₪)</Label>
@@ -317,12 +679,10 @@ export default function ThiqaAgentDetail() {
                     <Label>ملاحظات</Label>
                     <Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="اختياري" />
                   </div>
-                  <Button onClick={recordPayment} disabled={!paymentAmount}>
-                    تسجيل الدفعة
-                  </Button>
+                  <Button onClick={recordPayment} disabled={!paymentAmount}>تسجيل الدفعة + تمديد شهر</Button>
                 </div>
 
-                <div className="mt-6 border rounded-lg overflow-hidden">
+                <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
@@ -337,17 +697,11 @@ export default function ThiqaAgentDetail() {
                         <tr key={p.id} className="border-t">
                           <td className="p-3">{format(new Date(p.payment_date), 'dd/MM/yyyy')}</td>
                           <td className="p-3 font-medium">₪{p.amount}</td>
-                          <td className="p-3">
-                            <Badge variant="outline">{p.plan}</Badge>
-                          </td>
+                          <td className="p-3"><Badge variant="outline">{p.plan}</Badge></td>
                           <td className="p-3 text-muted-foreground">{p.notes || '—'}</td>
                         </tr>
                       ))}
-                      {payments.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="p-6 text-center text-muted-foreground">لا توجد مدفوعات</td>
-                        </tr>
-                      )}
+                      {payments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا توجد مدفوعات</td></tr>}
                     </tbody>
                   </table>
                 </div>

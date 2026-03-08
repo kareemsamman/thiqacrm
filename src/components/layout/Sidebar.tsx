@@ -177,6 +177,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin, branchName } = useAuth();
   const { data: siteSettings } = useSiteSettings();
+  const { hasFeature, isThiqaSuperAdmin } = useAgentContext();
 
   const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 

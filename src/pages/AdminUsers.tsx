@@ -343,16 +343,12 @@ export default function AdminUsers() {
   const handleChangeRole = async (userId: string, newRole: 'admin' | 'worker') => {
     setActionLoading(userId);
     try {
-      // Delete existing roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+      if (!agentId) throw new Error('Missing agent context');
 
-      // Insert new role
+      // Update role for current agent only (do not touch other agent memberships)
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: userId, role: newRole });
+        .upsert({ user_id: userId, role: newRole, agent_id: agentId }, { onConflict: 'user_id,agent_id' });
 
       if (error) throw error;
 

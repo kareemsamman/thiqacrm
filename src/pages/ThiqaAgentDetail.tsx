@@ -1243,10 +1243,41 @@ export default function ThiqaAgentDetail() {
                   {importing ? importProgress || "جاري الاستيراد..." : "بدء الاستيراد"}
                 </Button>
 
+                {/* Progress bar and elapsed time */}
+                {importing && importTotalRows > 0 && (
+                  <div className="space-y-2 rounded-xl border border-border p-4 bg-secondary/30">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {importProgress && <span className="font-medium text-foreground">{importProgress}</span>}
+                      </span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>⏱ {Math.floor(importElapsed / 60).toString().padStart(2, '0')}:{(importElapsed % 60).toString().padStart(2, '0')}</span>
+                        <span>{importDoneRows.toLocaleString()} / {importTotalRows.toLocaleString()} سجل</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-primary h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${Math.min(100, (importDoneRows / importTotalRows) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {Math.round((importDoneRows / importTotalRows) * 100)}% — يتم الاستيراد جدول بجدول لتجنّب انتهاء المهلة
+                    </p>
+                  </div>
+                )}
+
                 {importResults && (
                   <Card className="mt-4">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">نتائج الاستيراد</CardTitle>
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>نتائج الاستيراد</span>
+                        {!importing && importElapsed > 0 && (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            اكتمل في {Math.floor(importElapsed / 60)}:{(importElapsed % 60).toString().padStart(2, '0')} دقيقة
+                          </span>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -1254,6 +1285,7 @@ export default function ThiqaAgentDetail() {
                           <thead>
                             <tr className="border-b">
                               <th className="text-right p-2 font-medium">الجدول</th>
+                              <th className="text-right p-2 font-medium">عدد السجلات</th>
                               <th className="text-right p-2 font-medium">تم الإدراج</th>
                               <th className="text-right p-2 font-medium">أخطاء</th>
                             </tr>
@@ -1261,13 +1293,17 @@ export default function ThiqaAgentDetail() {
                           <tbody>
                             {Object.entries(importResults).map(([table, res]) => (
                               <tr key={table} className="border-b last:border-0">
-                                <td className="p-2 font-mono text-xs">{table}</td>
+                                <td className="p-2 text-xs">
+                                  <span className="font-medium">{TABLE_LABELS[table] || table}</span>
+                                  <span className="text-muted-foreground mr-1 font-mono text-[10px]">({table})</span>
+                                </td>
+                                <td className="p-2 text-muted-foreground text-xs">{(res.inserted + res.errors).toLocaleString()}</td>
                                 <td className="p-2">
-                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted}</Badge>
+                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted.toLocaleString()}</Badge>
                                 </td>
                                 <td className="p-2">
                                   {res.errors > 0 ? (
-                                    <Badge variant="destructive">{res.errors}</Badge>
+                                    <Badge variant="destructive">{res.errors.toLocaleString()}</Badge>
                                   ) : (
                                     <span className="text-muted-foreground">0</span>
                                   )}

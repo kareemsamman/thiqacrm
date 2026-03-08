@@ -204,13 +204,21 @@ export default function ThiqaSettings() {
           </div>
         </div>
 
-        <Tabs defaultValue="smtp" className="w-full">
+        <Tabs defaultValue="general" className="w-full">
           <TabsList>
+            <TabsTrigger value="general" className="gap-2">
+              <Shield className="h-4 w-4" />
+              عام
+            </TabsTrigger>
             <TabsTrigger value="smtp" className="gap-2">
               <Mail className="h-4 w-4" />
               البريد الإلكتروني
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="general">
+            <GeneralSettingsTab />
+          </TabsContent>
 
           <TabsContent value="smtp">
             <SmtpSettingsTab />

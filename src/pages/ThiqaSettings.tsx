@@ -11,11 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff } from "lucide-react";
 
 interface SmtpForm {
   smtp_host: string;

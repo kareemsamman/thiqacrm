@@ -185,19 +185,49 @@ serve(async (req) => {
 
     const results: Record<string, number> = {};
 
-    // 1. Insurance companies (special: category_parent can be null, use name+category key)
+    // Collect all seed company names for cleanup
+    const seedCompanyNames = new Set(SEED_COMPANIES.map((c) => c.name));
+
+    // 1. Insurance companies — delete old seed data (no policies) then re-insert
     const { data: existingCo, error: coReadErr } = await supabase
       .from("insurance_companies").select("id, name, category_parent").eq("agent_id", agentId);
     if (coReadErr) throw coReadErr;
 
-    const coKeyFn = (name: string, cp: any) => `${name}::${(cp ?? []).join("|")}`;
+    // Find existing companies that match seed names but have no policies — safe to delete & re-create
     const coMap = new Map<string, string>();
+    const idsToDelete: string[] = [];
+
     for (const row of existingCo ?? []) {
-      coMap.set(coKeyFn(row.name, row.category_parent), row.id);
-      coMap.set(row.name, row.id); // also by name for pricing lookup
+      if (seedCompanyNames.has(row.name)) {
+        // Check if this company has any policies
+        const { count } = await supabase
+          .from("policies")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", row.id)
+          .is("deleted_at", null);
+
+        if ((count ?? 0) === 0) {
+          idsToDelete.push(row.id);
+        } else {
+          // Has real policies — keep it and map it
+          coMap.set(row.name, row.id);
+        }
+      } else {
+        // Not a seed company, just map it
+        coMap.set(row.name, row.id);
+      }
     }
 
-    const coToInsert = SEED_COMPANIES.filter((r) => !coMap.has(coKeyFn(r.name, r.category_parent)));
+    // Delete orphaned seed companies (and their pricing rules, service prices)
+    if (idsToDelete.length > 0) {
+      await supabase.from("pricing_rules").delete().in("company_id", idsToDelete);
+      await supabase.from("company_road_service_prices").delete().in("company_id", idsToDelete);
+      await supabase.from("company_accident_fee_prices").delete().in("company_id", idsToDelete);
+      await supabase.from("insurance_companies").delete().in("id", idsToDelete);
+    }
+
+    // Insert all seed companies that don't already exist (by name)
+    const coToInsert = SEED_COMPANIES.filter((r) => !coMap.has(r.name));
     if (coToInsert.length > 0) {
       const { data, error } = await supabase
         .from("insurance_companies")
@@ -206,7 +236,6 @@ serve(async (req) => {
       if (error) throw error;
       results.insurance_companies = data?.length ?? 0;
       for (const row of data ?? []) {
-        coMap.set(coKeyFn(row.name, row.category_parent), row.id);
         coMap.set(row.name, row.id);
       }
     } else {

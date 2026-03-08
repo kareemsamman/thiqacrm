@@ -101,11 +101,11 @@ export const navigationGroups: NavGroup[] = [
     name: "المالية",
     icon: Wallet,
     items: [
-      { name: "الشيكات", href: "/cheques", icon: CreditCard },
+      { name: "الشيكات", href: "/cheques", icon: CreditCard, featureKey: 'cheques' },
       { name: "متابعة الديون", href: "/debt-tracking", icon: DollarSign, badge: 'debt' },
       { name: "شركات التأمين", href: "/companies", icon: Building2, adminOnly: true },
       { name: "الوسطاء", href: "/brokers", icon: Wallet, adminOnly: true },
-      { name: "سندات القبض والصرف", href: "/expenses", icon: DollarSign, adminOnly: true },
+      { name: "سندات القبض والصرف", href: "/expenses", icon: DollarSign, adminOnly: true, featureKey: 'expenses' },
     ],
   },
   {

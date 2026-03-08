@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
+import thiqaLogoDark from "@/assets/thiqa-logo-dark.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";

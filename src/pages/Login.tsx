@@ -258,7 +258,7 @@ export default function Login() {
   }
 
   const logoSrc = settings?.logo_url || thiqaLogo;
-  const siteTitle = settings?.site_title || "ثقة للتأمين";
+  const siteTitle = settings?.site_title || "Thiqa";
   const siteDesc = settings?.site_description || "نظام إدارة التأمين";
 
   return (

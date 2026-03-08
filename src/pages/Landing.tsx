@@ -645,7 +645,7 @@ export default function Landing() {
           </h2>
           <Button
             size="lg"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="bg-white text-[#1a1a2e] hover:bg-white/90 rounded-full px-10 h-[52px] text-sm font-bold shadow-lg"
           >
             ابدأ الآن مجاناً

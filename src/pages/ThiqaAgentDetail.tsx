@@ -382,7 +382,6 @@ export default function ThiqaAgentDetail() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">فعال</SelectItem>
-                        <SelectItem value="trial">تجربة مجانية</SelectItem>
                         <SelectItem value="suspended">معلّق</SelectItem>
                         <SelectItem value="expired">منتهي</SelectItem>
                       </SelectContent>

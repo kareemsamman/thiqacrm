@@ -285,7 +285,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
         )}
         {collapsed && (
           isThiqaSuperAdmin ? (
-            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-16 w-16 rounded-lg object-contain" />
+            <img src={thiqaLogo} alt="Thiqa" className="mx-auto h-10 w-10 rounded-lg object-contain" />
           ) : siteSettings?.logo_url ? (
             <img src={siteSettings.logo_url} alt="Logo" className="mx-auto h-9 w-9 rounded-lg object-contain" />
           ) : (

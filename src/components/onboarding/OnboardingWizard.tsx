@@ -247,6 +247,7 @@ export function OnboardingWizard() {
     // Mark completed in DB
     if (user && !manualOpen) {
       await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
+      setOnboardingCompleted(true);
     }
   };
 

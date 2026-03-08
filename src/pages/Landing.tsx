@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +15,67 @@ import featureProfitEngine from "@/assets/landing/feature-profit-engine.png";
 import featurePaperless from "@/assets/landing/feature-paperless.png";
 import featureMarketing from "@/assets/landing/feature-marketing.png";
 
+const featureTabs = [
+  {
+    id: "invoicing",
+    label: "הפקה וחיתום",
+    num: "01",
+    title: "הפקת פוליסות בלחיצה אחת.",
+    desc: "יצירת פוליסות חדשות, חידושים וחבילות ביטוח מותאמות — עם חישוב מחיר אוטומטי לפי כללי התמחור של כל חברת ביטוח.",
+    stats: [
+      { value: "3", unit: "דקות", label: "זמן ממוצע להפקת פוליסה חדשה מלאה." },
+      { value: "100%", unit: "", label: "דיוק בחישוב מחירים ועמלות אוטומטי." },
+    ],
+  },
+  {
+    id: "claims",
+    label: "ניהול תביעות",
+    num: "02",
+    title: "תביעות נסגרות מהר יותר,\nבלי ״פינג-פונג״ מיילים.",
+    desc: "ניהול תביעות חכם עם עדכונים אוטומטיים ללקוח, איסוף מסמכים דיגיטלי וסנכרון מלא מול חברות הביטוח. הלקוח נשאר מעודכן, ואתם פנויים למכירה הבאה.",
+    stats: [
+      { value: "12", unit: "דקות", label: "הזמן הממוצע שנחסך לסוכן על פתיחת תביעה ועדכון הסטטוס מול חברות הביטוח, בזכות סנכרון נתונים אוטומטי." },
+      { value: "65%", unit: "", label: "קיצור בזמן איסוף המסמכים מהלקוח. המערכת שולחת דרישות אוטומטיות ומתחילה את הקבצים ישירות בתיק התביעה ללא מגע יד אדם." },
+    ],
+  },
+  {
+    id: "marketing",
+    label: "אוטומציה שיווקית",
+    num: "03",
+    title: "שיווק אוטומטי שעובד בשבילך.",
+    desc: "שליחת SMS וקמפיינים אוטומטיים ללקוחות, תזכורות חידוש, עדכוני מבצעים ושימור לקוחות — הכל ללא מאמץ ידני.",
+    stats: [
+      { value: "40%", unit: "", label: "עלייה בשיעור חידוש פוליסות בזכות תזכורות אוטומטיות." },
+      { value: "5K+", unit: "", label: "הודעות SMS נשלחות מדי חודש דרך המערכת." },
+    ],
+  },
+  {
+    id: "bi",
+    label: "בקרה ו-BI",
+    num: "04",
+    title: "שליטה מלאה על הנתונים.",
+    desc: "דוחות רווחיות, מעקב עמלות, ניתוח ביצועי סוכנים ומבט-על על כל הסניפים — בזמן אמת ובלחיצה אחת.",
+    stats: [
+      { value: "50%", unit: "", label: "חיסכון בזמן הפקת דוחות כספיים." },
+      { value: "∞", unit: "", label: "דוחות מותאמים אישית ללא הגבלה." },
+    ],
+  },
+  {
+    id: "cx",
+    label: "חוויית לקוח",
+    num: "05",
+    title: "חוויית לקוח שמוכרת בעד עצמה.",
+    desc: "חתימות דיגיטליות, פורטל לקוח, תקשורת ישירה ב-WhatsApp ומעקב אחרי כל אינטראקציה — הלקוחות שלכם ירגישו את ההבדל.",
+    stats: [
+      { value: "95%", unit: "", label: "שביעות רצון לקוחות מהממשק הדיגיטלי." },
+      { value: "24/7", unit: "", label: "גישה עצמאית ללקוח לפוליסות והמסמכים." },
+    ],
+  },
+];
+
 export default function Landing() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("claims");
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
@@ -172,36 +232,77 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ═══ Section 4: "אל תחכו לחידוש, חייגו אותו" ═══ */}
-      <section className="py-24 md:py-36 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#2d4bc7]/[0.08] rounded-full blur-[100px]" />
-        </div>
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-[2.8rem] font-bold mb-4">אל תחכו לחידוש, חייגו אותו</h2>
-          <p className="text-white/40 text-base max-w-lg mx-auto mb-14">תזכורות חידוש אוטומטיות ב-SMS, ניהול תורי שיחות, ו-Click2Call ישירות מהמערכת.</p>
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
-          <div className="relative max-w-4xl mx-auto">
-            <div className="absolute -inset-8 bg-[#2244aa]/[0.05] rounded-[40px] blur-[50px]" />
-            <img src={featuresMockup} alt="Mobile views" className="relative rounded-2xl border border-white/[0.06] shadow-2xl mx-auto w-full" loading="lazy" />
+      <section id="demo" className="py-24 md:py-36 relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <p className="text-sm text-[#7ba4f7] mb-4 tracking-wide">?למה דווקא Thiqa</p>
+            <h2 className="text-3xl md:text-[2.8rem] font-bold leading-tight mb-4">
+              כל הכלים לניהול הסוכנות תחת קורת גג אחת
+            </h2>
+            <p className="text-white/40 text-sm max-w-xl mx-auto">
+              תשתית טכנולוגית מתקדמת שחוסכת לך זמן, מונעת טעויות ומגדילה את הרווחיות.
+            </p>
           </div>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap justify-center gap-3 mt-12">
-            {[
-              { icon: Phone, t: "Click2Call" },
-              { icon: MessageSquare, t: "SMS אוטומטי" },
-              { icon: Bell, t: "תזכורות חידוש" },
-            ].map((p, i) => (
-              <div key={i} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm text-white/70">
-                <p.icon className="h-4 w-4 text-[#7ba4f7]" />
-                {p.t}
-              </div>
+          {/* Tabs */}
+          <div className="flex overflow-x-auto border border-white/[0.06] rounded-xl mb-0">
+            {featureTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 min-w-[140px] px-4 py-4 text-center border-l border-white/[0.06] first:border-l-0 transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-white/[0.06] text-white"
+                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.02]"
+                }`}
+              >
+                <span className="text-xs text-white/30 block mb-1">{tab.num}</span>
+                <span className="text-sm font-semibold">{tab.label}</span>
+              </button>
             ))}
           </div>
+
+          {/* Tab Content */}
+          {featureTabs.filter(t => t.id === activeTab).map(tab => (
+            <div key={tab.id} className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/[0.06] border-t-0 rounded-b-xl overflow-hidden">
+              {/* Left: Image */}
+              <div className="bg-gradient-to-br from-[#4a6cc7]/30 to-[#7ba4f7]/10 min-h-[300px] lg:min-h-[400px] flex items-center justify-center">
+                <img src={featuresMockup} alt="" className="w-full h-full object-cover" loading="lazy" />
+              </div>
+              {/* Right: Content */}
+              <div className="p-8 lg:p-12 flex flex-col justify-center">
+                <h3 className="text-2xl md:text-3xl font-bold mb-4 leading-tight whitespace-pre-line">{tab.title}</h3>
+                <p className="text-white/40 text-sm leading-relaxed mb-8">{tab.desc}</p>
+
+                <div className="grid grid-cols-2 gap-6">
+                  {tab.stats.map((stat, j) => (
+                    <div key={j}>
+                      <div className="text-3xl font-extrabold text-white/90">
+                        {stat.value}<span className="text-lg font-medium text-white/50 mr-1">{stat.unit}</span>
+                      </div>
+                      <p className="text-xs text-white/30 mt-2 leading-relaxed">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8">
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-colors bg-white/[0.04] border border-white/[0.08] rounded-lg"
+                  >
+                    התחילו ניסיון עכשיו
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
+
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
       {/* ═══ Section 5: כל מה שהסוכנות צריכה ═══ */}
       <section id="demo" className="py-24 md:py-32 relative">
@@ -227,9 +328,10 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ Testimonials + Stats ═══ */}
       <section id="testimonials" className="py-24 md:py-36 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0c1029] via-[#0e1235] to-[#080b16] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-6">
           <h2 className="text-3xl md:text-[2.8rem] font-bold text-center mb-16">
             בואו תשמעו מה יש להגיד
@@ -278,6 +380,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ FAQ ═══ */}
       <section id="faq" className="py-24 md:py-36 relative">
         <div className="relative max-w-5xl mx-auto px-6">
@@ -308,11 +412,12 @@ export default function Landing() {
         </div>
       </section>
 
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
+
       {/* ═══ CTA ═══ */}
       <section className="py-24 md:py-36 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#162050] via-[#0e1640] to-[#080b16] pointer-events-none" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#2d4bc7]/[0.15] rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-white/[0.03] rounded-full blur-[120px]" />
         </div>
         <div className="relative max-w-3xl mx-auto text-center px-6">
           <h2 className="text-3xl md:text-[2.8rem] font-bold mb-4 leading-tight">

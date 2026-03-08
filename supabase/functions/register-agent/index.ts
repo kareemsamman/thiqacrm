@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
       const { data: smtpRows } = await adminClient
         .from("thiqa_platform_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name"]);
+        .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name", "superadmin_email"]);
 
       const smtp: Record<string, string> = {};
       (smtpRows || []).forEach((r: any) => { smtp[r.setting_key] = r.setting_value || ""; });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
+import { getAgentBranding, resolveAgentId } from "../_shared/agent-branding.ts";
 
 // HTML response headers - important to set correctly for browsers to render HTML
 const htmlHeaders = {

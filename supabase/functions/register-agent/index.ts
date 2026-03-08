@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
+import { buildEmailHtml, welcomeAgentEmailBody } from "../_shared/email-template.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -175,6 +177,44 @@ Deno.serve(async (req) => {
 
     if (otpError) {
       console.error("OTP send error:", otpError);
+    }
+
+    // Send welcome email via SMTP
+    try {
+      const { data: smtpRows } = await adminClient
+        .from("thiqa_platform_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["smtp_host", "smtp_port", "smtp_user", "smtp_password", "smtp_sender_name"]);
+
+      const smtp: Record<string, string> = {};
+      (smtpRows || []).forEach((r: any) => { smtp[r.setting_key] = r.setting_value || ""; });
+
+      const smtpUser = smtp.smtp_user;
+      const smtpPassword = smtp.smtp_password;
+
+      if (smtpUser && smtpPassword) {
+        const transporter = nodemailer.createTransport({
+          host: smtp.smtp_host || "smtp.hostinger.com",
+          port: Number(smtp.smtp_port) || 465,
+          secure: (Number(smtp.smtp_port) || 465) === 465,
+          auth: { user: smtpUser, pass: smtpPassword },
+        });
+
+        const htmlContent = buildEmailHtml({
+          body: welcomeAgentEmailBody(fullName),
+          footerText: "هذه الرسالة تم إرسالها تلقائياً عند إنشاء حسابك.",
+        });
+
+        await transporter.sendMail({
+          from: `"${smtp.smtp_sender_name || "Thiqa Insurance"}" <${smtpUser}>`,
+          to: normalizedEmail,
+          subject: "=?UTF-8?B?" + btoa(unescape(encodeURIComponent("مرحباً بك في ثقة للتأمين! 🎉"))) + "?=",
+          text: `مرحباً ${fullName}، تم إنشاء حسابك بنجاح على منصة ثقة للتأمين.`,
+          html: htmlContent,
+        });
+      }
+    } catch (welcomeErr) {
+      console.error("Welcome email error (non-blocking):", welcomeErr);
     }
 
     return new Response(

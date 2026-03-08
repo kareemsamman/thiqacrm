@@ -532,7 +532,7 @@ function generateReportHtml(
     
     /* Header */
     .header {
-      background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
       color: white;
       padding: 20px 16px;
       text-align: center;

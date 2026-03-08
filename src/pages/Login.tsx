@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ExternalLink, AlertCircle, Mail, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Loader2, ExternalLink, AlertCircle, ArrowRight, Eye, EyeOff, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";
+import { ArabicDatePicker } from "@/components/ui/arabic-date-picker";
+import { digitsOnly } from "@/lib/validation";
 
 type PageView = "login" | "signup";
 
@@ -37,6 +37,9 @@ export default function Login() {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  
+  // Signup validation errors (shown after attempted submit)
+  const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }
@@ -95,11 +98,21 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
+  const validateSignupForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
+    if (!lastName.trim()) errors.lastName = "الاسم الأخير مطلوب";
+    if (!signupEmail || !signupEmail.includes("@")) errors.signupEmail = "يرجى إدخال بريد إلكتروني صحيح";
+    if (signupPhone.trim() && digitsOnly(signupPhone).length !== 10) errors.signupPhone = "رقم الهاتف يجب أن يكون 10 أرقام";
+    if (!signupPassword || signupPassword.length < 6) errors.signupPassword = "كلمة المرور 6 أحرف على الأقل";
+    if (signupPassword !== signupConfirmPassword) errors.signupConfirmPassword = "كلمة المرور غير متطابقة";
+    return errors;
+  };
+
   const handleSignup = async () => {
-    if (!firstName.trim() || !lastName.trim()) { toast.error("يرجى إدخال الاسم الأول والأخير"); return; }
-    if (!signupEmail || !signupEmail.includes("@")) { toast.error("يرجى إدخال بريد إلكتروني صحيح"); return; }
-    if (!signupPassword || signupPassword.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
-    if (signupPassword !== signupConfirmPassword) { toast.error("كلمة المرور غير متطابقة"); return; }
+    const errors = validateSignupForm();
+    setSignupErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     setLoading(true);
     try {
@@ -109,7 +122,7 @@ export default function Login() {
           last_name: lastName.trim(),
           email: signupEmail.trim(),
           password: signupPassword,
-          phone: signupPhone.trim() || null,
+          phone: digitsOnly(signupPhone) || null,
           birth_date: birthDate || null,
         },
       });
@@ -121,9 +134,9 @@ export default function Login() {
       setPageView("login");
       setEmail(signupEmail);
       setPassword(signupPassword);
-      // Clear signup form
       setFirstName(""); setLastName(""); setSignupEmail(""); setSignupPassword(""); 
       setSignupConfirmPassword(""); setSignupPhone(""); setBirthDate("");
+      setSignupErrors({});
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
     } finally { setLoading(false); }
@@ -280,37 +293,43 @@ export default function Login() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأول *</Label>
-                        <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="محمد" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} />
+                        <Input value={firstName} onChange={(e) => { setFirstName(e.target.value); setSignupErrors(prev => ({ ...prev, firstName: "" })); }} placeholder="محمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.firstName ? "border-destructive" : ""}`} disabled={loading} />
+                        {signupErrors.firstName && <p className="text-xs text-destructive">{signupErrors.firstName}</p>}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">الاسم الأخير *</Label>
-                        <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="أحمد" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} />
+                        <Input value={lastName} onChange={(e) => { setLastName(e.target.value); setSignupErrors(prev => ({ ...prev, lastName: "" })); }} placeholder="أحمد" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.lastName ? "border-destructive" : ""}`} disabled={loading} />
+                        {signupErrors.lastName && <p className="text-xs text-destructive">{signupErrors.lastName}</p>}
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">تاريخ الميلاد</Label>
-                      <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} dir="ltr" />
+                      <ArabicDatePicker value={birthDate} onChange={(val) => setBirthDate(val)} isBirthDate disabled={loading} className="rounded-xl" />
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">البريد الإلكتروني *</Label>
-                      <Input type="email" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} placeholder="your-email@example.com" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} dir="ltr" />
+                      <Input type="email" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupErrors(prev => ({ ...prev, signupEmail: "" })); }} placeholder="your-email@example.com" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupEmail ? "border-destructive" : ""}`} disabled={loading} dir="ltr" />
+                      {signupErrors.signupEmail && <p className="text-xs text-destructive">{signupErrors.signupEmail}</p>}
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">رقم الهاتف</Label>
-                      <Input type="tel" value={signupPhone} onChange={(e) => setSignupPhone(e.target.value)} placeholder="05xxxxxxxx" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} dir="ltr" />
+                      <Label className="text-xs">رقم الهاتف (10 أرقام)</Label>
+                      <Input type="tel" value={signupPhone} onChange={(e) => { setSignupPhone(digitsOnly(e.target.value).slice(0, 10)); setSignupErrors(prev => ({ ...prev, signupPhone: "" })); }} placeholder="05xxxxxxxx" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPhone ? "border-destructive" : ""}`} disabled={loading} dir="ltr" maxLength={10} />
+                      {signupErrors.signupPhone && <p className="text-xs text-destructive">{signupErrors.signupPhone}</p>}
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">كلمة المرور *</Label>
-                      <Input type="password" value={signupPassword} onChange={(e) => setSignupPassword(e.target.value)} placeholder="6 أحرف على الأقل" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} dir="ltr" autoComplete="new-password" />
+                      <Input type="password" value={signupPassword} onChange={(e) => { setSignupPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupPassword: "" })); }} placeholder="6 أحرف على الأقل" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                      {signupErrors.signupPassword && <p className="text-xs text-destructive">{signupErrors.signupPassword}</p>}
                     </div>
 
                     <div className="space-y-1">
                       <Label className="text-xs">تأكيد كلمة المرور *</Label>
-                      <Input type="password" value={signupConfirmPassword} onChange={(e) => setSignupConfirmPassword(e.target.value)} placeholder="أعد إدخال كلمة المرور" className="h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60" disabled={loading} dir="ltr" autoComplete="new-password" />
+                      <Input type="password" value={signupConfirmPassword} onChange={(e) => { setSignupConfirmPassword(e.target.value); setSignupErrors(prev => ({ ...prev, signupConfirmPassword: "" })); }} placeholder="أعد إدخال كلمة المرور" className={`h-10 rounded-xl bg-white/60 dark:bg-card/60 border-border/60 ${signupErrors.signupConfirmPassword ? "border-destructive" : ""}`} disabled={loading} dir="ltr" autoComplete="new-password" />
+                      {signupErrors.signupConfirmPassword && <p className="text-xs text-destructive">{signupErrors.signupConfirmPassword}</p>}
                     </div>
 
                     <Button className="w-full h-12 text-base gap-2 rounded-xl shadow-lg" onClick={handleSignup} disabled={loading}>

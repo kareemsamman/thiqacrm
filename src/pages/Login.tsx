@@ -39,6 +39,7 @@ export default function Login() {
   
   // Signup validation errors (shown after attempted submit)
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
+  const [signupFeedback, setSignupFeedback] = useState<SignupFeedback | null>(null);
 
   useEffect(() => {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }

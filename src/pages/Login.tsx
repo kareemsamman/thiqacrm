@@ -319,7 +319,7 @@ export default function Login() {
               <div className="mx-auto h-14 w-14 rounded-xl bg-primary flex items-center justify-center lg:hidden mb-4">
                 <img src={thiqaLogoIcon} alt={siteTitle} className="h-9 w-9 object-contain" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">{siteTitle}</h1>
+              <img src={thiqaLogoDark} alt={siteTitle} className="mx-auto h-10 w-auto object-contain mb-1" />
               <p className="text-muted-foreground mt-1 text-sm">{siteDesc}</p>
             </div>
 

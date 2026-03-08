@@ -535,7 +535,7 @@
    <div class="container">
      <div class="header">
        <h1>🚗 توقيع بلاغ الحادث</h1>
-       <div class="subtitle">AB Insurance - وكالة تأمين معتمدة</div>
+       <div class="subtitle">ثقة للتأمين - وكالة تأمين معتمدة</div>
      </div>
      
      <div class="content">

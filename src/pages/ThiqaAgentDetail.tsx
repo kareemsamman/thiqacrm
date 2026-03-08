@@ -84,6 +84,8 @@ export default function ThiqaAgentDetail() {
   const [newUserBranch, setNewUserBranch] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState("info");
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (agentId) fetchAll();

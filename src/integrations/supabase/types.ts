@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       ab_ledger: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           category: Database["public"]["Enums"]["ledger_category"]
@@ -35,6 +36,7 @@ export type Database = {
           transaction_date: string
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           category: Database["public"]["Enums"]["ledger_category"]
@@ -54,6 +56,7 @@ export type Database = {
           transaction_date?: string
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           category?: Database["public"]["Enums"]["ledger_category"]
@@ -73,6 +76,13 @@ export type Database = {
           transaction_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ab_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ab_ledger_branch_id_fkey"
             columns: ["branch_id"]
@@ -106,6 +116,7 @@ export type Database = {
       accident_fee_services: {
         Row: {
           active: boolean
+          agent_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -116,6 +127,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          agent_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -126,6 +138,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          agent_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -134,11 +147,20 @@ export type Database = {
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "accident_fee_services_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       accident_injured_persons: {
         Row: {
           accident_report_id: string
+          agent_id: string | null
           created_at: string | null
           id: string
           injured_address: string | null
@@ -152,6 +174,7 @@ export type Database = {
         }
         Insert: {
           accident_report_id: string
+          agent_id?: string | null
           created_at?: string | null
           id?: string
           injured_address?: string | null
@@ -165,6 +188,7 @@ export type Database = {
         }
         Update: {
           accident_report_id?: string
+          agent_id?: string | null
           created_at?: string | null
           id?: string
           injured_address?: string | null
@@ -184,11 +208,19 @@ export type Database = {
             referencedRelation: "accident_reports"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "accident_injured_persons_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accident_report_files: {
         Row: {
           accident_report_id: string
+          agent_id: string | null
           created_at: string | null
           file_name: string | null
           file_type: string | null
@@ -197,6 +229,7 @@ export type Database = {
         }
         Insert: {
           accident_report_id: string
+          agent_id?: string | null
           created_at?: string | null
           file_name?: string | null
           file_type?: string | null
@@ -205,6 +238,7 @@ export type Database = {
         }
         Update: {
           accident_report_id?: string
+          agent_id?: string | null
           created_at?: string | null
           file_name?: string | null
           file_type?: string | null
@@ -219,11 +253,19 @@ export type Database = {
             referencedRelation: "accident_reports"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "accident_report_files_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accident_report_notes: {
         Row: {
           accident_report_id: string
+          agent_id: string | null
           created_at: string | null
           created_by: string | null
           id: string
@@ -231,6 +273,7 @@ export type Database = {
         }
         Insert: {
           accident_report_id: string
+          agent_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -238,6 +281,7 @@ export type Database = {
         }
         Update: {
           accident_report_id?: string
+          agent_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -252,6 +296,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "accident_report_notes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "accident_report_notes_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -263,6 +314,7 @@ export type Database = {
       accident_report_reminders: {
         Row: {
           accident_report_id: string
+          agent_id: string | null
           created_at: string | null
           created_by: string | null
           id: string
@@ -272,6 +324,7 @@ export type Database = {
         }
         Insert: {
           accident_report_id: string
+          agent_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -281,6 +334,7 @@ export type Database = {
         }
         Update: {
           accident_report_id?: string
+          agent_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -294,6 +348,13 @@ export type Database = {
             columns: ["accident_report_id"]
             isOneToOne: false
             referencedRelation: "accident_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accident_report_reminders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
           {
@@ -312,6 +373,7 @@ export type Database = {
           accident_location: string | null
           accident_time: string | null
           additional_details: string | null
+          agent_id: string | null
           branch_id: string | null
           car_id: string | null
           client_id: string
@@ -373,6 +435,7 @@ export type Database = {
           accident_location?: string | null
           accident_time?: string | null
           additional_details?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           car_id?: string | null
           client_id: string
@@ -434,6 +497,7 @@ export type Database = {
           accident_location?: string | null
           accident_time?: string | null
           additional_details?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           car_id?: string | null
           client_id?: string
@@ -491,6 +555,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "accident_reports_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "accident_reports_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -545,6 +616,7 @@ export type Database = {
         Row: {
           accident_report_id: string
           address: string | null
+          agent_id: string | null
           created_at: string
           damage_description: string | null
           full_name: string
@@ -565,6 +637,7 @@ export type Database = {
         Insert: {
           accident_report_id: string
           address?: string | null
+          agent_id?: string | null
           created_at?: string
           damage_description?: string | null
           full_name: string
@@ -585,6 +658,7 @@ export type Database = {
         Update: {
           accident_report_id?: string
           address?: string | null
+          agent_id?: string | null
           created_at?: string
           damage_description?: string | null
           full_name?: string
@@ -608,6 +682,13 @@ export type Database = {
             columns: ["accident_report_id"]
             isOneToOne: false
             referencedRelation: "accident_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accident_third_parties_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]
@@ -790,6 +871,7 @@ export type Database = {
       }
       announcements: {
         Row: {
+          agent_id: string | null
           content: string
           created_at: string | null
           created_by_admin_id: string | null
@@ -802,6 +884,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           content: string
           created_at?: string | null
           created_by_admin_id?: string | null
@@ -814,6 +897,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           content?: string
           created_at?: string | null
           created_by_admin_id?: string | null
@@ -827,6 +911,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "announcements_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "announcements_created_by_admin_id_fkey"
             columns: ["created_by_admin_id"]
             isOneToOne: false
@@ -837,6 +928,7 @@ export type Database = {
       }
       auth_settings: {
         Row: {
+          agent_id: string | null
           created_at: string
           email_body_template: string | null
           email_otp_enabled: boolean
@@ -860,6 +952,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           email_body_template?: string | null
           email_otp_enabled?: boolean
@@ -883,6 +976,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           email_body_template?: string | null
           email_otp_enabled?: boolean
@@ -905,10 +999,19 @@ export type Database = {
           smtp_user?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "auth_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       automated_sms_log: {
         Row: {
+          agent_id: string | null
           car_id: string | null
           client_id: string
           created_at: string
@@ -921,6 +1024,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          agent_id?: string | null
           car_id?: string | null
           client_id: string
           created_at?: string
@@ -933,6 +1037,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          agent_id?: string | null
           car_id?: string | null
           client_id?: string
           created_at?: string
@@ -945,6 +1050,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "automated_sms_log_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "automated_sms_log_car_id_fkey"
             columns: ["car_id"]
@@ -963,6 +1075,7 @@ export type Database = {
       }
       branches: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -972,6 +1085,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -981,6 +1095,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -989,10 +1104,19 @@ export type Database = {
           slug?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "branches_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       broker_settlement_items: {
         Row: {
+          agent_id: string | null
           amount: number
           created_at: string
           id: string
@@ -1001,6 +1125,7 @@ export type Database = {
           settlement_id: string
         }
         Insert: {
+          agent_id?: string | null
           amount?: number
           created_at?: string
           id?: string
@@ -1009,6 +1134,7 @@ export type Database = {
           settlement_id: string
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           created_at?: string
           id?: string
@@ -1017,6 +1143,13 @@ export type Database = {
           settlement_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "broker_settlement_items_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "broker_settlement_items_policy_id_fkey"
             columns: ["policy_id"]
@@ -1042,6 +1175,7 @@ export type Database = {
       }
       broker_settlements: {
         Row: {
+          agent_id: string | null
           bank_reference: string | null
           branch_id: string | null
           broker_id: string
@@ -1068,6 +1202,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           bank_reference?: string | null
           branch_id?: string | null
           broker_id: string
@@ -1094,6 +1229,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           bank_reference?: string | null
           branch_id?: string | null
           broker_id?: string
@@ -1120,6 +1256,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "broker_settlements_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "broker_settlements_branch_id_fkey"
             columns: ["branch_id"]
@@ -1152,6 +1295,7 @@ export type Database = {
       }
       brokers: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           image_url: string | null
@@ -1162,6 +1306,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -1172,6 +1317,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -1181,10 +1327,19 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brokers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_contacts: {
         Row: {
+          agent_id: string | null
           category: string | null
           created_at: string
           created_by: string | null
@@ -1196,6 +1351,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           category?: string | null
           created_at?: string
           created_by?: string | null
@@ -1207,6 +1363,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           category?: string | null
           created_at?: string
           created_by?: string | null
@@ -1217,12 +1374,21 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "business_contacts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       car_accidents: {
         Row: {
           accident_date: string | null
           accident_name: string
+          agent_id: string | null
           branch_id: string | null
           car_id: string
           created_at: string
@@ -1233,6 +1399,7 @@ export type Database = {
         Insert: {
           accident_date?: string | null
           accident_name: string
+          agent_id?: string | null
           branch_id?: string | null
           car_id: string
           created_at?: string
@@ -1243,6 +1410,7 @@ export type Database = {
         Update: {
           accident_date?: string | null
           accident_name?: string
+          agent_id?: string | null
           branch_id?: string | null
           car_id?: string
           created_at?: string
@@ -1251,6 +1419,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "car_accidents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "car_accidents_branch_id_fkey"
             columns: ["branch_id"]
@@ -1269,6 +1444,7 @@ export type Database = {
       }
       cars: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           car_number: string
           car_type: Database["public"]["Enums"]["car_type"] | null
@@ -1289,6 +1465,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           car_number: string
           car_type?: Database["public"]["Enums"]["car_type"] | null
@@ -1309,6 +1486,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           car_number?: string
           car_type?: Database["public"]["Enums"]["car_type"] | null
@@ -1329,6 +1507,13 @@ export type Database = {
           year?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cars_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cars_branch_id_fkey"
             columns: ["branch_id"]
@@ -1354,6 +1539,7 @@ export type Database = {
       }
       client_children: {
         Row: {
+          agent_id: string | null
           birth_date: string | null
           client_id: string
           created_at: string | null
@@ -1366,6 +1552,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           birth_date?: string | null
           client_id: string
           created_at?: string | null
@@ -1378,6 +1565,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           birth_date?: string | null
           client_id?: string
           created_at?: string | null
@@ -1391,6 +1579,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "client_children_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "client_children_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -1401,6 +1596,7 @@ export type Database = {
       }
       client_debits: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           client_id: string
@@ -1410,6 +1606,7 @@ export type Database = {
           policy_id: string | null
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           client_id: string
@@ -1419,6 +1616,7 @@ export type Database = {
           policy_id?: string | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           client_id?: string
@@ -1428,6 +1626,13 @@ export type Database = {
           policy_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_debits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_debits_branch_id_fkey"
             columns: ["branch_id"]
@@ -1460,6 +1665,7 @@ export type Database = {
       }
       client_notes: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           client_id: string
           created_at: string | null
@@ -1468,6 +1674,7 @@ export type Database = {
           note: string
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id: string
           created_at?: string | null
@@ -1476,6 +1683,7 @@ export type Database = {
           note: string
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id?: string
           created_at?: string | null
@@ -1484,6 +1692,13 @@ export type Database = {
           note?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_notes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_notes_branch_id_fkey"
             columns: ["branch_id"]
@@ -1509,6 +1724,7 @@ export type Database = {
       }
       client_payments: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           cheque_image_url: string | null
@@ -1525,6 +1741,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           cheque_image_url?: string | null
@@ -1541,6 +1758,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           cheque_image_url?: string | null
@@ -1557,6 +1775,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_payments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_payments_branch_id_fkey"
             columns: ["branch_id"]
@@ -1583,6 +1808,7 @@ export type Database = {
       clients: {
         Row: {
           accident_notes: string | null
+          agent_id: string | null
           birth_date: string | null
           branch_id: string | null
           broker_id: string | null
@@ -1607,6 +1833,7 @@ export type Database = {
         }
         Insert: {
           accident_notes?: string | null
+          agent_id?: string | null
           birth_date?: string | null
           branch_id?: string | null
           broker_id?: string | null
@@ -1631,6 +1858,7 @@ export type Database = {
         }
         Update: {
           accident_notes?: string | null
+          agent_id?: string | null
           birth_date?: string | null
           branch_id?: string | null
           broker_id?: string | null
@@ -1654,6 +1882,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "clients_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clients_branch_id_fkey"
             columns: ["branch_id"]
@@ -1687,6 +1922,7 @@ export type Database = {
       company_accident_fee_prices: {
         Row: {
           accident_fee_service_id: string
+          agent_id: string | null
           company_cost: number
           company_id: string
           created_at: string
@@ -1699,6 +1935,7 @@ export type Database = {
         }
         Insert: {
           accident_fee_service_id: string
+          agent_id?: string | null
           company_cost?: number
           company_id: string
           created_at?: string
@@ -1711,6 +1948,7 @@ export type Database = {
         }
         Update: {
           accident_fee_service_id?: string
+          agent_id?: string | null
           company_cost?: number
           company_id?: string
           created_at?: string
@@ -1730,6 +1968,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_accident_fee_prices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "company_accident_fee_prices_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1740,6 +1985,7 @@ export type Database = {
       }
       company_accident_templates: {
         Row: {
+          agent_id: string | null
           company_id: string
           created_at: string
           created_by_admin_id: string | null
@@ -1752,6 +1998,7 @@ export type Database = {
           version: string
         }
         Insert: {
+          agent_id?: string | null
           company_id: string
           created_at?: string
           created_by_admin_id?: string | null
@@ -1764,6 +2011,7 @@ export type Database = {
           version?: string
         }
         Update: {
+          agent_id?: string | null
           company_id?: string
           created_at?: string
           created_by_admin_id?: string | null
@@ -1776,6 +2024,13 @@ export type Database = {
           version?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "company_accident_templates_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_accident_templates_company_id_fkey"
             columns: ["company_id"]
@@ -1795,6 +2050,7 @@ export type Database = {
       company_road_service_prices: {
         Row: {
           age_band: Database["public"]["Enums"]["age_band"]
+          agent_id: string | null
           car_type: Database["public"]["Enums"]["car_type"]
           company_cost: number
           company_id: string
@@ -1809,6 +2065,7 @@ export type Database = {
         }
         Insert: {
           age_band?: Database["public"]["Enums"]["age_band"]
+          agent_id?: string | null
           car_type?: Database["public"]["Enums"]["car_type"]
           company_cost?: number
           company_id: string
@@ -1823,6 +2080,7 @@ export type Database = {
         }
         Update: {
           age_band?: Database["public"]["Enums"]["age_band"]
+          agent_id?: string | null
           car_type?: Database["public"]["Enums"]["car_type"]
           company_cost?: number
           company_id?: string
@@ -1836,6 +2094,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "company_road_service_prices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_road_service_prices_company_id_fkey"
             columns: ["company_id"]
@@ -1854,6 +2119,7 @@ export type Database = {
       }
       company_settlements: {
         Row: {
+          agent_id: string | null
           bank_reference: string | null
           branch_id: string | null
           card_expiry: string | null
@@ -1875,6 +2141,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           bank_reference?: string | null
           branch_id?: string | null
           card_expiry?: string | null
@@ -1896,6 +2163,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           bank_reference?: string | null
           branch_id?: string | null
           card_expiry?: string | null
@@ -1918,6 +2186,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "company_settlements_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "company_settlements_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -1935,6 +2210,7 @@ export type Database = {
       }
       correspondence_letters: {
         Row: {
+          agent_id: string | null
           body_html: string | null
           branch_id: string | null
           created_at: string | null
@@ -1949,6 +2225,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           body_html?: string | null
           branch_id?: string | null
           created_at?: string | null
@@ -1963,6 +2240,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           body_html?: string | null
           branch_id?: string | null
           created_at?: string | null
@@ -1977,6 +2255,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "correspondence_letters_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "correspondence_letters_branch_id_fkey"
             columns: ["branch_id"]
@@ -1995,6 +2280,7 @@ export type Database = {
       }
       customer_signatures: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           client_id: string
           created_at: string
@@ -2008,6 +2294,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id: string
           created_at?: string
@@ -2021,6 +2308,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id?: string
           created_at?: string
@@ -2034,6 +2322,13 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_signatures_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_signatures_branch_id_fkey"
             columns: ["branch_id"]
@@ -2066,6 +2361,7 @@ export type Database = {
       }
       customer_wallet_transactions: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           car_id: string | null
@@ -2081,6 +2377,7 @@ export type Database = {
           transaction_type: string
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           car_id?: string | null
@@ -2096,6 +2393,7 @@ export type Database = {
           transaction_type?: string
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           car_id?: string | null
@@ -2111,6 +2409,13 @@ export type Database = {
           transaction_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customer_wallet_transactions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customer_wallet_transactions_branch_id_fkey"
             columns: ["branch_id"]
@@ -2157,6 +2462,7 @@ export type Database = {
       }
       expenses: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           category: string
@@ -2174,6 +2480,7 @@ export type Database = {
           voucher_type: string
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           category: string
@@ -2191,6 +2498,7 @@ export type Database = {
           voucher_type?: string
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           category?: string
@@ -2209,6 +2517,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "expenses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "expenses_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -2226,6 +2541,7 @@ export type Database = {
       }
       form_template_files: {
         Row: {
+          agent_id: string | null
           created_at: string
           created_by: string | null
           file_type: string
@@ -2238,6 +2554,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           created_by?: string | null
           file_type: string
@@ -2250,6 +2567,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           created_by?: string | null
           file_type?: string
@@ -2262,6 +2580,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "form_template_files_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_template_files_created_by_fkey"
             columns: ["created_by"]
@@ -2280,6 +2605,7 @@ export type Database = {
       }
       form_template_folders: {
         Row: {
+          agent_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -2288,6 +2614,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2296,6 +2623,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2304,6 +2632,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "form_template_folders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_template_folders_created_by_fkey"
             columns: ["created_by"]
@@ -2370,6 +2705,7 @@ export type Database = {
       }
       insurance_categories: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -2383,6 +2719,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -2396,6 +2733,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -2408,11 +2746,20 @@ export type Database = {
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "insurance_categories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       insurance_companies: {
         Row: {
           active: boolean | null
+          agent_id: string | null
           broker_id: string | null
           category_parent:
             | Database["public"]["Enums"]["policy_type_parent"][]
@@ -2427,6 +2774,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          agent_id?: string | null
           broker_id?: string | null
           category_parent?:
             | Database["public"]["Enums"]["policy_type_parent"][]
@@ -2441,6 +2789,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          agent_id?: string | null
           broker_id?: string | null
           category_parent?:
             | Database["public"]["Enums"]["policy_type_parent"][]
@@ -2454,6 +2803,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "insurance_companies_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "insurance_companies_broker_id_fkey"
             columns: ["broker_id"]
@@ -2472,6 +2828,7 @@ export type Database = {
       }
       insurance_company_groups: {
         Row: {
+          agent_id: string | null
           created_at: string
           display_name: string
           display_name_ar: string | null
@@ -2479,6 +2836,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           display_name: string
           display_name_ar?: string | null
@@ -2486,16 +2844,26 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           display_name?: string
           display_name_ar?: string | null
           id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "insurance_company_groups_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_templates: {
         Row: {
+          agent_id: string | null
           body_html: string | null
           created_at: string
           created_by_admin_id: string | null
@@ -2513,6 +2881,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          agent_id?: string | null
           body_html?: string | null
           created_at?: string
           created_by_admin_id?: string | null
@@ -2530,6 +2899,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          agent_id?: string | null
           body_html?: string | null
           created_at?: string
           created_by_admin_id?: string | null
@@ -2548,6 +2918,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoice_templates_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoice_templates_created_by_admin_id_fkey"
             columns: ["created_by_admin_id"]
             isOneToOne: false
@@ -2558,6 +2935,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           created_at: string
           created_by_admin_id: string | null
@@ -2575,6 +2953,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           created_at?: string
           created_by_admin_id?: string | null
@@ -2592,6 +2971,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           created_at?: string
           created_by_admin_id?: string | null
@@ -2609,6 +2989,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_branch_id_fkey"
             columns: ["branch_id"]
@@ -2648,6 +3035,7 @@ export type Database = {
       }
       lead_messages: {
         Row: {
+          agent_id: string | null
           content: string
           created_at: string
           id: string
@@ -2657,6 +3045,7 @@ export type Database = {
           phone: string
         }
         Insert: {
+          agent_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -2666,6 +3055,7 @@ export type Database = {
           phone: string
         }
         Update: {
+          agent_id?: string | null
           content?: string
           created_at?: string
           id?: string
@@ -2675,6 +3065,13 @@ export type Database = {
           phone?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_messages_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lead_messages_lead_id_fkey"
             columns: ["lead_id"]
@@ -2686,6 +3083,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          agent_id: string | null
           callback_notified_at: string | null
           car_color: string | null
           car_manufacturer: string | null
@@ -2708,6 +3106,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           callback_notified_at?: string | null
           car_color?: string | null
           car_manufacturer?: string | null
@@ -2730,6 +3129,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           callback_notified_at?: string | null
           car_color?: string | null
           car_manufacturer?: string | null
@@ -2751,7 +3151,15 @@ export type Database = {
           total_price?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       login_attempts: {
         Row: {
@@ -2791,6 +3199,7 @@ export type Database = {
       }
       marketing_sms_campaigns: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           completed_at: string | null
           created_at: string
@@ -2808,6 +3217,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -2825,6 +3235,7 @@ export type Database = {
           title: string
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -2842,6 +3253,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketing_sms_campaigns_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketing_sms_campaigns_branch_id_fkey"
             columns: ["branch_id"]
@@ -2860,6 +3278,7 @@ export type Database = {
       }
       marketing_sms_recipients: {
         Row: {
+          agent_id: string | null
           campaign_id: string
           client_id: string
           created_at: string
@@ -2874,6 +3293,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          agent_id?: string | null
           campaign_id: string
           client_id: string
           created_at?: string
@@ -2888,6 +3308,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          agent_id?: string | null
           campaign_id?: string
           client_id?: string
           created_at?: string
@@ -2902,6 +3323,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketing_sms_recipients_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketing_sms_recipients_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -2920,6 +3348,7 @@ export type Database = {
       }
       media_files: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           cdn_url: string
           created_at: string
@@ -2934,6 +3363,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           cdn_url: string
           created_at?: string
@@ -2948,6 +3378,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           cdn_url?: string
           created_at?: string
@@ -2963,6 +3394,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "media_files_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "media_files_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -2973,6 +3411,7 @@ export type Database = {
       }
       notifications: {
         Row: {
+          agent_id: string | null
           created_at: string
           entity_id: string | null
           entity_type: string | null
@@ -2987,6 +3426,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
@@ -3001,6 +3441,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string | null
@@ -3014,7 +3455,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       otp_codes: {
         Row: {
@@ -3054,6 +3503,7 @@ export type Database = {
       }
       outside_cheques: {
         Row: {
+          agent_id: string | null
           amount: number
           branch_id: string | null
           cheque_date: string | null
@@ -3071,6 +3521,7 @@ export type Database = {
           used: boolean | null
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           branch_id?: string | null
           cheque_date?: string | null
@@ -3088,6 +3539,7 @@ export type Database = {
           used?: boolean | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           branch_id?: string | null
           cheque_date?: string | null
@@ -3106,6 +3558,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "outside_cheques_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "outside_cheques_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -3116,6 +3575,7 @@ export type Database = {
       }
       payment_images: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           image_type: string
@@ -3124,6 +3584,7 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           image_type?: string
@@ -3132,6 +3593,7 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           image_type?: string
@@ -3140,6 +3602,13 @@ export type Database = {
           sort_order?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_images_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_images_payment_id_fkey"
             columns: ["payment_id"]
@@ -3151,6 +3620,7 @@ export type Database = {
       }
       payment_settings: {
         Row: {
+          agent_id: string | null
           api_password: string | null
           created_at: string
           fail_url: string | null
@@ -3165,6 +3635,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           api_password?: string | null
           created_at?: string
           fail_url?: string | null
@@ -3179,6 +3650,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           api_password?: string | null
           created_at?: string
           fail_url?: string | null
@@ -3192,10 +3664,19 @@ export type Database = {
           test_mode?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pbx_extensions: {
         Row: {
+          agent_id: string | null
           created_at: string | null
           extension_name: string | null
           extension_number: string
@@ -3205,6 +3686,7 @@ export type Database = {
           password_plain: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string | null
           extension_name?: string | null
           extension_number: string
@@ -3214,6 +3696,7 @@ export type Database = {
           password_plain: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string | null
           extension_name?: string | null
           extension_number?: string
@@ -3222,11 +3705,20 @@ export type Database = {
           password_md5?: string
           password_plain?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pbx_extensions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       policies: {
         Row: {
           accident_fee_service_id: string | null
+          agent_id: string | null
           branch_id: string | null
           broker_buy_price: number | null
           broker_direction:
@@ -3274,6 +3766,7 @@ export type Database = {
         }
         Insert: {
           accident_fee_service_id?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           broker_buy_price?: number | null
           broker_direction?:
@@ -3321,6 +3814,7 @@ export type Database = {
         }
         Update: {
           accident_fee_service_id?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           broker_buy_price?: number | null
           broker_direction?:
@@ -3372,6 +3866,13 @@ export type Database = {
             columns: ["accident_fee_service_id"]
             isOneToOne: false
             referencedRelation: "accident_fee_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
           {
@@ -3469,24 +3970,34 @@ export type Database = {
       }
       policy_children: {
         Row: {
+          agent_id: string | null
           child_id: string
           created_at: string | null
           id: string
           policy_id: string
         }
         Insert: {
+          agent_id?: string | null
           child_id: string
           created_at?: string | null
           id?: string
           policy_id: string
         }
         Update: {
+          agent_id?: string | null
           child_id?: string
           created_at?: string | null
           id?: string
           policy_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_children_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_children_child_id_fkey"
             columns: ["child_id"]
@@ -3512,6 +4023,7 @@ export type Database = {
       }
       policy_groups: {
         Row: {
+          agent_id: string | null
           car_id: string | null
           client_id: string
           created_at: string
@@ -3520,6 +4032,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           car_id?: string | null
           client_id: string
           created_at?: string
@@ -3528,6 +4041,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           car_id?: string | null
           client_id?: string
           created_at?: string
@@ -3536,6 +4050,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_groups_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_groups_car_id_fkey"
             columns: ["car_id"]
@@ -3554,6 +4075,7 @@ export type Database = {
       }
       policy_payments: {
         Row: {
+          agent_id: string | null
           amount: number
           batch_id: string | null
           branch_id: string | null
@@ -3586,6 +4108,7 @@ export type Database = {
           tranzila_transaction_id: string | null
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           batch_id?: string | null
           branch_id?: string | null
@@ -3618,6 +4141,7 @@ export type Database = {
           tranzila_transaction_id?: string | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           batch_id?: string | null
           branch_id?: string | null
@@ -3651,6 +4175,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "policy_payments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "policy_payments_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -3682,6 +4213,7 @@ export type Database = {
       }
       policy_reminders: {
         Row: {
+          agent_id: string | null
           id: string
           policy_id: string
           reminder_type: string
@@ -3689,6 +4221,7 @@ export type Database = {
           sms_log_id: string | null
         }
         Insert: {
+          agent_id?: string | null
           id?: string
           policy_id: string
           reminder_type: string
@@ -3696,6 +4229,7 @@ export type Database = {
           sms_log_id?: string | null
         }
         Update: {
+          agent_id?: string | null
           id?: string
           policy_id?: string
           reminder_type?: string
@@ -3703,6 +4237,13 @@ export type Database = {
           sms_log_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_reminders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_reminders_policy_id_fkey"
             columns: ["policy_id"]
@@ -3728,6 +4269,7 @@ export type Database = {
       }
       policy_renewal_tracking: {
         Row: {
+          agent_id: string | null
           contacted_by: string | null
           created_at: string
           id: string
@@ -3739,6 +4281,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           contacted_by?: string | null
           created_at?: string
           id?: string
@@ -3750,6 +4293,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           contacted_by?: string | null
           created_at?: string
           id?: string
@@ -3761,6 +4305,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_renewal_tracking_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_renewal_tracking_contacted_by_fkey"
             columns: ["contacted_by"]
@@ -3788,6 +4339,7 @@ export type Database = {
         Row: {
           adjustment_amount: number | null
           adjustment_type: string | null
+          agent_id: string | null
           branch_id: string | null
           client_id: string
           created_at: string
@@ -3803,6 +4355,7 @@ export type Database = {
         Insert: {
           adjustment_amount?: number | null
           adjustment_type?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           client_id: string
           created_at?: string
@@ -3818,6 +4371,7 @@ export type Database = {
         Update: {
           adjustment_amount?: number | null
           adjustment_type?: string | null
+          agent_id?: string | null
           branch_id?: string | null
           client_id?: string
           created_at?: string
@@ -3831,6 +4385,13 @@ export type Database = {
           transfer_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "policy_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policy_transfers_branch_id_fkey"
             columns: ["branch_id"]
@@ -3899,6 +4460,7 @@ export type Database = {
       pricing_rules: {
         Row: {
           age_band: Database["public"]["Enums"]["age_band"] | null
+          agent_id: string | null
           car_type: Database["public"]["Enums"]["car_type"] | null
           company_id: string
           created_at: string
@@ -3915,6 +4477,7 @@ export type Database = {
         }
         Insert: {
           age_band?: Database["public"]["Enums"]["age_band"] | null
+          agent_id?: string | null
           car_type?: Database["public"]["Enums"]["car_type"] | null
           company_id: string
           created_at?: string
@@ -3931,6 +4494,7 @@ export type Database = {
         }
         Update: {
           age_band?: Database["public"]["Enums"]["age_band"] | null
+          agent_id?: string | null
           car_type?: Database["public"]["Enums"]["car_type"] | null
           company_id?: string
           created_at?: string
@@ -3947,6 +4511,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "pricing_rules_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pricing_rules_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -3957,6 +4528,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agent_id: string | null
           avatar_url: string | null
           branch_id: string | null
           created_at: string
@@ -3970,6 +4542,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           avatar_url?: string | null
           branch_id?: string | null
           created_at?: string
@@ -3983,6 +4556,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           avatar_url?: string | null
           branch_id?: string | null
           created_at?: string
@@ -3997,6 +4571,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
@@ -4007,6 +4588,7 @@ export type Database = {
       }
       repair_claim_notes: {
         Row: {
+          agent_id: string | null
           claim_id: string
           created_at: string
           created_by: string | null
@@ -4014,6 +4596,7 @@ export type Database = {
           note: string
         }
         Insert: {
+          agent_id?: string | null
           claim_id: string
           created_at?: string
           created_by?: string | null
@@ -4021,6 +4604,7 @@ export type Database = {
           note: string
         }
         Update: {
+          agent_id?: string | null
           claim_id?: string
           created_at?: string
           created_by?: string | null
@@ -4028,6 +4612,13 @@ export type Database = {
           note?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "repair_claim_notes_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "repair_claim_notes_claim_id_fkey"
             columns: ["claim_id"]
@@ -4039,6 +4630,7 @@ export type Database = {
       }
       repair_claim_reminders: {
         Row: {
+          agent_id: string | null
           claim_id: string
           created_at: string
           created_by: string | null
@@ -4050,6 +4642,7 @@ export type Database = {
           reminder_type: string | null
         }
         Insert: {
+          agent_id?: string | null
           claim_id: string
           created_at?: string
           created_by?: string | null
@@ -4061,6 +4654,7 @@ export type Database = {
           reminder_type?: string | null
         }
         Update: {
+          agent_id?: string | null
           claim_id?: string
           created_at?: string
           created_by?: string | null
@@ -4073,6 +4667,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "repair_claim_reminders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "repair_claim_reminders_claim_id_fkey"
             columns: ["claim_id"]
             isOneToOne: false
@@ -4084,6 +4685,7 @@ export type Database = {
       repair_claims: {
         Row: {
           accident_date: string | null
+          agent_id: string | null
           car_type: string | null
           claim_number: string | null
           client_id: string | null
@@ -4105,6 +4707,7 @@ export type Database = {
         }
         Insert: {
           accident_date?: string | null
+          agent_id?: string | null
           car_type?: string | null
           claim_number?: string | null
           client_id?: string | null
@@ -4126,6 +4729,7 @@ export type Database = {
         }
         Update: {
           accident_date?: string | null
+          agent_id?: string | null
           car_type?: string | null
           claim_number?: string | null
           client_id?: string | null
@@ -4146,6 +4750,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "repair_claims_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "repair_claims_client_id_fkey"
             columns: ["client_id"]
@@ -4186,6 +4797,7 @@ export type Database = {
       road_services: {
         Row: {
           active: boolean
+          agent_id: string | null
           allowed_car_types: Database["public"]["Enums"]["car_type"][]
           created_at: string
           description: string | null
@@ -4197,6 +4809,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          agent_id?: string | null
           allowed_car_types?: Database["public"]["Enums"]["car_type"][]
           created_at?: string
           description?: string | null
@@ -4208,6 +4821,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          agent_id?: string | null
           allowed_car_types?: Database["public"]["Enums"]["car_type"][]
           created_at?: string
           description?: string | null
@@ -4217,10 +4831,19 @@ export type Database = {
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "road_services_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settlement_supplements: {
         Row: {
+          agent_id: string | null
           car_number: string | null
           car_value: number | null
           company_id: string
@@ -4240,6 +4863,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           car_number?: string | null
           car_value?: number | null
           company_id: string
@@ -4259,6 +4883,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           car_number?: string | null
           car_value?: number | null
           company_id?: string
@@ -4279,6 +4904,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "settlement_supplements_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "settlement_supplements_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -4296,6 +4928,7 @@ export type Database = {
       }
       site_settings: {
         Row: {
+          agent_id: string | null
           favicon_url: string | null
           id: string
           logo_url: string | null
@@ -4306,6 +4939,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          agent_id?: string | null
           favicon_url?: string | null
           id?: string
           logo_url?: string | null
@@ -4316,6 +4950,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          agent_id?: string | null
           favicon_url?: string | null
           id?: string
           logo_url?: string | null
@@ -4325,10 +4960,19 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "site_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sms_logs: {
         Row: {
+          agent_id: string | null
           branch_id: string | null
           client_id: string | null
           created_at: string
@@ -4343,6 +4987,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id?: string | null
           created_at?: string
@@ -4357,6 +5002,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          agent_id?: string | null
           branch_id?: string | null
           client_id?: string | null
           created_at?: string
@@ -4371,6 +5017,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sms_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sms_logs_branch_id_fkey"
             columns: ["branch_id"]
@@ -4410,6 +5063,7 @@ export type Database = {
       }
       sms_settings: {
         Row: {
+          agent_id: string | null
           birthday_sms_enabled: boolean | null
           birthday_sms_template: string | null
           cancellation_sms_template: string | null
@@ -4445,6 +5099,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           birthday_sms_enabled?: boolean | null
           birthday_sms_template?: string | null
           cancellation_sms_template?: string | null
@@ -4480,6 +5135,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           birthday_sms_enabled?: boolean | null
           birthday_sms_template?: string | null
           cancellation_sms_template?: string | null
@@ -4515,6 +5171,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sms_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sms_settings_default_ab_invoice_template_id_fkey"
             columns: ["default_ab_invoice_template_id"]
@@ -4540,6 +5203,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          agent_id: string | null
           assigned_to: string
           branch_id: string | null
           completed_at: string | null
@@ -4556,6 +5220,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_id?: string | null
           assigned_to: string
           branch_id?: string | null
           completed_at?: string | null
@@ -4572,6 +5237,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_id?: string | null
           assigned_to?: string
           branch_id?: string | null
           completed_at?: string | null
@@ -4588,6 +5254,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_assigned_to_fkey"
             columns: ["assigned_to"]
@@ -4620,24 +5293,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          agent_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          agent_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_sessions: {
         Row: {
@@ -4703,6 +5387,7 @@ export type Database = {
       }
       xservice_settings: {
         Row: {
+          agent_id: string | null
           agent_name: string
           api_key: string
           api_url: string
@@ -4715,6 +5400,7 @@ export type Database = {
           xservice_agent_id: string | null
         }
         Insert: {
+          agent_id?: string | null
           agent_name?: string
           api_key?: string
           api_url?: string
@@ -4727,6 +5413,7 @@ export type Database = {
           xservice_agent_id?: string | null
         }
         Update: {
+          agent_id?: string | null
           agent_name?: string
           api_key?: string
           api_url?: string
@@ -4738,7 +5425,15 @@ export type Database = {
           updated_at?: string
           xservice_agent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "xservice_settings_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       xservice_sync_log: {
         Row: {

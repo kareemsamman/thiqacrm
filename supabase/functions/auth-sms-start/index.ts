@@ -139,17 +139,12 @@ serve(async (req) => {
 
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-    // Parallel fetch: profile, auth settings, and rate limit check - MUCH faster
-    const [profileResult, authSettingsResult, rateLimitResult] = await Promise.all([
+    // Fetch profile and rate limit in parallel first
+    const [profileResult, rateLimitResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, status, phone, full_name")
+        .select("id, status, phone, full_name, agent_id")
         .eq("phone", normalizedPhone)
-        .single(),
-      supabase
-        .from("auth_settings")
-        .select("*")
-        .limit(1)
         .single(),
       supabase
         .from("otp_codes")
@@ -160,7 +155,6 @@ serve(async (req) => {
     ]);
 
     const { data: existingProfile } = profileResult;
-    const { data: authSettings, error: settingsError } = authSettingsResult;
     const { data: recentOtps } = rateLimitResult;
 
     // Case 1: Profile exists
@@ -284,25 +278,33 @@ serve(async (req) => {
       );
     }
 
-    // Auth settings check (already fetched in parallel)
+    // Fetch auth settings using the profile's agent_id
+    const agentId = existingProfile!.agent_id;
+    let authSettingsQuery = supabase.from("auth_settings").select("*");
+    if (agentId) {
+      authSettingsQuery = authSettingsQuery.eq("agent_id", agentId);
+    }
+    const { data: authSettings, error: settingsError } = await authSettingsQuery.limit(1).single();
+
+    // Auth settings check
     if (settingsError || !authSettings) {
-      console.error("Auth settings error:", settingsError);
+      console.error("Auth settings error for agent:", agentId, settingsError);
       return new Response(
-        JSON.stringify({ success: false, error: "خطأ في إعدادات المصادقة" }),
+        JSON.stringify({ success: false, error: "خطأ في إعدادات المصادقة. يرجى التواصل مع المدير." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     if (!authSettings.sms_otp_enabled) {
       return new Response(
-        JSON.stringify({ success: false, error: "تسجيل الدخول بالرسائل النصية غير مفعل" }),
+        JSON.stringify({ success: false, error: "تسجيل الدخول بالرسائل النصية غير مفعل. يرجى التواصل مع المدير لتفعيله." }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     if (!authSettings.sms_019_user || !authSettings.sms_019_token || !authSettings.sms_019_source) {
       return new Response(
-        JSON.stringify({ success: false, error: "إعدادات الرسائل النصية غير مكتملة" }),
+        JSON.stringify({ success: false, error: "إعدادات الرسائل النصية غير مكتملة. يرجى التواصل مع المدير." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }

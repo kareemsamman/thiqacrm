@@ -24,7 +24,7 @@ interface AuthContextType {
   branchId: string | null;
   branchName: string | null;
   signOut: () => Promise<void>;
-}
+  refreshProfile: () => Promise<void>;
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

@@ -464,7 +464,7 @@ function generateReportHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
+      <h1>${companyName}</h1>
       <p>كشف حساب الوسيط</p>
       <div class="filter-info">${filterSummary}</div>
     </div>

@@ -167,8 +167,8 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const endpoint = authMethod === "email" ? "auth-email-verify" : "auth-sms-verify";
-      const body = authMethod === "email" ? { email, code: otpCode } : { phone, code: otpCode };
+      const endpoint = "auth-sms-verify";
+      const body = { phone, code: otpCode };
       const response = await supabase.functions.invoke(endpoint, { body });
       if (response.error) throw new Error(response.error.message);
       if (!response.data?.success) {

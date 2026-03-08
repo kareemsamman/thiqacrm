@@ -45,29 +45,45 @@ export default function Login() {
     try { setIsInIframe(window.self !== window.top); } catch { setIsInIframe(true); }
   }, []);
 
+  const tryBypassEmailVerification = async (targetEmail: string) => {
+    const normalizedEmail = targetEmail.trim().toLowerCase();
+    if (!normalizedEmail) return false;
+
+    const { data, error } = await supabase.functions.invoke("registration-otp-verify", {
+      body: { email: normalizedEmail, skip: true },
+    });
+
+    if (error || data?.error) return false;
+    return data?.success === true;
+  };
+
   useEffect(() => {
     if (!authLoading && user) {
       if (!isThiqaSuperAdminEmail(user.email)) {
         sessionStorage.setItem('admin_session_active', 'true');
       }
 
-      // Check if email is confirmed
       const checkEmailConfirmed = async () => {
-        // Check both profile and platform skip setting in parallel
-        const [profileRes, skipRes] = await Promise.all([
-          supabase.from('profiles').select('email_confirmed').eq('id', user.id).single(),
-          supabase.from('thiqa_platform_settings').select('setting_value').eq('setting_key', 'skip_email_verification').maybeSingle(),
-        ]);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email_confirmed')
+          .eq('id', user.id)
+          .maybeSingle();
 
-        const skipEnabled = skipRes.data?.setting_value === "true";
-        const emailConfirmed = profileRes.data?.email_confirmed === true;
+        let emailConfirmed = profile?.email_confirmed === true;
 
-        if (!emailConfirmed && !skipEnabled && !isThiqaSuperAdminEmail(user.email)) {
-          navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
-          return;
+        if (!emailConfirmed && !isThiqaSuperAdminEmail(user.email)) {
+          const bypassed = await tryBypassEmailVerification(user.email || '');
+          if (!bypassed) {
+            navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
+            return;
+          }
+          emailConfirmed = true;
         }
 
-        if (isActive) {
+        if (emailConfirmed || isThiqaSuperAdminEmail(user.email)) {
+          navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
+        } else if (isActive) {
           navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
         } else {
           navigate('/no-access', { replace: true });

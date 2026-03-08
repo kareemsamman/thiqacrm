@@ -95,19 +95,18 @@ export default function Landing() {
       </section>
 
       {/* ═══ Section 2: Features bar ═══ */}
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
       <section className="py-16 md:py-20 bg-[#1e1e20]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6">
             {[
-              { icon: Users, title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה" },
-              { icon: CreditCard, title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות" },
-              { icon: MessageSquare, title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות" },
-              { icon: BarChart3, title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת" },
+              { title: "ניהול לקוחות ופוליסות", desc: "מקצה לקצה", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M30 50C30 45.5817 33.5817 42 38 42C42.4183 42 46 45.5817 46 50H30ZM38 41C34.685 41 32 38.315 32 35C32 31.685 34.685 29 38 29C41.315 29 44 31.685 44 35C44 38.315 41.315 41 38 41ZM45.3628 43.2332C48.4482 44.0217 50.7679 46.7235 50.9836 50H48C48 47.3902 47.0002 45.0139 45.3628 43.2332ZM43.3401 40.9569C44.9728 39.4922 46 37.3661 46 35C46 33.5827 45.6314 32.2514 44.9849 31.0969C47.2753 31.554 49 33.5746 49 36C49 38.7625 46.7625 41 44 41C43.7763 41 43.556 40.9853 43.3401 40.9569Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "שליטה פיננסית, סליקה", desc: "וחישוב עמלות", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "אוטומציית שיווק, SMS", desc: "וחתימות דיגיטליות", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M33.0002 27.334C36.1298 27.334 38.6668 29.871 38.6668 33.0007V38.6673H33.0002C29.8705 38.6673 27.3335 36.1303 27.3335 33.0007C27.3335 29.871 29.8705 27.334 33.0002 27.334ZM33.0002 41.334H38.6668V47.0007C38.6668 50.1303 36.1298 52.6673 33.0002 52.6673C29.8705 52.6673 27.3335 50.1303 27.3335 47.0007C27.3335 43.8711 29.8705 41.334 33.0002 41.334ZM41.3335 41.334H47.0002C50.1298 41.334 52.6668 43.8711 52.6668 47.0007C52.6668 50.1303 50.1298 52.6673 47.0002 52.6673C43.8706 52.6673 41.3335 50.1303 41.3335 47.0007V41.334ZM48.0108 37.4267L47.6615 38.2276C47.4059 38.8139 46.5944 38.8139 46.3387 38.2276L45.9895 37.4267C45.367 35.9985 44.2455 34.8614 42.8462 34.2394L41.7699 33.761C41.188 33.5024 41.188 32.6561 41.7699 32.3974L42.7859 31.9457C44.2212 31.3077 45.3628 30.1286 45.9747 28.6519L46.3334 27.7864C46.5834 27.1832 47.417 27.1832 47.6668 27.7864L48.0255 28.6519C48.6375 30.1286 49.7791 31.3077 51.2144 31.9457L52.2303 32.3974C52.8123 32.6561 52.8123 33.5024 52.2303 33.761L51.1543 34.2394C49.7548 34.8614 48.6335 35.9985 48.0108 37.4267Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
+              { title: "בקרה רב-סניפית", desc: "ודוחות רווח בזמן אמת", svg: <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="white" fillOpacity="0.08"/><path d="M40.5521 30.6667H51.9998C52.7362 30.6667 53.3332 31.2636 53.3332 32V50.6667C53.3332 51.4031 52.7362 52 51.9998 52H27.9998C27.2635 52 26.6665 51.4031 26.6665 50.6667V29.3333C26.6665 28.597 27.2635 28 27.9998 28H37.8854L40.5521 30.6667ZM38.6665 36V46.6667H41.3332V36H38.6665ZM43.9998 40V46.6667H46.6665V40H43.9998ZM33.3332 42.6667V46.6667H35.9998V42.6667H33.3332Z" fill="white" fillOpacity="0.4"/><rect x="76" width="4" height="4" fill="white"/><rect x="76" y="76" width="4" height="4" fill="white"/><rect width="4" height="4" fill="white"/><rect y="76" width="4" height="4" fill="white"/></svg> },
             ].map((item, i) => (
               <div key={i} className="text-center flex flex-col items-center gap-3">
-                <div className="h-14 w-14 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center">
-                  <item.icon className="h-6 w-6 text-white/60" />
-                </div>
+                {item.svg}
                 <div>
                   <p className="text-[14px] font-semibold text-white/90">{item.title}</p>
                   <p className="text-[13px] text-white/40">{item.desc}</p>
@@ -117,7 +116,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
+      <img src={sectionDividerDark} alt="" className="w-full h-auto block" />
 
       <section id="features" className="py-24 md:py-36 relative">
         <div className="max-w-6xl mx-auto px-6 text-center">

@@ -92,7 +92,7 @@ export default function ThiqaAgentDetail() {
   const [activeTab, setActiveTab] = useState("info");
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [periodStart, setPeriodStart] = useState<Date>(new Date());
-  const [periodEnd, setPeriodEnd] = useState<Date>(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; });
+  const [periodEnd, setPeriodEnd] = useState<Date>(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d; });
   const [deleteAgentOpen, setDeleteAgentOpen] = useState(false);
   const [deletingAgent, setDeletingAgent] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export default function ThiqaAgentDetail() {
       }
       toast.success('تم تسجيل الدفعة');
       setPaymentAmount(""); setPaymentNotes(""); setPaymentDate(new Date());
-      const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setFullYear(e.getFullYear() + 1); setPeriodEnd(e);
+      const d = new Date(); setPeriodStart(d); const e = new Date(d); e.setMonth(e.getMonth() + 1); setPeriodEnd(e);
       fetchAll();
     }
   };
@@ -244,14 +244,14 @@ export default function ThiqaAgentDetail() {
   const handlePeriodStartChange = (date: Date) => {
     setPeriodStart(date);
     const end = new Date(date);
-    end.setFullYear(end.getFullYear() + 1);
+    end.setMonth(end.getMonth() + 1);
     setPeriodEnd(end);
   };
 
   const handleEditPeriodStartChange = (date: Date) => {
     setEditPeriodStart(date);
     const end = new Date(date);
-    end.setFullYear(end.getFullYear() + 1);
+    end.setMonth(end.getMonth() + 1);
     setEditPeriodEnd(end);
   };
 

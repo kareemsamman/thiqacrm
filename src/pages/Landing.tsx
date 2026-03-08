@@ -132,7 +132,7 @@ export default function Landing() {
             <a href="/pricing" className="hover:text-white transition-colors">الأسعار</a>
           </div>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login?view=signup")}
             className="px-6 py-2 text-[13px] font-bold text-white/90 hover:text-white transition-colors"
             style={{
               borderRadius: '100px',

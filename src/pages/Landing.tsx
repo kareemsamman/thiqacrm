@@ -6,7 +6,7 @@ import {
   Users, FileText, CreditCard, BarChart3, Bell, MessageSquare,
   Phone, Shield
 } from "lucide-react";
-import thiqaLogo from "@/assets/thiqa-logo.svg";
+import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
 import featuresMockup from "@/assets/landing/features-mockup.png";
 import sectionDivider from "@/assets/landing/section-divider.png";

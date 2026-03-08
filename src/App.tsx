@@ -95,13 +95,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <HelmetProvider>
       <TooltipProvider>
-        <SiteHelmet />
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
             <SessionTrackerWrapper>
             <AgentProvider>
+            <SiteHelmet />
             <SidebarStateProvider>
             <RecentClientProvider>
             <Routes>

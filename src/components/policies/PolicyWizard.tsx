@@ -1574,7 +1574,7 @@ export function PolicyWizard({
           </DialogHeader>
 
           {/* Wizard Stepper */}
-          <div className="flex-shrink-0 py-4">
+          <div className="flex-shrink-0 py-2 sm:py-4">
             <WizardStepper
               steps={steps}
               currentStep={currentStep}

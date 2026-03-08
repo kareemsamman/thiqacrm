@@ -132,6 +132,21 @@ serve(async (req) => {
 
     const userBranchId = profile.branch_id;
 
+    // Get the user's agent_id for folder isolation
+    const { data: agentUser } = await supabase
+      .from('agent_users')
+      .select('agent_id')
+      .eq('user_id', user.id)
+      .single();
+
+    const agentId = agentUser?.agent_id;
+    if (!agentId) {
+      return new Response(JSON.stringify({ error: 'User not linked to any agent' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Rate limiting - check uploads in last hour
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
     const { data: recentUploads, count: uploadCount } = await supabase
@@ -222,7 +237,7 @@ serve(async (req) => {
       });
     }
 
-    // Generate organized path: uploads/YYYY/MM/filename.ext
+    // Generate organized path: agents/{agent_id}/YYYY/MM/filename.ext
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -233,7 +248,7 @@ serve(async (req) => {
       .replace(/\.[^/.]+$/, '') // Remove extension
       .replace(/[^a-zA-Z0-9_\-\u0600-\u06FF]/g, '_') // Keep Arabic chars too
       .slice(0, 40);
-    const storagePath = `uploads/${year}/${month}/${timestamp}_${randomId}_${sanitizedName}.${ext}`;
+    const storagePath = `agents/${agentId}/${year}/${month}/${timestamp}_${randomId}_${sanitizedName}.${ext}`;
 
     // Upload to Bunny Storage
     const bunnyUploadUrl = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${storagePath}`;
@@ -274,6 +289,7 @@ serve(async (req) => {
         entity_id: entityId,
         uploaded_by: user.id,
         branch_id: userBranchId,
+        agent_id: agentId,
       })
       .select()
       .single();

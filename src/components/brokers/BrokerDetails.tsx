@@ -259,7 +259,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           const { error: smsError } = await supabase.functions.invoke("send-sms", {
             body: {
               phone: broker.phone,
-              message: `مرحباً ${broker.name}،\n\nيمكنك مشاهدة تقرير التأمينات الخاص بك عبر الرابط:\n${data.url}\n\nبشير للتأمينات 🚗`,
+              message: `مرحباً ${broker.name}،\n\nيمكنك مشاهدة تقرير التأمينات الخاص بك عبر الرابط:\n${data.url}\n\n${siteSettings?.site_title || 'وكالة التأمين'} 🚗`,
             },
           });
 

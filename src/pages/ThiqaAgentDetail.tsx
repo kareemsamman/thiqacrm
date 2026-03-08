@@ -606,7 +606,7 @@ export default function ThiqaAgentDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label>اسم الموقع</Label><Input value={initSite().site_title} onChange={e => setSiteSettings({...initSite(), ...siteSettings, site_title: e.target.value})} placeholder="مثال: AB للتأمين" /></div>
+                  <div><Label>اسم الموقع</Label><Input value={initSite().site_title} onChange={e => setSiteSettings({...initSite(), ...siteSettings, site_title: e.target.value})} placeholder="مثال: Thiqa للتأمين" /></div>
                   <div><Label>وصف الموقع</Label><Input value={initSite().site_description} onChange={e => setSiteSettings({...initSite(), ...siteSettings, site_description: e.target.value})} /></div>
                   <div><Label>رابط الشعار (Logo URL)</Label><Input value={initSite().logo_url || ''} onChange={e => setSiteSettings({...initSite(), ...siteSettings, logo_url: e.target.value || null})} placeholder="https://cdn.example.com/logo.png" dir="ltr" /></div>
                   <div><Label>رابط Favicon</Label><Input value={initSite().favicon_url || ''} onChange={e => setSiteSettings({...initSite(), ...siteSettings, favicon_url: e.target.value || null})} placeholder="https://cdn.example.com/favicon.ico" dir="ltr" /></div>

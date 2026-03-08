@@ -390,7 +390,7 @@ export default function XServiceSettings() {
               <div className="space-y-2">
                 <Label>اسم الوكيل</Label>
                 <Input
-                  placeholder="AB"
+                  placeholder="Thiqa"
                   value={settings?.agent_name || ""}
                   onChange={(e) => setSettings(s => s ? { ...s, agent_name: e.target.value } : s)}
                 />

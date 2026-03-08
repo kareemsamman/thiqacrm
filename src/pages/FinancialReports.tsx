@@ -295,7 +295,7 @@ export default function FinancialReports() {
     <MainLayout>
       <Header 
         title="التقارير المالية" 
-        subtitle="محفظة AB الموحدة"
+        subtitle="محفظة Thiqa الموحدة"
         action={{
           label: isFetching ? "جاري التحديث..." : "",
           icon: <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />,

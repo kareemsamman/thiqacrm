@@ -1075,6 +1075,89 @@ export default function ThiqaAgentDetail() {
             </Card>
           </TabsContent>
 
+          {/* ═══════════ IMPORT TAB ═══════════ */}
+          <TabsContent value="import">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />استيراد بيانات</CardTitle>
+                <CardDescription>رفع ملف JSON يحتوي على بيانات الوكيل (نسخة احتياطية من نظام سابق)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border-2 border-dashed rounded-xl p-8 text-center space-y-4">
+                  <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="import-file" className="cursor-pointer">
+                      <span className="text-primary font-medium hover:underline">اختر ملف JSON</span>
+                    </Label>
+                    <input
+                      id="import-file"
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) { setImportFile(f); setImportResults(null); }
+                      }}
+                    />
+                  </div>
+                  {importFile && (
+                    <div className="text-sm text-muted-foreground">
+                      <Badge variant="secondary">{importFile.name}</Badge>
+                      <span className="mr-2">({(importFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleImportData}
+                  disabled={!importFile || importing}
+                  className="w-full"
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Upload className="h-4 w-4 ml-2" />}
+                  {importing ? importProgress || "جاري الاستيراد..." : "بدء الاستيراد"}
+                </Button>
+
+                {importResults && (
+                  <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">نتائج الاستيراد</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-right p-2 font-medium">الجدول</th>
+                              <th className="text-right p-2 font-medium">تم الإدراج</th>
+                              <th className="text-right p-2 font-medium">أخطاء</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(importResults).map(([table, res]) => (
+                              <tr key={table} className="border-b last:border-0">
+                                <td className="p-2 font-mono text-xs">{table}</td>
+                                <td className="p-2">
+                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted}</Badge>
+                                </td>
+                                <td className="p-2">
+                                  {res.errors > 0 ? (
+                                    <Badge variant="destructive">{res.errors}</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">0</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* ═══════════ STATS TAB ═══════════ */}
           <TabsContent value="stats">
             <Card>

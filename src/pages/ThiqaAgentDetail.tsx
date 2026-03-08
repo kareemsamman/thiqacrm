@@ -108,6 +108,10 @@ export default function ThiqaAgentDetail() {
   const [editUserPhone, setEditUserPhone] = useState("");
   const [editUserBranch, setEditUserBranch] = useState("");
   const [savingUser, setSavingUser] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<Record<string, { inserted: number; errors: number }> | null>(null);
+  const [importProgress, setImportProgress] = useState("");
 
   useEffect(() => {
     if (agentId) fetchAll();

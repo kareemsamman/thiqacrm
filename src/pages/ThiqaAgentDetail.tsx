@@ -294,9 +294,30 @@ export default function ThiqaAgentDetail() {
           branch_id: newUserBranch || null,
         },
       });
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        let message = error.message || 'خطأ في إنشاء المستخدم';
+        const context = (error as any).context;
+
+        if (context) {
+          try {
+            const payload = await context.json();
+            message = payload?.error || payload?.message || message;
+          } catch {
+            // keep fallback message
+          }
+        }
+
+        throw new Error(message);
+      }
+
       if (data?.error) throw new Error(data.error);
-      toast.success('تم إنشاء المستخدم بنجاح');
+
+      toast.success(
+        data?.reused_existing_user
+          ? 'تم ربط مستخدم موجود بالوكيل بنجاح'
+          : 'تم إنشاء المستخدم بنجاح'
+      );
       setNewUserEmail(''); setNewUserPassword(''); setNewUserName(''); setNewUserPhone('');
       setNewUserRole('worker'); setNewUserBranch('');
       fetchAll();

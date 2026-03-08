@@ -268,15 +268,15 @@ serve(async (req) => {
     }
 
     // 2. Insurance categories
-    const catRes = await upsertByName(supabase, "insurance_categories", SEED_INSURANCE_CATEGORIES.map(c => ({...c})), agentId, "slug");
+    const catRes = await syncSeedData(supabase, "insurance_categories", SEED_INSURANCE_CATEGORIES.map(c => ({...c})), agentId, "slug");
     results.insurance_categories = catRes.inserted;
 
-    // 3. Road services
-    const rsRes = await upsertByName(supabase, "road_services", SEED_ROAD_SERVICES.map(r => ({...r})), agentId);
+    // 3. Road services (check policies table for road_service_id FK)
+    const rsRes = await syncSeedData(supabase, "road_services", SEED_ROAD_SERVICES.map(r => ({...r})), agentId, "name", "policies", "road_service_id");
     results.road_services = rsRes.inserted;
 
-    // 4. Accident fee services
-    const afRes = await upsertByName(supabase, "accident_fee_services", SEED_ACCIDENT_FEE_SERVICES.map(a => ({...a})), agentId);
+    // 4. Accident fee services (check policies table for accident_fee_service_id FK)
+    const afRes = await syncSeedData(supabase, "accident_fee_services", SEED_ACCIDENT_FEE_SERVICES.map(a => ({...a})), agentId, "name", "policies", "accident_fee_service_id");
     results.accident_fee_services = afRes.inserted;
 
     // 5. Pricing rules for "اراضي مقدسة"

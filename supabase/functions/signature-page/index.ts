@@ -297,7 +297,10 @@ function buildSignaturePageHtml(
   token: string, 
   expiresAt: string | null,
   template: TemplateContent,
-  supabaseUrl: string
+  supabaseUrl: string,
+  companyName: string,
+  companyNameEn: string,
+  primaryColor: string
 ): string {
   const expiryText = expiresAt ? formatDate(expiresAt) : '';
 

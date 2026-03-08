@@ -677,9 +677,14 @@ export default function ThiqaAgentDetail() {
                               <Badge variant={p?.status === 'active' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">{p?.status === 'active' ? 'فعال' : p?.status || '—'}</Badge>
                             </td>
                             <td className="p-2 md:p-3">
-                              <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
-                                <UserMinus className="h-3.5 w-3.5" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditUser(au)}>
+                                  <Settings className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0" onClick={() => removeUserFromAgent(au.user_id)}>
+                                  <UserMinus className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );

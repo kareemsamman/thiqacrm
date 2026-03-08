@@ -285,21 +285,21 @@ function generateReportHtml(
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-      background: #f8fafc;
+      background: #122143;
       min-height: 100vh;
-      padding: 16px;
+      padding: 24px 16px;
       direction: rtl;
     }
     .container {
       max-width: 900px;
       margin: 0 auto;
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #1a365d 0%, #2d4a7c 100%);
+      background: linear-gradient(135deg, #122143 0%, #1a3260 100%);
       color: white;
       padding: 24px 20px;
       text-align: center;

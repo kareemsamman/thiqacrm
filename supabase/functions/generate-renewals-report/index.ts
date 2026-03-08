@@ -302,10 +302,11 @@ function buildDetailedReportHtml(clients: ClientWithPolicies[], totalPolicies: n
     
     body {
       font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
-      background: #f8fafc;
+      background: #122143;
       color: #1e293b;
       line-height: 1.5;
-      padding: 20px;
+      min-height: 100vh;
+      padding: 24px 16px;
     }
     
     .container {

@@ -193,11 +193,17 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const isSuperAdmin = profile?.email === SUPER_ADMIN_EMAIL;
 
   // Filter groups and items based on role + features
+  // Thiqa super admin only sees the Thiqa management section
   const filteredGroups = navigationGroups
-    .filter(group => !group.adminOnly || isAdmin)
+    .filter(group => {
+      if (isThiqaSuperAdmin) return group.name === 'إدارة ثقة';
+      if (group.adminOnly && !isAdmin) return false;
+      return true;
+    })
     .map(group => ({
       ...group,
       items: group.items.filter(item => {
+        if (isThiqaSuperAdmin) return true; // Thiqa admin sees all items in their groups
         if (item.thiqaSuperAdminOnly && !isThiqaSuperAdmin) return false;
         if (item.superAdminOnly && !isSuperAdmin) return false;
         if (item.adminOnly && !isAdmin) return false;

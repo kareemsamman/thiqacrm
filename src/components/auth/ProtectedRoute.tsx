@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading, profileLoading, profile, isActive, isSuperAdmin } = useAuth();
 
-  // CRITICAL: Block during initial auth resolution
+  const location = useLocation();
   // Super admin bypasses profile loading requirement
   const needsProfileLoading = user && !isSuperAdmin && profileLoading && !profile;
   

@@ -72,6 +72,7 @@ import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
 import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
 import ThiqaDashboard from "./pages/ThiqaDashboard";
+import ThiqaSettings from "./pages/ThiqaSettings";
 import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
 
@@ -115,6 +116,7 @@ const App = () => (
               <Route path="/thiqa/agents/new" element={<ThiqaAdminRoute><ThiqaCreateAgent /></ThiqaAdminRoute>} />
               <Route path="/thiqa/agents/:agentId" element={<ThiqaAdminRoute><ThiqaAgentDetail /></ThiqaAdminRoute>} />
               <Route path="/thiqa/payments" element={<ThiqaAdminRoute><ThiqaPayments /></ThiqaAdminRoute>} />
+              <Route path="/thiqa/settings" element={<ThiqaAdminRoute><ThiqaSettings /></ThiqaAdminRoute>} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Index />

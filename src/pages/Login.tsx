@@ -26,10 +26,11 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, isActive, isSuperAdmin, loading: authLoading } = useAuth();
   
-  // OTP state
+  // OTP state (for SMS only now)
   const [authStep, setAuthStep] = useState<AuthStep>("method");
   const [authMethod, setAuthMethod] = useState<AuthMethod>("google");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [countdown, setCountdown] = useState(0);
@@ -90,30 +91,32 @@ export default function Login() {
     window.open(window.location.origin + '/login', '_blank');
   };
 
-  const handleEmailStart = async () => {
+  const handleEmailPasswordLogin = async () => {
     if (!email || !email.includes("@")) {
       toast.error("يرجى إدخال بريد إلكتروني صحيح");
       return;
     }
+    if (!password || password.length < 6) {
+      toast.error("يرجى إدخال كلمة المرور (6 أحرف على الأقل)");
+      return;
+    }
     setLoading(true);
     try {
-      const response = await supabase.functions.invoke("auth-email-start", { body: { email } });
-      if (response.error) {
-        let message = response.error.message;
-        const ctx = (response as any).response ?? (response.error as any).context;
-        if (ctx && typeof ctx.json === "function") {
-          try { const body = await ctx.json(); if (body?.error) message = body.error; } catch {}
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        } else if (error.message.includes("Email not confirmed")) {
+          toast.error("البريد الإلكتروني غير مؤكد. تواصل مع المدير.");
+        } else {
+          toast.error(error.message);
         }
-        throw new Error(message);
-      }
-      if (!response.data?.success) {
-        toast.error(response.data?.error || "فشل في إرسال رمز التحقق");
         return;
       }
-      toast.success("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
-      setAuthStep("otp");
-      setAuthMethod("email");
-      setCountdown(60);
+      toast.success("تم تسجيل الدخول بنجاح");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "حدث خطأ غير متوقع");
     } finally {
@@ -164,8 +167,8 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const endpoint = authMethod === "email" ? "auth-email-verify" : "auth-sms-verify";
-      const body = authMethod === "email" ? { email, code: otpCode } : { phone, code: otpCode };
+      const endpoint = "auth-sms-verify";
+      const body = { phone, code: otpCode };
       const response = await supabase.functions.invoke(endpoint, { body });
       if (response.error) throw new Error(response.error.message);
       if (!response.data?.success) {
@@ -191,8 +194,7 @@ export default function Login() {
 
   const handleResend = async () => {
     if (countdown > 0) return;
-    if (authMethod === "email") await handleEmailStart();
-    else await handleSmsStart();
+    await handleSmsStart();
   };
 
   const handleBack = () => {
@@ -339,9 +341,13 @@ export default function Login() {
                   <Label htmlFor="email">البريد الإلكتروني</Label>
                   <Input id="email" type="email" placeholder="your-email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="ltr-input" disabled={loading} />
                 </div>
-                <Button className="w-full h-12 text-base gap-2" onClick={handleEmailStart} disabled={loading || !email}>
+                <div className="space-y-2">
+                  <Label htmlFor="password">كلمة المرور</Label>
+                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
+                </div>
+                <Button className="w-full h-12 text-base gap-2" onClick={handleEmailPasswordLogin} disabled={loading || !email || !password}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mail className="h-5 w-5" />}
-                  {loading ? "جاري الإرسال..." : "إرسال رمز التحقق"}
+                  {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
                 </Button>
               </TabsContent>
 

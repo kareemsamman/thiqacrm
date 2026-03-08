@@ -680,46 +680,40 @@ export default function Landing() {
       {/* ═══ Footer ═══ */}
       <footer className="border-t border-white/[0.04] pt-16 pb-8">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Footer columns */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-10 mb-16 text-right">
-            <div>
-              <h4 className="text-sm font-bold text-white/80 mb-4">מוצר</h4>
-              <ul className="space-y-2 text-sm text-white/30">
-                <li><a href="#features" className="hover:text-white/60 transition-colors">פיצ'רים</a></li>
-                <li><a href="#" className="hover:text-white/60 transition-colors">תמחור</a></li>
-                <li><a href="#faq" className="hover:text-white/60 transition-colors">שאלות נפוצות</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white/80 mb-4">מידע ותנאים</h4>
-              <ul className="space-y-2 text-sm text-white/30">
-                <li><a href="#" className="hover:text-white/60 transition-colors">תנאי שימוש</a></li>
-                <li><a href="#" className="hover:text-white/60 transition-colors">מדיניות פרטיות</a></li>
-                <li><a href="#" className="hover:text-white/60 transition-colors">נגישות</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white/80 mb-4">קשר</h4>
-              <ul className="space-y-2 text-sm text-white/30">
-                <li><a href="#" className="hover:text-white/60 transition-colors">צרו קשר</a></li>
-                <li><a href="#" className="hover:text-white/60 transition-colors">תמיכה</a></li>
-                <li><a href="#" className="hover:text-white/60 transition-colors">info@thiqa.co.il</a></li>
-              </ul>
-            </div>
+          {/* Accordion footer sections */}
+          <div className="flex flex-col divide-y divide-white/[0.06]">
+            {[
+              { title: "מידע", items: ["מרכז העזרה", "יצירת קשר"] },
+              { title: "תנאים ומדיניות", items: ["תנאי שימוש", "מדיניות פרטיות", "נגישות"] },
+              { title: "תמיכה", items: ["צ'אט תמיכה", "שאלות נפוצות", "info@thiqa.co.il"] },
+            ].map((section, idx) => (
+              <details key={idx} className="group py-6">
+                <summary className="flex items-center justify-between cursor-pointer list-none">
+                  <span className="text-lg font-bold text-white/90">{section.title}</span>
+                  <span className="text-white/40 text-2xl font-light group-open:hidden">+</span>
+                  <span className="text-white/40 text-2xl font-light hidden group-open:inline">−</span>
+                </summary>
+                <ul className="mt-4 space-y-3 text-sm text-white/40 text-right">
+                  {section.items.map((item, j) => (
+                    <li key={j}><a href="#" className="hover:text-white/60 transition-colors">{item}</a></li>
+                  ))}
+                </ul>
+              </details>
+            ))}
           </div>
 
           {/* Divider with dots */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mt-8 mb-8">
             <div className="h-1.5 w-1.5 rounded-full bg-white/20" />
             <div className="flex-1 h-px bg-white/[0.06]" />
             <div className="h-1.5 w-1.5 rounded-full bg-white/20" />
           </div>
 
-          <p className="text-xs text-white/20 text-center mb-12">Thiqa CRM כל הזכויות שמורות ©</p>
+          <p className="text-sm text-white/20 text-center mb-12">כל הזכויות שמורות © Thiqa {new Date().getFullYear()}</p>
 
           {/* Giant logo */}
-          <div className="flex justify-center">
-            <img src={thiqaLogo} alt="Thiqa" className="w-[70%] md:w-[50%] max-w-[600px] opacity-[0.08]" />
+          <div className="flex justify-center overflow-hidden">
+            <img src={thiqaLogo} alt="Thiqa" className="w-[80%] md:w-[60%] max-w-[700px] opacity-[0.08]" />
           </div>
         </div>
       </footer>

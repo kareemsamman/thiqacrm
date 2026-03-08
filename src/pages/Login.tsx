@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import thiqaLogo from "@/assets/thiqa-logo.svg";
+import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 
 type AuthStep = "method" | "otp";

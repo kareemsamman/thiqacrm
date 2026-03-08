@@ -232,6 +232,7 @@ export default function Login() {
       if (data?.error) throw new Error(data.error);
 
       const successMessage = data?.message || "تم تسجيل وكيل جديد بنجاح!";
+      trackEvent("signup_complete", "/login", { email: signupEmail.trim() });
       toast.success(successMessage);
 
       const normalizedEmail = signupEmail.trim();

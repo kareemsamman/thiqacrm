@@ -38,6 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getInsuranceTypeLabel } from '@/lib/insuranceTypes';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 
 interface PolicyFile {
   id: string;
@@ -310,6 +311,7 @@ export function ClientReportModal({
   broker,
   branchName,
 }: ClientReportModalProps) {
+  const { data: siteSettings } = useSiteSettings();
   const [sendingSms, setSendingSms] = useState(false);
   const [expandedCars, setExpandedCars] = useState<Set<string>>(new Set());
   const [policyFiles, setPolicyFiles] = useState<Record<string, PolicyFile[]>>({});
@@ -464,9 +466,10 @@ export function ClientReportModal({
       const reportUrl = reportResponse.data?.url;
       if (!reportUrl) throw new Error('Failed to generate report URL');
 
+      const companyName = siteSettings?.site_title || 'وكالة التأمين';
       const message = `${client.full_name} عزيزنا/ي\n` +
         `يمكنك مشاهدة تقرير تأميناتك الكامل عبر الرابط:\n${reportUrl}\n\n` +
-        `بشير للتأمينات 🚗`;
+        `${companyName} 🚗`;
 
       const smsResponse = await supabase.functions.invoke('send-sms', {
         body: {
@@ -791,10 +794,9 @@ export function ClientReportModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t text-xs text-muted-foreground">
+           <div className="flex items-center justify-between pt-4 border-t text-xs text-muted-foreground">
             <div className="text-center">
-              <p className="font-bold text-primary text-sm">بشير للتأمينات</p>
-              <p className="text-[10px]">BASHEER INSURANCE</p>
+              <p className="font-bold text-primary text-sm">{siteSettings?.site_title || 'وكالة التأمين'}</p>
             </div>
             <p className="ltr-nums">{new Date().toLocaleDateString('en-GB')}</p>
           </div>

@@ -9,6 +9,10 @@ export interface SiteSettings {
   logo_url: string | null;
   favicon_url: string | null;
   og_image_url: string | null;
+  signature_header_html: string | null;
+  signature_body_html: string | null;
+  signature_footer_html: string | null;
+  signature_primary_color: string | null;
   updated_at: string;
   updated_by: string | null;
 }
@@ -31,7 +35,7 @@ export function useSiteSettings() {
       if (error) throw error;
       return (data as SiteSettings) || null;
     },
-    staleTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 30,
   });
 }
 
@@ -72,6 +76,10 @@ export function useUpdateSiteSettings() {
           logo_url: updates.logo_url ?? null,
           favicon_url: updates.favicon_url ?? null,
           og_image_url: updates.og_image_url ?? null,
+          signature_header_html: updates.signature_header_html ?? null,
+          signature_body_html: updates.signature_body_html ?? null,
+          signature_footer_html: updates.signature_footer_html ?? null,
+          signature_primary_color: updates.signature_primary_color ?? '#1e3a5f',
           updated_at: new Date().toISOString(),
         })
         .select()

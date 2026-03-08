@@ -11,7 +11,22 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle } from "lucide-react";
+import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive } from "lucide-react";
+
+function useThiqaPlatformSettings() {
+  return useQuery({
+    queryKey: ["thiqa-platform-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("thiqa_platform_settings")
+        .select("setting_key, setting_value");
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data || []).forEach((r) => { map[r.setting_key] = r.setting_value || ""; });
+      return map;
+    },
+  });
+}
 
 function GeneralSettingsTab() {
   const { toast } = useToast();
@@ -139,21 +154,6 @@ interface SmtpForm {
   smtp_user: string;
   smtp_password: string;
   smtp_sender_name: string;
-}
-
-function useThiqaPlatformSettings() {
-  return useQuery({
-    queryKey: ["thiqa-platform-settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("thiqa_platform_settings")
-        .select("setting_key, setting_value");
-      if (error) throw error;
-      const map: Record<string, string> = {};
-      (data || []).forEach((r) => { map[r.setting_key] = r.setting_value || ""; });
-      return map;
-    },
-  });
 }
 
 function SmtpSettingsTab() {
@@ -388,6 +388,143 @@ function SmtpTestSection() {
   );
 }
 
+interface BunnyCdnForm {
+  bunny_cdn_url: string;
+  bunny_storage_zone: string;
+  bunny_api_key: string;
+}
+
+function StorageSettingsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useThiqaPlatformSettings();
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [form, setForm] = useState<BunnyCdnForm>({
+    bunny_cdn_url: "",
+    bunny_storage_zone: "",
+    bunny_api_key: "",
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        bunny_cdn_url: settings.bunny_cdn_url || "",
+        bunny_storage_zone: settings.bunny_storage_zone || "",
+        bunny_api_key: settings.bunny_api_key || "",
+      });
+    }
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (formData: BunnyCdnForm) => {
+      for (const [key, value] of Object.entries(formData)) {
+        const { error } = await supabase
+          .from("thiqa_platform_settings")
+          .upsert(
+            { setting_key: key, setting_value: value, updated_at: new Date().toISOString() },
+            { onConflict: "setting_key" }
+          );
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      toast({ title: "تم الحفظ", description: "تم حفظ إعدادات التخزين بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في حفظ الإعدادات", variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <HardDrive className="h-5 w-5" />
+          إعدادات التخزين (Bunny CDN)
+        </CardTitle>
+        <CardDescription>
+          إعدادات تخزين الملفات وشبكة توصيل المحتوى
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="bunny_cdn_url">رابط CDN</Label>
+          <Input
+            id="bunny_cdn_url"
+            value={form.bunny_cdn_url}
+            onChange={(e) => setForm(f => ({ ...f, bunny_cdn_url: e.target.value }))}
+            placeholder="https://kareem.b-cdn.net"
+            className="ltr-input"
+            dir="ltr"
+          />
+          <p className="text-xs text-muted-foreground">رابط شبكة توصيل المحتوى (مثال: https://kareem.b-cdn.net)</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bunny_storage_zone">منطقة التخزين (Storage Zone)</Label>
+          <Input
+            id="bunny_storage_zone"
+            value={form.bunny_storage_zone}
+            onChange={(e) => setForm(f => ({ ...f, bunny_storage_zone: e.target.value }))}
+            placeholder="kareem"
+            className="ltr-input"
+            dir="ltr"
+          />
+          <p className="text-xs text-muted-foreground">اسم منطقة التخزين في Bunny (مثال: kareem)</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bunny_api_key">مفتاح API</Label>
+          <div className="relative">
+            <Input
+              id="bunny_api_key"
+              type={showApiKey ? "text" : "password"}
+              value={form.bunny_api_key}
+              onChange={(e) => setForm(f => ({ ...f, bunny_api_key: e.target.value }))}
+              placeholder="••••••••"
+              className="ltr-input pe-10"
+              dir="ltr"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">مفتاح API الخاص بمنطقة التخزين (Storage Zone Password)</p>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t">
+          <Button
+            onClick={() => saveMutation.mutate(form)}
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 ml-2" />
+            )}
+            حفظ الإعدادات
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ThiqaSettings() {
   return (
     <MainLayout>
@@ -412,6 +549,10 @@ export default function ThiqaSettings() {
               <Mail className="h-4 w-4" />
               البريد الإلكتروني
             </TabsTrigger>
+            <TabsTrigger value="storage" className="gap-2">
+              <HardDrive className="h-4 w-4" />
+              التخزين
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -420,6 +561,10 @@ export default function ThiqaSettings() {
 
           <TabsContent value="smtp">
             <SmtpSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="storage">
+            <StorageSettingsTab />
           </TabsContent>
         </Tabs>
       </div>

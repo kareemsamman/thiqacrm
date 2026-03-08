@@ -5032,6 +5032,10 @@ export type Database = {
           id: string
           logo_url: string | null
           og_image_url: string | null
+          signature_body_html: string | null
+          signature_footer_html: string | null
+          signature_header_html: string | null
+          signature_primary_color: string | null
           site_description: string
           site_title: string
           updated_at: string
@@ -5043,6 +5047,10 @@ export type Database = {
           id?: string
           logo_url?: string | null
           og_image_url?: string | null
+          signature_body_html?: string | null
+          signature_footer_html?: string | null
+          signature_header_html?: string | null
+          signature_primary_color?: string | null
           site_description?: string
           site_title?: string
           updated_at?: string
@@ -5054,6 +5062,10 @@ export type Database = {
           id?: string
           logo_url?: string | null
           og_image_url?: string | null
+          signature_body_html?: string | null
+          signature_footer_html?: string | null
+          signature_header_html?: string | null
+          signature_primary_color?: string | null
           site_description?: string
           site_title?: string
           updated_at?: string

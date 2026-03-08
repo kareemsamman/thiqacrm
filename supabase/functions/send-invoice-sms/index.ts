@@ -274,7 +274,7 @@ serve(async (req) => {
     // Build policy file URLs (all uploaded files - could be multiple)
     // Normalize CDN URLs (replace old b-cdn.net with custom domain)
     const sortedPolicyUrls = hasInsuranceFiles 
-      ? insuranceFiles.map(f => f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/'))
+      ? insuranceFiles.map(f => f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/').replace('https://cdn.basheer-ab.com/', bunnyCdnUrl + '/'))
       : [];
     
     // Build all policy URLs text - each file on separate line with label
@@ -501,7 +501,7 @@ function buildAbInvoiceHtml(
   // Normalize CDN URLs
   const normalizedFiles = policyFiles.map(f => ({
     ...f,
-    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/')
+    cdn_url: f.cdn_url.replace('https://basheer-ab.b-cdn.net/', bunnyCdnUrl + '/').replace('https://cdn.basheer-ab.com/', bunnyCdnUrl + '/')
   }));
   
   const filesHtml = normalizedFiles.length > 0 ? `

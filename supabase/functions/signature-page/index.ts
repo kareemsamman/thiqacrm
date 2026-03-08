@@ -99,13 +99,15 @@ serve(async (req) => {
       });
     }
 
-    // Get signature template from SMS settings
+    // Use branding signature fields as defaults, allow template override
     let templateContent = {
       logo_url: branding.logoUrl as string | null,
-      header_html: '<h2>نموذج الموافقة على الخصوصية</h2>',
-      body_html: `<p>مرحباً.</p><p>أقرّ بأنني قرأت وفهمت سياسة الخصوصية، وأوافق على قيام <strong>${branding.companyName}</strong> بجمع واستخدام ومعالجة بياناتي الشخصية للأغراض المتعلقة بخدمات التأمين والتواصل وإتمام الإجراءات اللازمة.</p><p>بالتوقيع أدناه، أؤكد صحة البيانات وأمنح موافقتي على ما ورد أعلاه.</p>`,
-      footer_html: `<p>© ${branding.companyName} - جميع الحقوق محفوظة</p>`,
+      header_html: branding.signatureHeaderHtml,
+      body_html: branding.signatureBodyHtml.replace(/الشركة/g, branding.companyName),
+      footer_html: branding.signatureFooterHtml.replace(/جميع الحقوق محفوظة/g, `© ${branding.companyName} - جميع الحقوق محفوظة`),
     };
+
+    const primaryColor = branding.signaturePrimaryColor;
 
     const { data: smsSettings } = await supabase
       .from("sms_settings")
@@ -131,7 +133,7 @@ serve(async (req) => {
     }
 
     // Build and return the signature page HTML using template content
-    const html = buildSignaturePageHtml(clientName, token, signatureRecord.token_expires_at, templateContent, supabaseUrl);
+    const html = buildSignaturePageHtml(clientName, token, signatureRecord.token_expires_at, templateContent, supabaseUrl, branding.companyName, branding.companyNameEn, primaryColor);
     
     return new Response(html, {
       status: 200,
@@ -166,7 +168,7 @@ function buildErrorHtml(title: string, message: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>${title} | ثقة للتأمين</title>
+  <title>${title} | توقيع العميل</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -225,7 +227,7 @@ function buildSuccessHtml(clientName: string, signedAt: string | null): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>تم التوقيع بنجاح | ثقة للتأمين</title>
+  <title>تم التوقيع بنجاح</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -295,7 +297,10 @@ function buildSignaturePageHtml(
   token: string, 
   expiresAt: string | null,
   template: TemplateContent,
-  supabaseUrl: string
+  supabaseUrl: string,
+  companyName: string,
+  companyNameEn: string,
+  primaryColor: string
 ): string {
   const expiryText = expiresAt ? formatDate(expiresAt) : '';
 
@@ -311,13 +316,13 @@ function buildSignaturePageHtml(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <title>توقيع العميل | ثقة للتأمين</title>
+  <title>توقيع العميل | ${companyName}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
       min-height: 100vh;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 50%, #3d5a7f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 50%, ${primaryColor}bb 100%);
       padding: 20px;
       display: flex;
       align-items: center;
@@ -332,7 +337,7 @@ function buildSignaturePageHtml(
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%);
       color: white;
       padding: 30px 25px;
       text-align: center;
@@ -373,7 +378,7 @@ function buildSignaturePageHtml(
       margin-bottom: 25px;
     }
     .template-content h2, .template-content h3 {
-      color: #1e3a5f;
+      color: ${primaryColor};
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 15px;
@@ -387,14 +392,14 @@ function buildSignaturePageHtml(
       margin-bottom: 10px;
     }
     .template-content strong {
-      color: #1e3a5f;
+      color: ${primaryColor};
     }
     
     .signature-section {
       margin-bottom: 20px;
     }
     .signature-section h3 {
-      color: #1e3a5f;
+      color: ${primaryColor};
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 15px;
@@ -409,7 +414,7 @@ function buildSignaturePageHtml(
       touch-action: none;
     }
     .canvas-wrapper.active {
-      border-color: #1e3a5f;
+      border-color: ${primaryColor};
       border-style: solid;
     }
     #signatureCanvas {
@@ -509,7 +514,7 @@ function buildSignaturePageHtml(
     }
     .btn-clear:hover { background: #e2e8f0; }
     .btn-submit {
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+      background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%);
       color: white;
     }
     .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30,58,95,0.3); }
@@ -682,7 +687,7 @@ function buildSignaturePageHtml(
       const rect = wrapper.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = 200;
-      ctx.strokeStyle = '#1e3a5f';
+      ctx.strokeStyle = '${primaryColor}';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';

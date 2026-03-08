@@ -44,6 +44,7 @@ import { BrokerSmsModal } from "./BrokerSmsModal";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { getInsuranceTypeLabel } from "@/lib/insuranceTypes";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface Broker {
   id: string;
@@ -92,6 +93,7 @@ const policyTypeLabels: Record<string, string> = {
 
 export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetailsProps) {
   const navigate = useNavigate();
+  const { data: siteSettings } = useSiteSettings();
   const [clients, setClients] = useState<Client[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,7 +261,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
           const { error: smsError } = await supabase.functions.invoke("send-sms", {
             body: {
               phone: broker.phone,
-              message: `مرحباً ${broker.name}،\n\nيمكنك مشاهدة تقرير التأمينات الخاص بك عبر الرابط:\n${data.url}\n\nبشير للتأمينات 🚗`,
+              message: `مرحباً ${broker.name}،\n\nيمكنك مشاهدة تقرير التأمينات الخاص بك عبر الرابط:\n${data.url}\n\n${siteSettings?.site_title || 'وكالة التأمين'} 🚗`,
             },
           });
 
@@ -651,7 +653,7 @@ export function BrokerDetails({ broker, onBack, onEdit, onRefresh }: BrokerDetai
         open={smsModalOpen}
         onOpenChange={setSmsModalOpen}
         broker={{ id: broker.id, name: broker.name, phone: broker.phone }}
-        defaultMessage={`مرحباً ${broker.name}،\n\nنود إعلامك بتحديثات جديدة على حسابك.\n\nبشير للتأمينات 🚗`}
+        defaultMessage={`مرحباً ${broker.name}،\n\nنود إعلامك بتحديثات جديدة على حسابك.\n\n${siteSettings?.site_title || 'وكالة التأمين'} 🚗`}
       />
     </MainLayout>
   );

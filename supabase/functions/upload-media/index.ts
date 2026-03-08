@@ -273,8 +273,9 @@ serve(async (req) => {
       });
     }
 
-    // Construct CDN URL - hardcoded to prevent misconfiguration
-    const cdnUrl = `https://cdn.basheer-ab.com/${storagePath}`;
+    // Construct CDN URL from env
+    const cdnBaseUrl = Deno.env.get('BUNNY_CDN_URL') || 'https://cdn.basheer-ab.com';
+    const cdnUrl = `${cdnBaseUrl}/${storagePath}`;
 
     // Save to database with user's branch_id
     const { data: mediaFile, error: dbError } = await supabase

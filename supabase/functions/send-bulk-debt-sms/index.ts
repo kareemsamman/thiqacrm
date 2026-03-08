@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAgentBranding, resolveAgentId } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,11 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const brandingData = await getAgentBranding(supabase, agentId);
+    const siteTitle = brandingData.companyName;
+
     const { filter_days, search } = await req.json();
 
     console.log(`Bulk SMS request - filter_days: ${filter_days}, search: ${search}`);
@@ -186,7 +192,7 @@ Deno.serve(async (req) => {
 الوثائق:
 ${policyLines}
 
-AB للتأمين`;
+${siteTitle}`;
 
         // Add location if available
         if (companyLocation) {

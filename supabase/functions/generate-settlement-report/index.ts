@@ -443,7 +443,7 @@ function generateReportHtml(
   <div class="container">
     <div class="header">
       <h1>تقرير تسوية الشركة</h1>
-      <div class="subtitle">بشير للتأمين - BASHEER INSURANCE</div>
+      <div class="subtitle">${agentName}</div>
       <div class="company-name">${companyName}</div>
     </div>
     
@@ -504,7 +504,7 @@ function generateReportHtml(
     </div>
     
     <div class="footer">
-      © بشير للتأمين - جميع الحقوق محفوظة | تم إنشاء هذا التقرير تلقائياً
+      © ${agentName} - جميع الحقوق محفوظة | تم إنشاء هذا التقرير تلقائياً
     </div>
   </div>
 </body>

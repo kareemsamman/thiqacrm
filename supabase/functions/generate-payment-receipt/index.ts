@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
 import { buildBunnyStorageUploadUrl, normalizeBunnyCdnUrl, resolveBunnyStorageZone } from "../_shared/bunny-storage.ts";
+import { getAgentBranding, resolveAgentId, type AgentBranding } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,7 +63,8 @@ function buildPaymentReceiptHtml(
   policy: any,
   client: any,
   car: any,
-  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string }
+  companySettings: { company_email?: string; company_phone_links?: PhoneLink[]; company_location?: string },
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const paymentTypeLabel = PAYMENT_TYPE_LABELS[payment.payment_type] || payment.payment_type;
   const policyTypeLabel = POLICY_TYPE_LABELS[policy.policy_type_parent] || policy.policy_type_parent;
@@ -329,8 +331,9 @@ function buildPaymentReceiptHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
-      <p class="english-name">BASHEER INSURANCE</p>
+      ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.companyName}" style="max-height:50px;object-fit:contain;margin:0 auto 8px auto;display:block;" />` : ''}
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<p class="english-name">${branding.companyNameEn}</p>` : ''}
       <p class="receipt-title">إيصال دفع</p>
       <div class="receipt-number">رقم: ${payment.id.slice(0, 8).toUpperCase()}</div>
     </div>
@@ -482,6 +485,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { payment_id }: GeneratePaymentReceiptRequest = await req.json();
 
     if (!payment_id) {
@@ -550,7 +557,7 @@ serve(async (req) => {
 
     if (!bunnyApiKey || !bunnyStorageZone) {
       // Return HTML directly without storing
-      const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings);
+      const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings, branding);
       return new Response(receiptHtml, {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" }
@@ -558,7 +565,7 @@ serve(async (req) => {
     }
 
     // Generate receipt HTML
-    const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings);
+    const receiptHtml = buildPaymentReceiptHtml(payment, policy, client, car, companySettings, branding);
     
     // Upload to Bunny CDN
     const now = new Date();

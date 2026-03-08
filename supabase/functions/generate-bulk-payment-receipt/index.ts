@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
+import { getAgentBranding, resolveAgentId, type AgentBranding } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -295,8 +296,9 @@ function buildBulkReceiptHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
-      <p class="english-name">BASHEER INSURANCE</p>
+      ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.companyName}" style="max-height:50px;object-fit:contain;margin:0 auto 8px auto;display:block;" />` : ''}
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<p class="english-name">${branding.companyNameEn}</p>` : ''}
       <p class="receipt-title">إيصال دفع</p>
       <div class="receipt-number">رقم: ${receiptId}</div>
     </div>
@@ -433,6 +435,10 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
 
     const { payment_ids, total_amount }: BulkReceiptRequest = await req.json();
 

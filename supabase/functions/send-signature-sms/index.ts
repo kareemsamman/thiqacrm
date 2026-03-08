@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
 import { buildBunnyStorageUploadUrl, normalizeBunnyCdnUrl, resolveBunnyStorageZone } from "../_shared/bunny-storage.ts";
+import { getAgentBranding, resolveAgentId, type AgentBranding } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,10 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
 
     const { client_id, policy_id }: SendSignatureSmsRequest = await req.json();
 
@@ -182,7 +187,8 @@ serve(async (req) => {
       signatureToken,
       tokenExpiresAt,
       templateContent,
-      supabaseUrl
+      supabaseUrl,
+      branding
     );
 
     // Upload signature page to Bunny CDN as .html file
@@ -351,13 +357,15 @@ function buildSignaturePageHtml(
   token: string, 
   expiresAt: string | null,
   template: TemplateContent,
-  supabaseUrl: string
+  supabaseUrl: string,
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const expiryText = expiresAt ? formatDate(expiresAt) : '';
 
-  // Logo section if provided
-  const logoSection = template.logo_url 
-    ? `<img src="${template.logo_url}" alt="Logo" class="logo" style="max-height: 60px; margin-bottom: 15px;" />`
+  // Logo section: prefer branding logo, fall back to template logo
+  const logoUrl = branding.logoUrl || template.logo_url;
+  const logoSection = logoUrl
+    ? `<img src="${logoUrl}" alt="${branding.companyName}" class="logo" style="max-height: 60px; margin-bottom: 15px;" />`
     : '';
 
   return `<!DOCTYPE html>
@@ -657,8 +665,8 @@ function buildSignaturePageHtml(
   <div class="container">
     <div class="header">
       ${logoSection}
-      <h1>بشير للتأمين</h1>
-      <div class="english">BASHEER INSURANCE</div>
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<div class="english">${branding.companyNameEn}</div>` : ''}
       <div class="welcome">مرحباً بك</div>
       <div class="client-name">${clientName}</div>
     </div>

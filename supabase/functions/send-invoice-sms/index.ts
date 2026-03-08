@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.88.0";
 import { buildBunnyStorageUploadUrl, normalizeBunnyCdnUrl, resolveBunnyStorageZone } from "../_shared/bunny-storage.ts";
+import { getAgentBranding, resolveAgentId, type AgentBranding } from "../_shared/agent-branding.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,6 +89,10 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
 
     const { policy_id, force_resend, skip_sms }: SendInvoiceSmsRequest = await req.json();
 
@@ -230,7 +235,7 @@ serve(async (req) => {
     const remaining = (policy.insurance_price || 0) - totalPaid;
 
     // Generate AB Invoice HTML and upload to Bunny CDN
-    const abInvoiceHtml = buildAbInvoiceHtml(policy, payments || [], paymentType, totalPaid, remaining, insuranceFiles || [], policyChildren || [], companySettings);
+    const abInvoiceHtml = buildAbInvoiceHtml(policy, payments || [], paymentType, totalPaid, remaining, insuranceFiles || [], policyChildren || [], companySettings, branding);
     
     const now = new Date();
     const year = now.getFullYear();
@@ -451,7 +456,8 @@ function buildAbInvoiceHtml(
   remaining: number,
   policyFiles: { cdn_url: string; original_name: string; mime_type: string }[],
   policyChildren: any[] = [],
-  companySettings: { company_email?: string; company_phones?: string[]; company_whatsapp?: string; company_location?: string }
+  companySettings: { company_email?: string; company_phones?: string[]; company_whatsapp?: string; company_location?: string },
+  branding: AgentBranding = { companyName: 'وكالة التأمين', companyNameEn: '', logoUrl: null, siteDescription: '' }
 ): string {
   const client = policy.client || {};
   const car = policy.car || {};
@@ -882,8 +888,9 @@ function buildAbInvoiceHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>وكالة بشير للتأمين</h1>
-      <p class="english-name">BASHEER INSURANCE</p>
+      ${branding.logoUrl ? `<img src="${branding.logoUrl}" alt="${branding.companyName}" style="max-height:60px;object-fit:contain;margin:0 auto 8px auto;display:block;" />` : ''}
+      <h1>${branding.companyName}</h1>
+      ${branding.companyNameEn ? `<p class="english-name">${branding.companyNameEn}</p>` : ''}
       <p>بوليصة تأمين</p>
     </div>
 
@@ -1045,7 +1052,7 @@ function buildAbInvoiceHtml(
 
     <div class="signature-section">
       <div class="signature-box">
-        <div class="basheer-signature">Basheer</div>
+        <div class="basheer-signature">${branding.companyName}</div>
         <div class="signature-line">التوقيع المعتمد</div>
       </div>
     </div>

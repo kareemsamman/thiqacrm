@@ -464,7 +464,7 @@ function generateReportHtml(
 <body>
   <div class="container">
     <div class="header">
-      <h1>بشير للتأمينات</h1>
+      <h1>${companyName}</h1>
       <p>كشف حساب الوسيط</p>
       <div class="filter-info">${filterSummary}</div>
     </div>
@@ -536,8 +536,7 @@ function generateReportHtml(
 
       <div class="footer">
         <div class="footer-brand">
-          <div class="footer-brand-ar">بشير للتأمينات</div>
-          <div class="footer-brand-en">BASHEER INSURANCE</div>
+          <div class="footer-brand-ar">${companyName}</div>
         </div>
         <div class="footer-date">${formatDate(new Date().toISOString())}</div>
         <div class="footer-page">صفحة 1 من 1</div>

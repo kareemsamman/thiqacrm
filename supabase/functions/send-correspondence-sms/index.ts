@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const companyName = 'مكتب بشير للتأمين';
+      const companyName = siteSettings?.site_title || 'وكالة التأمين';
       const logoUrl = (smsSettings?.invoice_templates as any)?.logo_url || '';
       const phonesHtml = phoneLinks.map(p => `<span>${p.label ? `${p.label}: ` : ''}${p.phone}</span>`).join(' | ');
 
@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
       phone = '0' + phone;
     }
 
-    const companyName = 'مكتب بشير للتأمين';
+    const companyName = siteSettings?.site_title || 'وكالة التأمين';
 
     // Build SMS message
     const message = `رسالة من ${companyName}:

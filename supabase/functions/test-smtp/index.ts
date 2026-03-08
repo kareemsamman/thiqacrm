@@ -112,13 +112,14 @@ Secure: ${smtpSecure ? 'Yes (TLS)' : 'No'}`;
 </body>
 </html>`;
 
-      // Let denomailer handle encoding automatically
-      // Provide subject as normal UTF-8 string, text (content), and html
+      // Use Base64-encoded subject for proper Arabic rendering
+      const subjectB64 = btoa(unescape(encodeURIComponent("اختبار إعدادات SMTP - ثقة للتأمين")));
+
       await client.send({
         from: smtpUser,
         to: testEmail,
-        subject: "اختبار إعدادات SMTP - ثقة للتأمين",
-        content: textContent,
+        subject: `=?UTF-8?B?${subjectB64}?=`,
+        content: "auto",
         html: htmlContent,
       });
 

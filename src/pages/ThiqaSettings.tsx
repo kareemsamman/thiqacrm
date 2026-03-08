@@ -236,8 +236,90 @@ function SmtpSettingsTab() {
             حفظ الإعدادات
           </Button>
         </div>
+
+        <SmtpTestSection />
       </CardContent>
     </Card>
+  );
+}
+
+function SmtpTestSection() {
+  const { toast } = useToast();
+  const [testEmail, setTestEmail] = useState("");
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const testMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const { data, error } = await supabase.functions.invoke("test-platform-smtp", {
+        body: { testEmail: email },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "فشل الاختبار");
+      return data;
+    },
+    onSuccess: (data) => {
+      setTestResult({ success: true, message: data.message });
+      toast({ title: "نجح الاختبار ✅", description: data.message });
+    },
+    onError: (err: Error) => {
+      setTestResult({ success: false, message: err.message });
+      toast({ title: "فشل الاختبار", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <>
+      <Separator className="my-6" />
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            اختبار إعدادات البريد
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            أرسل رسالة تجريبية للتأكد من أن إعدادات SMTP تعمل بشكل صحيح
+          </p>
+        </div>
+
+        <div className="flex gap-3 items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="test_email">بريد المستلم</Label>
+            <Input
+              id="test_email"
+              type="email"
+              value={testEmail}
+              onChange={(e) => { setTestEmail(e.target.value); setTestResult(null); }}
+              placeholder="example@email.com"
+              className="ltr-input"
+            />
+          </div>
+          <Button
+            onClick={() => testMutation.mutate(testEmail)}
+            disabled={testMutation.isPending || !testEmail.includes("@")}
+            variant="outline"
+            className="h-10"
+          >
+            {testMutation.isPending ? (
+              <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4 ml-2" />
+            )}
+            إرسال اختبار
+          </Button>
+        </div>
+
+        {testResult && (
+          <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+            testResult.success 
+              ? "bg-success/10 text-success border border-success/20" 
+              : "bg-destructive/10 text-destructive border border-destructive/20"
+          }`}>
+            {testResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
+            {testResult.message}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

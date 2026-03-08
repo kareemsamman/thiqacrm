@@ -3049,6 +3049,47 @@ export type Database = {
           },
         ]
       }
+      landing_content: {
+        Row: {
+          content_type: string
+          id: string
+          image_url: string | null
+          json_value: Json | null
+          section_key: string
+          text_value: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content_type?: string
+          id?: string
+          image_url?: string | null
+          json_value?: Json | null
+          section_key: string
+          text_value?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content_type?: string
+          id?: string
+          image_url?: string | null
+          json_value?: Json | null
+          section_key?: string
+          text_value?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_content_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_messages: {
         Row: {
           agent_id: string | null

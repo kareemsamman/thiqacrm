@@ -104,7 +104,6 @@ export const navigationGroups: NavGroup[] = [
       { name: "السيارات", href: "/cars", icon: Car },
       { name: "الوثائق", href: "/policies", icon: FileText },
       { name: "جهات الاتصال", href: "/contacts", icon: Contact },
-      { name: "Whatsapp Leads", href: "/leads", icon: MessageSquare },
     ],
   },
   {

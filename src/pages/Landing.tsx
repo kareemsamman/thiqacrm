@@ -68,13 +68,18 @@ export default function Landing() {
             ומותאם לעבודה בקנה מידה רחב.
           </p>
           <div className="mt-10">
-            <Button
-              size="lg"
+            <button
               onClick={() => navigate("/login")}
-              className="bg-white text-black hover:bg-white/90 rounded-full px-10 h-[56px] text-[16px] font-bold shadow-xl"
+              className="text-[16px] font-bold text-white/90 hover:text-white transition-colors px-10 py-4"
+              style={{
+                borderRadius: '100px',
+                border: '2px solid rgba(255, 255, 255, 0.40)',
+                background: 'rgba(255, 255, 255, 0.10)',
+                boxShadow: '0 4px 16px 0 rgba(0, 0, 0, 0.08)',
+              }}
             >
               קבלו 35 ימים בחינם
-            </Button>
+            </button>
           </div>
         </div>
 

@@ -73,6 +73,7 @@ import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
 import ThiqaPayments from "./pages/ThiqaPayments";
 import ThiqaDashboard from "./pages/ThiqaDashboard";
 import ThiqaSettings from "./pages/ThiqaSettings";
+import ThiqaLandingCMS from "./pages/ThiqaLandingCMS";
 import Landing from "./pages/Landing";
 import VerifyEmail from "./pages/VerifyEmail";
 import Pricing from "./pages/Pricing";

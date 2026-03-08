@@ -113,6 +113,18 @@ export default function ThiqaAgentDetail() {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<Record<string, { inserted: number; errors: number }> | null>(null);
   const [importProgress, setImportProgress] = useState("");
+  const [importTableIndex, setImportTableIndex] = useState(-1);
+  const [importStartTime, setImportStartTime] = useState<number | null>(null);
+  const [importElapsed, setImportElapsed] = useState(0);
+  const [importTotalRows, setImportTotalRows] = useState(0);
+  const [importDoneRows, setImportDoneRows] = useState(0);
+
+  // Elapsed time ticker for import
+  useEffect(() => {
+    if (!importStartTime) return;
+    const interval = setInterval(() => setImportElapsed(Math.floor((Date.now() - importStartTime) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [importStartTime]);
 
   useEffect(() => {
     if (agentId) fetchAll();
@@ -556,22 +568,81 @@ export default function ThiqaAgentDetail() {
 
   const toggleToken = (key: string) => setShowTokens(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // ─── Import data for agent ───
+  // ─── Import data for agent (table-by-table to avoid timeout) ───
+  const IMPORT_TABLE_ORDER = [
+    "branches", "insurance_companies", "insurance_categories", "pricing_rules",
+    "brokers", "clients", "cars", "car_accidents", "policies", "policy_payments",
+    "outside_cheques", "media_files", "invoice_templates", "invoices",
+    "customer_signatures", "sms_settings", "payment_settings", "site_settings", "notifications",
+  ];
+
+  const TABLE_LABELS: Record<string, string> = {
+    branches: "الفروع", insurance_companies: "شركات التأمين", insurance_categories: "فئات التأمين",
+    pricing_rules: "قواعد التسعير", brokers: "الوسطاء", clients: "العملاء", cars: "السيارات",
+    car_accidents: "حوادث السيارات", policies: "الوثائق", policy_payments: "المدفوعات",
+    outside_cheques: "الشيكات", media_files: "الوسائط", invoice_templates: "قوالب الفواتير",
+    invoices: "الفواتير", customer_signatures: "التوقيعات", sms_settings: "إعدادات SMS",
+    payment_settings: "إعدادات الدفع", site_settings: "إعدادات الموقع", notifications: "الإشعارات",
+  };
+
+
+
+
   const handleImportData = async () => {
     if (!importFile || !agentId) return;
     setImporting(true);
     setImportResults(null);
     setImportProgress("جاري قراءة الملف...");
+    setImportTableIndex(-1);
+    setImportDoneRows(0);
+    setImportElapsed(0);
+
     try {
       const text = await importFile.text();
-      const data = JSON.parse(text);
-      setImportProgress("جاري رفع البيانات...");
-      const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
-        body: { agent_id: agentId, data },
-      });
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
-      setImportResults(result.results);
+      const importData = JSON.parse(text);
+
+      // Calculate total rows
+      let total = 0;
+      const tablesToProcess: string[] = [];
+      for (const table of IMPORT_TABLE_ORDER) {
+        const rows = importData[table];
+        if (rows && Array.isArray(rows) && rows.length > 0) {
+          total += rows.length;
+          tablesToProcess.push(table);
+        }
+      }
+      setImportTotalRows(total);
+      setImportStartTime(Date.now());
+
+      const allResults: Record<string, { inserted: number; errors: number }> = {};
+      let doneRows = 0;
+
+      for (let i = 0; i < tablesToProcess.length; i++) {
+        const table = tablesToProcess[i];
+        const rows = importData[table];
+        setImportTableIndex(i);
+        setImportProgress(`${TABLE_LABELS[table] || table} (${rows.length} سجل)`);
+
+        const { data: result, error } = await supabase.functions.invoke('import-agent-data', {
+          body: { agent_id: agentId, data: { [table]: rows }, tables: [table] },
+        });
+
+        if (error) {
+          allResults[table] = { inserted: 0, errors: rows.length };
+        } else if (result?.error) {
+          allResults[table] = { inserted: 0, errors: rows.length };
+        } else if (result?.results?.[table]) {
+          allResults[table] = result.results[table];
+        } else {
+          allResults[table] = { inserted: rows.length, errors: 0 };
+        }
+
+        doneRows += rows.length;
+        setImportDoneRows(doneRows);
+        // Merge results live
+        setImportResults({ ...allResults });
+      }
+
       setImportProgress("");
       toast.success("تم استيراد البيانات بنجاح");
       fetchAll();
@@ -580,6 +651,8 @@ export default function ThiqaAgentDetail() {
       setImportProgress("");
     } finally {
       setImporting(false);
+      setImportStartTime(null);
+      setImportTableIndex(-1);
     }
   };
 
@@ -1170,10 +1243,41 @@ export default function ThiqaAgentDetail() {
                   {importing ? importProgress || "جاري الاستيراد..." : "بدء الاستيراد"}
                 </Button>
 
+                {/* Progress bar and elapsed time */}
+                {importing && importTotalRows > 0 && (
+                  <div className="space-y-2 rounded-xl border border-border p-4 bg-secondary/30">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {importProgress && <span className="font-medium text-foreground">{importProgress}</span>}
+                      </span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>⏱ {Math.floor(importElapsed / 60).toString().padStart(2, '0')}:{(importElapsed % 60).toString().padStart(2, '0')}</span>
+                        <span>{importDoneRows.toLocaleString()} / {importTotalRows.toLocaleString()} سجل</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-primary h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${Math.min(100, (importDoneRows / importTotalRows) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {Math.round((importDoneRows / importTotalRows) * 100)}% — يتم الاستيراد جدول بجدول لتجنّب انتهاء المهلة
+                    </p>
+                  </div>
+                )}
+
                 {importResults && (
                   <Card className="mt-4">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">نتائج الاستيراد</CardTitle>
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>نتائج الاستيراد</span>
+                        {!importing && importElapsed > 0 && (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            اكتمل في {Math.floor(importElapsed / 60)}:{(importElapsed % 60).toString().padStart(2, '0')} دقيقة
+                          </span>
+                        )}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -1181,6 +1285,7 @@ export default function ThiqaAgentDetail() {
                           <thead>
                             <tr className="border-b">
                               <th className="text-right p-2 font-medium">الجدول</th>
+                              <th className="text-right p-2 font-medium">عدد السجلات</th>
                               <th className="text-right p-2 font-medium">تم الإدراج</th>
                               <th className="text-right p-2 font-medium">أخطاء</th>
                             </tr>
@@ -1188,13 +1293,17 @@ export default function ThiqaAgentDetail() {
                           <tbody>
                             {Object.entries(importResults).map(([table, res]) => (
                               <tr key={table} className="border-b last:border-0">
-                                <td className="p-2 font-mono text-xs">{table}</td>
+                                <td className="p-2 text-xs">
+                                  <span className="font-medium">{TABLE_LABELS[table] || table}</span>
+                                  <span className="text-muted-foreground mr-1 font-mono text-[10px]">({table})</span>
+                                </td>
+                                <td className="p-2 text-muted-foreground text-xs">{(res.inserted + res.errors).toLocaleString()}</td>
                                 <td className="p-2">
-                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted}</Badge>
+                                  <Badge variant={res.inserted > 0 ? "default" : "secondary"}>{res.inserted.toLocaleString()}</Badge>
                                 </td>
                                 <td className="p-2">
                                   {res.errors > 0 ? (
-                                    <Badge variant="destructive">{res.errors}</Badge>
+                                    <Badge variant="destructive">{res.errors.toLocaleString()}</Badge>
                                   ) : (
                                     <span className="text-muted-foreground">0</span>
                                   )}

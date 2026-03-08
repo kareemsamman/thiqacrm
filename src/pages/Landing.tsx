@@ -8,6 +8,7 @@ import {
 import thiqaLogo from "@/assets/thiqa-logo.svg";
 import dashboardMockup from "@/assets/landing/dashboard-mockup.png";
 import featuresMockup from "@/assets/landing/features-mockup.png";
+import sectionDivider from "@/assets/landing/section-divider.png";
 
 export default function Landing() {
   const navigate = useNavigate();

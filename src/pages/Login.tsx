@@ -139,6 +139,8 @@ export default function Login() {
               toast.error("فشل تسجيل الدخول بعد التفعيل");
             } else {
               toast.success("تم تسجيل الدخول بنجاح");
+              // useEffect will handle navigation when user state updates
+              return;
             }
           } else {
             toast.info("يرجى تأكيد بريدك الإلكتروني");

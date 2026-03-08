@@ -112,7 +112,6 @@ serve(async (req) => {
     ]);
 
     const { data: existingProfile, error: profileError } = profileResult;
-    const { data: authSettings, error: settingsError } = authSettingsResult;
     const { data: recentOtps } = rateLimitResult;
 
     // If no profile found, create a pending one

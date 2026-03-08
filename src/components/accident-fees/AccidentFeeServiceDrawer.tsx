@@ -27,6 +27,7 @@ interface AccidentFeeServiceDrawerProps {
 }
 
 export function AccidentFeeServiceDrawer({ open, onOpenChange, service, onSaved }: AccidentFeeServiceDrawerProps) {
+  const { agentId } = useAgentContext();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',

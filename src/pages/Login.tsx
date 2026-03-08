@@ -191,8 +191,7 @@ export default function Login() {
 
   const validateSignupForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
-    if (!firstName.trim()) errors.firstName = "الاسم الأول مطلوب";
-    if (!lastName.trim()) errors.lastName = "الاسم الأخير مطلوب";
+    if (!fullName.trim()) errors.fullName = "الاسم الكامل مطلوب";
     if (!signupEmail || !signupEmail.includes("@")) errors.signupEmail = "يرجى إدخال بريد إلكتروني صحيح";
     if (signupPhone.trim() && digitsOnly(signupPhone).length !== 10) errors.signupPhone = "رقم الهاتف يجب أن يكون 10 أرقام";
     if (!signupPassword || signupPassword.length < 6) errors.signupPassword = "كلمة المرور 6 أحرف على الأقل";

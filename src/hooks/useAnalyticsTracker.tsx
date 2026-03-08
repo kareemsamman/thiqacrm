@@ -7,7 +7,7 @@ const SESSION_ID = crypto.randomUUID();
 export function trackEvent(
   eventType: string,
   page?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, string | number | boolean>
 ) {
   supabase
     .from("site_analytics_events")

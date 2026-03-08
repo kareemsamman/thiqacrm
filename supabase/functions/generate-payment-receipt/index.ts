@@ -483,6 +483,10 @@ serve(async (req) => {
       );
     }
 
+    // Resolve agent branding
+    const agentId = await resolveAgentId(supabase, user.id);
+    const branding = await getAgentBranding(supabase, agentId);
+
     const { payment_id }: GeneratePaymentReceiptRequest = await req.json();
 
     if (!payment_id) {

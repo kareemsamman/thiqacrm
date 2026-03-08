@@ -43,7 +43,7 @@ export function buildEmailHtml(options: EmailTemplateOptions): string {
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
           <tr>
             <td align="center" style="padding-bottom:28px;">
-              <img src="${EMAIL_LOGO_URL}" alt="Thiqa" width="155" height="41" style="display:block;margin:0 auto;height:auto;max-width:155px;" />
+              <img src="${EMAIL_LOGO_URL}" alt="Thiqa" width="140" height="140" style="display:block;margin:0 auto;height:auto;max-width:140px;" />
             </td>
           </tr>
         </table>

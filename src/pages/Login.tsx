@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import thiqaLogoIcon from "@/assets/thiqa-logo-icon.svg";
+import thiqaLogoDark from "@/assets/thiqa-logo-dark.svg";
 import loginBgMobile from "@/assets/login-bg-mobile.png";
 import { isThiqaSuperAdminEmail } from "@/lib/superAdmin";
 import { Separator } from "@/components/ui/separator";
@@ -300,7 +301,7 @@ export default function Login() {
       </div>
 
       {/* Left panel - background (desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
+      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 relative items-center justify-center overflow-hidden">
         <img src="/images/thiqa-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-transparent" />
         <div className="relative z-10 text-center space-y-4">
@@ -318,7 +319,7 @@ export default function Login() {
               <div className="mx-auto h-14 w-14 rounded-xl bg-primary flex items-center justify-center lg:hidden mb-4">
                 <img src={thiqaLogoIcon} alt={siteTitle} className="h-9 w-9 object-contain" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">{siteTitle}</h1>
+              <img src={thiqaLogoDark} alt={siteTitle} className="mx-auto h-10 w-auto object-contain mb-1" />
               <p className="text-muted-foreground mt-1 text-sm">{siteDesc}</p>
             </div>
 

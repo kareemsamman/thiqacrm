@@ -564,6 +564,9 @@ const SYSTEM_FEATURES = [
   { key: 'road_services', label: 'خدمات الطريق' },
   { key: 'accident_fees', label: 'رسوم الحوادث' },
   { key: 'correspondence', label: 'الترويسات' },
+  { key: 'receipts', label: 'الإيصالات' },
+  { key: 'accounting', label: 'المحاسبة' },
+  { key: 'renewal_reports', label: 'تقارير التجديد' },
   { key: 'ai_assistant', label: 'المساعد الذكي (ثاقب)' },
   { key: 'ippbx', label: 'Click2Call / PBX' },
 ];

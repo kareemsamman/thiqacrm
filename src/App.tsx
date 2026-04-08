@@ -24,6 +24,8 @@ import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
 import BranchManagement from "./pages/BranchManagement";
 import SmsOnboarding from "./pages/SmsOnboarding";
+import Receipts from "./pages/Receipts";
+import Accounting from "./pages/Accounting";
 import CompanySettlement from "./pages/CompanySettlement";
 import CompanySettlementDetail from "./pages/CompanySettlementDetail";
 
@@ -212,6 +214,16 @@ const App = () => (
               <Route path="/admin/sms-settings" element={
                 <AdminRoute>
                   <SmsOnboarding />
+                </AdminRoute>
+              } />
+              <Route path="/receipts" element={
+                <ProtectedRoute>
+                  <Receipts />
+                </ProtectedRoute>
+              } />
+              <Route path="/accounting" element={
+                <AdminRoute>
+                  <Accounting />
                 </AdminRoute>
               } />
               <Route path="/reports/company-settlement" element={

@@ -44,6 +44,9 @@ const ALL_FEATURES = [
   { key: 'accident_fees', label: 'رسوم الحوادث', description: 'إعفاء رسوم الحادث' },
   { key: 'correspondence', label: 'الترويسات', description: 'إدارة المراسلات' },
   { key: 'visa_payment', label: 'دفع بالفيزا', description: 'السماح بالدفع عبر بطاقة ائتمان (فيزا)' },
+  { key: 'receipts', label: 'الإيصالات', description: 'نظام إدارة الإيصالات وطباعتها' },
+  { key: 'accounting', label: 'المحاسبة', description: 'دفتر محاسبة موحد' },
+  { key: 'renewal_reports', label: 'تقارير التجديد', description: 'متابعة تجديد الوثائق' },
   { key: 'ai_assistant', label: 'المساعد الذكي (ثاقب)', description: 'مساعد AI للاستعلام عن بيانات النظام' },
   { key: 'ippbx', label: 'Click2Call / PBX', description: 'الاتصال عبر المقسم' },
 ];

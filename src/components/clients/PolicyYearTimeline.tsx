@@ -800,6 +800,7 @@ function PolicyPackageCard({
   onRenewPolicy?: (id: string) => void;
   onRenewPackage?: (ids: string[]) => void;
   isSuperAdmin?: boolean;
+  isAdmin?: boolean;
   isEditingNotes?: boolean;
   editedNotesValue?: string;
   savingNotes?: boolean;

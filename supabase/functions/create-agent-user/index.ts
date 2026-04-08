@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     const { error: roleError } = await adminClient.from("user_roles").upsert(
       { user_id: userId, role, agent_id },
-      { onConflict: "user_id,role" }
+      { onConflict: "user_id,agent_id" }
     );
     if (roleError) throw roleError;
 

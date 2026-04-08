@@ -775,6 +775,7 @@ function PolicyPackageCard({
   onRenewPolicy,
   onRenewPackage,
   isSuperAdmin,
+  isAdmin,
   isEditingNotes,
   editedNotesValue,
   savingNotes,

@@ -364,7 +364,7 @@ export default function AdminUsers() {
     }
   };
 
-  const handleChangeBranch = async (userId: string, branchId: string) => {
+  const handleChangeBranch = async (userId: string, branchId: string | null) => {
     setActionLoading(userId);
     try {
       const { error } = await supabase
@@ -705,14 +705,15 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={user.branch_id || ''}
-                            onValueChange={(value) => handleChangeBranch(user.id, value)}
+                            value={user.branch_id || 'all'}
+                            onValueChange={(value) => handleChangeBranch(user.id, value === 'all' ? null : value)}
                             disabled={actionLoading === user.id || user.email === 'morshed500@gmail.com'}
                           >
                             <SelectTrigger className="w-32">
                               <SelectValue placeholder="اختر الفرع" />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="all">جميع الفروع</SelectItem>
                               {branches.map(branch => (
                                 <SelectItem key={branch.id} value={branch.id}>
                                   {branch.name_ar || branch.name}

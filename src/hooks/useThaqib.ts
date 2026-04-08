@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ChatMessage {
@@ -20,6 +20,7 @@ export function useThaqib() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const sessionIdRef = useRef<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
@@ -28,7 +29,7 @@ export function useThaqib() {
         .from("ai_chat_sessions" as any)
         .select("id, title, updated_at")
         .order("updated_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       if (error) console.error("[useThaqib] fetchSessions error:", error);
       setSessions((data as unknown as ChatSession[]) || []);
     } catch (e) { console.error("[useThaqib] fetchSessions:", e); }
@@ -37,6 +38,7 @@ export function useThaqib() {
 
   const loadSession = useCallback(async (id: string) => {
     setSessionId(id);
+    sessionIdRef.current = id;
     try {
       const { data } = await supabase
         .from("ai_chat_messages" as any)
@@ -49,6 +51,7 @@ export function useThaqib() {
 
   const startNewSession = useCallback(() => {
     setSessionId(null);
+    sessionIdRef.current = null;
     setMessages([]);
   }, []);
 
@@ -63,15 +66,18 @@ export function useThaqib() {
     setLoading(true);
 
     try {
+      const currentSessionId = sessionIdRef.current;
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { message: text, session_id: sessionId },
+        body: { message: text, session_id: currentSessionId },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (data?.session_id && !sessionId) {
+      // Save session ID for continuity
+      if (data?.session_id && !currentSessionId) {
         setSessionId(data.session_id);
+        sessionIdRef.current = data.session_id;
       }
 
       const assistantMsg: ChatMessage = {
@@ -81,6 +87,9 @@ export function useThaqib() {
         created_at: new Date().toISOString(),
       };
       setMessages(prev => [...prev, assistantMsg]);
+
+      // Refresh sessions list so history updates
+      fetchSessions();
 
       return data?.reply;
     } catch (e: any) {
@@ -94,7 +103,7 @@ export function useThaqib() {
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [fetchSessions]);
 
   return {
     sessionId,

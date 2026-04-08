@@ -406,6 +406,33 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!featureFlag?.enabled) throw new Error("ميزة المساعد الذكي غير مفعّلة لهذا الحساب");
 
+    // Check usage limits
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentYear = String(now.getFullYear());
+
+    const { data: limitsData } = await adminClient
+      .from("agent_usage_limits")
+      .select("ai_limit_type, ai_limit_count")
+      .eq("agent_id", agentId)
+      .maybeSingle();
+
+    if (limitsData && limitsData.ai_limit_type !== 'unlimited') {
+      const period = limitsData.ai_limit_type === 'monthly' ? currentMonth : currentYear;
+      const { data: usageData } = await adminClient
+        .from("agent_usage_log")
+        .select("count")
+        .eq("agent_id", agentId)
+        .eq("usage_type", "ai_chat")
+        .eq("period", period)
+        .maybeSingle();
+
+      const currentUsage = usageData?.count || 0;
+      if (currentUsage >= limitsData.ai_limit_count) {
+        throw new Error(`لقد وصلت للحد الأقصى لاستخدام المساعد الذكي (${limitsData.ai_limit_count} ${limitsData.ai_limit_type === 'monthly' ? 'شهرياً' : 'سنوياً'}). تواصل مع إدارة ثقة لزيادة الحد.`);
+      }
+    }
+
     // Determine role
     const { data: roleData } = await adminClient
       .from("user_roles")
@@ -510,6 +537,14 @@ Deno.serve(async (req) => {
     await adminClient.from("ai_chat_sessions")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", sessionId);
+
+    // Track usage
+    await adminClient.from("agent_usage_log").upsert({
+      agent_id: agentId,
+      usage_type: "ai_chat",
+      period: currentMonth,
+      count: ((await adminClient.from("agent_usage_log").select("count").eq("agent_id", agentId).eq("usage_type", "ai_chat").eq("period", currentMonth).maybeSingle())?.data?.count || 0) + 1,
+    }, { onConflict: "agent_id,usage_type,period" });
 
     return new Response(
       JSON.stringify({ reply, session_id: sessionId }),

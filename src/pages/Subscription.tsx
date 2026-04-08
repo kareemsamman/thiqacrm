@@ -47,6 +47,93 @@ const PLAN_ICONS: Record<string, typeof Rocket> = {
   custom: Crown,
 };
 
+function UsageStatsSection({ agentId }: { agentId: string | null }) {
+  const [limits, setLimits] = useState<any>(null);
+  const [usage, setUsage] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!agentId) return;
+    (async () => {
+      const [limitsRes, usageRes] = await Promise.all([
+        supabase.from("agent_usage_limits" as any).select("*").eq("agent_id", agentId).maybeSingle(),
+        supabase.from("agent_usage_log" as any).select("*").eq("agent_id", agentId).order("period", { ascending: false }).limit(12),
+      ]);
+      setLimits(limitsRes.data || { sms_limit_type: 'unlimited', sms_limit_count: 0, ai_limit_type: 'unlimited', ai_limit_count: 0 });
+      setUsage((usageRes.data as any) || []);
+    })();
+  }, [agentId]);
+
+  if (!limits) return null;
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentYear = String(now.getFullYear());
+
+  const getUsage = (type: string, period: string) => {
+    if (period.length === 4) return usage.filter((u: any) => u.usage_type === type && u.period.startsWith(period)).reduce((s: number, u: any) => s + u.count, 0);
+    return usage.find((u: any) => u.usage_type === type && u.period === period)?.count || 0;
+  };
+
+  const smsUsed = limits.sms_limit_type === 'monthly' ? getUsage('sms', currentMonth) : getUsage('sms', currentYear);
+  const aiUsed = limits.ai_limit_type === 'monthly' ? getUsage('ai_chat', currentMonth) : getUsage('ai_chat', currentYear);
+  const smsMax = limits.sms_limit_type === 'unlimited' ? '∞' : limits.sms_limit_count;
+  const aiMax = limits.ai_limit_type === 'unlimited' ? '∞' : limits.ai_limit_count;
+  const typeLabel = (t: string) => t === 'monthly' ? 'شهرياً' : t === 'yearly' ? 'سنوياً' : 'غير محدود';
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold">استخدام الخدمات</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <MessageCircle className="h-4 w-4 text-primary" />
+                </div>
+                <span className="font-bold text-sm">رسائل SMS</span>
+              </div>
+              <Badge variant="outline" className="text-xs">{typeLabel(limits.sms_limit_type)}</Badge>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold">{smsUsed}</span>
+              <span className="text-muted-foreground text-sm">/ {smsMax}</span>
+            </div>
+            {limits.sms_limit_type !== 'unlimited' && (
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (smsUsed / limits.sms_limit_count) * 100)}%` }} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Crown className="h-4 w-4 text-primary" />
+                </div>
+                <span className="font-bold text-sm">المساعد الذكي</span>
+              </div>
+              <Badge variant="outline" className="text-xs">{typeLabel(limits.ai_limit_type)}</Badge>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold">{aiUsed}</span>
+              <span className="text-muted-foreground text-sm">/ {aiMax}</span>
+            </div>
+            {limits.ai_limit_type !== 'unlimited' && (
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden mt-2">
+                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (aiUsed / limits.ai_limit_count) * 100)}%` }} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function Subscription() {
   const { isAdmin } = useAuth();
   const { agent, agentId } = useAgentContext();
@@ -456,6 +543,9 @@ export default function Subscription() {
             </>
           )}
         </div>
+
+        {/* ═══ Usage Stats ═══ */}
+        <UsageStatsSection agentId={agentId} />
 
         {/* ═══ Payment History ═══ */}
         <div className="space-y-4">

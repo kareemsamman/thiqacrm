@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
       agent_id,
       branch_id: branch_id || null,
       status: "active",
+      email_confirmed: true,
     });
     if (profileError) throw profileError;
 

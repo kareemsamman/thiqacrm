@@ -14,7 +14,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive, CreditCard, Plus, Trash2, GripVertical, Pencil } from "lucide-react";
+import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive, CreditCard, Plus, Trash2, GripVertical, Pencil, Bot } from "lucide-react";
 
 function useThiqaPlatformSettings() {
   return useQuery({

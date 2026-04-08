@@ -217,7 +217,7 @@ export function PolicyYearTimeline({
   onRenewPolicy,
   onRenewPackage,
 }: PolicyYearTimelineProps) {
-  const { isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   
   // Use external data if provided (from ClientDetails), otherwise use internal state
   const hasExternalData = externalPaymentInfo !== undefined;
@@ -1036,8 +1036,8 @@ function PolicyPackageCard({
                   </>
                 )}
 
-                {/* Super Admin Only: Delete Policy */}
-                {isSuperAdmin && onDeletePolicy && (
+                {/* Admin Only: Delete Policy */}
+                {isAdmin && onDeletePolicy && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 

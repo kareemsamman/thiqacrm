@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Package, MoreVertical, Send, Eye, Loader2 } from 'lucide-react';
 import { PolicyRecord, PaymentStatus, getPolicyStatus } from './types';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PolicyCardHeaderProps {
   mainPolicy: PolicyRecord;
@@ -31,6 +32,7 @@ export function PolicyCardHeader({
   onEditPolicy,
   onDeletePolicy,
 }: PolicyCardHeaderProps) {
+  const { isAdmin } = useAuth();
   const status = getPolicyStatus(mainPolicy);
 
   return (
@@ -83,13 +85,17 @@ export function PolicyCardHeader({
             <DropdownMenuItem onClick={() => onEditPolicy(mainPolicy)}>
               تعديل
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="text-destructive"
-              onClick={() => onDeletePolicy(mainPolicy)}
-            >
-              حذف
-            </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => onDeletePolicy(mainPolicy)}
+                >
+                  حذف
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

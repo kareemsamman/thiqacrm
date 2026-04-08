@@ -11,7 +11,9 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive, CreditCard, Plus, Trash2, GripVertical, Pencil } from "lucide-react";
 
 function useThiqaPlatformSettings() {
   return useQuery({
@@ -525,6 +527,330 @@ function StorageSettingsTab() {
   );
 }
 
+// ─── Plans Settings Tab ───
+
+interface PlanFeature {
+  text: string;
+  info: boolean;
+}
+
+interface SubscriptionPlan {
+  id: string;
+  plan_key: string;
+  name: string;
+  name_ar: string | null;
+  description: string | null;
+  monthly_price: number;
+  yearly_price: number;
+  badge: string | null;
+  features: PlanFeature[];
+  sort_order: number;
+  is_active: boolean;
+}
+
+function PlansSettingsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editPlan, setEditPlan] = useState<SubscriptionPlan | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: plans, isLoading } = useQuery({
+    queryKey: ["subscription-plans"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subscription_plans")
+        .select("*")
+        .order("sort_order");
+      if (error) throw error;
+      return (data || []).map((p: any) => ({
+        ...p,
+        features: (typeof p.features === 'string' ? JSON.parse(p.features) : p.features) || [],
+      })) as SubscriptionPlan[];
+    },
+  });
+
+  const openEdit = (plan: SubscriptionPlan) => {
+    setEditPlan({ ...plan, features: [...plan.features] });
+    setDialogOpen(true);
+  };
+
+  const openNew = () => {
+    setEditPlan({
+      id: "",
+      plan_key: "",
+      name: "",
+      name_ar: "",
+      description: "",
+      monthly_price: 0,
+      yearly_price: 0,
+      badge: null,
+      features: [],
+      sort_order: (plans?.length || 0) + 1,
+      is_active: true,
+    });
+    setDialogOpen(true);
+  };
+
+  const savePlan = async () => {
+    if (!editPlan || !editPlan.plan_key || !editPlan.name) {
+      toast({ title: "خطأ", description: "يرجى تعبئة المفتاح والاسم", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        plan_key: editPlan.plan_key,
+        name: editPlan.name,
+        name_ar: editPlan.name_ar || null,
+        description: editPlan.description || null,
+        monthly_price: editPlan.monthly_price,
+        yearly_price: editPlan.yearly_price,
+        badge: editPlan.badge || null,
+        features: editPlan.features,
+        sort_order: editPlan.sort_order,
+        is_active: editPlan.is_active,
+      };
+
+      if (editPlan.id) {
+        const { error } = await supabase
+          .from("subscription_plans")
+          .update(payload)
+          .eq("id", editPlan.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("subscription_plans")
+          .insert(payload);
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      setDialogOpen(false);
+      toast({ title: "تم الحفظ", description: "تم حفظ الخطة بنجاح" });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message || "فشل في الحفظ", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePlan = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذه الخطة؟")) return;
+    const { error } = await supabase.from("subscription_plans").delete().eq("id", id);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+    toast({ title: "تم الحذف" });
+  };
+
+  const addFeature = () => {
+    if (!editPlan) return;
+    setEditPlan({ ...editPlan, features: [...editPlan.features, { text: "", info: false }] });
+  };
+
+  const removeFeature = (idx: number) => {
+    if (!editPlan) return;
+    setEditPlan({ ...editPlan, features: editPlan.features.filter((_, i) => i !== idx) });
+  };
+
+  const updateFeature = (idx: number, field: keyof PlanFeature, value: any) => {
+    if (!editPlan) return;
+    const updated = [...editPlan.features];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setEditPlan({ ...editPlan, features: updated });
+  };
+
+  if (isLoading) return <Skeleton className="h-32 w-full" />;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                خطط الاشتراك
+              </CardTitle>
+              <CardDescription>إدارة خطط الأسعار والميزات — تظهر في صفحة /pricing وفي إعدادات الوكيل</CardDescription>
+            </div>
+            <Button size="sm" onClick={openNew}>
+              <Plus className="h-4 w-4 ml-1" />
+              خطة جديدة
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {(plans || []).map((plan) => (
+              <div key={plan.id} className="flex items-center gap-3 p-4 border rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-base">{plan.name}</span>
+                    {plan.name_ar && <span className="text-muted-foreground text-sm">({plan.name_ar})</span>}
+                    {plan.badge && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{plan.badge}</span>}
+                    {!plan.is_active && <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">معطل</span>}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    ₪{plan.monthly_price}/شهر — ₪{plan.yearly_price}/سنوي — {plan.features.length} ميزة — المفتاح: {plan.plan_key}
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => openEdit(plan)}>
+                  <Pencil className="h-3.5 w-3.5 ml-1" />
+                  تعديل
+                </Button>
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deletePlan(plan.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+            {(!plans || plans.length === 0) && (
+              <p className="text-center text-muted-foreground py-8">لا توجد خطط بعد</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit/Create Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{editPlan?.id ? "تعديل الخطة" : "إنشاء خطة جديدة"}</DialogTitle>
+          </DialogHeader>
+          {editPlan && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>المفتاح (plan_key)</Label>
+                  <Input
+                    value={editPlan.plan_key}
+                    onChange={(e) => setEditPlan({ ...editPlan, plan_key: e.target.value })}
+                    placeholder="basic"
+                    dir="ltr"
+                    disabled={!!editPlan.id}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الاسم (English)</Label>
+                  <Input
+                    value={editPlan.name}
+                    onChange={(e) => setEditPlan({ ...editPlan, name: e.target.value })}
+                    placeholder="Basic"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الاسم (عربي)</Label>
+                  <Input
+                    value={editPlan.name_ar || ""}
+                    onChange={(e) => setEditPlan({ ...editPlan, name_ar: e.target.value })}
+                    placeholder="الأساسي"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الشارة (Badge)</Label>
+                  <Input
+                    value={editPlan.badge || ""}
+                    onChange={(e) => setEditPlan({ ...editPlan, badge: e.target.value })}
+                    placeholder="الأكثر شعبية"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>الوصف</Label>
+                <Textarea
+                  value={editPlan.description || ""}
+                  onChange={(e) => setEditPlan({ ...editPlan, description: e.target.value })}
+                  placeholder="مناسب لوكالات التأمين..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>السعر الشهري (₪)</Label>
+                  <Input
+                    type="number"
+                    value={editPlan.monthly_price}
+                    onChange={(e) => setEditPlan({ ...editPlan, monthly_price: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>السعر السنوي (₪)</Label>
+                  <Input
+                    type="number"
+                    value={editPlan.yearly_price}
+                    onChange={(e) => setEditPlan({ ...editPlan, yearly_price: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الترتيب</Label>
+                  <Input
+                    type="number"
+                    value={editPlan.sort_order}
+                    onChange={(e) => setEditPlan({ ...editPlan, sort_order: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editPlan.is_active}
+                  onCheckedChange={(v) => setEditPlan({ ...editPlan, is_active: v })}
+                />
+                <Label>فعالة</Label>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">الميزات</Label>
+                  <Button variant="outline" size="sm" onClick={addFeature}>
+                    <Plus className="h-3.5 w-3.5 ml-1" />
+                    إضافة ميزة
+                  </Button>
+                </div>
+                {editPlan.features.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={f.text}
+                      onChange={(e) => updateFeature(i, "text", e.target.value)}
+                      placeholder="وصف الميزة..."
+                    />
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        checked={f.info}
+                        onCheckedChange={(v) => updateFeature(i, "info", v)}
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">info</span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-destructive shrink-0" onClick={() => removeFeature(i)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+            <Button onClick={savePlan} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function ThiqaSettings() {
   return (
     <MainLayout>
@@ -553,6 +879,10 @@ export default function ThiqaSettings() {
               <HardDrive className="h-4 w-4" />
               التخزين
             </TabsTrigger>
+            <TabsTrigger value="plans" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              الخطط والأسعار
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -565,6 +895,10 @@ export default function ThiqaSettings() {
 
           <TabsContent value="storage">
             <StorageSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="plans">
+            <PlansSettingsTab />
           </TabsContent>
         </Tabs>
       </div>

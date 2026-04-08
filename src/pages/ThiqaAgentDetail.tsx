@@ -68,6 +68,7 @@ export default function ThiqaAgentDetail() {
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [payments, setPayments] = useState<any[]>([]);
+  const [dbPlans, setDbPlans] = useState<{plan_key: string; name: string; monthly_price: number}[]>([]);
   const [agentStats, setAgentStats] = useState<{clients: number; cars: number; policies: number} | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [agentUsers, setAgentUsers] = useState<any[]>([]);
@@ -133,7 +134,7 @@ export default function ThiqaAgentDetail() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes, rolesRes, branchRes] = await Promise.all([
+      const [agentRes, flagsRes, paymentsRes, usersRes, smsRes, authRes, payRes, siteRes, rolesRes, branchRes, plansRes] = await Promise.all([
         supabase.from('agents').select('*').eq('id', agentId!).single(),
         supabase.from('agent_feature_flags').select('feature_key, enabled').eq('agent_id', agentId!),
         supabase.from('agent_subscription_payments').select('*').eq('agent_id', agentId!).order('payment_date', { ascending: false }).limit(50),
@@ -144,6 +145,7 @@ export default function ThiqaAgentDetail() {
         supabase.from('site_settings').select('*').eq('agent_id', agentId!).maybeSingle(),
         supabase.from('user_roles').select('user_id, role').eq('agent_id', agentId!),
         supabase.from('branches').select('id, name, name_ar').eq('agent_id', agentId!),
+        supabase.from('subscription_plans').select('plan_key, name, monthly_price').eq('is_active', true).order('sort_order'),
       ]);
 
       if (agentRes.data) setAgent(agentRes.data as AgentDetail);
@@ -160,6 +162,7 @@ export default function ThiqaAgentDetail() {
       if (rolesRes.data) rolesRes.data.forEach((r: any) => { rm[r.user_id] = r.role; });
       setUserRoles(rm);
       if (branchRes.data) setBranches(branchRes.data);
+      if (plansRes.data && plansRes.data.length > 0) setDbPlans(plansRes.data);
       // Fetch stats in background
       fetchAgentStats();
     } catch (error) {
@@ -671,7 +674,7 @@ export default function ThiqaAgentDetail() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 md:space-y-6 max-w-5xl overflow-x-hidden p-4 md:p-6" dir="rtl">
+      <div className="space-y-4 md:space-y-6 overflow-x-hidden p-4 md:p-6" dir="rtl">
         {/* Header */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2 md:gap-3">
@@ -741,11 +744,22 @@ export default function ThiqaAgentDetail() {
                   <div><Label>الهاتف</Label><Input value={agent.phone || ''} onChange={e => setAgent({...agent, phone: e.target.value})} /></div>
                   <div>
                     <Label>الخطة</Label>
-                    <Select value={agent.plan} onValueChange={v => setAgent({...agent, plan: v, monthly_price: v === 'pro' ? 500 : 300})}>
+                    <Select value={agent.plan} onValueChange={v => {
+                      const plan = dbPlans.find(p => p.plan_key === v);
+                      setAgent({...agent, plan: v, monthly_price: plan?.monthly_price ?? agent.monthly_price});
+                    }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="basic">Basic — ₪300/شهر</SelectItem>
-                        <SelectItem value="pro">Pro — ₪500/شهر</SelectItem>
+                        {dbPlans.length > 0 ? dbPlans.map(p => (
+                          <SelectItem key={p.plan_key} value={p.plan_key}>
+                            {p.name} — ₪{p.monthly_price}/شهر
+                          </SelectItem>
+                        )) : (
+                          <>
+                            <SelectItem value="basic">Basic — ₪300/شهر</SelectItem>
+                            <SelectItem value="pro">Pro — ₪500/شهر</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

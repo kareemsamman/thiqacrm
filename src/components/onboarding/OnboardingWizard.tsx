@@ -142,7 +142,7 @@ export function OnboardingWizard() {
     };
   }, [refreshCompletedSteps]);
 
-  // On mount, just load onboarding_completed flag (no auto-show)
+  // On mount, load onboarding_completed flag and auto-show for new users
   useEffect(() => {
     if (!user || !isAdmin || !agentId) return;
 
@@ -156,6 +156,14 @@ export function OnboardingWizard() {
 
         const isCompleted = Boolean((profile as any)?.onboarding_completed);
         setOnboardingCompleted(isCompleted);
+
+        // Auto-show for new users who haven't completed onboarding
+        if (!isCompleted) {
+          const done = await detectCompletedSteps(agentId);
+          setCompletedSteps(done);
+          setReady(true);
+          setVisible(true);
+        }
       } catch (e) {
         console.error("Onboarding check error:", e);
       }

@@ -1,18 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePageView } from "@/hooks/useAnalyticsTracker";
 import { useNavigate } from "react-router-dom";
 import { Check, Info } from "lucide-react";
 import { useLandingContent, ct } from "@/hooks/useLandingContent";
+import { supabase } from "@/integrations/supabase/client";
 import thiqaLogo from "@/assets/thiqa-logo-full.svg";
 import sectionDividerDark from "@/assets/landing/section-divider-dark.png";
 
-const plans = [
+interface PlanData {
+  id: string;
+  plan_key: string;
+  name: string;
+  description: string | null;
+  monthly_price: number;
+  yearly_price: number;
+  badge: string | null;
+  features: { text: string; info: boolean }[];
+}
+
+// Fallback plans if DB fetch fails
+const FALLBACK_PLANS: PlanData[] = [
   {
     id: "starter",
+    plan_key: "starter",
     name: "Starter",
-    desc: "مناسب للوكلاء المستقلين في بداية الطريق",
-    monthlyPrice: 240,
-    yearlyPrice: 200,
+    description: "مناسب للوكلاء المستقلين في بداية الطريق",
+    monthly_price: 240,
+    yearly_price: 200,
     badge: null,
     features: [
       { text: "إدارة حتى 200 عميل", info: true },
@@ -25,10 +39,11 @@ const plans = [
   },
   {
     id: "basic",
+    plan_key: "basic",
     name: "Basic",
-    desc: "مناسب لوكالات التأمين الصغيرة والمتوسطة",
-    monthlyPrice: 240,
-    yearlyPrice: 200,
+    description: "مناسب لوكالات التأمين الصغيرة والمتوسطة",
+    monthly_price: 240,
+    yearly_price: 200,
     badge: "الأكثر شعبية",
     features: [
       { text: "إدارة عملاء بلا حدود", info: true },
@@ -41,10 +56,11 @@ const plans = [
   },
   {
     id: "pro",
+    plan_key: "pro",
     name: "Pro",
-    desc: "مناسب للوكالات الكبيرة مع فريق عمل",
-    monthlyPrice: 240,
-    yearlyPrice: 200,
+    description: "مناسب للوكالات الكبيرة مع فريق عمل",
+    monthly_price: 240,
+    yearly_price: 200,
     badge: null,
     features: [
       { text: "كل ما في Basic", info: false },
@@ -62,6 +78,27 @@ export default function Pricing() {
   const { data: content } = useLandingContent();
   const navigate = useNavigate();
   const [yearly, setYearly] = useState(false);
+  const [plans, setPlans] = useState<PlanData[]>(FALLBACK_PLANS);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("subscription_plans")
+          .select("id, plan_key, name, description, monthly_price, yearly_price, badge, features")
+          .eq("is_active", true)
+          .order("sort_order");
+        if (!error && data && data.length > 0) {
+          setPlans(data.map((p: any) => ({
+            ...p,
+            features: (typeof p.features === 'string' ? JSON.parse(p.features) : p.features) || [],
+          })));
+        }
+      } catch {
+        // fallback plans already set
+      }
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden bg-[#171719]" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
@@ -120,7 +157,7 @@ export default function Pricing() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-white/40 mb-6">{plan.desc}</p>
+                <p className="text-sm text-white/40 mb-6">{plan.description}</p>
               </div>
 
               {/* Price */}
@@ -128,7 +165,7 @@ export default function Pricing() {
                 <div className="flex items-baseline gap-2 justify-end">
                   <span className="text-sm text-white/40">₪ شهرياً</span>
                   <span className="text-6xl font-extrabold text-white/90 tracking-tight">
-                    {yearly ? plan.yearlyPrice : plan.monthlyPrice}
+                    {yearly ? plan.yearly_price : plan.monthly_price}
                   </span>
                 </div>
               </div>

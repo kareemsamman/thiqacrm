@@ -143,8 +143,11 @@ async function fetchContextData(
           .is("deleted_at", null)
           .limit(limit);
 
-        if (searchText.length > 1) {
+        if (searchText.length > 2 && !intent.isAggregate) {
           query = query.or(`car_number.ilike.%${searchText}%,manufacturer_name.ilike.%${searchText}%,model.ilike.%${searchText}%`);
+        } else if (intent.searchTerms.length > 0) {
+          const term = intent.searchTerms[0];
+          query = query.or(`car_number.ilike.%${term}%,manufacturer_name.ilike.%${term}%,model.ilike.%${term}%`);
         }
 
         const { data } = await query;

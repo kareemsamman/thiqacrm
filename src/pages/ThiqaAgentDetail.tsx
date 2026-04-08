@@ -311,17 +311,19 @@ export default function ThiqaAgentDetail() {
   const saveSmsSettings = async () => {
     setSavingSection('sms');
     if (smsSettings?.id) {
-      await supabase.from('sms_settings').update({
+      const { error } = await supabase.from('sms_settings').update({
         sms_user: smsSettings.sms_user, sms_token: smsSettings.sms_token,
         sms_source: smsSettings.sms_source, is_enabled: smsSettings.is_enabled,
         updated_at: new Date().toISOString(),
       }).eq('id', smsSettings.id);
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات SMS: ' + error.message); return; }
     } else {
-      const { data } = await supabase.from('sms_settings').insert({
+      const { data, error } = await supabase.from('sms_settings').insert({
         agent_id: agentId!, provider: '019',
         sms_user: smsSettings?.sms_user || '', sms_token: smsSettings?.sms_token || '',
         sms_source: smsSettings?.sms_source || '', is_enabled: smsSettings?.is_enabled ?? false,
       }).select().single();
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات SMS: ' + error.message); return; }
       if (data) setSmsSettings(data);
     }
     setSavingSection(null);
@@ -332,7 +334,7 @@ export default function ThiqaAgentDetail() {
   const saveAuthSettings = async () => {
     setSavingSection('auth');
     if (authSettings?.id) {
-      await supabase.from('auth_settings').update({
+      const { error } = await supabase.from('auth_settings').update({
         sms_otp_enabled: authSettings.sms_otp_enabled,
         sms_019_user: authSettings.sms_019_user, sms_019_token: authSettings.sms_019_token,
         sms_019_source: authSettings.sms_019_source,
@@ -343,10 +345,12 @@ export default function ThiqaAgentDetail() {
         ippbx_token_id: authSettings.ippbx_token_id,
         updated_at: new Date().toISOString(),
       }).eq('id', authSettings.id);
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات المصادقة: ' + error.message); return; }
     } else {
-      const { data } = await supabase.from('auth_settings').insert({
+      const { data, error } = await supabase.from('auth_settings').insert({
         agent_id: agentId!, ...authSettings,
       }).select().single();
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات المصادقة: ' + error.message); return; }
       if (data) setAuthSettings(data);
     }
     setSavingSection(null);
@@ -357,7 +361,7 @@ export default function ThiqaAgentDetail() {
   const savePaymentSettings = async () => {
     setSavingSection('payment');
     if (paymentSettings?.id) {
-      await supabase.from('payment_settings').update({
+      const { error } = await supabase.from('payment_settings').update({
         terminal_name: paymentSettings.terminal_name,
         api_password: paymentSettings.api_password,
         is_enabled: paymentSettings.is_enabled,
@@ -368,10 +372,12 @@ export default function ThiqaAgentDetail() {
         notify_url: paymentSettings.notify_url,
         updated_at: new Date().toISOString(),
       }).eq('id', paymentSettings.id);
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات الدفع: ' + error.message); return; }
     } else {
-      const { data } = await supabase.from('payment_settings').insert({
+      const { data, error } = await supabase.from('payment_settings').insert({
         agent_id: agentId!, provider: 'tranzila', ...paymentSettings,
       }).select().single();
+      if (error) { setSavingSection(null); toast.error('فشل في حفظ إعدادات الدفع: ' + error.message); return; }
       if (data) setPaymentSettings(data);
     }
     setSavingSection(null);

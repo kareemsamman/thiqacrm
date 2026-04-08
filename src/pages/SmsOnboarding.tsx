@@ -3,63 +3,31 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentContext } from "@/hooks/useAgentContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
-  MessageSquare, Save, Loader2, Phone, ShieldCheck, AlertTriangle,
-  Clock, CheckCircle2, XCircle, Send, Info,
+  MessageSquare, Loader2, ShieldCheck, AlertTriangle,
+  CheckCircle2, XCircle, Send, MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 type VerificationStatus = "not_verified" | "pending" | "verified" | "failed";
 
-const STATUS_CONFIG: Record<VerificationStatus, { label: string; icon: typeof CheckCircle2; color: string; description: string }> = {
-  not_verified: {
-    label: "غير موثق",
-    icon: XCircle,
-    color: "bg-muted text-muted-foreground",
-    description: "لم يتم التحقق من رقم المصدر بعد",
-  },
-  pending: {
-    label: "قيد التحقق",
-    icon: Clock,
-    color: "bg-yellow-100 text-yellow-700",
-    description: "جاري التحقق...",
-  },
-  verified: {
-    label: "موثق",
-    icon: CheckCircle2,
-    color: "bg-green-100 text-green-700",
-    description: "الرقم موثق وجاهز لإرسال الرسائل",
-  },
-  failed: {
-    label: "فشل التحقق",
-    icon: AlertTriangle,
-    color: "bg-red-100 text-red-700",
-    description: "فشل التحقق — تواصل مع إدارة ثقة",
-  },
-};
-
 export default function SmsOnboarding() {
-  const { isAdmin, profile } = useAuth();
+  const { isAdmin } = useAuth();
   const { agent } = useAgentContext();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const [smsSource, setSmsSource] = useState("");
   const [isEnabled, setIsEnabled] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("not_verified");
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
-  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -69,47 +37,15 @@ export default function SmsOnboarding() {
         });
         if (data?.settings) {
           const s = data.settings;
-          setSmsSource(s.sms_source || agent?.phone || "");
           setIsEnabled(s.is_enabled || false);
           setHasCredentials(!!(s.sms_user && s.sms_token));
           setVerificationStatus(s.sms_verification_status || "not_verified");
           setVerificationMessage(s.sms_verification_message || null);
-          setVerifiedAt(s.sms_verified_at || null);
-        } else if (agent?.phone) {
-          setSmsSource(agent.phone);
         }
-      } catch (e) {
-        console.error("Failed to load SMS settings:", e);
-      } finally {
-        setLoading(false);
-      }
+      } catch { /* silent */ }
+      finally { setLoading(false); }
     })();
   }, [agent]);
-
-  const handleSaveSource = async () => {
-    if (!smsSource.trim()) {
-      toast.error("يرجى إدخال رقم المصدر");
-      return;
-    }
-    setSaving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("sms-verify-phone", {
-        body: { action: "save_source", sms_source: smsSource.trim() },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success("تم حفظ رقم المصدر");
-      // Reset verification if number changed
-      if (verificationStatus === "verified") {
-        setVerificationStatus("not_verified");
-        setIsEnabled(false);
-      }
-    } catch (e: any) {
-      toast.error(e.message || "فشل في الحفظ");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleVerify = async () => {
     setConfirmOpen(false);
@@ -126,177 +62,133 @@ export default function SmsOnboarding() {
 
       if (data.status === "verified") {
         setIsEnabled(true);
-        setVerifiedAt(new Date().toISOString());
-        toast.success(data.message || "تم التحقق بنجاح!");
+        toast.success("تم تفعيل خدمة SMS بنجاح!");
       } else {
-        toast.error(data.message || "فشل التحقق");
+        toast.error(data.message || "فشل التفعيل");
       }
     } catch (e: any) {
       setVerificationStatus("failed");
       setVerificationMessage(e.message);
-      toast.error(e.message || "فشل في إرسال طلب التحقق");
+      toast.error(e.message || "فشل في تفعيل خدمة SMS");
     } finally {
       setVerifying(false);
     }
   };
 
   const isVerified = verificationStatus === "verified";
-  const canVerify = smsSource.trim() && hasCredentials;
-  const statusConfig = STATUS_CONFIG[verificationStatus];
-  const StatusIcon = statusConfig.icon;
 
   if (!isAdmin) return null;
 
   return (
     <MainLayout>
-      <div className="p-4 md:p-6 space-y-6 max-w-3xl" dir="rtl">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+      <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto" dir="rtl">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
             <MessageSquare className="h-6 w-6 text-primary" />
-            إعدادات SMS
+            خدمة الرسائل النصية
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            تفعيل خدمة الرسائل النصية لإرسال إشعارات وفواتير للعملاء
+            إرسال إشعارات وفواتير للعملاء عبر SMS
           </p>
         </div>
 
         {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-60 w-full" />
-          </div>
+          <Skeleton className="h-60 w-full" />
         ) : (
-          <>
-            {/* Status Card */}
-            <Card className="overflow-hidden">
-              <div className={cn("h-1 w-full",
-                isVerified ? "bg-green-500" :
-                verificationStatus === "pending" ? "bg-yellow-500" :
-                verificationStatus === "failed" ? "bg-destructive" :
-                "bg-muted"
-              )} />
-              <CardContent className="pt-5">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", statusConfig.color)}>
-                      <StatusIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold">حالة خدمة SMS</span>
-                        <Badge className={cn("text-xs", statusConfig.color)}>
-                          {statusConfig.label}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {verificationMessage || statusConfig.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  {isVerified && (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <ShieldCheck className="h-5 w-5" />
-                      <span className="text-sm font-medium">SMS مفعّل</span>
-                    </div>
-                  )}
+          <Card className="overflow-hidden">
+            <div className={cn("h-1.5 w-full",
+              isVerified ? "bg-green-500" : "bg-muted"
+            )} />
+            <CardContent className="pt-8 pb-8">
+              <div className="flex flex-col items-center text-center space-y-5">
+                {/* Status icon */}
+                <div className={cn(
+                  "h-16 w-16 rounded-2xl flex items-center justify-center",
+                  isVerified ? "bg-green-100 text-green-600" :
+                  verificationStatus === "failed" ? "bg-red-100 text-red-600" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {isVerified ? <CheckCircle2 className="h-8 w-8" /> :
+                   verificationStatus === "failed" ? <AlertTriangle className="h-8 w-8" /> :
+                   <MessageSquare className="h-8 w-8" />}
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* No credentials warning */}
-            {!hasCredentials && (
-              <div className="flex items-start gap-3 p-4 rounded-lg border border-yellow-300 bg-yellow-50">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+                {/* Status text */}
                 <div>
-                  <p className="font-medium text-yellow-800">بيانات حساب 019sms غير مكتملة</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    يرجى التواصل مع إدارة ثقة لإعداد بيانات حساب SMS الخاص بك (اسم المستخدم والتوكن).
-                    بعد ذلك يمكنك تحديد رقم المصدر وتفعيل الخدمة.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Source Number Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Phone className="h-5 w-5" />
-                  رقم المصدر
-                </CardTitle>
-                <CardDescription>
-                  الرقم أو الاسم الذي سيظهر للعملاء عند استلامهم رسالة نصية
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="sms-source">رقم المصدر / اسم المرسل</Label>
-                  <Input
-                    id="sms-source"
-                    value={smsSource}
-                    onChange={e => setSmsSource(e.target.value)}
-                    placeholder="مثال: 05XXXXXXXX أو اسم الشركة"
-                    dir="ltr"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    أدخل رقم الهاتف أو اسم المرسل الذي تريد استخدامه مع 019sms
+                  <h2 className="text-xl font-bold">
+                    {isVerified ? "خدمة SMS مفعّلة" :
+                     verificationStatus === "failed" ? "فشل تفعيل SMS" :
+                     "خدمة SMS غير مفعّلة"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isVerified ? "يمكنك الآن إرسال رسائل نصية للعملاء" :
+                     verificationStatus === "failed" ? (verificationMessage || "تواصل مع إدارة ثقة للمساعدة") :
+                     !hasCredentials ? "تواصل مع إدارة ثقة لإعداد خدمة SMS لحسابك" :
+                     "اضغط على الزر أدناه لتفعيل خدمة الرسائل النصية"}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button onClick={handleSaveSource} disabled={saving || !smsSource.trim()} className="gap-2">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    حفظ رقم المصدر
-                  </Button>
+                {/* Badge */}
+                <Badge className={cn("text-xs px-3 py-1",
+                  isVerified ? "bg-green-100 text-green-700" :
+                  verificationStatus === "failed" ? "bg-red-100 text-red-700" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {isVerified ? "مفعّل" :
+                   verificationStatus === "failed" ? "فشل التفعيل" :
+                   "غير مفعّل"}
+                </Badge>
 
+                {/* Actions */}
+                {!isVerified && hasCredentials && (
                   <Button
-                    variant="outline"
+                    size="lg"
                     onClick={() => setConfirmOpen(true)}
-                    disabled={verifying || !canVerify}
-                    className="gap-2"
+                    disabled={verifying}
+                    className="gap-2 px-8"
                   >
-                    {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    {verifying ? "جاري التحقق..." : "تفعيل SMS"}
+                    {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    {verifying ? "جاري التفعيل..." : "تفعيل خدمة SMS"}
                   </Button>
-                </div>
-
-                {!canVerify && hasCredentials && !smsSource.trim() && (
-                  <p className="text-xs text-destructive">يرجى إدخال رقم المصدر أولاً</p>
                 )}
 
-                {/* How it works */}
-                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    <strong>كيف يعمل التفعيل؟</strong><br />
-                    سيتم إرسال رسالة اختبار عبر 019sms للتأكد من صحة الإعدادات ورقم المصدر.
-                    إذا تم الإرسال بنجاح، سيتم تفعيل خدمة SMS تلقائياً وستتمكن من إرسال رسائل للعملاء.
+                {!hasCredentials && (
+                  <a href="https://wa.me/972525143581" target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="lg" className="gap-2 px-8">
+                      <MessageCircle className="h-5 w-5" />
+                      تواصل مع إدارة ثقة
+                    </Button>
+                  </a>
+                )}
+
+                {isVerified && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <ShieldCheck className="h-5 w-5" />
+                    <span className="text-sm font-medium">جاهز لإرسال الرسائل</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Confirmation Dialog */}
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent dir="rtl" className="max-w-md">
+          <DialogContent dir="rtl" className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Send className="h-5 w-5 text-primary" />
-                تأكيد تفعيل SMS
+                تفعيل خدمة SMS
               </DialogTitle>
-              <DialogDescription className="text-right space-y-2 pt-2">
-                <p>سيتم إرسال رسالة تحقق عبر خدمة 019sms باستخدام رقم المصدر <strong dir="ltr">{smsSource}</strong>.</p>
-                <p>إذا تم الإرسال بنجاح، سيتم تفعيل خدمة SMS تلقائياً.</p>
+              <DialogDescription className="text-right pt-2">
+                سيتم التحقق من إعدادات خدمة الرسائل النصية وتفعيلها لحسابك.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmOpen(false)}>إلغاء</Button>
               <Button onClick={handleVerify} className="gap-2">
                 <Send className="h-4 w-4" />
-                تفعيل SMS
+                تفعيل
               </Button>
             </DialogFooter>
           </DialogContent>

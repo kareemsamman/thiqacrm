@@ -810,6 +810,8 @@ export type Database = {
       }
       agents: {
         Row: {
+          billing_cycle_day: number | null
+          cancelled_at: string | null
           created_at: string | null
           email: string
           id: string
@@ -818,13 +820,18 @@ export type Database = {
           name: string
           name_ar: string | null
           notes: string | null
+          pending_plan: string | null
           phone: string | null
           plan: string
           subscription_expires_at: string | null
+          subscription_started_at: string | null
           subscription_status: string
+          trial_ends_at: string | null
           updated_at: string | null
         }
         Insert: {
+          billing_cycle_day?: number | null
+          cancelled_at?: string | null
           created_at?: string | null
           email: string
           id?: string
@@ -833,13 +840,18 @@ export type Database = {
           name: string
           name_ar?: string | null
           notes?: string | null
+          pending_plan?: string | null
           phone?: string | null
           plan?: string
           subscription_expires_at?: string | null
+          subscription_started_at?: string | null
           subscription_status?: string
+          trial_ends_at?: string | null
           updated_at?: string | null
         }
         Update: {
+          billing_cycle_day?: number | null
+          cancelled_at?: string | null
           created_at?: string | null
           email?: string
           id?: string
@@ -848,10 +860,13 @@ export type Database = {
           name?: string
           name_ar?: string | null
           notes?: string | null
+          pending_plan?: string | null
           phone?: string | null
           plan?: string
           subscription_expires_at?: string | null
+          subscription_started_at?: string | null
           subscription_status?: string
+          trial_ends_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -5320,6 +5335,7 @@ export type Database = {
           features: Json
           id: string
           is_active: boolean
+          is_hidden: boolean
           monthly_price: number
           name: string
           name_ar: string | null
@@ -5335,6 +5351,7 @@ export type Database = {
           features?: Json
           id?: string
           is_active?: boolean
+          is_hidden?: boolean
           monthly_price?: number
           name: string
           name_ar?: string | null
@@ -5350,6 +5367,7 @@ export type Database = {
           features?: Json
           id?: string
           is_active?: boolean
+          is_hidden?: boolean
           monthly_price?: number
           name?: string
           name_ar?: string | null

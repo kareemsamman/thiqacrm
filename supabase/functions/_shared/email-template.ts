@@ -3,7 +3,7 @@
  * All emails sent from the platform should use this wrapper.
  */
 
-const EMAIL_LOGO_URL = "https://kareem.b-cdn.net/logodark.png";
+const EMAIL_LOGO_URL = "https://kareem.b-cdn.net/logolight.png";
 
 export interface EmailTemplateOptions {
   /** Main content HTML (goes inside the white card) */

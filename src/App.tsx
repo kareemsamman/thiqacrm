@@ -67,6 +67,7 @@ import { SiteHelmet } from "@/components/layout/SiteHelmet";
 import { AgentProvider } from "@/hooks/useAgentContext";
 import { ThiqaAdminRoute } from "@/components/auth/ThiqaAdminRoute";
 import SubscriptionExpired from "./pages/SubscriptionExpired";
+import Subscription from "./pages/Subscription";
 import ThiqaAgents from "./pages/ThiqaAgents";
 import ThiqaAgentDetail from "./pages/ThiqaAgentDetail";
 import ThiqaCreateAgent from "./pages/ThiqaCreateAgent";
@@ -387,6 +388,11 @@ const App = () => (
                 <AdminRoute>
                   <XServiceSettings />
                 </AdminRoute>
+              } />
+              <Route path="/subscription" element={
+                <ProtectedRoute>
+                  <Subscription />
+                </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

@@ -184,7 +184,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin, branchName, isSuperAdmin } = useAuth();
   const { data: siteSettings } = useSiteSettings();
-  const { hasFeature, isThiqaSuperAdmin } = useAgentContext();
+  const { hasFeature, isThiqaSuperAdmin, agent } = useAgentContext();
 
   // Filter groups and items based on role + features
   // Thiqa super admin only sees the Thiqa management section
@@ -436,15 +436,40 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56 [direction:rtl]">
+          <DropdownMenuContent align="end" side="top" className="w-64 [direction:rtl]">
             <div className="px-3 py-2 border-b">
               <p className="text-sm font-medium">{userName}</p>
               <p className="text-xs text-muted-foreground">{profile?.email}</p>
+              {!isThiqaSuperAdmin && agent && (
+                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <span className={cn(
+                    "inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded",
+                    agent.subscription_status === 'active'
+                      ? (agent.monthly_price === 0 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700')
+                      : agent.subscription_status === 'paused' ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  )}>
+                    {agent.monthly_price === 0 ? 'تجربة مجانية' : agent.plan === 'pro' ? 'Pro' : 'Basic'}
+                  </span>
+                  {agent.subscription_expires_at && (() => {
+                    const days = Math.ceil((new Date(agent.subscription_expires_at).getTime() - Date.now()) / 86400000);
+                    if (days <= 0) return <span className="text-[10px] text-destructive font-medium">منتهي</span>;
+                    if (days <= 7) return <span className="text-[10px] text-yellow-600 font-medium">{days} يوم متبقي</span>;
+                    return <span className="text-[10px] text-muted-foreground">{days} يوم متبقي</span>;
+                  })()}
+                </div>
+              )}
             </div>
             <DropdownMenuItem onClick={() => setProfileOpen(true)} className="gap-2 cursor-pointer">
               <UserCircle className="h-4 w-4" />
               <span>الملف الشخصي</span>
             </DropdownMenuItem>
+            {!isThiqaSuperAdmin && (
+              <DropdownMenuItem onClick={() => navigate('/subscription')} className="gap-2 cursor-pointer">
+                <CreditCard className="h-4 w-4" />
+                <span>الاشتراك</span>
+              </DropdownMenuItem>
+            )}
             {isAdmin && (
               <DropdownMenuItem
                 onClick={() => {

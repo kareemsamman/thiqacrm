@@ -25,11 +25,11 @@ export function useThaqib() {
     setLoadingSessions(true);
     try {
       const { data } = await supabase
-        .from("ai_chat_sessions")
+        .from("ai_chat_sessions" as any)
         .select("id, title, updated_at")
         .order("updated_at", { ascending: false })
         .limit(20);
-      setSessions(data || []);
+      setSessions((data as ChatSession[]) || []);
     } catch { /* silent */ }
     finally { setLoadingSessions(false); }
   }, []);

@@ -255,9 +255,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!anthropicKey) throw new Error("AI service not configured");
+    if (!lovableApiKey) throw new Error("AI service not configured");
 
     // Auth
     const callerClient = createClient(supabaseUrl, anonKey, {
@@ -334,10 +334,22 @@ Deno.serve(async (req) => {
     const contextData = await fetchContextData(adminClient, agentId, intent, isAdmin, branchId, message);
     console.log(`[ai-assistant] Context data length: ${contextData.length}`);
 
-    // Build Claude messages
-    const systemPrompt = DEFAULT_SYSTEM_PROMPT + (isAdmin ? ADMIN_EXTRA : WORKER_EXTRA);
+    // Fetch global custom prompt
+    const { data: promptSetting } = await adminClient
+      .from("thiqa_platform_settings")
+      .select("setting_value")
+      .eq("setting_key", "ai_assistant_prompt")
+      .maybeSingle();
+    const customPrompt = promptSetting?.setting_value || null;
+
+    // Build system prompt
+    let systemPrompt = DEFAULT_SYSTEM_PROMPT + (isAdmin ? ADMIN_EXTRA : WORKER_EXTRA);
+    if (customPrompt) {
+      systemPrompt += `\n\n--- تعليمات إضافية ---\n${customPrompt}`;
+    }
 
     const messages = [
+      { role: "system", content: systemPrompt },
       ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
       {
         role: "user",
@@ -345,30 +357,29 @@ Deno.serve(async (req) => {
       },
     ];
 
-    // Call Claude API
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: systemPrompt,
+        model: "google/gemini-3-flash-preview",
         messages,
       }),
     });
 
-    if (!claudeResponse.ok) {
-      const errText = await claudeResponse.text();
-      console.error("[ai-assistant] Claude API error:", errText);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("[ai-assistant] AI Gateway error:", aiResponse.status, errText);
+      if (aiResponse.status === 429) throw new Error("تم تجاوز حد الطلبات. يرجى المحاولة بعد قليل.");
+      if (aiResponse.status === 402) throw new Error("يرجى تجديد رصيد الذكاء الاصطناعي.");
       throw new Error("حدث خطأ في خدمة الذكاء الاصطناعي. يرجى المحاولة لاحقاً.");
     }
 
-    const claudeData = await claudeResponse.json();
-    const reply = claudeData.content?.[0]?.text || "عذراً، لم أتمكن من معالجة طلبك.";
+    const aiData = await aiResponse.json();
+    const reply = aiData.choices?.[0]?.message?.content || "عذراً، لم أتمكن من معالجة طلبك.";
 
     // Store messages
     await adminClient.from("ai_chat_messages").insert([

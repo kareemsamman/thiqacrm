@@ -238,13 +238,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!featureFlag?.enabled) throw new Error("ميزة المساعد الذكي غير مفعّلة لهذا الحساب");
 
-    // Load agent custom prompt
-    const { data: agentData } = await adminClient
-      .from("agents")
-      .select("ai_assistant_prompt")
-      .eq("id", agentId)
+    // Load platform-level custom prompt
+    const { data: promptSetting } = await adminClient
+      .from("thiqa_platform_settings")
+      .select("setting_value")
+      .eq("setting_key", "ai_assistant_prompt")
       .maybeSingle();
-    const customPrompt = agentData?.ai_assistant_prompt || null;
+    const customPrompt = promptSetting?.setting_value || null;
 
     // Determine role
     const { data: roleData } = await adminClient

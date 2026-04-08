@@ -440,25 +440,43 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
             <div className="px-3 py-2 border-b">
               <p className="text-sm font-medium">{userName}</p>
               <p className="text-xs text-muted-foreground">{profile?.email}</p>
-              {!isThiqaSuperAdmin && agent && (
-                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                  <span className={cn(
-                    "inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded",
-                    agent.subscription_status === 'active'
-                      ? (agent.monthly_price === 0 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700')
-                      : agent.subscription_status === 'paused' ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  )}>
-                    {agent.monthly_price === 0 ? 'تجربة مجانية' : agent.plan === 'pro' ? 'Pro' : 'Basic'}
-                  </span>
-                  {agent.subscription_expires_at && (() => {
-                    const days = Math.ceil((new Date(agent.subscription_expires_at).getTime() - Date.now()) / 86400000);
-                    if (days <= 0) return <span className="text-[10px] text-destructive font-medium">منتهي</span>;
-                    if (days <= 7) return <span className="text-[10px] text-yellow-600 font-medium">{days} يوم متبقي</span>;
-                    return <span className="text-[10px] text-muted-foreground">{days} يوم متبقي</span>;
-                  })()}
-                </div>
-              )}
+              {!isThiqaSuperAdmin && agent && (() => {
+                const isTrial = agent.subscription_status === 'trial' || (agent.monthly_price === 0 && agent.subscription_status === 'active');
+                const endDate = agent.subscription_expires_at ? new Date(agent.subscription_expires_at) : null;
+                const days = endDate ? Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 86400000)) : null;
+                const trialProgress = isTrial && days !== null ? Math.min(100, ((35 - days) / 35) * 100) : 0;
+
+                return (
+                  <div className="mt-1.5 space-y-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={cn(
+                        "inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded",
+                        isTrial ? 'bg-blue-100 text-blue-700' :
+                        agent.subscription_status === 'active' ? 'bg-green-100 text-green-700' :
+                        agent.subscription_status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      )}>
+                        {isTrial ? 'تجربة مجانية' : agent.plan === 'pro' ? 'Pro' : 'Basic'}
+                      </span>
+                      {days !== null && (
+                        <span className={cn("text-[10px] font-medium",
+                          days <= 0 ? "text-destructive" : days <= 7 ? "text-yellow-600" : "text-muted-foreground"
+                        )}>
+                          {days <= 0 ? 'منتهي' : `${days} يوم متبقي`}
+                        </span>
+                      )}
+                    </div>
+                    {isTrial && days !== null && (
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all", days <= 7 ? "bg-destructive" : "bg-blue-500")}
+                          style={{ width: `${trialProgress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <DropdownMenuItem onClick={() => setProfileOpen(true)} className="gap-2 cursor-pointer">
               <UserCircle className="h-4 w-4" />

@@ -13,6 +13,11 @@ interface AgentInfo {
   subscription_status: string;
   subscription_expires_at: string | null;
   monthly_price: number | null;
+  trial_ends_at: string | null;
+  subscription_started_at: string | null;
+  billing_cycle_day: number | null;
+  pending_plan: string | null;
+  cancelled_at: string | null;
 }
 
 interface AgentContextType {
@@ -175,9 +180,14 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   }, [user, authLoading, isSuperAdmin, impersonatedAgentId]);
 
   const subscriptionStatus = agent?.subscription_status;
-  const isSubscriptionActive = isThiqaSuperAdmin || isImpersonating || !agent || 
-    (subscriptionStatus === 'active' &&
-    (!agent.subscription_expires_at || new Date(agent.subscription_expires_at) > new Date()));
+  const isTrial = subscriptionStatus === 'trial';
+  const trialEndsAt = agent?.trial_ends_at ? new Date(agent.trial_ends_at) : null;
+  const expiresAt = agent?.subscription_expires_at ? new Date(agent.subscription_expires_at) : null;
+  const now = new Date();
+
+  const isSubscriptionActive = isThiqaSuperAdmin || isImpersonating || !agent ||
+    (subscriptionStatus === 'trial' && trialEndsAt && trialEndsAt > now) ||
+    (subscriptionStatus === 'active' && (!expiresAt || expiresAt > now));
   const isSubscriptionPaused = subscriptionStatus === 'paused' || subscriptionStatus === 'suspended';
 
   const hasFeature = (featureKey: string): boolean => {

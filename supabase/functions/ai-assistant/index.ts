@@ -37,54 +37,26 @@ function classifyIntent(message: string): IntentResult {
   let isFinancial = false;
   const searchTerms: string[] = [];
 
-  // Extract potential search terms (names, numbers)
   const nameMatch = msg.match(/["«»"](.*?)["«»"]/);
   if (nameMatch) searchTerms.push(nameMatch[1]);
 
-  // Numbers that look like IDs or phone numbers
   const numMatch = msg.match(/\d{5,}/g);
   if (numMatch) searchTerms.push(...numMatch);
 
-  // Client intent
-  if (/عميل|عملاء|زبون|زبائن|اسم|هوية|رقم هوية|ملف|هاتف العميل/.test(msg)) {
-    tables.push("clients");
-  }
+  if (/عميل|عملاء|زبون|زبائن|اسم|هوية|رقم هوية|ملف|هاتف العميل/.test(msg)) tables.push("clients");
+  if (/سيارة|سيارات|مركبة|مركبات|رقم سيارة|لوحة|رقم لوحة|موديل/.test(msg)) tables.push("cars");
+  if (/وثيقة|وثائق|بوليصة|بوالص|تأمين|إلزامي|شامل|طرف ثالث|تنتهي|انتهاء|تجديد|منتهية|سارية/.test(msg)) tables.push("policies");
+  if (/دفعة|دفعات|مدفوع|تحصيل|مبلغ|شيك|شيكات|فيزا|نقدي|تحويل/.test(msg)) tables.push("payments");
+  if (/شركة تأمين|شركات تأمين|شركة/.test(msg)) tables.push("companies");
 
-  // Car intent
-  if (/سيارة|سيارات|مركبة|مركبات|رقم سيارة|لوحة|رقم لوحة|موديل/.test(msg)) {
-    tables.push("cars");
-  }
-
-  // Policy intent
-  if (/وثيقة|وثائق|بوليصة|بوالص|تأمين|إلزامي|شامل|طرف ثالث|تنتهي|انتهاء|تجديد|منتهية|سارية/.test(msg)) {
-    tables.push("policies");
-  }
-
-  // Payment intent
-  if (/دفعة|دفعات|مدفوع|تحصيل|مبلغ|شيك|شيكات|فيزا|نقدي|تحويل/.test(msg)) {
-    tables.push("payments");
-  }
-
-  // Company intent
-  if (/شركة تأمين|شركات تأمين|شركة/.test(msg)) {
-    tables.push("companies");
-  }
-
-  // Financial intent
   if (/ربح|أرباح|عمولة|عمولات|خسارة|دفع للشركة|تسوية|مالي|إيرادات/.test(msg)) {
     isFinancial = true;
     tables.push("policies");
   }
 
-  // Aggregate intent
-  if (/كم|عدد|مجموع|إجمالي|إحصائيات|إحصاء|متوسط|أكثر|أقل|ملخص/.test(msg)) {
-    isAggregate = true;
-  }
+  if (/كم|عدد|مجموع|إجمالي|إحصائيات|إحصاء|متوسط|أكثر|أقل|ملخص/.test(msg)) isAggregate = true;
 
-  // Default: if no intent matched, include clients + policies
-  if (tables.length === 0) {
-    tables.push("clients", "policies");
-  }
+  if (tables.length === 0) tables.push("clients", "policies");
 
   return { tables: [...new Set(tables)], searchTerms, isAggregate, isFinancial };
 }
@@ -101,7 +73,6 @@ async function fetchContextData(
   const parts: string[] = [];
   const limit = intent.isAggregate ? 100 : 15;
 
-  // Extract search text from message (remove common Arabic words)
   const searchText = userMessage
     .replace(/أعطني|أريد|ابحث|عن|معلومات|بيانات|تفاصيل|عميل|سيارة|وثيقة|كم|عدد|ما|هو|هي|هل|في|من|إلى|على|لي/g, "")
     .trim();
@@ -114,12 +85,10 @@ async function fetchContextData(
           .eq("agent_id", agentId)
           .is("deleted_at", null)
           .limit(limit);
-
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
         if (searchText.length > 1) {
           query = query.or(`full_name.ilike.%${searchText}%,id_number.ilike.%${searchText}%,phone_number.ilike.%${searchText}%,file_number.ilike.%${searchText}%`);
         }
-
         const { data } = await query;
         if (data && data.length > 0) {
           parts.push(`[عملاء - ${data.length} نتيجة]\n` +
@@ -135,11 +104,9 @@ async function fetchContextData(
           .eq("agent_id", agentId)
           .is("deleted_at", null)
           .limit(limit);
-
         if (searchText.length > 1) {
           query = query.or(`car_number.ilike.%${searchText}%,manufacturer_name.ilike.%${searchText}%,model.ilike.%${searchText}%`);
         }
-
         const { data } = await query;
         if (data && data.length > 0) {
           parts.push(`[سيارات - ${data.length} نتيجة]\n` +
@@ -151,34 +118,24 @@ async function fetchContextData(
         const selectFields = isAdmin
           ? "policy_number, policy_type_parent, insurance_price, profit, payed_for_company, office_commission, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)"
           : "policy_number, policy_type_parent, insurance_price, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)";
-
         let query = supabase.from("policies")
           .select(selectFields)
           .eq("agent_id", agentId)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(limit);
-
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
-
-        // Check for expiring policies query
         if (/تنتهي|انتهاء|منتهية/.test(userMessage)) {
           const now = new Date();
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
           query = query.lte("end_date", monthEnd.toISOString()).gte("end_date", now.toISOString()).eq("cancelled", false);
         }
-
-        if (searchText.length > 1 && !/تنتهي|انتهاء|منتهية|كم|عدد|إجمالي/.test(userMessage)) {
-          // Don't search filter on aggregate queries
-        }
-
         const { data } = await query;
         if (data && data.length > 0) {
           const typeLabels: Record<string, string> = {
             ELZAMI: "إلزامي", THIRD_FULL: "شامل", ROAD_SERVICE: "خدمة طريق",
             ACCIDENT_FEE_EXEMPTION: "إعفاء رسوم", HEALTH: "صحي", LIFE: "حياة",
           };
-
           if (intent.isAggregate) {
             const total = data.length;
             const totalPrice = data.reduce((s: number, p: any) => s + (p.insurance_price || 0), 0);
@@ -206,10 +163,8 @@ async function fetchContextData(
           .eq("agent_id", agentId)
           .order("payment_date", { ascending: false })
           .limit(limit);
-
         if (data && data.length > 0) {
           const typeLabels: Record<string, string> = { cash: "نقدي", cheque: "شيك", visa: "فيزا", transfer: "تحويل" };
-
           if (intent.isAggregate) {
             const total = data.reduce((s: number, p: any) => s + (p.amount || 0), 0);
             parts.push(`[ملخص المدفوعات]\nإجمالي: ${data.length} دفعة | المجموع: ₪${total.toLocaleString()}`);
@@ -227,7 +182,6 @@ async function fetchContextData(
           .select("name, name_ar, active")
           .eq("agent_id", agentId)
           .limit(50);
-
         if (data && data.length > 0) {
           parts.push(`[شركات التأمين - ${data.length}]\n` +
             data.map((c: any, i: number) => `${i + 1}. ${c.name_ar || c.name}${c.active ? '' : ' (غير فعالة)'}`).join('\n'));
@@ -252,9 +206,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!anthropicKey) throw new Error("AI service not configured");
+    if (!lovableApiKey) throw new Error("AI service not configured – LOVABLE_API_KEY missing");
 
     // Auth
     const callerClient = createClient(supabaseUrl, anonKey, {
@@ -283,6 +237,14 @@ Deno.serve(async (req) => {
       .eq("feature_key", "ai_assistant")
       .maybeSingle();
     if (!featureFlag?.enabled) throw new Error("ميزة المساعد الذكي غير مفعّلة لهذا الحساب");
+
+    // Load agent custom prompt
+    const { data: agentData } = await adminClient
+      .from("agents")
+      .select("ai_assistant_prompt")
+      .eq("id", agentId)
+      .maybeSingle();
+    const customPrompt = agentData?.ai_assistant_prompt || null;
 
     // Determine role
     const { data: roleData } = await adminClient
@@ -329,10 +291,15 @@ Deno.serve(async (req) => {
     const intent = classifyIntent(message);
     const contextData = await fetchContextData(adminClient, agentId, intent, isAdmin, branchId, message);
 
-    // Build Claude messages
-    const systemPrompt = DEFAULT_SYSTEM_PROMPT + (isAdmin ? ADMIN_EXTRA : WORKER_EXTRA);
+    // Build system prompt: default + custom agent rules + role-based
+    let systemPrompt = DEFAULT_SYSTEM_PROMPT;
+    if (customPrompt) {
+      systemPrompt += `\n\n[تعليمات إضافية من الوكيل]\n${customPrompt}`;
+    }
+    systemPrompt += isAdmin ? ADMIN_EXTRA : WORKER_EXTRA;
 
     const messages = [
+      { role: "system", content: systemPrompt },
       ...(history || []).map((m: any) => ({ role: m.role, content: m.content })),
       {
         role: "user",
@@ -340,30 +307,41 @@ Deno.serve(async (req) => {
       },
     ];
 
-    // Call Claude API
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: systemPrompt,
+        model: "google/gemini-3-flash-preview",
         messages,
       }),
     });
 
-    if (!claudeResponse.ok) {
-      const errText = await claudeResponse.text();
-      console.error("[ai-assistant] Claude API error:", errText);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("[ai-assistant] AI Gateway error:", aiResponse.status, errText);
+
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "تم تجاوز حد الطلبات. يرجى المحاولة بعد قليل." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "يرجى شحن رصيد AI في إعدادات المنصة." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       throw new Error("حدث خطأ في خدمة الذكاء الاصطناعي. يرجى المحاولة لاحقاً.");
     }
 
-    const claudeData = await claudeResponse.json();
-    const reply = claudeData.content?.[0]?.text || "عذراً، لم أتمكن من معالجة طلبك.";
+    const aiData = await aiResponse.json();
+    const reply = aiData.choices?.[0]?.message?.content || "عذراً، لم أتمكن من معالجة طلبك.";
 
     // Store messages
     await adminClient.from("ai_chat_messages").insert([

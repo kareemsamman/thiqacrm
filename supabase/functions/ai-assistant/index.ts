@@ -129,7 +129,7 @@ async function fetchContextData(
   userMessage: string
 ): Promise<string> {
   const parts: string[] = [];
-  const limit = intent.isAggregate ? 100 : 15;
+  const limit = 20;
 
   // Extract search text from message (remove common Arabic words including definite articles)
   const searchText = userMessage

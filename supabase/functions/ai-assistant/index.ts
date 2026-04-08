@@ -101,9 +101,9 @@ async function fetchContextData(
   const parts: string[] = [];
   const limit = intent.isAggregate ? 100 : 15;
 
-  // Extract search text from message (remove common Arabic words)
+  // Extract search text from message (remove common Arabic words including definite articles)
   const searchText = userMessage
-    .replace(/أعطني|أريد|ابحث|عن|معلومات|بيانات|تفاصيل|عميل|سيارة|وثيقة|كم|عدد|ما|هو|هي|هل|في|من|إلى|على|لي/g, "")
+    .replace(/أعطني|أريد|ابحث|عن|معلومات|بيانات|تفاصيل|عميل|عملاء|العملاء|العميل|سيارة|سيارات|السيارات|السيارة|وثيقة|وثائق|الوثائق|الوثيقة|بوليصة|بوالص|كم|عدد|ما|هو|هي|هل|في|من|إلى|على|لي|كل|جميع|اليوم|هذا|هذه|الشهر|أخبرني|أظهر|اعرض|قائمة|لائحة|تفصيل|ملخص|إجمالي|إحصائيات|المدفوعات|الدفعات|الأرباح|شركة|شركات|تأمين|التأمين/g, "")
     .trim();
 
   for (const table of intent.tables) {

@@ -243,7 +243,7 @@ serve(async (req) => {
     const timestamp = Date.now();
     const randomId = crypto.randomUUID().slice(0, 8);
     const clientNameSafe = policy.client?.full_name?.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') || 'customer';
-    const storagePath = `invoices/${year}/${month}/ab_invoice_${clientNameSafe}_${timestamp}_${randomId}.html`;
+    const storagePath = `invoices/${year}/${month}/invoice_${clientNameSafe}_${timestamp}_${randomId}.html`;
 
     // Upload AB Invoice to Bunny Storage
     const bunnyUploadUrl = buildBunnyStorageUploadUrl(bunnyStorageZone, storagePath);
@@ -769,7 +769,7 @@ function buildAbInvoiceHtml(
     .signature-section { margin-top: 40px; display: flex; justify-content: center; }
     .signature-box { width: 50%; text-align: center; }
     .signature-line { border-top: 2px solid #1e3a5f; margin-top: 60px; padding-top: 12px; font-weight: 600; color: #1e3a5f; }
-    .basheer-signature { font-family: 'Tajawal', cursive; font-size: 28px; font-weight: 800; color: #1e3a5f; margin-top: 15px; }
+    .company-signature { font-family: 'Tajawal', cursive; font-size: 28px; font-weight: 800; color: #1e3a5f; margin-top: 15px; }
     @media print { 
       body { padding: 0; font-size: 12px; } 
       .no-print { display: none !important; }
@@ -1052,7 +1052,7 @@ function buildAbInvoiceHtml(
 
     <div class="signature-section">
       <div class="signature-box">
-        <div class="basheer-signature">${branding.companyName}</div>
+        <div class="company-signature">${branding.companyName}</div>
         <div class="signature-line">التوقيع المعتمد</div>
       </div>
     </div>

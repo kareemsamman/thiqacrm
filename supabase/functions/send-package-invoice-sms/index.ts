@@ -301,7 +301,7 @@ serve(async (req) => {
       smsMessage += `\n\n${allPolicyUrlsText}`;
     }
     
-    // Always add AB invoice URL
+    // Always add invoice URL
     smsMessage += `\n\nفاتورة شركة التأمين: ${packageInvoiceUrl}`;
 
     const escapeXml = (value: string) =>

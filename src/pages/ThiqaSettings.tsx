@@ -607,7 +607,7 @@ function PlansSettingsTab() {
         monthly_price: editPlan.monthly_price,
         yearly_price: editPlan.yearly_price,
         badge: editPlan.badge || null,
-        features: editPlan.features,
+        features: editPlan.features as unknown as Json,
         sort_order: editPlan.sort_order,
         is_active: editPlan.is_active,
       };

@@ -895,7 +895,87 @@ function PlansSettingsTab() {
   );
 }
 
-export default function ThiqaSettings() {
+function AiAssistantSettingsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useThiqaPlatformSettings();
+  const [prompt, setPrompt] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings?.ai_assistant_prompt) {
+      setPrompt(settings.ai_assistant_prompt);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from("thiqa_platform_settings")
+        .select("id")
+        .eq("setting_key", "ai_assistant_prompt")
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("thiqa_platform_settings")
+          .update({ setting_value: prompt || null })
+          .eq("setting_key", "ai_assistant_prompt");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("thiqa_platform_settings")
+          .insert({ setting_key: "ai_assistant_prompt", setting_value: prompt || null });
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      toast({ title: "تم الحفظ", description: "تم حفظ تعليمات المساعد الذكي بنجاح" });
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message || "فشل في الحفظ", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bot className="h-5 w-5" />
+          تعليمات المساعد الذكي (ثاقب)
+        </CardTitle>
+        <CardDescription>
+          أضف تعليمات وقواعد عامة للمساعد الذكي. هذه التعليمات تُطبق على جميع الوكلاء وتُضاف إلى التعليمات الافتراضية.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground" dir="rtl">
+          <strong>التعليمات الافتراضية المدمجة:</strong> ثاقب يجيب بالعربية، يعتمد على البيانات فقط، لا يخترع معلومات، ويفرّق بين صلاحيات المدير والعامل تلقائيًا.
+        </div>
+        <div>
+          <Label>تعليمات إضافية</Label>
+          <Textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            placeholder="مثال: عند سؤال العميل عن وثيقة، اعرض تاريخ الانتهاء دائمًا. لا تعرض أرقام الهواتف. كن مختصرًا جدًا..."
+            className="min-h-[200px] mt-2 text-right"
+            dir="rtl"
+          />
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 ml-1 animate-spin" /> : <Save className="h-4 w-4 ml-1" />}
+          حفظ التعليمات
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+
   return (
     <MainLayout>
       <div className="p-6 space-y-6">

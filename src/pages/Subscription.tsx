@@ -3,16 +3,15 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAgentContext } from "@/hooks/useAgentContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
-  Crown, CreditCard, Calendar, Clock, AlertTriangle, Check, MessageCircle,
-  Sparkles, ShieldCheck, Pause, Info, ArrowUp, ArrowDown, Zap, Star,
+  Crown, CreditCard, Calendar, Clock, AlertTriangle, Check, X, MessageCircle,
+  Sparkles, ShieldCheck, Pause, Info, ArrowUp, ArrowDown,
   Rocket, Shield, Trash2, XCircle, Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -42,10 +41,10 @@ interface PaymentRecord {
 }
 
 const PLAN_ICONS: Record<string, typeof Rocket> = {
-  starter: Zap,
+  starter: Shield,
   basic: Shield,
   pro: Rocket,
-  custom: Star,
+  custom: Crown,
 };
 
 export default function Subscription() {
@@ -104,16 +103,14 @@ export default function Subscription() {
     const isTrial = status === "trial" || (agent.monthly_price === 0 && status === "active");
     const trialEnd = agent.trial_ends_at ? new Date(agent.trial_ends_at) : (isTrial && agent.subscription_expires_at ? new Date(agent.subscription_expires_at) : null);
     const expiresAt = agent.subscription_expires_at ? new Date(agent.subscription_expires_at) : null;
-    const now = new Date();
     const endDate = isTrial ? trialEnd : expiresAt;
+    const now = new Date();
     const daysRemaining = endDate ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / 86400000)) : null;
     const isExpired = endDate ? endDate < now : false;
     const isActive = (status === "active" || status === "trial") && !isExpired;
     const isPaused = status === "paused" || status === "suspended";
     const isCancelled = status === "cancelled";
-    const trialProgress = isTrial && trialEnd
-      ? Math.min(100, Math.max(0, ((35 - (daysRemaining || 0)) / 35) * 100))
-      : 0;
+    const trialProgress = isTrial && daysRemaining !== null ? Math.min(100, Math.max(0, ((35 - daysRemaining) / 35) * 100)) : 0;
     return { isTrial, trialEnd, expiresAt: endDate, daysRemaining, isExpired, isActive, isPaused, isCancelled, trialProgress };
   }, [agent]);
 
@@ -121,17 +118,14 @@ export default function Subscription() {
     if (!agent || !agentId) return;
     setChangingPlan(true);
     try {
-      const isUpgrade = targetPlan.monthly_price > (agent.monthly_price || 0);
-
       if (sub?.isTrial) {
-        // During trial: store pending_plan, activate after trial
         const { error } = await supabase.from("agents").update({
           pending_plan: targetPlan.plan_key,
         }).eq("id", agentId);
         if (error) throw error;
         toast.success(`تم اختيار خطة ${targetPlan.name}. ستبدأ بعد انتهاء الفترة التجريبية.`);
       } else {
-        // Immediate plan change
+        const isUpgrade = targetPlan.monthly_price > (agent.monthly_price || 0);
         const { error } = await supabase.from("agents").update({
           plan: targetPlan.plan_key,
           monthly_price: targetPlan.monthly_price,
@@ -142,7 +136,6 @@ export default function Subscription() {
           : `تم التحويل إلى خطة ${targetPlan.name}.`
         );
       }
-      // Reload
       window.location.reload();
     } catch (e: any) {
       toast.error(e.message || "فشل في تغيير الخطة");
@@ -161,7 +154,7 @@ export default function Subscription() {
         cancelled_at: new Date().toISOString(),
       }).eq("id", agentId);
       if (error) throw error;
-      toast.success("تم إلغاء الاشتراك. يمكنك إعادة الاشتراك في أي وقت.");
+      toast.success("تم إلغاء الاشتراك.");
       window.location.reload();
     } catch (e: any) {
       toast.error(e.message || "فشل في إلغاء الاشتراك");
@@ -175,12 +168,9 @@ export default function Subscription() {
     if (!agentId) return;
     setDeletingAccount(true);
     try {
-      const { error } = await supabase.functions.invoke("delete-agent", {
-        body: { agentId },
-      });
+      const { error } = await supabase.functions.invoke("delete-agent", { body: { agentId } });
       if (error) throw error;
       toast.success("تم حذف الحساب بنجاح.");
-      // Sign out
       await supabase.auth.signOut();
       window.location.href = "/login";
     } catch (e: any) {
@@ -192,7 +182,10 @@ export default function Subscription() {
 
   if (!agent) return null;
 
-  const currentPlanData = plans.find(p => p.plan_key === agent.plan);
+  // For trial users, find the Pro plan to compare features when picking Basic
+  const proPlan = plans.find(p => p.plan_key === "pro");
+  const confirmPlan = confirmDialog?.plan;
+  const isDowngradeFromTrial = sub?.isTrial && confirmPlan && confirmPlan.plan_key !== "pro";
 
   return (
     <MainLayout>
@@ -203,37 +196,26 @@ export default function Subscription() {
             <Crown className="h-6 w-6 text-primary" />
             إدارة الاشتراك
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            عرض وإدارة اشتراكك وتغيير خطتك
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">عرض وإدارة اشتراكك وتغيير خطتك</p>
         </div>
 
-        {/* ═══ Current Plan Card ═══ */}
+        {/* ═══ Current Status Card ═══ */}
         {!sub ? <Skeleton className="h-48 w-full rounded-xl" /> : (
-          <Card className={cn(
-            "overflow-hidden border-0 shadow-md",
-            sub.isPaused && "ring-2 ring-yellow-400/40",
-            sub.isExpired && "ring-2 ring-destructive/40",
-            sub.isCancelled && "ring-2 ring-muted",
-          )}>
-            <div className={cn(
-              "h-1.5 w-full",
+          <Card className="overflow-hidden shadow-sm">
+            <div className={cn("h-1 w-full",
               sub.isPaused ? "bg-yellow-500" :
               sub.isExpired || sub.isCancelled ? "bg-destructive" :
-              sub.isTrial ? "bg-gradient-to-l from-blue-500 to-purple-500" :
-              "bg-gradient-to-l from-green-500 to-emerald-600"
+              "bg-primary"
             )} />
             <CardContent className="p-5 md:p-6">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
                 <div className="space-y-4 flex-1">
-                  {/* Plan name + badge */}
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className={cn(
-                      "h-10 w-10 rounded-xl flex items-center justify-center",
-                      sub.isTrial ? "bg-blue-100 text-blue-600" :
+                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center",
+                      sub.isTrial ? "bg-primary/10 text-primary" :
                       sub.isPaused ? "bg-yellow-100 text-yellow-600" :
-                      sub.isExpired || sub.isCancelled ? "bg-red-100 text-red-600" :
-                      "bg-green-100 text-green-600"
+                      sub.isExpired || sub.isCancelled ? "bg-destructive/10 text-destructive" :
+                      "bg-primary/10 text-primary"
                     )}>
                       {sub.isTrial ? <Sparkles className="h-5 w-5" /> :
                        sub.isPaused ? <Pause className="h-5 w-5" /> :
@@ -242,17 +224,17 @@ export default function Subscription() {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">
-                        {sub.isTrial ? "تجربة مجانية" :
+                        {sub.isTrial ? "فترة تجريبية مجانية" :
                          sub.isCancelled ? "اشتراك ملغي" :
-                         `خطة ${currentPlanData?.name || agent.plan}`}
+                         `خطة ${agent.plan === "pro" ? "Pro" : agent.plan === "basic" ? "Basic" : agent.plan}`}
                       </h2>
-                      <Badge className={cn("text-[10px] mt-0.5",
-                        sub.isTrial ? "bg-blue-600" :
-                        sub.isPaused ? "bg-yellow-500" :
-                        sub.isExpired || sub.isCancelled ? "bg-destructive" :
-                        "bg-green-600"
+                      <Badge variant="outline" className={cn("text-[10px] mt-0.5",
+                        sub.isTrial ? "border-primary text-primary" :
+                        sub.isPaused ? "border-yellow-500 text-yellow-600" :
+                        sub.isExpired || sub.isCancelled ? "border-destructive text-destructive" :
+                        "border-green-600 text-green-600"
                       )}>
-                        {sub.isTrial ? "فترة تجريبية" :
+                        {sub.isTrial ? "جميع ميزات Pro متاحة" :
                          sub.isPaused ? "معلّق" :
                          sub.isExpired ? "منتهي" :
                          sub.isCancelled ? "ملغي" : "فعال"}
@@ -262,38 +244,38 @@ export default function Subscription() {
 
                   {/* Trial progress */}
                   {sub.isTrial && sub.daysRemaining !== null && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-w-md">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">الفترة التجريبية</span>
-                        <span className={cn("font-bold", sub.daysRemaining <= 7 ? "text-destructive" : "text-blue-600")}>
+                        <span className={cn("font-bold", sub.daysRemaining <= 7 ? "text-destructive" : "text-primary")}>
                           {sub.daysRemaining} يوم متبقي من 35
                         </span>
                       </div>
-                      <Progress value={sub.trialProgress} className="h-2" />
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all",
+                            sub.daysRemaining <= 7 ? "bg-destructive" : "bg-primary"
+                          )}
+                          style={{ width: `${sub.trialProgress}%` }}
+                        />
+                      </div>
                       {agent.pending_plan && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Info className="h-3.5 w-3.5" />
-                          ستبدأ خطة {agent.pending_plan === "pro" ? "Pro" : "Basic"} تلقائياً بعد انتهاء التجربة
+                          تم اختيار خطة {agent.pending_plan === "pro" ? "Pro" : "Basic"} — ستبدأ تلقائياً بعد انتهاء التجربة
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Warning messages */}
                   {sub.isPaused && (
                     <div className="flex items-start gap-2 text-sm text-yellow-700 bg-yellow-50 rounded-lg p-3">
                       <Pause className="h-4 w-4 mt-0.5 shrink-0" />
                       حسابك معلّق. تواصل مع إدارة ثقة لإعادة التفعيل.
                     </div>
                   )}
-                  {sub.isExpired && !sub.isCancelled && (
-                    <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/5 rounded-lg p-3">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      انتهى اشتراكك. اختر خطة للاستمرار.
-                    </div>
-                  )}
 
-                  {/* Stats */}
+                  {/* Stats for paid plans */}
                   {!sub.isTrial && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div className="space-y-0.5">
@@ -316,10 +298,9 @@ export default function Subscription() {
                   )}
                 </div>
 
-                {/* Contact CTA */}
                 <div className="flex flex-col items-center gap-2 shrink-0">
                   <a href="https://wa.me/972525143581" target="_blank" rel="noopener noreferrer">
-                    <Button className="bg-green-600 hover:bg-green-700 text-white gap-2">
+                    <Button variant="outline" className="gap-2">
                       <MessageCircle className="h-4 w-4" />
                       تواصل مع إدارة ثقة
                     </Button>
@@ -334,50 +315,57 @@ export default function Subscription() {
         {/* ═══ Plans Section ═══ */}
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-bold">الخطط المتاحة</h2>
-            <p className="text-sm text-muted-foreground">اختر الخطة التي تناسب احتياجاتك</p>
+            <h2 className="text-lg font-bold">
+              {sub?.isTrial ? "اختر خطتك بعد انتهاء التجربة" : "الخطط المتاحة"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {sub?.isTrial
+                ? "أنت حالياً تستخدم جميع ميزات Pro مجاناً. اختر الخطة التي تريد الاستمرار بها."
+                : "قارن بين الخطط واختر ما يناسب احتياجاتك"}
+            </p>
           </div>
 
           {loadingPlans ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-80 w-full rounded-xl" />)}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-72 w-full rounded-xl" />)}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {plans.map((plan) => {
-                  const isCurrent = agent.plan === plan.plan_key;
+                  const isCurrent = !sub?.isTrial && agent.plan === plan.plan_key;
                   const isPending = agent.pending_plan === plan.plan_key;
-                  const isUpgrade = plan.monthly_price > (agent.monthly_price || 0);
+                  const isUpgrade = sub?.isTrial
+                    ? true  // From trial, everything is "choosing"
+                    : plan.monthly_price > (agent.monthly_price || 0);
+                  const isCustom = plan.plan_key === "custom";
                   const PlanIcon = PLAN_ICONS[plan.plan_key] || Shield;
 
                   return (
                     <Card key={plan.id} className={cn(
                       "relative overflow-hidden transition-all",
-                      isCurrent ? "border-2 border-primary shadow-lg" : "border hover:border-primary/40 hover:shadow-md",
-                      isPending && "border-2 border-blue-500"
+                      isCurrent ? "border-2 border-primary shadow-md" : "border hover:border-primary/30 hover:shadow-sm",
+                      isPending && !isCurrent && "border-2 border-primary/50"
                     )}>
                       {isCurrent && (
-                        <div className="absolute top-0 inset-x-0 bg-primary text-primary-foreground text-center text-xs font-bold py-1">
+                        <div className="bg-primary text-primary-foreground text-center text-xs font-bold py-1">
                           خطتك الحالية
                         </div>
                       )}
                       {isPending && !isCurrent && (
-                        <div className="absolute top-0 inset-x-0 bg-blue-600 text-white text-center text-xs font-bold py-1">
-                          ستبدأ بعد التجربة
+                        <div className="bg-primary/80 text-primary-foreground text-center text-xs font-bold py-1">
+                          تم الاختيار — تبدأ بعد التجربة
                         </div>
                       )}
                       {plan.badge && !isCurrent && !isPending && (
-                        <div className="absolute top-0 inset-x-0 bg-muted text-muted-foreground text-center text-xs font-medium py-1">
+                        <div className="bg-muted text-muted-foreground text-center text-xs font-medium py-1">
                           {plan.badge}
                         </div>
                       )}
 
-                      <CardContent className={cn("pt-8 pb-5 space-y-4", (isCurrent || isPending || plan.badge) && "pt-10")}>
-                        {/* Plan header with icon */}
+                      <CardContent className={cn("pt-6 pb-5 space-y-4", (isCurrent || isPending || plan.badge) && "pt-4")}>
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "h-10 w-10 rounded-xl flex items-center justify-center",
+                          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center",
                             isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                           )}>
                             <PlanIcon className="h-5 w-5" />
@@ -388,44 +376,66 @@ export default function Subscription() {
                           </div>
                         </div>
 
-                        {/* Price */}
                         <div className="flex items-baseline gap-1.5">
-                          <span className="text-3xl font-extrabold">₪{plan.monthly_price}</span>
-                          <span className="text-sm text-muted-foreground">/ شهرياً</span>
+                          {plan.monthly_price > 0 ? (
+                            <>
+                              <span className="text-3xl font-extrabold">₪{plan.monthly_price}</span>
+                              <span className="text-sm text-muted-foreground">/ شهرياً</span>
+                            </>
+                          ) : (
+                            <span className="text-lg font-bold text-muted-foreground">حسب الطلب</span>
+                          )}
                         </div>
 
                         {plan.description && (
                           <p className="text-xs text-muted-foreground leading-relaxed">{plan.description}</p>
                         )}
 
-                        {/* Features */}
                         <ul className="space-y-2">
                           {plan.features.map((f, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm">
-                              <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                              <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                               <span>{f.text}</span>
                             </li>
                           ))}
                         </ul>
 
-                        {/* Action button */}
                         <div className="pt-2">
                           {isCurrent ? (
                             <Button variant="outline" className="w-full" disabled>الخطة الحالية</Button>
                           ) : isPending ? (
-                            <Button variant="outline" className="w-full border-blue-300 text-blue-600" disabled>تم الاختيار</Button>
+                            <Button variant="outline" className="w-full text-primary border-primary/30" disabled>تم الاختيار</Button>
+                          ) : isCustom ? (
+                            <a
+                              href={`https://wa.me/972525143581?text=${encodeURIComponent(`مرحباً، أريد طلب خطة اشتراك مخصصة.\nمعرف الوكيل: ${agentId}`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <Button variant="outline" className="w-full gap-2">
+                                <MessageCircle className="h-4 w-4" />
+                                طلب خطة مخصصة
+                              </Button>
+                            </a>
                           ) : (
                             <Button
                               className={cn("w-full gap-2",
-                                isUpgrade ? "bg-primary hover:bg-primary/90" : "bg-muted text-foreground hover:bg-muted/80"
+                                sub?.isTrial ? "" :
+                                isUpgrade ? "" : "bg-muted text-foreground hover:bg-muted/80"
                               )}
                               onClick={() => setConfirmDialog({
-                                type: isUpgrade ? "upgrade" : "downgrade",
+                                type: sub?.isTrial ? (plan.plan_key === "pro" ? "upgrade" : "downgrade") :
+                                      isUpgrade ? "upgrade" : "downgrade",
                                 plan,
                               })}
                             >
-                              {isUpgrade ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                              {isUpgrade ? "ترقية" : "تغيير"} للخطة
+                              {sub?.isTrial ? (
+                                <>اختيار هذه الخطة</>
+                              ) : isUpgrade ? (
+                                <><ArrowUp className="h-4 w-4" />ترقية</>
+                              ) : (
+                                <><ArrowDown className="h-4 w-4" />تغيير</>
+                              )}
                             </Button>
                           )}
                         </div>
@@ -433,38 +443,14 @@ export default function Subscription() {
                     </Card>
                   );
                 })}
-
-                {/* Custom Plan Card */}
-                <Card className="border border-dashed hover:border-primary/40 transition-all">
-                  <CardContent className="pt-8 pb-5 space-y-4 flex flex-col items-center justify-center text-center min-h-[300px]">
-                    <div className="h-12 w-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
-                      <Star className="h-6 w-6" />
-                    </div>
-                    <h4 className="text-lg font-bold">خطة مخصصة</h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      تحتاج ميزات محددة أو أسعار خاصة؟<br />تواصل معنا لإنشاء خطة تناسب احتياجاتك.
-                    </p>
-                    <a
-                      href={`https://wa.me/972525143581?text=${encodeURIComponent(`مرحباً، أريد طلب خطة اشتراك مخصصة.\nمعرف الوكيل: ${agentId}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full"
-                    >
-                      <Button variant="outline" className="w-full gap-2 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300">
-                        <MessageCircle className="h-4 w-4" />
-                        طلب خطة مخصصة
-                      </Button>
-                    </a>
-                  </CardContent>
-                </Card>
               </div>
 
-              {/* Proration note */}
               <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
-                  <strong>ملاحظة حول تغيير الخطة:</strong> عند الترقية، ستحصل على الميزات الجديدة فوراً ويتم احتساب الفرق في الفاتورة القادمة.
-                  عند التخفيض، يتم التحويل فوراً بدون استرجاع لأيام الخطة السابقة.
+                  {sub?.isTrial
+                    ? "خلال الفترة التجريبية، جميع ميزات Pro متاحة لك. بعد انتهائها ستعمل الخطة التي اخترتها. يمكنك تغيير اختيارك في أي وقت قبل انتهاء التجربة."
+                    : "عند الترقية ستحصل على الميزات فوراً ويُحسب الفرق في الفاتورة القادمة. عند التخفيض يتم التحويل فوراً بدون استرجاع."}
                 </div>
               </div>
             </>
@@ -481,14 +467,14 @@ export default function Subscription() {
           {loadingPayments ? (
             <Skeleton className="h-40 w-full rounded-xl" />
           ) : payments.length === 0 ? (
-            <Card className="border-0 shadow-sm">
+            <Card className="shadow-sm">
               <CardContent className="py-12 text-center text-muted-foreground">
                 <CreditCard className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p>لا توجد مدفوعات مسجلة</p>
               </CardContent>
             </Card>
           ) : (
-            <Card className="border-0 shadow-sm overflow-hidden">
+            <Card className="shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -504,7 +490,7 @@ export default function Subscription() {
                       <tr key={p.id} className="border-b last:border-0 hover:bg-muted/20">
                         <td className="p-3">{format(new Date(p.payment_date), "dd/MM/yyyy")}</td>
                         <td className="p-3 font-semibold">₪{p.amount?.toLocaleString()}</td>
-                        <td className="p-3"><Badge variant={p.plan === "pro" ? "default" : "secondary"} className="text-xs">{p.plan}</Badge></td>
+                        <td className="p-3"><Badge variant="secondary" className="text-xs">{p.plan}</Badge></td>
                         <td className="p-3 text-muted-foreground text-xs truncate max-w-[200px]">{p.notes || "—"}</td>
                       </tr>
                     ))}
@@ -521,69 +507,117 @@ export default function Subscription() {
             <CardContent className="py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="font-bold text-destructive flex items-center gap-2"><XCircle className="h-4 w-4" />منطقة الخطر</h3>
-                <p className="text-xs text-muted-foreground mt-1">إلغاء الاشتراك أو حذف الحساب بالكامل مع جميع البيانات</p>
+                <p className="text-xs text-muted-foreground mt-1">إلغاء الاشتراك أو حذف الحساب بالكامل</p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                {sub?.isActive && !sub.isCancelled && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
-                    onClick={() => setConfirmDialog({ type: "cancel" })}
-                  >
-                    <Pause className="h-3.5 w-3.5 ml-1" />
-                    إلغاء الاشتراك
+                {sub?.isActive && !sub.isCancelled && !sub.isTrial && (
+                  <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                    onClick={() => setConfirmDialog({ type: "cancel" })}>
+                    <Pause className="h-3.5 w-3.5 ml-1" />إلغاء الاشتراك
                   </Button>
                 )}
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteDialog(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 ml-1" />
-                  حذف الحساب
+                <Button variant="destructive" size="sm" onClick={() => setDeleteDialog(true)}>
+                  <Trash2 className="h-3.5 w-3.5 ml-1" />حذف الحساب
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* ═══ Confirm Plan Change Dialog ═══ */}
+        {/* ═══ Confirm Dialog ═══ */}
         <Dialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
-          <DialogContent dir="rtl" className="max-w-md">
+          <DialogContent dir="rtl" className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
-                {confirmDialog?.type === "upgrade" && "تأكيد الترقية"}
+                {confirmDialog?.type === "upgrade" && "تأكيد اختيار الخطة"}
                 {confirmDialog?.type === "downgrade" && "تأكيد تغيير الخطة"}
                 {confirmDialog?.type === "cancel" && "تأكيد إلغاء الاشتراك"}
               </DialogTitle>
-              <DialogDescription className="text-right">
-                {confirmDialog?.type === "upgrade" && confirmDialog.plan && (
-                  <>
-                    سيتم ترقيتك إلى خطة <strong>{confirmDialog.plan.name}</strong> بسعر <strong>₪{confirmDialog.plan.monthly_price}/شهر</strong>.
-                    {sub?.isTrial
-                      ? " ستبدأ الخطة بعد انتهاء الفترة التجريبية."
-                      : " ستحصل على الميزات الجديدة فوراً. الفرق يُحسب في الفاتورة القادمة."}
-                  </>
-                )}
-                {confirmDialog?.type === "downgrade" && confirmDialog.plan && (
-                  <>
-                    سيتم تحويلك إلى خطة <strong>{confirmDialog.plan.name}</strong> بسعر <strong>₪{confirmDialog.plan.monthly_price}/شهر</strong>.
-                    التحويل فوري ولا يتم استرجاع أيام الخطة السابقة.
-                  </>
-                )}
-                {confirmDialog?.type === "cancel" && (
-                  <>
-                    هل أنت متأكد من إلغاء اشتراكك؟ ستفقد الوصول للنظام.
-                    يمكنك إعادة الاشتراك لاحقاً عبر التواصل مع إدارة ثقة.
-                  </>
-                )}
-              </DialogDescription>
             </DialogHeader>
+
+            <div className="space-y-4">
+              {confirmDialog?.type === "cancel" && (
+                <p className="text-sm text-muted-foreground">
+                  هل أنت متأكد من إلغاء اشتراكك؟ ستفقد الوصول للنظام. يمكنك إعادة الاشتراك لاحقاً.
+                </p>
+              )}
+
+              {confirmDialog?.plan && sub?.isTrial && (
+                <p className="text-sm text-muted-foreground">
+                  سيتم تفعيل خطة <strong>{confirmDialog.plan.name}</strong> (₪{confirmDialog.plan.monthly_price}/شهر) بعد انتهاء الفترة التجريبية.
+                </p>
+              )}
+
+              {confirmDialog?.plan && !sub?.isTrial && (
+                <p className="text-sm text-muted-foreground">
+                  {confirmDialog.type === "upgrade"
+                    ? <>سيتم ترقيتك إلى <strong>{confirmDialog.plan.name}</strong> (₪{confirmDialog.plan.monthly_price}/شهر) فوراً. الفرق يُحسب في الفاتورة القادمة.</>
+                    : <>سيتم تحويلك إلى <strong>{confirmDialog.plan.name}</strong> (₪{confirmDialog.plan.monthly_price}/شهر) فوراً. لا يتم استرجاع أيام الخطة السابقة.</>}
+                </p>
+              )}
+
+              {/* Comparison table when trial user picks a non-Pro plan */}
+              {isDowngradeFromTrial && proPlan && confirmPlan && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-muted px-4 py-2 text-sm font-bold text-center">
+                    مقارنة الميزات
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-right p-2.5 font-medium text-muted-foreground">الميزة</th>
+                        <th className="text-center p-2.5 font-medium w-24">
+                          <span className="text-primary">{confirmPlan.name}</span>
+                        </th>
+                        <th className="text-center p-2.5 font-medium w-24">
+                          <span className="text-muted-foreground">Pro</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Merge features from both plans */}
+                      {(() => {
+                        const allFeatures = new Set<string>();
+                        confirmPlan.features.forEach(f => allFeatures.add(f.text));
+                        proPlan.features.forEach(f => allFeatures.add(f.text));
+                        const basicFeatureTexts = new Set(confirmPlan.features.map(f => f.text));
+                        const proFeatureTexts = new Set(proPlan.features.map(f => f.text));
+
+                        return Array.from(allFeatures).map((text, i) => {
+                          const inBasic = basicFeatureTexts.has(text);
+                          const inPro = proFeatureTexts.has(text);
+                          return (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="p-2.5 text-sm">{text}</td>
+                              <td className="p-2.5 text-center">
+                                {inBasic
+                                  ? <Check className="h-4 w-4 text-primary mx-auto" />
+                                  : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                {inPro
+                                  ? <Check className="h-4 w-4 text-primary mx-auto" />
+                                  : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                      <tr className="border-t bg-muted/20">
+                        <td className="p-2.5 font-medium">السعر</td>
+                        <td className="p-2.5 text-center font-bold">₪{confirmPlan.monthly_price}</td>
+                        <td className="p-2.5 text-center font-bold">₪{proPlan.monthly_price}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             <DialogFooter className="flex gap-2 sm:flex-row-reverse">
               <Button variant="outline" onClick={() => setConfirmDialog(null)} disabled={changingPlan}>إلغاء</Button>
               <Button
-                className={confirmDialog?.type === "cancel" ? "bg-yellow-600 hover:bg-yellow-700" : ""}
+                variant={confirmDialog?.type === "cancel" ? "destructive" : "default"}
                 onClick={() => {
                   if (confirmDialog?.type === "cancel") handleCancelSubscription();
                   else if (confirmDialog?.plan) handlePlanChange(confirmDialog.plan);
@@ -591,15 +625,14 @@ export default function Subscription() {
                 disabled={changingPlan}
               >
                 {changingPlan && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
-                {confirmDialog?.type === "upgrade" && "تأكيد الترقية"}
-                {confirmDialog?.type === "downgrade" && "تأكيد التحويل"}
+                {confirmDialog?.type === "upgrade" && "تأكيد"}
+                {confirmDialog?.type === "downgrade" && "تأكيد الاختيار"}
                 {confirmDialog?.type === "cancel" && "تأكيد الإلغاء"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* ═══ Delete Account Dialog ═══ */}
         <DeleteConfirmDialog
           open={deleteDialog}
           onOpenChange={setDeleteDialog}

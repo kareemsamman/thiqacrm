@@ -117,8 +117,12 @@ async function fetchContextData(
           .limit(limit);
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
-        if (searchText.length > 1) {
+        // Only apply text search if we have a meaningful search term (e.g. a name, not generic words)
+        if (searchText.length > 2 && !intent.isAggregate && intent.searchTerms.length === 0) {
           query = query.or(`full_name.ilike.%${searchText}%,id_number.ilike.%${searchText}%,phone_number.ilike.%${searchText}%,file_number.ilike.%${searchText}%`);
+        } else if (intent.searchTerms.length > 0) {
+          const term = intent.searchTerms[0];
+          query = query.or(`full_name.ilike.%${term}%,id_number.ilike.%${term}%,phone_number.ilike.%${term}%,file_number.ilike.%${term}%`);
         }
 
         const { data, error } = await query;

@@ -24,13 +24,14 @@ export function useThaqib() {
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("ai_chat_sessions" as any)
         .select("id, title, updated_at")
         .order("updated_at", { ascending: false })
         .limit(20);
+      if (error) console.error("[useThaqib] fetchSessions error:", error);
       setSessions((data as unknown as ChatSession[]) || []);
-    } catch { /* silent */ }
+    } catch (e) { console.error("[useThaqib] fetchSessions:", e); }
     finally { setLoadingSessions(false); }
   }, []);
 

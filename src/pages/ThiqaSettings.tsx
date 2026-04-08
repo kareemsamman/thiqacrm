@@ -545,9 +545,27 @@ interface SubscriptionPlan {
   yearly_price: number;
   badge: string | null;
   features: PlanFeature[];
+  default_features: Record<string, boolean>;
   sort_order: number;
   is_active: boolean;
 }
+
+const SYSTEM_FEATURES = [
+  { key: 'sms', label: 'إرسال SMS' },
+  { key: 'financial_reports', label: 'التقارير المالية' },
+  { key: 'broker_wallet', label: 'محفظة الوسطاء' },
+  { key: 'company_settlement', label: 'تسويات الشركات' },
+  { key: 'expenses', label: 'السندات والمصروفات' },
+  { key: 'cheques', label: 'الشيكات' },
+  { key: 'leads', label: 'Whatsapp Leads' },
+  { key: 'accident_reports', label: 'بلاغات الحوادث' },
+  { key: 'repair_claims', label: 'المطالبات' },
+  { key: 'marketing_sms', label: 'SMS تسويقية' },
+  { key: 'road_services', label: 'خدمات الطريق' },
+  { key: 'accident_fees', label: 'رسوم الحوادث' },
+  { key: 'correspondence', label: 'الترويسات' },
+  { key: 'ippbx', label: 'Click2Call / PBX' },
+];
 
 function PlansSettingsTab() {
   const { toast } = useToast();
@@ -566,6 +584,7 @@ function PlansSettingsTab() {
       if (error) throw error;
       return (data || []).map((p: any) => ({
         ...p,
+        default_features: (typeof p.default_features === 'string' ? JSON.parse(p.default_features) : p.default_features) || {},
         features: (typeof p.features === 'string' ? JSON.parse(p.features) : p.features) || [],
       })) as SubscriptionPlan[];
     },
@@ -587,6 +606,7 @@ function PlansSettingsTab() {
       yearly_price: 0,
       badge: null,
       features: [],
+      default_features: {},
       sort_order: (plans?.length || 0) + 1,
       is_active: true,
     });
@@ -609,6 +629,7 @@ function PlansSettingsTab() {
         yearly_price: editPlan.yearly_price,
         badge: editPlan.badge || null,
         features: editPlan.features as unknown as Json,
+        default_features: editPlan.default_features as unknown as Json,
         sort_order: editPlan.sort_order,
         is_active: editPlan.is_active,
       };
@@ -836,6 +857,27 @@ function PlansSettingsTab() {
                     </Button>
                   </div>
                 ))}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">الميزات المفعّلة تلقائياً لهذه الخطة</Label>
+                <p className="text-xs text-muted-foreground">عند اشتراك وكيل في هذه الخطة، سيتم تفعيل الميزات المحددة تلقائياً</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SYSTEM_FEATURES.map(feat => (
+                    <div key={feat.key} className="flex items-center justify-between p-2 border rounded-lg">
+                      <span className="text-sm">{feat.label}</span>
+                      <Switch
+                        checked={editPlan.default_features[feat.key] ?? false}
+                        onCheckedChange={(v) => setEditPlan({
+                          ...editPlan,
+                          default_features: { ...editPlan.default_features, [feat.key]: v }
+                        })}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

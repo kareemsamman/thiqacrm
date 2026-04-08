@@ -56,6 +56,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agent, setAgent] = useState<AgentInfo | null>(null);
   const [agentFeatures, setAgentFeatures] = useState<Record<string, boolean>>({});
+  const [planDefaults, setPlanDefaults] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [impersonatedAgentId, setImpersonatedAgentId] = useState<string | null>(
     () => sessionStorage.getItem(IMPERSONATION_KEY)
@@ -158,6 +159,21 @@ export function AgentProvider({ children }: { children: ReactNode }) {
 
         if (agentData) {
           setAgent(agentData as AgentInfo);
+
+          // Fetch plan default features
+          const { data: planData } = await supabase
+            .from('subscription_plans')
+            .select('default_features')
+            .eq('plan_key', agentData.plan)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (planData?.default_features) {
+            const df = typeof planData.default_features === 'string'
+              ? JSON.parse(planData.default_features)
+              : planData.default_features;
+            setPlanDefaults(df || {});
+          }
         }
 
         const { data: flags } = await supabase
@@ -196,9 +212,20 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const hasFeature = (featureKey: string): boolean => {
     if (isThiqaSuperAdmin || isImpersonating) return true;
     if (!agent) return true;
+
+    // Trial: all features enabled
+    if (isTrial) return true;
+
+    // Explicit agent-level override from Thiqa admin takes priority
     if (featureKey in agentFeatures) return agentFeatures[featureKey];
+
     // Features that must be explicitly enabled by Thiqa admin
     if (ADMIN_ONLY_FEATURES.includes(featureKey)) return false;
+
+    // Use plan default features if available
+    if (featureKey in planDefaults) return planDefaults[featureKey];
+
+    // Legacy fallback
     if (agent.plan === 'pro') return true;
     if (BASIC_BLOCKED_FEATURES.includes(featureKey)) return false;
     return true;

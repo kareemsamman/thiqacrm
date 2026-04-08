@@ -914,7 +914,18 @@ export default function ThiqaAgentDetail() {
                               {p?.email_confirmed ? (
                                 <Badge variant="default" className="text-[10px] md:text-xs bg-green-600">مفعّل</Badge>
                               ) : (
-                                <Badge variant="destructive" className="text-[10px] md:text-xs">غير مفعّل</Badge>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="destructive" className="text-[10px] md:text-xs">غير مفعّل</Badge>
+                                  <Button variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                    onClick={async () => {
+                                      const { error } = await supabase.from('profiles').update({ email_confirmed: true }).eq('id', au.user_id);
+                                      if (error) { toast.error('فشل في التفعيل'); return; }
+                                      // Also confirm in auth
+                                      await supabase.functions.invoke('update-user-password', { body: { user_id: au.user_id, confirm_email: true } });
+                                      toast.success('تم تفعيل البريد');
+                                      fetchAll();
+                                    }}>تفعيل</Button>
+                                </div>
                               )}
                             </td>
                             <td className="p-2 md:p-3">
@@ -1004,30 +1015,6 @@ export default function ThiqaAgentDetail() {
           {/* ═══════════ AUTH TAB ═══════════ */}
           <TabsContent value="auth">
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Phone className="h-5 w-5" />SMS OTP (019)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Switch checked={initAuth().sms_otp_enabled} onCheckedChange={v => setAuthSettings({...initAuth(), ...authSettings, sms_otp_enabled: v})} />
-                    <Label>تفعيل تسجيل الدخول بـ SMS</Label>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><Label>مستخدم 019</Label><Input value={initAuth().sms_019_user || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_user: e.target.value})} dir="ltr" /></div>
-                    <div>
-                      <Label>Token 019</Label>
-                      <div className="relative">
-                        <Input type={showTokens.authSms ? 'text' : 'password'} value={initAuth().sms_019_token || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_token: e.target.value})} dir="ltr" />
-                        <Button variant="ghost" size="icon" className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => toggleToken('authSms')}>
-                          {showTokens.authSms ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                    <div><Label>رقم المصدر</Label><Input value={initAuth().sms_019_source || ''} onChange={e => setAuthSettings({...initAuth(), ...authSettings, sms_019_source: e.target.value})} dir="ltr" /></div>
-                  </div>
-                </CardContent>
-              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Email OTP (SMTP)</CardTitle>

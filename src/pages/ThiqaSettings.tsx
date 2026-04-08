@@ -927,6 +927,10 @@ export default function ThiqaSettings() {
               <CreditCard className="h-4 w-4" />
               الخطط والأسعار
             </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Bot className="h-4 w-4" />
+              المساعد الذكي
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -943,6 +947,10 @@ export default function ThiqaSettings() {
 
           <TabsContent value="plans">
             <PlansSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <AiAssistantSettingsTab />
           </TabsContent>
         </Tabs>
       </div>

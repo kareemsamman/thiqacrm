@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     // ═══ SAVE SETTINGS ═══
+    // ═══ SAVE ALL SETTINGS (Thiqa admin) ═══
     if (action === "save_settings") {
       const { sms_user, sms_token, sms_source } = body;
 
-      // Upsert SMS settings
       const { data: existing } = await adminClient
         .from("sms_settings")
         .select("id")
@@ -79,6 +79,39 @@ Deno.serve(async (req) => {
       }
 
       return jsonResponse({ success: true, message: "تم حفظ الإعدادات" });
+    }
+
+    // ═══ SAVE SOURCE ONLY (Agent self-service) ═══
+    if (action === "save_source") {
+      const { sms_source } = body;
+      if (!sms_source) throw new Error("يرجى إدخال رقم المصدر");
+
+      const { data: existing } = await adminClient
+        .from("sms_settings")
+        .select("id")
+        .eq("agent_id", agentId)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await adminClient.from("sms_settings").update({
+          sms_source,
+          sms_verification_status: "not_verified",
+          sms_verification_message: null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await adminClient.from("sms_settings").insert({
+          agent_id: agentId,
+          provider: "019sms",
+          sms_source,
+          is_enabled: false,
+          sms_verification_status: "not_verified",
+        });
+        if (error) throw error;
+      }
+
+      return jsonResponse({ success: true, message: "تم حفظ رقم المصدر" });
     }
 
     // ═══ START VERIFICATION ═══

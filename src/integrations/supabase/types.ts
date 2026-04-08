@@ -5312,6 +5312,54 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          badge: string | null
+          created_at: string | null
+          description: string | null
+          features: Json
+          id: string
+          is_active: boolean
+          monthly_price: number
+          name: string
+          name_ar: string | null
+          plan_key: string
+          sort_order: number
+          updated_at: string | null
+          yearly_price: number
+        }
+        Insert: {
+          badge?: string | null
+          created_at?: string | null
+          description?: string | null
+          features?: Json
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          name: string
+          name_ar?: string | null
+          plan_key: string
+          sort_order?: number
+          updated_at?: string | null
+          yearly_price?: number
+        }
+        Update: {
+          badge?: string | null
+          created_at?: string | null
+          description?: string | null
+          features?: Json
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          name?: string
+          name_ar?: string | null
+          plan_key?: string
+          sort_order?: number
+          updated_at?: string | null
+          yearly_price?: number
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           agent_id: string | null

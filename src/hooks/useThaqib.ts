@@ -38,11 +38,11 @@ export function useThaqib() {
     setSessionId(id);
     try {
       const { data } = await supabase
-        .from("ai_chat_messages")
+        .from("ai_chat_messages" as any)
         .select("id, role, content, created_at")
         .eq("session_id", id)
         .order("created_at", { ascending: true });
-      setMessages((data || []) as ChatMessage[]);
+      setMessages((data as ChatMessage[]) || []);
     } catch { /* silent */ }
   }, []);
 

@@ -163,15 +163,15 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           // Fetch plan default features
           const { data: planData } = await supabase
             .from('subscription_plans')
-            .select('default_features')
+            .select('features')
             .eq('plan_key', agentData.plan)
             .eq('is_active', true)
             .maybeSingle();
 
-          if (planData?.default_features) {
-            const df = typeof planData.default_features === 'string'
-              ? JSON.parse(planData.default_features)
-              : planData.default_features;
+          if (planData?.features) {
+            const df = typeof planData.features === 'string'
+              ? JSON.parse(planData.features)
+              : planData.features;
             setPlanDefaults(df || {});
           }
         }

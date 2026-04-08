@@ -693,7 +693,7 @@ export default function ThiqaAgentDetail() {
               <div className="flex flex-wrap items-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
                 <span className="truncate max-w-[150px] md:max-w-none">{agent.email}</span>
                 <Badge className={cn("text-[10px] md:text-xs", agent.subscription_status === 'active' ? 'bg-green-600' : agent.subscription_status === 'paused' ? 'bg-yellow-500' : 'bg-destructive')}>
-                  {agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'paused' ? 'متوقف مؤقتاً' : agent.subscription_status === 'suspended' ? 'معلّق' : 'منتهي'}
+                  {agent.subscription_status === 'trial' ? 'تجربة مجانية' : agent.subscription_status === 'active' ? (agent.monthly_price === 0 ? 'تجربة مجانية' : 'فعال') : agent.subscription_status === 'paused' ? 'متوقف مؤقتاً' : agent.subscription_status === 'suspended' ? 'معلّق' : agent.subscription_status === 'cancelled' ? 'ملغي' : 'منتهي'}
                 </Badge>
                 <Badge variant="outline" className="text-[10px] md:text-xs">{agent.plan === 'pro' ? 'Pro' : 'Basic'}</Badge>
               </div>
@@ -768,10 +768,12 @@ export default function ThiqaAgentDetail() {
                     <Select value={agent.subscription_status} onValueChange={v => setAgent({...agent, subscription_status: v})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="trial">تجربة مجانية</SelectItem>
                         <SelectItem value="active">فعال</SelectItem>
                         <SelectItem value="paused">متوقف مؤقتاً</SelectItem>
                         <SelectItem value="suspended">معلّق</SelectItem>
                         <SelectItem value="expired">منتهي</SelectItem>
+                        <SelectItem value="cancelled">ملغي</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -1102,28 +1102,70 @@ export default function ThiqaAgentDetail() {
 
           {/* ═══════════ FEATURES TAB ═══════════ */}
           <TabsContent value="features">
-            <Card>
-              <CardHeader>
-                <CardTitle>ميزات الوكيل</CardTitle>
-                <CardDescription>تحكم بالميزات المتاحة لهذا الوكيل</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {ALL_FEATURES.map(feature => {
-                    const isEnabled = features[feature.key] ?? (agent.plan === 'pro');
-                    return (
-                      <div key={feature.key} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <div className="font-medium text-sm">{feature.label}</div>
-                          <div className="text-xs text-muted-foreground">{feature.description}</div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>ميزات الوكيل</CardTitle>
+                  <CardDescription>تحكم بالميزات المتاحة لهذا الوكيل</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {ALL_FEATURES.map(feature => {
+                      const isEnabled = features[feature.key] ?? (agent.plan === 'pro');
+                      return (
+                        <div key={feature.key} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <div className="font-medium text-sm">{feature.label}</div>
+                            <div className="text-xs text-muted-foreground">{feature.description}</div>
+                          </div>
+                          <Switch checked={isEnabled} onCheckedChange={v => toggleFeature(feature.key, v)} />
                         </div>
-                        <Switch checked={isEnabled} onCheckedChange={v => toggleFeature(feature.key, v)} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Assistant Rules */}
+              {(features['ai_assistant'] ?? (agent.plan === 'pro')) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      تعليمات المساعد الذكي (ثاقب)
+                    </CardTitle>
+                    <CardDescription>أضف تعليمات وقواعد مخصصة للمساعد الذكي لهذا الوكيل. هذه التعليمات تُضاف إلى التعليمات الافتراضية.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Textarea
+                      value={(agent as any).ai_assistant_prompt || ''}
+                      onChange={e => setAgent({...agent, ai_assistant_prompt: e.target.value} as any)}
+                      placeholder="مثال: لا تعرض معلومات الأرباح لأي مستخدم. عند سؤال العميل عن وثيقة، اعرض تاريخ الانتهاء دائمًا..."
+                      className="min-h-[150px] text-right"
+                      dir="rtl"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from('agents' as any)
+                            .update({ ai_assistant_prompt: (agent as any).ai_assistant_prompt || null } as any)
+                            .eq('id', agent.id);
+                          if (error) throw error;
+                          toast.success('تم حفظ تعليمات المساعد الذكي');
+                        } catch (err: any) {
+                          toast.error(err.message || 'فشل في الحفظ');
+                        }
+                      }}
+                    >
+                      <Save className="h-4 w-4 ml-1" />
+                      حفظ التعليمات
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
 
            {/* ═══════════ PAYMENTS TAB ═══════════ */}

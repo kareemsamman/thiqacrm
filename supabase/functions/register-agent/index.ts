@@ -161,8 +161,9 @@ Deno.serve(async (req) => {
         {
           user_id: userId,
           role: "admin",
+          agent_id: agentData.id,
         },
-        { onConflict: "user_id,role" },
+        { onConflict: "user_id,agent_id" },
       );
 
     if (roleError) {

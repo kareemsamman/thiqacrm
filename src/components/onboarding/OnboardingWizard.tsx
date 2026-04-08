@@ -142,7 +142,7 @@ export function OnboardingWizard() {
     };
   }, [refreshCompletedSteps]);
 
-  // On mount, load onboarding_completed flag and auto-show for new users
+  // On mount, load onboarding_completed flag and auto-show ONCE for new users
   useEffect(() => {
     if (!user || !isAdmin || !agentId) return;
 
@@ -157,12 +157,19 @@ export function OnboardingWizard() {
         const isCompleted = Boolean((profile as any)?.onboarding_completed);
         setOnboardingCompleted(isCompleted);
 
-        // Auto-show for new users who haven't completed onboarding
-        if (!isCompleted) {
+        // Auto-show once for new users, then mark as shown so it doesn't pop up again
+        const sessionKey = `onboarding_shown_${user.id}`;
+        const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
+
+        if (!isCompleted && !alreadyShownThisSession) {
+          sessionStorage.setItem(sessionKey, "1");
           const done = await detectCompletedSteps(agentId);
           setCompletedSteps(done);
           setReady(true);
           setVisible(true);
+          // Mark as completed in DB so it won't auto-show in future sessions
+          await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
+          setOnboardingCompleted(true);
         }
       } catch (e) {
         console.error("Onboarding check error:", e);
@@ -173,11 +180,6 @@ export function OnboardingWizard() {
   const handleSkip = async () => {
     setVisible(false);
     setManualOpen(false);
-    // Mark completed in DB
-    if (user && !manualOpen) {
-      await supabase.from("profiles").update({ onboarding_completed: true } as any).eq("id", user.id);
-      setOnboardingCompleted(true);
-    }
   };
 
   const handleClose = () => {

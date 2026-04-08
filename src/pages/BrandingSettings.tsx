@@ -208,39 +208,12 @@ export default function BrandingSettings() {
                   <p className="text-xs text-muted-foreground">يظهر في الفواتير، الفوتر، رسائل SMS، وعنوان المتصفح</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="site-desc">وصف الموقع</Label>
-                  <Textarea
-                    id="site-desc"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="نظام إدارة وكيل التأمين"
-                    rows={3}
-                  />
-                </div>
-
                 <ImageUploadField
                   label="شعار الموقع"
                   description="يظهر في الشريط الجانبي، صفحة تسجيل الدخول، والفواتير"
                   currentUrl={logoUrl}
                   onUpload={setLogoUrl}
                   onRemove={() => setLogoUrl(null)}
-                />
-
-                <ImageUploadField
-                  label="أيقونة المتصفح (Favicon)"
-                  description="الأيقونة الصغيرة التي تظهر في تبويب المتصفح"
-                  currentUrl={faviconUrl}
-                  onUpload={setFaviconUrl}
-                  onRemove={() => setFaviconUrl(null)}
-                />
-
-                <ImageUploadField
-                  label="صورة المشاركة (OG Image)"
-                  description="تظهر عند مشاركة رابط الموقع على وسائل التواصل"
-                  currentUrl={ogImageUrl}
-                  onUpload={setOgImageUrl}
-                  onRemove={() => setOgImageUrl(null)}
                 />
               </CardContent>
             </Card>

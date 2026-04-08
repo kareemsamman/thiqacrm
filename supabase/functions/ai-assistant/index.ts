@@ -177,6 +177,11 @@ async function fetchContextData(
       }
 
       if (table === "cars") {
+        const { count: totalCars } = await supabase.from("cars")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+
         let query = supabase.from("cars")
           .select("car_number, manufacturer_name, model, year, car_type, clients(full_name)")
           .eq("agent_id", agentId)
@@ -192,12 +197,20 @@ async function fetchContextData(
 
         const { data } = await query;
         if (data && data.length > 0) {
-          parts.push(`[سيارات - ${data.length} نتيجة]\n` +
+          const header = (totalCars || 0) > limit
+            ? `[سيارات - عرض ${data.length} من أصل ${totalCars} | لرؤية الجميع → صفحة السيارات]`
+            : `[سيارات - ${data.length} نتيجة]`;
+          parts.push(header + '\n' +
             data.map((c: any, i: number) => `${i + 1}. ${c.car_number} | ${c.manufacturer_name || ''} ${c.model || ''} ${c.year || ''} | مالك: ${(c.clients as any)?.full_name || '-'}`).join('\n'));
         }
       }
 
       if (table === "policies") {
+        const { count: totalPolicies } = await supabase.from("policies")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+
         const selectFields = isAdmin
           ? "policy_number, policy_type_parent, insurance_price, profit, payed_for_company, office_commission, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)"
           : "policy_number, policy_type_parent, insurance_price, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)";
@@ -211,15 +224,10 @@ async function fetchContextData(
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
 
-        // Check for expiring policies query
         if (/تنتهي|انتهاء|منتهية/.test(userMessage)) {
           const now = new Date();
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
           query = query.lte("end_date", monthEnd.toISOString()).gte("end_date", now.toISOString()).eq("cancelled", false);
-        }
-
-        if (searchText.length > 1 && !/تنتهي|انتهاء|منتهية|كم|عدد|إجمالي/.test(userMessage)) {
-          // Don't search filter on aggregate queries
         }
 
         const { data } = await query;
@@ -230,17 +238,19 @@ async function fetchContextData(
           };
 
           if (intent.isAggregate) {
-            const total = data.length;
             const totalPrice = data.reduce((s: number, p: any) => s + (p.insurance_price || 0), 0);
-            let summary = `[ملخص الوثائق]\nإجمالي: ${total} وثيقة | مجموع الأسعار: ₪${totalPrice.toLocaleString()}`;
+            let summary = `[ملخص الوثائق]\nإجمالي في النظام: ${totalPolicies} وثيقة | مجموع أسعار العينة (${data.length}): ₪${totalPrice.toLocaleString()}`;
             if (isAdmin) {
               const totalProfit = data.reduce((s: number, p: any) => s + (p.profit || 0), 0);
-              summary += ` | إجمالي الربح: ₪${totalProfit.toLocaleString()}`;
+              summary += ` | ربح العينة: ₪${totalProfit.toLocaleString()}`;
             }
             parts.push(summary);
           } else {
-            parts.push(`[وثائق - ${data.length} نتيجة]\n` +
-              data.slice(0, 15).map((p: any, i: number) => {
+            const header = (totalPolicies || 0) > limit
+              ? `[وثائق - عرض ${data.length} من أصل ${totalPolicies} | لرؤية الجميع → صفحة الوثائق]`
+              : `[وثائق - ${data.length} نتيجة]`;
+            parts.push(header + '\n' +
+              data.map((p: any, i: number) => {
                 let line = `${i + 1}. ${(p.clients as any)?.full_name || '-'} | ${typeLabels[p.policy_type_parent] || p.policy_type_parent} | ${(p.insurance_companies as any)?.name_ar || '-'} | ₪${p.insurance_price || 0} | ${p.start_date} → ${p.end_date}`;
                 if (isAdmin && p.profit !== undefined) line += ` | ربح: ₪${p.profit || 0}`;
                 if (p.cancelled) line += " | ❌ ملغاة";
@@ -251,6 +261,10 @@ async function fetchContextData(
       }
 
       if (table === "payments") {
+        const { count: totalPayments } = await supabase.from("policy_payments")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId);
+
         const { data } = await supabase.from("policy_payments")
           .select("amount, payment_type, payment_date, policies(clients(full_name), policy_number)")
           .eq("agent_id", agentId)
@@ -262,10 +276,13 @@ async function fetchContextData(
 
           if (intent.isAggregate) {
             const total = data.reduce((s: number, p: any) => s + (p.amount || 0), 0);
-            parts.push(`[ملخص المدفوعات]\nإجمالي: ${data.length} دفعة | المجموع: ₪${total.toLocaleString()}`);
+            parts.push(`[ملخص المدفوعات]\nإجمالي في النظام: ${totalPayments} دفعة | مجموع العينة (${data.length}): ₪${total.toLocaleString()}`);
           } else {
-            parts.push(`[مدفوعات - ${data.length} نتيجة]\n` +
-              data.slice(0, 15).map((p: any, i: number) =>
+            const header = (totalPayments || 0) > limit
+              ? `[مدفوعات - عرض ${data.length} من أصل ${totalPayments} | لرؤية الجميع → صفحة المدفوعات]`
+              : `[مدفوعات - ${data.length} نتيجة]`;
+            parts.push(header + '\n' +
+              data.map((p: any, i: number) =>
                 `${i + 1}. ₪${p.amount} | ${typeLabels[p.payment_type] || p.payment_type} | ${p.payment_date} | ${(p.policies as any)?.clients?.full_name || '-'}`
               ).join('\n'));
           }
@@ -276,7 +293,7 @@ async function fetchContextData(
         const { data } = await supabase.from("insurance_companies")
           .select("name, name_ar, active")
           .eq("agent_id", agentId)
-          .limit(50);
+          .limit(20);
 
         if (data && data.length > 0) {
           parts.push(`[شركات التأمين - ${data.length}]\n` +

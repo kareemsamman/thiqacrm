@@ -6,14 +6,44 @@ const corsHeaders = {
 };
 
 const DEFAULT_SYSTEM_PROMPT = `أنت "ثاقب"، المساعد الذكي لنظام ثقة لإدارة التأمين.
-- تجيب باللغة العربية دائمًا بأسلوب مهني وودود
+
+## قواعد أساسية
+- تجيب باللغة العربية دائمًا بأسلوب مهني وودود ومختصر
 - تقدم معلومات دقيقة بناءً على البيانات المتاحة فقط
-- لا تخترع أو تفترض بيانات غير موجودة في السياق
+- لا تخترع أو تفترض بيانات غير موجودة في السياق أبداً
 - إذا لم تجد البيانات المطلوبة، أخبر المستخدم بوضوح
-- كن مختصرًا ومفيدًا
-- عند عرض قوائم، استخدم التنسيق المنظم (أرقام أو نقاط)
-- لا تكشف عن تفاصيل تقنية أو بنية النظام
-- يمكنك مساعدة المستخدم بالاستعلام عن: العملاء، السيارات، الوثائق، المدفوعات، شركات التأمين`;
+- لا تكشف عن تفاصيل تقنية أو بنية النظام (لا تذكر أسماء جداول أو APIs أو قواعد بيانات)
+- تذكّر سياق المحادثة السابقة وابنِ عليه
+
+## قواعد عرض البيانات
+- الحد الأقصى للعرض: 20 نتيجة فقط في أي استعلام
+- إذا كان العدد الإجمالي أكبر من 20، أخبر المستخدم بالعدد الكلي واعرض أول 20 فقط
+- وجّه المستخدم للصفحة المناسبة لرؤية جميع البيانات
+- عند عرض قوائم، استخدم التنسيق المنظم (أرقام أو نقاط) بشكل مختصر وواضح
+
+## توجيه الصفحات
+عندما تكون البيانات كثيرة أو يريد المستخدم رؤية الكل، وجّهه للصفحة المناسبة:
+- العملاء ← "يمكنك زيارة صفحة العملاء لرؤية القائمة الكاملة مع خيارات البحث والفلترة"
+- السيارات ← "يمكنك الذهاب لصفحة السيارات لعرض جميع المركبات"
+- الوثائق/البوالص ← "يمكنك فتح صفحة الوثائق لاستعراض جميع البوالص مع الفلاتر المتقدمة"
+- المدفوعات ← "يمكنك مراجعة صفحة المدفوعات للاطلاع على كل التفاصيل"
+- شركات التأمين ← "يمكنك فتح صفحة الشركات لرؤية جميع شركات التأمين"
+- تقارير الحوادث ← "يمكنك الذهاب لصفحة تقارير الحوادث"
+
+## ما يمكنك مساعدة المستخدم به
+- الاستعلام عن العملاء (بالاسم، الهوية، الهاتف، رقم الملف)
+- الاستعلام عن السيارات (برقم السيارة، الشركة المصنعة، الموديل)
+- الاستعلام عن الوثائق والبوالص (النوع، الحالة، تاريخ الانتهاء)
+- الاستعلام عن المدفوعات (المبلغ، النوع، التاريخ)
+- الاستعلام عن شركات التأمين
+- تقديم ملخصات وإحصائيات عامة
+- الإجابة عن أسئلة متعلقة بنظام إدارة التأمين
+
+## أسلوب الردود
+- كن مختصراً ومباشراً
+- لا تكرر السؤال في الإجابة
+- إذا كانت النتائج فارغة، قل ذلك بوضوح واقترح بدائل للبحث
+- استخدم الرموز التعبيرية باعتدال (✅ ❌ 📋 👤 🚗 📄 💰)`;
 
 const ADMIN_EXTRA = `
 - لديك صلاحية كاملة لعرض جميع البيانات المالية (أرباح، مدفوعات للشركة، عمولات)`;
@@ -99,7 +129,7 @@ async function fetchContextData(
   userMessage: string
 ): Promise<string> {
   const parts: string[] = [];
-  const limit = intent.isAggregate ? 100 : 15;
+  const limit = 20;
 
   // Extract search text from message (remove common Arabic words including definite articles)
   const searchText = userMessage
@@ -109,6 +139,14 @@ async function fetchContextData(
   for (const table of intent.tables) {
     try {
       if (table === "clients") {
+        // Get total count first
+        let countQuery = supabase.from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+        if (branchId && !isAdmin) countQuery = countQuery.eq("branch_id", branchId);
+        const { count: totalClients } = await countQuery;
+
         let query = supabase.from("clients")
           .select("full_name, id_number, phone_number, file_number, date_joined")
           .eq("agent_id", agentId)
@@ -117,7 +155,6 @@ async function fetchContextData(
           .limit(limit);
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
-        // Only apply text search if we have a meaningful search term (e.g. a name, not generic words)
         if (searchText.length > 2 && !intent.isAggregate && intent.searchTerms.length === 0) {
           query = query.or(`full_name.ilike.%${searchText}%,id_number.ilike.%${searchText}%,phone_number.ilike.%${searchText}%,file_number.ilike.%${searchText}%`);
         } else if (intent.searchTerms.length > 0) {
@@ -126,10 +163,13 @@ async function fetchContextData(
         }
 
         const { data, error } = await query;
-        console.log(`[ai-assistant] Clients query: found ${data?.length || 0}, error: ${error?.message || 'none'}`);
+        console.log(`[ai-assistant] Clients query: found ${data?.length || 0}, total: ${totalClients}, error: ${error?.message || 'none'}`);
 
         if (data && data.length > 0) {
-          parts.push(`[عملاء - ${data.length} نتيجة]\n` +
+          const header = (totalClients || 0) > limit
+            ? `[عملاء - عرض ${data.length} من أصل ${totalClients} | لرؤية الجميع → صفحة العملاء]`
+            : `[عملاء - ${data.length} نتيجة]`;
+          parts.push(header + '\n' +
             data.map((c: any, i: number) => `${i + 1}. ${c.full_name} | هوية: ${c.id_number || '-'} | هاتف: ${c.phone_number || '-'} | ملف: ${c.file_number || '-'}`).join('\n'));
         } else if (intent.tables.length === 1) {
           parts.push("[لا يوجد عملاء مسجلين حالياً]");
@@ -137,6 +177,11 @@ async function fetchContextData(
       }
 
       if (table === "cars") {
+        const { count: totalCars } = await supabase.from("cars")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+
         let query = supabase.from("cars")
           .select("car_number, manufacturer_name, model, year, car_type, clients(full_name)")
           .eq("agent_id", agentId)
@@ -152,12 +197,20 @@ async function fetchContextData(
 
         const { data } = await query;
         if (data && data.length > 0) {
-          parts.push(`[سيارات - ${data.length} نتيجة]\n` +
+          const header = (totalCars || 0) > limit
+            ? `[سيارات - عرض ${data.length} من أصل ${totalCars} | لرؤية الجميع → صفحة السيارات]`
+            : `[سيارات - ${data.length} نتيجة]`;
+          parts.push(header + '\n' +
             data.map((c: any, i: number) => `${i + 1}. ${c.car_number} | ${c.manufacturer_name || ''} ${c.model || ''} ${c.year || ''} | مالك: ${(c.clients as any)?.full_name || '-'}`).join('\n'));
         }
       }
 
       if (table === "policies") {
+        const { count: totalPolicies } = await supabase.from("policies")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+
         const selectFields = isAdmin
           ? "policy_number, policy_type_parent, insurance_price, profit, payed_for_company, office_commission, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)"
           : "policy_number, policy_type_parent, insurance_price, start_date, end_date, cancelled, clients(full_name), cars(car_number), insurance_companies(name_ar)";
@@ -171,15 +224,10 @@ async function fetchContextData(
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
 
-        // Check for expiring policies query
         if (/تنتهي|انتهاء|منتهية/.test(userMessage)) {
           const now = new Date();
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
           query = query.lte("end_date", monthEnd.toISOString()).gte("end_date", now.toISOString()).eq("cancelled", false);
-        }
-
-        if (searchText.length > 1 && !/تنتهي|انتهاء|منتهية|كم|عدد|إجمالي/.test(userMessage)) {
-          // Don't search filter on aggregate queries
         }
 
         const { data } = await query;
@@ -190,17 +238,19 @@ async function fetchContextData(
           };
 
           if (intent.isAggregate) {
-            const total = data.length;
             const totalPrice = data.reduce((s: number, p: any) => s + (p.insurance_price || 0), 0);
-            let summary = `[ملخص الوثائق]\nإجمالي: ${total} وثيقة | مجموع الأسعار: ₪${totalPrice.toLocaleString()}`;
+            let summary = `[ملخص الوثائق]\nإجمالي في النظام: ${totalPolicies} وثيقة | مجموع أسعار العينة (${data.length}): ₪${totalPrice.toLocaleString()}`;
             if (isAdmin) {
               const totalProfit = data.reduce((s: number, p: any) => s + (p.profit || 0), 0);
-              summary += ` | إجمالي الربح: ₪${totalProfit.toLocaleString()}`;
+              summary += ` | ربح العينة: ₪${totalProfit.toLocaleString()}`;
             }
             parts.push(summary);
           } else {
-            parts.push(`[وثائق - ${data.length} نتيجة]\n` +
-              data.slice(0, 15).map((p: any, i: number) => {
+            const header = (totalPolicies || 0) > limit
+              ? `[وثائق - عرض ${data.length} من أصل ${totalPolicies} | لرؤية الجميع → صفحة الوثائق]`
+              : `[وثائق - ${data.length} نتيجة]`;
+            parts.push(header + '\n' +
+              data.map((p: any, i: number) => {
                 let line = `${i + 1}. ${(p.clients as any)?.full_name || '-'} | ${typeLabels[p.policy_type_parent] || p.policy_type_parent} | ${(p.insurance_companies as any)?.name_ar || '-'} | ₪${p.insurance_price || 0} | ${p.start_date} → ${p.end_date}`;
                 if (isAdmin && p.profit !== undefined) line += ` | ربح: ₪${p.profit || 0}`;
                 if (p.cancelled) line += " | ❌ ملغاة";
@@ -211,6 +261,10 @@ async function fetchContextData(
       }
 
       if (table === "payments") {
+        const { count: totalPayments } = await supabase.from("policy_payments")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId);
+
         const { data } = await supabase.from("policy_payments")
           .select("amount, payment_type, payment_date, policies(clients(full_name), policy_number)")
           .eq("agent_id", agentId)
@@ -222,10 +276,13 @@ async function fetchContextData(
 
           if (intent.isAggregate) {
             const total = data.reduce((s: number, p: any) => s + (p.amount || 0), 0);
-            parts.push(`[ملخص المدفوعات]\nإجمالي: ${data.length} دفعة | المجموع: ₪${total.toLocaleString()}`);
+            parts.push(`[ملخص المدفوعات]\nإجمالي في النظام: ${totalPayments} دفعة | مجموع العينة (${data.length}): ₪${total.toLocaleString()}`);
           } else {
-            parts.push(`[مدفوعات - ${data.length} نتيجة]\n` +
-              data.slice(0, 15).map((p: any, i: number) =>
+            const header = (totalPayments || 0) > limit
+              ? `[مدفوعات - عرض ${data.length} من أصل ${totalPayments} | لرؤية الجميع → صفحة المدفوعات]`
+              : `[مدفوعات - ${data.length} نتيجة]`;
+            parts.push(header + '\n' +
+              data.map((p: any, i: number) =>
                 `${i + 1}. ₪${p.amount} | ${typeLabels[p.payment_type] || p.payment_type} | ${p.payment_date} | ${(p.policies as any)?.clients?.full_name || '-'}`
               ).join('\n'));
           }
@@ -236,7 +293,7 @@ async function fetchContextData(
         const { data } = await supabase.from("insurance_companies")
           .select("name, name_ar, active")
           .eq("agent_id", agentId)
-          .limit(50);
+          .limit(20);
 
         if (data && data.length > 0) {
           parts.push(`[شركات التأمين - ${data.length}]\n` +

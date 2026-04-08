@@ -689,7 +689,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-w-5xl max-h-[95vh] p-0 overflow-hidden gap-0"
+          className="max-w-6xl max-h-[95vh] p-0 overflow-hidden gap-0"
           dir="rtl"
         >
           {loading ? (
@@ -705,12 +705,10 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
             </div>
           ) : policy ? (
             <div className="flex flex-col h-full max-h-[95vh]">
-              {/* Hero Header with Gradient */}
-              <div className={cn(
-                "relative overflow-hidden",
-                "bg-gradient-to-l",
-                policyConfig.gradient
-              )}>
+              {/* Hero Header */}
+              <div className="relative overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #122143 0%, #1a3260 100%)' }}
+              >
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
@@ -1014,22 +1012,22 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                     {!isElzami && isAdmin && (
                       <div className={cn(
                         "rounded-xl p-4 border-2",
-                        (policy.cancelled || isTransferred) 
-                          ? "bg-slate-50 border-slate-200" 
+                        (policy.cancelled || isTransferred)
+                          ? "bg-slate-50 border-slate-200"
                           : (policy.profit || 0) < 0
-                            ? "bg-gradient-to-l from-red-50 to-red-100 border-red-300"
-                            : "bg-gradient-to-l from-emerald-50 via-teal-50 to-cyan-50 border-teal-300"
-                      )}>
+                            ? "bg-red-50 border-red-300"
+                            : "border-[#122143]/20"
+                      )} style={!(policy.cancelled || isTransferred) && (policy.profit || 0) >= 0 ? { background: 'linear-gradient(135deg, rgba(18,33,67,0.05) 0%, rgba(18,33,67,0.10) 100%)' } : undefined}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               "w-12 h-12 rounded-xl flex items-center justify-center",
-                              (policy.cancelled || isTransferred) 
-                                ? "bg-slate-200" 
+                              (policy.cancelled || isTransferred)
+                                ? "bg-slate-200"
                                 : (policy.profit || 0) < 0
                                   ? "bg-red-200"
-                                  : "bg-gradient-to-br from-teal-400 to-emerald-500"
-                            )}>
+                                  : ""
+                            )} style={!(policy.cancelled || isTransferred) && (policy.profit || 0) >= 0 ? { background: '#122143' } : undefined}>
                               <TrendingUp className={cn(
                                 "h-6 w-6",
                                 (policy.cancelled || isTransferred) ? "text-slate-500" : "text-white"
@@ -1042,7 +1040,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                                   ? "text-slate-500" 
                                   : (packageTotalProfit) < 0
                                     ? "text-red-600"
-                                    : "text-teal-700"
+                                    : "text-[#122143]"
                               )}>
                                 {(packageTotalProfit) < 0 
                                   ? 'عمولة (خسارة)' 
@@ -1061,7 +1059,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                               ? "text-slate-400 line-through" 
                               : (packageTotalProfit) < 0
                                 ? "text-red-600"
-                                : "text-teal-700"
+                                : "text-[#122143]"
                           )}>
                             {(policy.cancelled || isTransferred) ? formatCurrency(0) : formatCurrency(packageTotalProfit)}
                           </p>
@@ -1363,7 +1361,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                               <p className="text-xs text-orange-600 mb-1">مدفوع للشركة</p>
                               <p className="font-bold text-lg text-orange-700 ltr-nums">{formatCurrency(policy.payed_for_company)}</p>
                             </div>
-                            <div className="p-3 rounded-lg bg-emerald-50">
+                            <div className="p-3 rounded-lg bg-[#122143]/5">
                               <p className="text-xs text-primary mb-1">الربح</p>
                               <p className="font-bold text-lg text-primary ltr-nums">{formatCurrency(policy.profit)}</p>
                             </div>

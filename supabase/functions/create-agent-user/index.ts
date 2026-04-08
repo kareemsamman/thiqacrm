@@ -104,14 +104,6 @@ Deno.serve(async (req) => {
       throw new Error("هذا المستخدم مرتبط بوكيل آخر");
     }
 
-    if (!existingAgentUser) {
-      const { error: linkError } = await adminClient.from("agent_users").insert({
-        agent_id,
-        user_id: userId,
-      });
-      if (linkError) throw linkError;
-    }
-
     const { error: profileError } = await adminClient.from("profiles").upsert({
       id: userId,
       email: normalizedEmail,
@@ -122,6 +114,14 @@ Deno.serve(async (req) => {
       status: "active",
     });
     if (profileError) throw profileError;
+
+    if (!existingAgentUser) {
+      const { error: linkError } = await adminClient.from("agent_users").insert({
+        agent_id,
+        user_id: userId,
+      });
+      if (linkError) throw linkError;
+    }
 
     const { error: roleError } = await adminClient.from("user_roles").upsert(
       { user_id: userId, role, agent_id },
@@ -136,8 +136,8 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error: any) {
+    console.error("[create-agent-user]", error);
     return new Response(JSON.stringify({ error: error.message || "Unknown error" }), {
-      status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

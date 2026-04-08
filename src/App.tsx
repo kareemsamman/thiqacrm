@@ -23,6 +23,7 @@ import Cheques from "./pages/Cheques";
 import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
 import BranchManagement from "./pages/BranchManagement";
+import SmsOnboarding from "./pages/SmsOnboarding";
 import CompanySettlement from "./pages/CompanySettlement";
 import CompanySettlementDetail from "./pages/CompanySettlementDetail";
 
@@ -206,6 +207,11 @@ const App = () => (
               <Route path="/admin/branches" element={
                 <AdminRoute>
                   <BranchManagement />
+                </AdminRoute>
+              } />
+              <Route path="/admin/sms-settings" element={
+                <AdminRoute>
+                  <SmsOnboarding />
                 </AdminRoute>
               } />
               <Route path="/reports/company-settlement" element={

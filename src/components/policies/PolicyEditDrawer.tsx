@@ -209,13 +209,14 @@ export function PolicyEditDrawer({ open, onOpenChange, policy, onSaved }: Policy
       .from('insurance_companies')
       .select('id, name, name_ar, category_parent, elzami_commission')
       .eq('active', true)
+      .is('broker_id', null)
       .order('name');
-    
+
     // Filter by category_parent array contains
     if (policyType) {
       query = query.contains('category_parent', [policyType]);
     }
-    
+
     const { data } = await query;
     setLoadingCompanies(false);
     if (data) setCompanies(data as Company[]);

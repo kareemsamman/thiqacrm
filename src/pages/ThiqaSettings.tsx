@@ -978,6 +978,201 @@ function AiAssistantSettingsTab() {
   );
 }
 
+function AgentDefaultsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useThiqaPlatformSettings();
+  const [form, setForm] = useState({
+    default_sms_019_user: "",
+    default_sms_019_token: "",
+    default_sms_019_source: "",
+    default_agent_smtp_host: "",
+    default_agent_smtp_port: "465",
+    default_agent_smtp_user: "",
+    default_agent_smtp_password: "",
+    default_sms_limit_type: "monthly",
+    default_sms_limit_count: "100",
+    default_ai_limit_type: "monthly",
+    default_ai_limit_count: "100",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        default_sms_019_user: settings.default_sms_019_user || "",
+        default_sms_019_token: settings.default_sms_019_token || "",
+        default_sms_019_source: settings.default_sms_019_source || "",
+        default_agent_smtp_host: settings.default_agent_smtp_host || "",
+        default_agent_smtp_port: settings.default_agent_smtp_port || "465",
+        default_agent_smtp_user: settings.default_agent_smtp_user || "",
+        default_agent_smtp_password: settings.default_agent_smtp_password || "",
+        default_sms_limit_type: settings.default_sms_limit_type || "monthly",
+        default_sms_limit_count: settings.default_sms_limit_count || "100",
+        default_ai_limit_type: settings.default_ai_limit_type || "monthly",
+        default_ai_limit_count: settings.default_ai_limit_count || "100",
+      });
+    }
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      for (const [key, value] of Object.entries(form)) {
+        await supabase.from("thiqa_platform_settings").upsert(
+          { setting_key: key, setting_value: value, updated_at: new Date().toISOString() },
+          { onConflict: "setting_key" }
+        );
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات الافتراضية" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في الحفظ", variant: "destructive" });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  return (
+    <div className="space-y-4">
+      {/* Default SMS 019 Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            إعدادات SMS الافتراضية (019)
+          </CardTitle>
+          <CardDescription>ستُطبق تلقائياً على الوكلاء الجدد</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>اسم المستخدم (019)</Label>
+              <Input value={form.default_sms_019_user} onChange={e => setForm(f => ({ ...f, default_sms_019_user: e.target.value }))} dir="ltr" />
+            </div>
+            <div className="space-y-2">
+              <Label>Token (019)</Label>
+              <div className="relative">
+                <Input type={showToken ? "text" : "password"} value={form.default_sms_019_token} onChange={e => setForm(f => ({ ...f, default_sms_019_token: e.target.value }))} dir="ltr" className="pe-10" />
+                <button type="button" onClick={() => setShowToken(!showToken)} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>رقم المصدر الافتراضي</Label>
+              <Input value={form.default_sms_019_source} onChange={e => setForm(f => ({ ...f, default_sms_019_source: e.target.value }))} dir="ltr" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Default Agent SMTP */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            SMTP افتراضي للوكلاء
+          </CardTitle>
+          <CardDescription>إعدادات البريد الإلكتروني الافتراضية للوكلاء الجدد</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>SMTP Host</Label>
+              <Input value={form.default_agent_smtp_host} onChange={e => setForm(f => ({ ...f, default_agent_smtp_host: e.target.value }))} dir="ltr" placeholder="smtp.hostinger.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>SMTP Port</Label>
+              <Input value={form.default_agent_smtp_port} onChange={e => setForm(f => ({ ...f, default_agent_smtp_port: e.target.value }))} dir="ltr" placeholder="465" />
+            </div>
+            <div className="space-y-2">
+              <Label>SMTP User</Label>
+              <Input value={form.default_agent_smtp_user} onChange={e => setForm(f => ({ ...f, default_agent_smtp_user: e.target.value }))} dir="ltr" placeholder="noreply@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>SMTP Password</Label>
+              <div className="relative">
+                <Input type={showPassword ? "text" : "password"} value={form.default_agent_smtp_password} onChange={e => setForm(f => ({ ...f, default_agent_smtp_password: e.target.value }))} dir="ltr" className="pe-10" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Default Usage Limits */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            حدود الاستخدام الافتراضية
+          </CardTitle>
+          <CardDescription>الحدود التي ستُطبق على الوكلاء الجدد تلقائياً</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border rounded-lg p-4 space-y-3">
+              <Label className="font-bold">حدود SMS</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">النوع</Label>
+                  <Select value={form.default_sms_limit_type} onValueChange={v => setForm(f => ({ ...f, default_sms_limit_type: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">شهري</SelectItem>
+                      <SelectItem value="yearly">سنوي</SelectItem>
+                      <SelectItem value="unlimited">غير محدود</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.default_sms_limit_type !== 'unlimited' && (
+                  <div>
+                    <Label className="text-xs">العدد</Label>
+                    <Input type="number" className="h-8 text-xs" value={form.default_sms_limit_count} onChange={e => setForm(f => ({ ...f, default_sms_limit_count: e.target.value }))} />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="border rounded-lg p-4 space-y-3">
+              <Label className="font-bold">حدود المساعد الذكي</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">النوع</Label>
+                  <Select value={form.default_ai_limit_type} onValueChange={v => setForm(f => ({ ...f, default_ai_limit_type: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">شهري</SelectItem>
+                      <SelectItem value="yearly">سنوي</SelectItem>
+                      <SelectItem value="unlimited">غير محدود</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.default_ai_limit_type !== 'unlimited' && (
+                  <div>
+                    <Label className="text-xs">العدد</Label>
+                    <Input type="number" className="h-8 text-xs" value={form.default_ai_limit_count} onChange={e => setForm(f => ({ ...f, default_ai_limit_count: e.target.value }))} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+        {saveMutation.isPending ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
+        حفظ الإعدادات الافتراضية
+      </Button>
+    </div>
+  );
+}
+
 export default function ThiqaSettings() {
   return (
     <MainLayout>
@@ -1014,6 +1209,10 @@ export default function ThiqaSettings() {
               <Bot className="h-4 w-4" />
               المساعد الذكي
             </TabsTrigger>
+            <TabsTrigger value="agent-defaults" className="gap-2">
+              <Settings className="h-4 w-4" />
+              إعدادات الوكلاء
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -1034,6 +1233,10 @@ export default function ThiqaSettings() {
 
           <TabsContent value="ai">
             <AiAssistantSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="agent-defaults">
+            <AgentDefaultsTab />
           </TabsContent>
         </Tabs>
       </div>

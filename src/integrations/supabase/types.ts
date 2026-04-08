@@ -810,6 +810,7 @@ export type Database = {
       }
       agents: {
         Row: {
+          ai_assistant_prompt: string | null
           billing_cycle_day: number | null
           cancelled_at: string | null
           created_at: string | null
@@ -830,6 +831,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_assistant_prompt?: string | null
           billing_cycle_day?: number | null
           cancelled_at?: string | null
           created_at?: string | null
@@ -850,6 +852,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_assistant_prompt?: string | null
           billing_cycle_day?: number | null
           cancelled_at?: string | null
           created_at?: string | null

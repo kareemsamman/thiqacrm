@@ -29,7 +29,7 @@ export function useThaqib() {
         .select("id, title, updated_at")
         .order("updated_at", { ascending: false })
         .limit(20);
-      setSessions((data as ChatSession[]) || []);
+      setSessions((data as unknown as ChatSession[]) || []);
     } catch { /* silent */ }
     finally { setLoadingSessions(false); }
   }, []);

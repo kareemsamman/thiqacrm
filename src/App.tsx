@@ -22,6 +22,7 @@ import BrokerWallet from "./pages/BrokerWallet";
 import Cheques from "./pages/Cheques";
 import Media from "./pages/Media";
 import AdminUsers from "./pages/AdminUsers";
+import BranchManagement from "./pages/BranchManagement";
 import CompanySettlement from "./pages/CompanySettlement";
 import CompanySettlementDetail from "./pages/CompanySettlementDetail";
 
@@ -200,6 +201,11 @@ const App = () => (
               <Route path="/admin/users" element={
                 <AdminRoute>
                   <AdminUsers />
+                </AdminRoute>
+              } />
+              <Route path="/admin/branches" element={
+                <AdminRoute>
+                  <BranchManagement />
                 </AdminRoute>
               } />
               <Route path="/reports/company-settlement" element={

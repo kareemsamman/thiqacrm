@@ -148,6 +148,7 @@ export const navigationGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { name: "المستخدمون", href: "/admin/users", icon: UserCog },
+      { name: "الفروع", href: "/admin/branches", icon: Building2 },
       { name: "الترويسات", href: "/admin/correspondence", icon: Mail, featureKey: 'correspondence' },
       { name: "SMS تسويقية", href: "/admin/marketing-sms", icon: Megaphone, featureKey: 'marketing_sms' },
       { name: "أنواع التأمين", href: "/admin/insurance-categories", icon: FileText },

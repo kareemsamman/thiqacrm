@@ -5222,6 +5222,9 @@ export type Database = {
           sms_source: string | null
           sms_token: string | null
           sms_user: string | null
+          sms_verification_message: string | null
+          sms_verification_status: string
+          sms_verified_at: string | null
           updated_at: string
         }
         Insert: {
@@ -5258,6 +5261,9 @@ export type Database = {
           sms_source?: string | null
           sms_token?: string | null
           sms_user?: string | null
+          sms_verification_message?: string | null
+          sms_verification_status?: string
+          sms_verified_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -5294,6 +5300,9 @@ export type Database = {
           sms_source?: string | null
           sms_token?: string | null
           sms_user?: string | null
+          sms_verification_message?: string | null
+          sms_verification_status?: string
+          sms_verified_at?: string | null
           updated_at?: string
         }
         Relationships: [

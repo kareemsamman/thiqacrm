@@ -154,11 +154,12 @@ serve(async (req) => {
     const hasAnyFiles = insuranceFiles && insuranceFiles.length > 0;
     console.log(`[send-package-invoice-sms] Files found: ${insuranceFiles?.length || 0} for ${policies.length} policies`);
 
-    // Fetch company contact settings for footer
+    // Fetch SMS settings for this agent
+    const packageAgentId = policies?.[0]?.agent_id;
     const { data: smsSettingsData, error: smsSettingsError } = await supabase
       .from("sms_settings")
       .select("*")
-      .limit(1)
+      .eq("agent_id", packageAgentId)
       .maybeSingle();
 
     if (smsSettingsError) {

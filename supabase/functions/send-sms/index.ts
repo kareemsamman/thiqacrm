@@ -50,10 +50,10 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is active
+    // Check if user is active and get agent_id
     const { data: profile } = await supabase
       .from("profiles")
-      .select("status")
+      .select("status, agent_id")
       .eq("id", user.id)
       .single();
 
@@ -63,6 +63,9 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Resolve agent_id
+    const agentId = profile.agent_id || (await supabase.from("agent_users").select("agent_id").eq("user_id", user.id).maybeSingle())?.data?.agent_id;
 
     // Parse request body
     const { phone, message, client_id }: SmsRequest & { client_id?: string } = await req.json();
@@ -74,11 +77,11 @@ serve(async (req) => {
       );
     }
 
-    // Get SMS settings
+    // Get SMS settings for this agent
     const { data: smsSettings, error: settingsError } = await supabase
       .from("sms_settings")
       .select("*")
-      .limit(1)
+      .eq("agent_id", agentId)
       .maybeSingle();
 
     if (settingsError) {

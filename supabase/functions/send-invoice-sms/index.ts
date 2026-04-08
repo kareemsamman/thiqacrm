@@ -170,11 +170,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch company contact settings for footer
+    // Fetch SMS settings for this agent
+    const policyAgentId = policy.agent_id;
     const { data: smsSettingsData, error: smsSettingsError } = await supabase
       .from("sms_settings")
       .select("*")
-      .limit(1)
+      .eq("agent_id", policyAgentId)
       .maybeSingle();
 
     if (smsSettingsError) {

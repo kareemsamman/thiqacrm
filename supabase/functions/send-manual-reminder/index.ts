@@ -106,11 +106,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get SMS settings
+    // Get SMS settings for this agent
+    const tempAgentId = await resolveAgentId(supabase, user.id);
     const { data: smsSettings, error: settingsError } = await supabase
       .from('sms_settings')
       .select('*')
-      .limit(1)
+      .eq('agent_id', tempAgentId)
       .maybeSingle();
 
     if (settingsError || !smsSettings?.is_enabled) {

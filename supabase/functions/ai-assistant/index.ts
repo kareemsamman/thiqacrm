@@ -101,9 +101,9 @@ async function fetchContextData(
   const parts: string[] = [];
   const limit = intent.isAggregate ? 100 : 15;
 
-  // Extract search text from message (remove common Arabic words)
+  // Extract search text from message (remove common Arabic words including definite articles)
   const searchText = userMessage
-    .replace(/أعطني|أريد|ابحث|عن|معلومات|بيانات|تفاصيل|عميل|سيارة|وثيقة|كم|عدد|ما|هو|هي|هل|في|من|إلى|على|لي/g, "")
+    .replace(/أعطني|أريد|ابحث|عن|معلومات|بيانات|تفاصيل|عميل|عملاء|العملاء|العميل|سيارة|سيارات|السيارات|السيارة|وثيقة|وثائق|الوثائق|الوثيقة|بوليصة|بوالص|كم|عدد|ما|هو|هي|هل|في|من|إلى|على|لي|كل|جميع|اليوم|هذا|هذه|الشهر|أخبرني|أظهر|اعرض|قائمة|لائحة|تفصيل|ملخص|إجمالي|إحصائيات|المدفوعات|الدفعات|الأرباح|شركة|شركات|تأمين|التأمين/g, "")
     .trim();
 
   for (const table of intent.tables) {
@@ -117,8 +117,12 @@ async function fetchContextData(
           .limit(limit);
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
-        if (searchText.length > 1) {
+        // Only apply text search if we have a meaningful search term (e.g. a name, not generic words)
+        if (searchText.length > 2 && !intent.isAggregate && intent.searchTerms.length === 0) {
           query = query.or(`full_name.ilike.%${searchText}%,id_number.ilike.%${searchText}%,phone_number.ilike.%${searchText}%,file_number.ilike.%${searchText}%`);
+        } else if (intent.searchTerms.length > 0) {
+          const term = intent.searchTerms[0];
+          query = query.or(`full_name.ilike.%${term}%,id_number.ilike.%${term}%,phone_number.ilike.%${term}%,file_number.ilike.%${term}%`);
         }
 
         const { data, error } = await query;
@@ -139,8 +143,11 @@ async function fetchContextData(
           .is("deleted_at", null)
           .limit(limit);
 
-        if (searchText.length > 1) {
+        if (searchText.length > 2 && !intent.isAggregate) {
           query = query.or(`car_number.ilike.%${searchText}%,manufacturer_name.ilike.%${searchText}%,model.ilike.%${searchText}%`);
+        } else if (intent.searchTerms.length > 0) {
+          const term = intent.searchTerms[0];
+          query = query.or(`car_number.ilike.%${term}%,manufacturer_name.ilike.%${term}%,model.ilike.%${term}%`);
         }
 
         const { data } = await query;

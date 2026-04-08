@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Search, 
-  FileText, 
-  CreditCard, 
-  Users, 
-  Car, 
+  Search,
+  FileText,
+  CreditCard,
+  Users,
+  Car,
   Filter,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +32,7 @@ import {
 
 interface ActivityItem {
   id: string;
-  type: "policy" | "payment" | "client" | "car";
+  type: "policy" | "payment" | "client" | "car" | "delete";
   action: string;
   created_at: string;
   createdBy?: string;
@@ -71,6 +72,7 @@ const TYPE_LABELS: Record<string, string> = {
   payment: "دفعة",
   client: "عميل",
   car: "سيارة",
+  delete: "حذف",
 };
 
 const POLICY_TYPE_LABELS: Record<string, string> = {
@@ -86,18 +88,20 @@ const POLICY_TYPE_LABELS: Record<string, string> = {
   OTHER: "أخرى",
 };
 
-const typeIcons = {
+const typeIcons: Record<string, any> = {
   policy: FileText,
   payment: CreditCard,
   client: Users,
   car: Car,
+  delete: Trash2,
 };
 
-const typeColors = {
+const typeColors: Record<string, string> = {
   policy: "text-primary bg-primary/10",
   payment: "text-success bg-success/10",
   client: "text-accent bg-accent/10",
   car: "text-warning bg-warning/10",
+  delete: "text-destructive bg-destructive/10",
 };
 
 export default function ActivityLog() {
@@ -268,6 +272,33 @@ export default function ActivityLog() {
               car_number: car.car_number,
               client_name: (car.clients as any)?.full_name || "",
               client_file_number: (car.clients as any)?.file_number || "",
+            },
+          });
+        }
+      }
+
+      // Fetch delete events from notifications
+      const { data: deleteNotifs } = await supabase
+        .from("notifications")
+        .select("id, created_at, title, message, metadata")
+        .eq("type", "policy_deleted")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (deleteNotifs) {
+        for (const n of deleteNotifs) {
+          const meta = (n.metadata || {}) as any;
+          results.push({
+            id: `delete-${n.id}`,
+            type: "delete",
+            action: n.title || "حذف وثيقة",
+            created_at: n.created_at,
+            createdBy: meta.deleted_by || undefined,
+            details: {
+              client_name: meta.client_name || "",
+              policy_type: meta.policy_type || "",
+              company_name: meta.company_name || "",
+              insurance_price: meta.insurance_price || 0,
             },
           });
         }

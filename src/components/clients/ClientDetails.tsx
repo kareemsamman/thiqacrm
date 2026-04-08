@@ -751,23 +751,28 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
   // Super Admin: Handle policy deletion
   const handleDeletePolicy = async () => {
     if (!isAdmin || deletePolicyIds.length === 0) return;
-    
+
     setDeletingPolicy(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
-      
+
       if (!token) {
         toast.error('يرجى تسجيل الدخول مرة أخرى');
         return;
       }
+
+      // Capture policy details before deletion for activity log
+      const { data: policyDetails } = await supabase
+        .from('policies')
+        .select('id, policy_number, policy_type_parent, insurance_price, client_id, agent_id, branch_id, insurance_companies(name_ar)')
+        .in('id', deletePolicyIds);
 
       const response = await supabase.functions.invoke('delete-policy', {
         body: { policyIds: deletePolicyIds },
       });
 
       if (response.error) {
-        // Supabase returns a generic message for non-2xx; try to extract the real error from context
         let msg = response.error.message || 'فشل في حذف الوثيقة';
         try {
           const ctx: any = (response.error as any).context;
@@ -782,8 +787,33 @@ export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, ret
       }
 
       const result = response.data;
-      
+
       if (result.success) {
+        // Log delete activity as notifications for audit trail
+        if (policyDetails && policyDetails.length > 0) {
+          const userName = profile?.full_name || profile?.email || 'مستخدم';
+          for (const pol of policyDetails) {
+            const companyName = (pol.insurance_companies as any)?.name_ar || '';
+            await supabase.from('notifications').insert({
+              user_id: user?.id,
+              agent_id: pol.agent_id,
+              type: 'policy_deleted',
+              title: 'حذف وثيقة',
+              message: `تم حذف وثيقة ${pol.policy_number || pol.id.slice(0, 8)} (${companyName}) بواسطة ${userName}`,
+              entity_type: 'policy',
+              entity_id: pol.id,
+              metadata: {
+                policy_number: pol.policy_number,
+                policy_type: pol.policy_type_parent,
+                insurance_price: pol.insurance_price,
+                company_name: companyName,
+                deleted_by: userName,
+                client_name: client?.full_name,
+              },
+            }).then(() => {});
+          }
+        }
+
         toast.success(`تم حذف ${result.deletedCount} وثيقة نهائياً`);
         setDeletePolicyDialogOpen(false);
         setDeletePolicyIds([]);

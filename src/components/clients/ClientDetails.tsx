@@ -256,7 +256,7 @@ const carTypeLabels: Record<string, string> = {
 
 export function ClientDetails({ client, onBack, onRefresh, initialCarFilter, returnPath, returnTab }: ClientDetailsProps) {
   const { getBranchName } = useBranches();
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, profile, user } = useAuth();
   const { setRecentClient } = useRecentClient();
   const { count: accidentCount, hasActiveReports } = useClientAccidentInfo(client.id);
   const [cars, setCars] = useState<CarRecord[]>([]);

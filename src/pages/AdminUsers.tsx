@@ -153,14 +153,15 @@ export default function AdminUsers() {
         return;
       }
 
-      const { data: agentLinks, error: agentLinksError } = await supabase
-        .from('agent_users')
-        .select('user_id')
-        .eq('agent_id', agentId);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, status, created_at, updated_at, branch_id')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false });
 
-      if (agentLinksError) throw agentLinksError;
+      if (profilesError) throw profilesError;
 
-      const userIds = (agentLinks || []).map(link => link.user_id);
+      const userIds = (profiles || []).map((profile) => profile.id);
 
       if (userIds.length === 0) {
         setUsers([]);
@@ -169,15 +170,9 @@ export default function AdminUsers() {
       }
 
       const [
-        { data: profiles, error: profilesError },
         { data: roles, error: rolesError },
         { data: attempts, error: attemptsError },
       ] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*')
-          .in('id', userIds)
-          .order('created_at', { ascending: false }),
         supabase
           .from('user_roles')
           .select('user_id, role')
@@ -190,7 +185,6 @@ export default function AdminUsers() {
           .limit(50),
       ]);
 
-      if (profilesError) throw profilesError;
       if (rolesError) throw rolesError;
       if (attemptsError) throw attemptsError;
 

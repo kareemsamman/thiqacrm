@@ -37,6 +37,9 @@ interface AgentContextType {
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
+// Features that require explicit enablement by Thiqa admin (default: off)
+const ADMIN_ONLY_FEATURES = ['visa_payment'];
+
 const BASIC_BLOCKED_FEATURES = [
   'sms',
   'financial_reports',
@@ -194,6 +197,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     if (isThiqaSuperAdmin || isImpersonating) return true;
     if (!agent) return true;
     if (featureKey in agentFeatures) return agentFeatures[featureKey];
+    // Features that must be explicitly enabled by Thiqa admin
+    if (ADMIN_ONLY_FEATURES.includes(featureKey)) return false;
     if (agent.plan === 'pro') return true;
     if (BASIC_BLOCKED_FEATURES.includes(featureKey)) return false;
     return true;

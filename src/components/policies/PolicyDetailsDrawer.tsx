@@ -189,35 +189,35 @@ const policyChildLabels: Record<string, string> = {
   FULL: "شامل",
 };
 
-// Use teal/primary-based colors for header to match website theme
+// Use system primary colors for consistency with Thiqa theme
 const policyTypeConfig: Record<string, { icon: React.ElementType; gradient: string; bg: string; border: string; text: string }> = {
-  ELZAMI: { 
-    icon: Shield, 
-    gradient: "from-teal-500 to-teal-600",
-    bg: "bg-teal-50",
-    border: "border-teal-200",
-    text: "text-teal-700"
+  ELZAMI: {
+    icon: Shield,
+    gradient: "from-primary to-primary/80",
+    bg: "bg-primary/5",
+    border: "border-primary/20",
+    text: "text-primary"
   },
-  THIRD_FULL: { 
-    icon: Car, 
-    gradient: "from-cyan-600 to-teal-600",
-    bg: "bg-cyan-50",
-    border: "border-cyan-200",
-    text: "text-cyan-700"
+  THIRD_FULL: {
+    icon: Car,
+    gradient: "from-primary/90 to-primary",
+    bg: "bg-primary/5",
+    border: "border-primary/20",
+    text: "text-primary"
   },
-  ROAD_SERVICE: { 
-    icon: Truck, 
-    gradient: "from-teal-600 to-emerald-600",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700"
+  ROAD_SERVICE: {
+    icon: Truck,
+    gradient: "from-primary to-primary/70",
+    bg: "bg-primary/5",
+    border: "border-primary/20",
+    text: "text-primary"
   },
-  ACCIDENT_FEE_EXEMPTION: { 
-    icon: FileCheck, 
-    gradient: "from-emerald-500 to-teal-500",
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700"
+  ACCIDENT_FEE_EXEMPTION: {
+    icon: FileCheck,
+    gradient: "from-primary/80 to-primary",
+    bg: "bg-primary/5",
+    border: "border-primary/20",
+    text: "text-primary"
   },
 };
 
@@ -975,23 +975,23 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                       <div className={cn(
                         "rounded-xl p-4 border",
                         paymentStatus === 'paid' 
-                          ? "bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200" 
+                          ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20" 
                           : "bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200"
                       )}>
                         <div className="flex items-center gap-2 mb-3">
                           <div className={cn(
                             "w-8 h-8 rounded-lg flex items-center justify-center",
-                            paymentStatus === 'paid' ? "bg-emerald-200" : "bg-slate-200"
+                            paymentStatus === 'paid' ? "bg-primary/20" : "bg-slate-200"
                           )}>
-                            <CreditCard className={cn("h-4 w-4", paymentStatus === 'paid' ? "text-emerald-600" : "text-slate-600")} />
+                            <CreditCard className={cn("h-4 w-4", paymentStatus === 'paid' ? "text-primary" : "text-slate-600")} />
                           </div>
-                          <span className={cn("text-xs font-medium", paymentStatus === 'paid' ? "text-emerald-600" : "text-slate-600")}>
+                          <span className={cn("text-xs font-medium", paymentStatus === 'paid' ? "text-primary" : "text-slate-600")}>
                             المدفوع
                           </span>
                         </div>
                         <p className={cn(
                           "text-2xl font-bold ltr-nums",
-                          paymentStatus === 'paid' ? "text-emerald-700" : "text-slate-900"
+                          paymentStatus === 'paid' ? "text-primary" : "text-slate-900"
                         )}>
                           {formatCurrency(totalPaid)}
                         </p>
@@ -1002,22 +1002,22 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                         "rounded-xl p-4 border",
                         remaining > 0 ? "bg-gradient-to-br from-red-50 to-red-100 border-red-200" :
                         remaining < 0 ? "bg-gradient-to-br from-red-50 to-red-100 border-red-200" :
-                        "bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200"
+                        "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"
                       )}>
                         <div className="flex items-center gap-2 mb-3">
                           <div className={cn(
                             "w-8 h-8 rounded-lg flex items-center justify-center",
-                            remaining !== 0 ? "bg-red-200" : "bg-emerald-200"
+                            remaining !== 0 ? "bg-red-200" : "bg-primary/20"
                           )}>
-                            <Banknote className={cn("h-4 w-4", remaining !== 0 ? "text-red-600" : "text-emerald-600")} />
+                            <Banknote className={cn("h-4 w-4", remaining !== 0 ? "text-red-600" : "text-primary")} />
                           </div>
-                          <span className={cn("text-xs font-medium", remaining !== 0 ? "text-red-600" : "text-emerald-600")}>
+                          <span className={cn("text-xs font-medium", remaining !== 0 ? "text-red-600" : "text-primary")}>
                             المتبقي
                           </span>
                         </div>
                         <p className={cn(
                           "text-2xl font-bold ltr-nums",
-                          remaining !== 0 ? "text-red-700" : "text-emerald-700"
+                          remaining !== 0 ? "text-red-700" : "text-primary"
                         )}>
                           {formatCurrency(remaining)}
                         </p>
@@ -1225,7 +1225,7 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                               <p className={cn(
                                 "font-semibold text-sm",
                                 remainingDays < 0 ? "text-red-600" :
-                                remainingDays <= 30 ? "text-amber-600" : "text-emerald-600"
+                                remainingDays <= 30 ? "text-amber-600" : "text-primary"
                               )}>
                                 {remainingDays < 0 ? 'منتهية' : `${remainingDays} يوم`}
                               </p>
@@ -1398,8 +1398,8 @@ export function PolicyDetailsDrawer({ open, onOpenChange, policyId, onUpdated, o
                               <p className="font-bold text-lg text-orange-700 ltr-nums">{formatCurrency(policy.payed_for_company)}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-emerald-50">
-                              <p className="text-xs text-emerald-600 mb-1">الربح</p>
-                              <p className="font-bold text-lg text-emerald-700 ltr-nums">{formatCurrency(policy.profit)}</p>
+                              <p className="text-xs text-primary mb-1">الربح</p>
+                              <p className="font-bold text-lg text-primary ltr-nums">{formatCurrency(policy.profit)}</p>
                             </div>
                           </div>
                           <Button

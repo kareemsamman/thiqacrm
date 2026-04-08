@@ -716,6 +716,7 @@ export function PolicyYearTimeline({
                         onRenewPolicy={onRenewPolicy}
                         onRenewPackage={onRenewPackage}
                         isSuperAdmin={isSuperAdmin}
+                        isAdmin={isAdmin}
                         isEditingNotes={editingNotesId === mainPolicy?.id}
                         editedNotesValue={editedNotesValue}
                         savingNotes={savingNotes}
@@ -774,6 +775,7 @@ function PolicyPackageCard({
   onRenewPolicy,
   onRenewPackage,
   isSuperAdmin,
+  isAdmin,
   isEditingNotes,
   editedNotesValue,
   savingNotes,
@@ -798,6 +800,7 @@ function PolicyPackageCard({
   onRenewPolicy?: (id: string) => void;
   onRenewPackage?: (ids: string[]) => void;
   isSuperAdmin?: boolean;
+  isAdmin?: boolean;
   isEditingNotes?: boolean;
   editedNotesValue?: string;
   savingNotes?: boolean;

@@ -175,7 +175,24 @@ serve(async (req) => {
 
     // Get Bunny credentials
     const BUNNY_API_KEY = Deno.env.get('BUNNY_API_KEY');
-    const BUNNY_STORAGE_ZONE = Deno.env.get('BUNNY_STORAGE_ZONE');
+    const rawStorageZone = Deno.env.get('BUNNY_STORAGE_ZONE') || '';
+
+    // Normalize storage zone: strip protocol, domain, and slashes
+    let BUNNY_STORAGE_ZONE = rawStorageZone
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/+$/, '');
+    // If it looks like "storage.bunnycdn.com/zonename", extract just the zone
+    if (BUNNY_STORAGE_ZONE.startsWith('storage.bunnycdn.com')) {
+      const parts = BUNNY_STORAGE_ZONE.split('/').filter(Boolean);
+      BUNNY_STORAGE_ZONE = parts[1] || '';
+    }
+    // If still looks like a full domain, try to infer from CDN URL
+    if (!BUNNY_STORAGE_ZONE || BUNNY_STORAGE_ZONE === 'storage.bunnycdn.com') {
+      const cdnUrl = Deno.env.get('BUNNY_CDN_URL') || '';
+      BUNNY_STORAGE_ZONE = cdnUrl.replace(/^https?:\/\//i, '').split('.')[0] || '';
+    }
+
+    console.log(`[upload-media] Resolved storage zone: "${BUNNY_STORAGE_ZONE}"`);
 
     if (!BUNNY_API_KEY || !BUNNY_STORAGE_ZONE) {
       console.error('Missing Bunny configuration');

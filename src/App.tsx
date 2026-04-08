@@ -63,7 +63,7 @@ import FormTemplates from "./pages/FormTemplates";
 import FormTemplateEditor from "./pages/FormTemplateEditor";
 import ActivityLog from "./pages/ActivityLog";
 import BrandingSettings from "./pages/BrandingSettings";
-import XServiceSettings from "./pages/XServiceSettings";
+// XService removed — not available in Thiqa platform
 import { SiteHelmet } from "@/components/layout/SiteHelmet";
 import { AgentProvider } from "@/hooks/useAgentContext";
 import { ThiqaAdminRoute } from "@/components/auth/ThiqaAdminRoute";
@@ -388,11 +388,6 @@ const App = () => (
               <Route path="/admin/branding" element={
                 <AdminRoute>
                   <BrandingSettings />
-                </AdminRoute>
-              } />
-              <Route path="/admin/xservice" element={
-                <AdminRoute>
-                  <XServiceSettings />
                 </AdminRoute>
               } />
               <Route path="/subscription" element={

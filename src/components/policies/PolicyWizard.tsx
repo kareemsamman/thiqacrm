@@ -1475,57 +1475,6 @@ export function PolicyWizard({
         dialogClientId = policyData?.client_id || null;
       }
 
-      // === X-Service sync (fire-and-forget) ===
-      const xserviceTypes: string[] = ['ROAD_SERVICE', 'ACCIDENT_FEE_EXEMPTION'];
-      const mainType = policy.policy_type_parent as string;
-      const policyIdsToSync: string[] = [];
-      
-      if (packageMode && packageAddons) {
-        const tempTypeMap: Record<string, string> = {
-          'elzami': 'ELZAMI', 'third_full': 'THIRD_FULL',
-          'road_service': 'ROAD_SERVICE', 'accident_fee_exemption': 'ACCIDENT_FEE_EXEMPTION',
-        };
-
-        // Only in Visa path: temp policy was converted to first addon type
-        if (_tempConvertedToAddon && _pkgFirstAddonType) {
-          const firstAddonTypeParent = tempTypeMap[_pkgFirstAddonType];
-          if (firstAddonTypeParent && xserviceTypes.includes(firstAddonTypeParent)) {
-            policyIdsToSync.push(policyIdToUse);
-          }
-        }
-
-        // Check ALL addon policies
-        packageAddons.forEach((addon: any) => {
-          if (!addon.enabled) return;
-          // In Visa path, skip first addon (already handled via temp policy above)
-          if (_tempConvertedToAddon && addon.type === _pkgFirstAddonType) return;
-          const addonParent = tempTypeMap[addon.type];
-          if (addonParent && xserviceTypes.includes(addonParent) && addon._savedPolicyId) {
-            policyIdsToSync.push(addon._savedPolicyId);
-          }
-        });
-
-        // Check main policy from Step 3 (if it was created as a separate addon in Visa path)
-        if (xserviceTypes.includes(mainType) && _pkgMainAddonId) {
-          policyIdsToSync.push(_pkgMainAddonId);
-        }
-      } else {
-        // Non-package mode: just check the main policy
-        if (xserviceTypes.includes(mainType)) {
-          policyIdsToSync.push(policyIdToUse);
-        }
-      }
-      
-      if (policyIdsToSync.length > 0) {
-        // Fire-and-forget — don't block the user
-        policyIdsToSync.forEach(pid => {
-          supabase.functions.invoke('sync-to-xservice', { body: { policy_id: pid } })
-            .then(({ error }) => {
-              if (error) console.error('[PolicyWizard] X-Service sync error:', error);
-              else console.log('[PolicyWizard] X-Service sync sent for', pid);
-            });
-        });
-      }
 
       // Show success dialog instead of closing immediately
       setSuccessPolicyData({

@@ -23,6 +23,8 @@ interface Branch {
   is_active: boolean;
   created_at: string;
   user_count?: number;
+  client_count?: number;
+  policy_count?: number;
 }
 
 export default function BranchManagement() {
@@ -53,19 +55,29 @@ export default function BranchManagement() {
 
       if (error) throw error;
 
-      // Get user counts per branch
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("branch_id")
-        .eq("agent_id", agentId)
-        .not("branch_id", "is", null);
+      // Get counts per branch
+      const [profilesRes, clientsRes, policiesRes] = await Promise.all([
+        supabase.from("profiles").select("branch_id").eq("agent_id", agentId).not("branch_id", "is", null),
+        supabase.from("clients").select("branch_id").eq("agent_id", agentId).is("deleted_at", null).not("branch_id", "is", null),
+        supabase.from("policies").select("branch_id").eq("agent_id", agentId).is("deleted_at", null).not("branch_id", "is", null),
+      ]);
 
-      const countMap: Record<string, number> = {};
-      (profiles || []).forEach((p: any) => {
-        if (p.branch_id) countMap[p.branch_id] = (countMap[p.branch_id] || 0) + 1;
-      });
+      const count = (items: any[] | null, field: string) => {
+        const map: Record<string, number> = {};
+        (items || []).forEach((r: any) => { if (r[field]) map[r[field]] = (map[r[field]] || 0) + 1; });
+        return map;
+      };
 
-      setBranches((data || []).map(b => ({ ...b, user_count: countMap[b.id] || 0 })));
+      const userMap = count(profilesRes.data, "branch_id");
+      const clientMap = count(clientsRes.data, "branch_id");
+      const policyMap = count(policiesRes.data, "branch_id");
+
+      setBranches((data || []).map(b => ({
+        ...b,
+        user_count: userMap[b.id] || 0,
+        client_count: clientMap[b.id] || 0,
+        policy_count: policyMap[b.id] || 0,
+      })));
     } catch (e: any) {
       toast.error("فشل في تحميل الفروع");
     } finally {
@@ -172,7 +184,7 @@ export default function BranchManagement() {
 
   return (
     <MainLayout>
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl" dir="rtl">
+      <div className="p-4 md:p-6 space-y-6" dir="rtl">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -222,9 +234,10 @@ export default function BranchManagement() {
                           <Badge variant="secondary" className="text-xs">غير فعال</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <Users className="h-3 w-3" />
-                        <span>{branch.user_count || 0} مستخدم</span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{branch.user_count || 0} مستخدم</span>
+                        <span>{branch.client_count || 0} عميل</span>
+                        <span>{branch.policy_count || 0} وثيقة</span>
                       </div>
                     </div>
                   </div>

@@ -716,6 +716,7 @@ export function PolicyYearTimeline({
                         onRenewPolicy={onRenewPolicy}
                         onRenewPackage={onRenewPackage}
                         isSuperAdmin={isSuperAdmin}
+                        isAdmin={isAdmin}
                         isEditingNotes={editingNotesId === mainPolicy?.id}
                         editedNotesValue={editedNotesValue}
                         savingNotes={savingNotes}

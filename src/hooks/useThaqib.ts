@@ -25,11 +25,11 @@ export function useThaqib() {
     setLoadingSessions(true);
     try {
       const { data } = await supabase
-        .from("ai_chat_sessions")
+        .from("ai_chat_sessions" as any)
         .select("id, title, updated_at")
         .order("updated_at", { ascending: false })
         .limit(20);
-      setSessions(data || []);
+      setSessions((data as unknown as ChatSession[]) || []);
     } catch { /* silent */ }
     finally { setLoadingSessions(false); }
   }, []);
@@ -38,11 +38,11 @@ export function useThaqib() {
     setSessionId(id);
     try {
       const { data } = await supabase
-        .from("ai_chat_messages")
+        .from("ai_chat_messages" as any)
         .select("id, role, content, created_at")
         .eq("session_id", id)
         .order("created_at", { ascending: true });
-      setMessages((data || []) as ChatMessage[]);
+      setMessages((data as unknown as ChatMessage[]) || []);
     } catch { /* silent */ }
   }, []);
 

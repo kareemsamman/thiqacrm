@@ -63,7 +63,7 @@ export function ThaqibPanel({ open, onClose }: ThaqibPanelProps) {
                 <History className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" dir="rtl" className="w-56">
+            <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem onClick={startNewSession} className="gap-2">
                 <Plus className="h-3.5 w-3.5" />
                 محادثة جديدة

@@ -38,7 +38,7 @@ interface AgentContextType {
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 // Features that require explicit enablement by Thiqa admin (default: off)
-const ADMIN_ONLY_FEATURES = ['visa_payment'];
+const ADMIN_ONLY_FEATURES = ['visa_payment', 'ai_assistant'];
 
 const BASIC_BLOCKED_FEATURES = [
   'sms',

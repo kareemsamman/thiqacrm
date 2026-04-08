@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { X, Sparkles, Plus, History, Loader2 } from "lucide-react";
+import { X, Bot, Plus, History, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThaqib } from "@/hooks/useThaqib";
 import { ThaqibMessage } from "./ThaqibMessage";
@@ -48,7 +48,7 @@ export function ThaqibPanel({ open, onClose }: ThaqibPanelProps) {
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ background: '#122143' }}>
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
+            <Bot className="h-4 w-4 text-white" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">ثاقب</h3>
@@ -102,7 +102,7 @@ export function ThaqibPanel({ open, onClose }: ThaqibPanelProps) {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: '#122143' }}>
-              <Sparkles className="h-7 w-7 text-white" />
+              <Bot className="h-7 w-7 text-white" />
             </div>
             <h4 className="font-bold text-base mb-1">مرحباً! أنا ثاقب 👋</h4>
             <p className="text-sm text-muted-foreground mb-4">
@@ -134,7 +134,7 @@ export function ThaqibPanel({ open, onClose }: ThaqibPanelProps) {
         {loading && (
           <div className="flex gap-2 mb-3">
             <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-1" style={{ background: '#122143' }}>
-              <Sparkles className="h-3.5 w-3.5 text-white" />
+              <Bot className="h-3.5 w-3.5 text-white" />
             </div>
             <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex gap-1">

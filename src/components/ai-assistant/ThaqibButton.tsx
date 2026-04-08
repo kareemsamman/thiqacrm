@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ThaqibButtonProps {
@@ -19,7 +19,7 @@ export function ThaqibButton({ onClick, visible }: ThaqibButtonProps) {
       )}
       title="ثاقب — المساعد الذكي"
     >
-      <Sparkles className="h-5 w-5" />
+      <Bot className="h-5 w-5" />
     </button>
   );
 }

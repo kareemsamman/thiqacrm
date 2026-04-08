@@ -1,4 +1,4 @@
-import { Sparkles, User } from "lucide-react";
+import { Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ThaqibMessageProps {
@@ -15,7 +15,7 @@ export function ThaqibMessage({ role, content }: ThaqibMessageProps) {
         "h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-1",
         isUser ? "bg-primary/10 text-primary" : "bg-[#122143] text-white"
       )}>
-        {isUser ? <User className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+        {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
       </div>
       <div className={cn(
         "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",

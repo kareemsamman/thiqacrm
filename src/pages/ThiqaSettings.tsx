@@ -975,7 +975,7 @@ function AiAssistantSettingsTab() {
   );
 }
 
-
+export default function ThiqaSettings() {
   return (
     <MainLayout>
       <div className="p-6 space-y-6">

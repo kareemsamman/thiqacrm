@@ -33,11 +33,27 @@ Deno.serve(async (req) => {
     const { data: isSA } = await adminClient.rpc("is_super_admin", { _user_id: callerId });
     if (!isSA) throw new Error("Not a super admin");
 
-    const { user_id, new_password } = await req.json();
+    const { user_id, new_password, confirm_email } = await req.json();
 
-    if (!user_id || !new_password) {
-      throw new Error("Missing user_id or new_password");
+    if (!user_id) throw new Error("Missing user_id");
+
+    // Confirm email only
+    if (confirm_email) {
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, {
+        email_confirm: true,
+      });
+      if (error) throw error;
+
+      // Also update profiles table
+      await adminClient.from("profiles").update({ email_confirmed: true }).eq("id", user_id);
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    if (!new_password) throw new Error("Missing new_password");
 
     if (new_password.length < 6) {
       throw new Error("Password must be at least 6 characters");

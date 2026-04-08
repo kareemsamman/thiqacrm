@@ -489,7 +489,7 @@ function SidebarContent({ collapsed, onCollapse, onNavigate }: {
                 <span>الاشتراك</span>
               </DropdownMenuItem>
             )}
-            {isAdmin && (
+            {isAdmin && !isThiqaSuperAdmin && (
               <DropdownMenuItem
                 onClick={() => {
                   if (location.pathname === '/' || location.pathname === '') {

@@ -1,5 +1,5 @@
 export function normalizeBunnyCdnUrl(rawCdnUrl: string | null | undefined): string {
-  const fallback = "https://kareem.b-cdn.net";
+  const fallback = "https://thiqacrm.com";
   const input = (rawCdnUrl || "").trim();
   if (!input) return fallback;
 

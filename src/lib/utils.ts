@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const BUNNY_CDN_URL = 'https://kareem.b-cdn.net';
+const BUNNY_CDN_URL = 'https://thiqacrm.com';
 
 /**
  * Ensures a storage URL has the full CDN prefix.

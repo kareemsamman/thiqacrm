@@ -14,7 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { sanitizeChequeNumber, CHEQUE_NUMBER_MAX_LENGTH } from "@/lib/chequeUtils";
 import type { PaymentLine, PricingBreakdown, ValidationErrors } from "./types";
-import { PAYMENT_TYPES } from "./types";
+import { getPaymentTypes } from "./types";
+import { useAgentContext } from "@/hooks/useAgentContext";
 
 interface Step4Props {
   payments: PaymentLine[];
@@ -52,6 +53,8 @@ export function Step4Payments({
   const { toast } = useToast();
   const [showTranzilaModal, setShowTranzilaModal] = useState(false);
   const [showChequeScannerModal, setShowChequeScannerModal] = useState(false);
+  const { hasFeature } = useAgentContext();
+  const paymentTypes = getPaymentTypes(hasFeature('visa_payment'));
   const [selectedVisaPaymentIndex, setSelectedVisaPaymentIndex] = useState<number | null>(null);
   const [creatingPolicy, setCreatingPolicy] = useState(false);
   const [activePolicyIdForPayment, setActivePolicyIdForPayment] = useState<string | null>(null);
@@ -362,7 +365,7 @@ export function Step4Payments({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {PAYMENT_TYPES.map((type) => (
+                          {paymentTypes.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
                               {type.label}
                             </SelectItem>

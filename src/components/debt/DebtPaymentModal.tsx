@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,12 +90,12 @@ const policyChildLabels: Record<string, string> = {
   FULL: 'شامل',
 };
 
-const paymentTypes = [
+const paymentTypesBase = [
   { value: 'cash', label: 'نقدي', icon: Banknote },
   { value: 'cheque', label: 'شيك', icon: CreditCard },
-  { value: 'visa', label: 'فيزا', icon: CreditCard },
   { value: 'transfer', label: 'تحويل', icon: Wallet },
 ];
+const paymentTypeVisa = { value: 'visa', label: 'فيزا', icon: CreditCard };
 
 export function DebtPaymentModal({
   open,
@@ -106,6 +107,8 @@ export function DebtPaymentModal({
   onSuccess,
 }: DebtPaymentModalProps) {
   const { toast: uiToast } = useToast();
+  const { hasFeature } = useAgentContext();
+  const paymentTypes = useMemo(() => hasFeature('visa_payment') ? [...paymentTypesBase, paymentTypeVisa] : paymentTypesBase, [hasFeature]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [debtItems, setDebtItems] = useState<DebtItem[]>([]);

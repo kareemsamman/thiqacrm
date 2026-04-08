@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,12 +66,12 @@ const policyTypeLabels: Record<string, string> = {
   OTHER: 'أخرى',
 };
 
-const paymentTypes = [
+const paymentTypesBase = [
   { value: 'cash', label: 'نقدي', icon: Banknote },
   { value: 'cheque', label: 'شيك', icon: CreditCard },
-  { value: 'visa', label: 'فيزا', icon: CreditCard },
   { value: 'transfer', label: 'تحويل', icon: Wallet },
 ];
+const paymentTypeVisa = { value: 'visa', label: 'فيزا', icon: CreditCard };
 
 export function PackagePaymentModal({
   open,
@@ -80,6 +81,8 @@ export function PackagePaymentModal({
   onSuccess,
 }: PackagePaymentModalProps) {
   const { toast: uiToast } = useToast();
+  const { hasFeature } = useAgentContext();
+  const paymentTypes = useMemo(() => hasFeature('visa_payment') ? [...paymentTypesBase, paymentTypeVisa] : paymentTypesBase, [hasFeature]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [policies, setPolicies] = useState<PolicyPaymentInfo[]>([]);

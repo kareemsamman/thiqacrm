@@ -43,6 +43,7 @@ const ALL_FEATURES = [
   { key: 'road_services', label: 'خدمات الطريق', description: 'إدارة خدمات الطريق' },
   { key: 'accident_fees', label: 'رسوم الحوادث', description: 'إعفاء رسوم الحادث' },
   { key: 'correspondence', label: 'الترويسات', description: 'إدارة المراسلات' },
+  { key: 'visa_payment', label: 'دفع بالفيزا', description: 'السماح بالدفع عبر بطاقة ائتمان (فيزا)' },
   { key: 'ippbx', label: 'Click2Call / PBX', description: 'الاتصال عبر المقسم' },
 ];
 

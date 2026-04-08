@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useAgentContext } from "@/hooks/useAgentContext";
 import { FilePreviewGallery } from "./FilePreviewGallery";
 
 interface MediaFile {
@@ -93,12 +94,12 @@ const paymentTypeLabels: Record<string, string> = {
   "transfer": "تحويل",
 };
 
-const paymentTypes = [
+const paymentTypesBase = [
   { value: 'cash', label: 'نقدي', icon: Banknote },
   { value: 'cheque', label: 'شيك', icon: CreditCard },
   { value: 'transfer', label: 'تحويل', icon: Wallet },
-  { value: 'visa', label: 'بطاقة ائتمان', icon: CreditCard },
 ];
+const paymentTypeVisa = { value: 'visa', label: 'بطاقة ائتمان', icon: CreditCard };
 
 const chequeStatusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   pending: { label: "قيد الانتظار", variant: "secondary" },
@@ -118,6 +119,8 @@ export function PolicyPaymentsSection({
   packageTotalPrice
 }: PolicyPaymentsSectionProps) {
   const { toast } = useToast();
+  const { hasFeature } = useAgentContext();
+  const paymentTypes = useMemo(() => hasFeature('visa_payment') ? [...paymentTypesBase, paymentTypeVisa] : paymentTypesBase, [hasFeature]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

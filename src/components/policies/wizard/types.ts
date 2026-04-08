@@ -221,9 +221,17 @@ export const CAR_TYPES = [
   { value: "tjeraup4", label: "تجاري (أكثر من 4 طن)" },
 ];
 
-export const PAYMENT_TYPES = [
+export const PAYMENT_TYPES_BASE = [
   { value: "cash", label: "نقدي" },
   { value: "cheque", label: "شيك" },
-  { value: "visa", label: "فيزا" },
   { value: "transfer", label: "تحويل" },
 ];
+
+export const PAYMENT_TYPES = [
+  ...PAYMENT_TYPES_BASE,
+  { value: "visa", label: "فيزا" },
+];
+
+export function getPaymentTypes(visaEnabled: boolean) {
+  return visaEnabled ? PAYMENT_TYPES : PAYMENT_TYPES_BASE;
+}

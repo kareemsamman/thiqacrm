@@ -42,7 +42,7 @@ const ALL_FEATURES = [
   { key: 'marketing_sms', label: 'SMS تسويقية', description: 'حملات SMS تسويقية' },
   { key: 'road_services', label: 'خدمات الطريق', description: 'إدارة خدمات الطريق' },
   { key: 'accident_fees', label: 'رسوم الحوادث', description: 'إعفاء رسوم الحادث' },
-  { key: 'correspondence', label: 'التوريسات', description: 'إدارة المراسلات' },
+  { key: 'correspondence', label: 'الترويسات', description: 'إدارة المراسلات' },
   { key: 'ippbx', label: 'Click2Call / PBX', description: 'الاتصال عبر المقسم' },
 ];
 

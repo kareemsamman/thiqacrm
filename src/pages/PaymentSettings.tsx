@@ -273,7 +273,7 @@ export default function PaymentSettings() {
                 id="terminal_name"
                 value={formData.terminal_name}
                 onChange={(e) => setFormData(f => ({ ...f, terminal_name: e.target.value }))}
-                placeholder="مثال: basheer"
+                placeholder="اسم الطرفية"
                 className="ltr-input"
               />
               <p className="text-xs text-muted-foreground">

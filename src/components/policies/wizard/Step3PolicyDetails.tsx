@@ -818,7 +818,7 @@ export function Step3PolicyDetails({
             className="text-amber-600 font-medium"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            عمولة AB على معاملة الإلزامي (تدخل في حساب العميل)
+            عمولة الوكالة على معاملة الإلزامي (تدخل في حساب العميل)
           </p>
         </div>
       )}

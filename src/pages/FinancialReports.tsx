@@ -28,6 +28,7 @@ import { useProfitSummary } from "@/hooks/useProfitSummary";
 import { Link } from "react-router-dom";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAgentContext } from "@/hooks/useAgentContext";
 
 const CACHE_KEY = "ab_financial_reports_cache_2026";
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -255,6 +256,8 @@ const fetchFinancialData = async () => {
 };
 
 export default function FinancialReports() {
+  const { agent } = useAgentContext();
+  const agentName = agent?.name_ar || agent?.name || 'الوكالة';
   const { summary: profitSummary, loading: profitLoading, refetch: refetchProfit } = useProfitSummary();
   const queryClient = useQueryClient();
 
@@ -304,14 +307,14 @@ export default function FinancialReports() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Main AB Wallet Card - Full Width */}
+        {/* Main Agent Wallet Card - Full Width */}
         <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <CardContent className="py-6">
             {loading ? (
               <Skeleton className="h-24 w-full" />
             ) : (
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">المبلغ الإجمالي مع AB</p>
+                <p className="text-sm text-muted-foreground mb-2">المبلغ الإجمالي مع {agentName}</p>
                 <div className="text-4xl font-bold text-primary mb-2">
                   {formatCurrency(abWallet?.netCash || 0)}
                 </div>
@@ -339,7 +342,7 @@ export default function FinancialReports() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <TrendingUp className="h-4 w-4" />
-                    ربح AB الإجمالي
+                    ربح {agentName} الإجمالي
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

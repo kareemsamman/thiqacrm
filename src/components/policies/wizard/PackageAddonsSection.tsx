@@ -124,30 +124,16 @@ export function PackageAddonsSection({
     fetchAccidentFeePrice();
   }, [accidentFeeAddon.enabled, accidentFeeAddon.company_id, accidentFeeAddon.accident_fee_service_id]);
 
-  // Find default company (شركة اكس) on mount - must match exact name, not "X Service"
+  // Auto-select first company only if there's exactly one option
   useEffect(() => {
-    // Auto-select شركة اكس (Company X) as default - prioritize exact Arabic match
-    const defaultCompany = roadServiceCompanies.find(c => 
-      c.name === 'شركة اكس' || c.name_ar === 'شركة اكس'
-    ) || roadServiceCompanies.find(c =>
-      c.name.includes('اكس') || c.name_ar?.includes('اكس')
-    ) || (roadServiceCompanies.length > 0 ? roadServiceCompanies[0] : null);
-
-    if (defaultCompany && roadServiceAddon.enabled && !roadServiceAddon.company_id) {
-      updateAddon(0, { company_id: defaultCompany.id });
+    if (roadServiceAddon.enabled && !roadServiceAddon.company_id && roadServiceCompanies.length === 1) {
+      updateAddon(0, { company_id: roadServiceCompanies[0].id });
     }
   }, [roadServiceCompanies, roadServiceAddon.enabled]);
 
   useEffect(() => {
-    // Auto-select شركة اكس (Company X) as default for accident fee - prioritize exact Arabic match
-    const defaultCompany = accidentFeeCompanies.find(c => 
-      c.name === 'شركة اكس' || c.name_ar === 'شركة اكس'
-    ) || accidentFeeCompanies.find(c =>
-      c.name.includes('اكس') || c.name_ar?.includes('اكس')
-    ) || (accidentFeeCompanies.length > 0 ? accidentFeeCompanies[0] : null);
-
-    if (defaultCompany && accidentFeeAddon.enabled && !accidentFeeAddon.company_id) {
-      updateAddon(1, { company_id: defaultCompany.id });
+    if (accidentFeeAddon.enabled && !accidentFeeAddon.company_id && accidentFeeCompanies.length === 1) {
+      updateAddon(1, { company_id: accidentFeeCompanies[0].id });
     }
   }, [accidentFeeCompanies, accidentFeeAddon.enabled]);
 

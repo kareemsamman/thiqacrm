@@ -210,7 +210,7 @@ export default function CorrespondenceLetters() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Mail className="h-6 w-6" />
-            التوريسات
+            الترويسات
           </h1>
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 ml-2" />

@@ -366,7 +366,7 @@ export default function XServiceSettings() {
         <Card>
           <CardHeader>
             <CardTitle>إعدادات الاتصال</CardTitle>
-            <CardDescription>ربط AB مع نظام X-Service لمزامنة الوثائق تلقائياً</CardDescription>
+            <CardDescription>ربط الوكالة مع نظام X-Service لمزامنة الوثائق تلقائياً</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

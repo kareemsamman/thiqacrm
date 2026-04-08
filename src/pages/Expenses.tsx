@@ -90,7 +90,7 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   visa: { label: 'فيزا', icon: CreditCard },
 };
 
-const EXPENSES_ALLOWED_EMAIL = 'raghda@basheer-ab.com';
+// Access is controlled by admin role — no hardcoded email restriction
 
 export default function Expenses() {
   const { profile, isAdmin, user } = useAuth();
@@ -543,7 +543,7 @@ export default function Expenses() {
 
   const showExportButton = voucherFilter === 'receipt' || voucherFilter === 'payment' || voucherFilter === 'all';
   // Access control: only admin or specific email
-  const canAccess = isAdmin || user?.email === EXPENSES_ALLOWED_EMAIL;
+  const canAccess = isAdmin;
   if (!canAccess) return <Navigate to="/" replace />;
 
   return (

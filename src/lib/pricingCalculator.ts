@@ -51,7 +51,7 @@ export async function calculatePolicyProfit(params: CalculateProfitParams): Prom
   }
 
   // ELZAMI: لا يوجد ربح، الشركة تأخذ كامل المبلغ + قد تأخذ عمولة منا
-  // العمولة هي تكلفة سالبة على AB وليست ربحاً
+  // العمولة هي تكلفة سالبة على الوكالة وليست ربحاً
   if (policyTypeParent === 'ELZAMI') {
     // Fetch the ELZAMI commission (cost) from the company
     const { data: company } = await supabase
@@ -60,7 +60,7 @@ export async function calculatePolicyProfit(params: CalculateProfitParams): Prom
       .eq('id', companyId)
       .single();
     
-    // العمولة هي تكلفة تُخصم من AB (تُسجل كقيمة سالبة في التقارير)
+    // العمولة هي تكلفة تُخصم من الوكالة (تُسجل كقيمة سالبة في التقارير)
     const elzamiCost = company?.elzami_commission || 0;
     return { 
       companyPayment: insurancePrice, 

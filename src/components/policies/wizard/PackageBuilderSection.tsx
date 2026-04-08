@@ -355,25 +355,16 @@ export function PackageBuilderSection({
     fetchAccidentFeePrice();
   }, [accidentFeeAddon.enabled, accidentFeeAddon.company_id, accidentFeeAddon.accident_fee_service_id]);
 
-  // Auto-select Company X as default for road service
+  // Auto-select company only if there's exactly one option
   useEffect(() => {
-    const defaultCompany = roadServiceCompanies.find(c => c.id === COMPANY_X_ID) 
-      || roadServiceCompanies.find(c => c.name === 'شركة اكس' || c.name_ar === 'شركة اكس')
-      || (roadServiceCompanies.length > 0 ? roadServiceCompanies[0] : null);
-
-    if (defaultCompany && roadServiceAddon.enabled && !roadServiceAddon.company_id) {
-      updateAddon('road_service', { company_id: defaultCompany.id });
+    if (roadServiceAddon.enabled && !roadServiceAddon.company_id && roadServiceCompanies.length === 1) {
+      updateAddon('road_service', { company_id: roadServiceCompanies[0].id });
     }
   }, [roadServiceCompanies, roadServiceAddon.enabled]);
 
-  // Auto-select Company X as default for accident fee
   useEffect(() => {
-    const defaultCompany = accidentFeeCompanies.find(c => c.id === COMPANY_X_ID)
-      || accidentFeeCompanies.find(c => c.name === 'شركة اكس' || c.name_ar === 'شركة اكس')
-      || (accidentFeeCompanies.length > 0 ? accidentFeeCompanies[0] : null);
-
-    if (defaultCompany && accidentFeeAddon.enabled && !accidentFeeAddon.company_id) {
-      updateAddon('accident_fee_exemption', { company_id: defaultCompany.id });
+    if (accidentFeeAddon.enabled && !accidentFeeAddon.company_id && accidentFeeCompanies.length === 1) {
+      updateAddon('accident_fee_exemption', { company_id: accidentFeeCompanies[0].id });
     }
   }, [accidentFeeCompanies, accidentFeeAddon.enabled]);
 

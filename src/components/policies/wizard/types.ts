@@ -148,7 +148,7 @@ export interface PolicyForm {
   insurance_price: string;
   broker_buy_price: string; // Price we buy from broker (when company has broker_id)
   full_car_value: string; // Car value for FULL insurance pricing (entered in Step 3)
-  office_commission: string; // عمولة للمكتب - commission AB charges for ELZAMI handling
+  office_commission: string; // عمولة للمكتب - commission the agency charges for ELZAMI handling
   cancelled: boolean;
   transferred: boolean;
   notes: string;

@@ -42,7 +42,7 @@ export function useThaqib() {
         .select("id, role, content, created_at")
         .eq("session_id", id)
         .order("created_at", { ascending: true });
-      setMessages((data as ChatMessage[]) || []);
+      setMessages((data as unknown as ChatMessage[]) || []);
     } catch { /* silent */ }
   }, []);
 

@@ -14,7 +14,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive, CreditCard, Plus, Trash2, GripVertical, Pencil } from "lucide-react";
+import { Settings, Mail, Save, Loader2, Eye, EyeOff, Shield, Send, CheckCircle2, XCircle, HardDrive, CreditCard, Plus, Trash2, GripVertical, Pencil, Bot } from "lucide-react";
 
 function useThiqaPlatformSettings() {
   return useQuery({
@@ -895,6 +895,86 @@ function PlansSettingsTab() {
   );
 }
 
+function AiAssistantSettingsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useThiqaPlatformSettings();
+  const [prompt, setPrompt] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings?.ai_assistant_prompt) {
+      setPrompt(settings.ai_assistant_prompt);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from("thiqa_platform_settings")
+        .select("id")
+        .eq("setting_key", "ai_assistant_prompt")
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("thiqa_platform_settings")
+          .update({ setting_value: prompt || null })
+          .eq("setting_key", "ai_assistant_prompt");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("thiqa_platform_settings")
+          .insert({ setting_key: "ai_assistant_prompt", setting_value: prompt || null });
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["thiqa-platform-settings"] });
+      toast({ title: "تم الحفظ", description: "تم حفظ تعليمات المساعد الذكي بنجاح" });
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message || "فشل في الحفظ", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bot className="h-5 w-5" />
+          تعليمات المساعد الذكي (ثاقب)
+        </CardTitle>
+        <CardDescription>
+          أضف تعليمات وقواعد عامة للمساعد الذكي. هذه التعليمات تُطبق على جميع الوكلاء وتُضاف إلى التعليمات الافتراضية.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground" dir="rtl">
+          <strong>التعليمات الافتراضية المدمجة:</strong> ثاقب يجيب بالعربية، يعتمد على البيانات فقط، لا يخترع معلومات، ويفرّق بين صلاحيات المدير والعامل تلقائيًا.
+        </div>
+        <div>
+          <Label>تعليمات إضافية</Label>
+          <Textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            placeholder="مثال: عند سؤال العميل عن وثيقة، اعرض تاريخ الانتهاء دائمًا. لا تعرض أرقام الهواتف. كن مختصرًا جدًا..."
+            className="min-h-[200px] mt-2 text-right"
+            dir="rtl"
+          />
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 ml-1 animate-spin" /> : <Save className="h-4 w-4 ml-1" />}
+          حفظ التعليمات
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ThiqaSettings() {
   return (
     <MainLayout>
@@ -927,6 +1007,10 @@ export default function ThiqaSettings() {
               <CreditCard className="h-4 w-4" />
               الخطط والأسعار
             </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Bot className="h-4 w-4" />
+              المساعد الذكي
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
@@ -943,6 +1027,10 @@ export default function ThiqaSettings() {
 
           <TabsContent value="plans">
             <PlansSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="ai">
+            <AiAssistantSettingsTab />
           </TabsContent>
         </Tabs>
       </div>

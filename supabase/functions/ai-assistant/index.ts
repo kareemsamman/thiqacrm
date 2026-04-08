@@ -139,6 +139,14 @@ async function fetchContextData(
   for (const table of intent.tables) {
     try {
       if (table === "clients") {
+        // Get total count first
+        let countQuery = supabase.from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("agent_id", agentId)
+          .is("deleted_at", null);
+        if (branchId && !isAdmin) countQuery = countQuery.eq("branch_id", branchId);
+        const { count: totalClients } = await countQuery;
+
         let query = supabase.from("clients")
           .select("full_name, id_number, phone_number, file_number, date_joined")
           .eq("agent_id", agentId)
@@ -147,7 +155,6 @@ async function fetchContextData(
           .limit(limit);
 
         if (branchId && !isAdmin) query = query.eq("branch_id", branchId);
-        // Only apply text search if we have a meaningful search term (e.g. a name, not generic words)
         if (searchText.length > 2 && !intent.isAggregate && intent.searchTerms.length === 0) {
           query = query.or(`full_name.ilike.%${searchText}%,id_number.ilike.%${searchText}%,phone_number.ilike.%${searchText}%,file_number.ilike.%${searchText}%`);
         } else if (intent.searchTerms.length > 0) {
@@ -156,10 +163,13 @@ async function fetchContextData(
         }
 
         const { data, error } = await query;
-        console.log(`[ai-assistant] Clients query: found ${data?.length || 0}, error: ${error?.message || 'none'}`);
+        console.log(`[ai-assistant] Clients query: found ${data?.length || 0}, total: ${totalClients}, error: ${error?.message || 'none'}`);
 
         if (data && data.length > 0) {
-          parts.push(`[عملاء - ${data.length} نتيجة]\n` +
+          const header = (totalClients || 0) > limit
+            ? `[عملاء - عرض ${data.length} من أصل ${totalClients} | لرؤية الجميع → صفحة العملاء]`
+            : `[عملاء - ${data.length} نتيجة]`;
+          parts.push(header + '\n' +
             data.map((c: any, i: number) => `${i + 1}. ${c.full_name} | هوية: ${c.id_number || '-'} | هاتف: ${c.phone_number || '-'} | ملف: ${c.file_number || '-'}`).join('\n'));
         } else if (intent.tables.length === 1) {
           parts.push("[لا يوجد عملاء مسجلين حالياً]");

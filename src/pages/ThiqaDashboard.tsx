@@ -38,6 +38,7 @@ export default function ThiqaDashboard() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (authLoading || !user) return;

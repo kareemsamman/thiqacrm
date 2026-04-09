@@ -545,7 +545,7 @@ export default function Receipts() {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from("receipts").insert({
+      const { error } = await (supabase as any).from("receipts").insert({
         agent_id: agentId,
         client_name: formData.client_name.trim(),
         car_number: formData.car_number.trim() || null,

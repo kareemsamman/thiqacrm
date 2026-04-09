@@ -413,7 +413,7 @@ export default function Receipts() {
     if (!agentId) return;
     setLoading(true);
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from("receipts")
         .select("*")
         .eq("agent_id", agentId)

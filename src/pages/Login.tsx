@@ -67,30 +67,44 @@ export default function Login() {
         sessionStorage.setItem('admin_session_active', 'true');
       }
 
+      // Super admin bypasses all checks
+      if (isThiqaSuperAdminEmail(user.email)) {
+        navigate('/thiqa', { replace: true });
+        return;
+      }
+
       const checkEmailConfirmed = async () => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email_confirmed')
-          .eq('id', user.id)
-          .maybeSingle();
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email_confirmed')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        let emailConfirmed = profile?.email_confirmed === true;
+          let emailConfirmed = profile?.email_confirmed === true;
 
-        if (!emailConfirmed && !isThiqaSuperAdminEmail(user.email)) {
-          const bypassed = await tryBypassEmailVerification(user.email || '');
-          if (!bypassed) {
-            navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
-            return;
+          if (!emailConfirmed) {
+            const bypassed = await tryBypassEmailVerification(user.email || '');
+            if (!bypassed) {
+              navigate(`/verify-email?email=${encodeURIComponent(user.email || '')}`, { replace: true });
+              return;
+            }
+            emailConfirmed = true;
           }
-          emailConfirmed = true;
-        }
 
-        if (emailConfirmed || isThiqaSuperAdminEmail(user.email)) {
-          navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
-        } else if (isActive) {
-          navigate(isSuperAdmin ? '/thiqa' : '/', { replace: true });
-        } else {
-          navigate('/no-access', { replace: true });
+          if (emailConfirmed || isActive) {
+            navigate('/', { replace: true });
+          } else {
+            navigate('/no-access', { replace: true });
+          }
+        } catch (err) {
+          console.error('[Login] checkEmailConfirmed error:', err);
+          // Fallback: navigate based on active status
+          if (isActive) {
+            navigate('/', { replace: true });
+          } else {
+            navigate('/no-access', { replace: true });
+          }
         }
       };
 

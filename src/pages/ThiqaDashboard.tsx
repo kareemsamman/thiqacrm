@@ -37,11 +37,12 @@ export default function ThiqaDashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading || !user) return;
     Promise.all([fetchAgents(), fetchRecentPayments()]).finally(() => setLoading(false));
-  }, []);
+  }, [authLoading, user]);
 
   const fetchAgents = async () => {
     const { data } = await supabase.from("agents").select("*").order("created_at", { ascending: false });
